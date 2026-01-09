@@ -1,276 +1,208 @@
 const express = require('express');
-const { OpenAI } = require('openai');
-const pptxgen = require('pptxgenjs');
-const authMiddleware = require('../middlewares/auth.js')
-const validateOpenAIApiKey = require('../middlewares/validateOpenAIApiKey.js');
-const PresentationOutline = require('../model/PresentationOutline.js');
-const s3 = require('../utils/s3');
 const router = express.Router();
+const { OpenAI } = require('openai');
+const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
+const mongoose = require('mongoose');
 
-// OpenAI init
+// Middleware & Models
+const authMiddleware = require('../middlewares/auth');
+const validateOpenAIApiKey = require('../middlewares/validateOpenAIApiKey');
+const Presentation = require('../model/Presentation');
+const s3 = require('../utils/s3');
+
+// Config
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// --- HELPER: Upload to S3 (Stream Optimized) ---
+const uploadToS3 = async (url, userId) => {
+  try {
+    const response = await axios({
+      method: 'get',
+      url: url,
+      responseType: 'stream'
+    });
 
-/**
- * Generate presentation data using OpenAI
- * @param {Object} params - Presentation generation parameters
- * @param {string} params.topic - The presentation topic
- * @param {string} params.tone - The tone of the presentation
- * @param {string} params.length - Number of slides
- * @param {string} params.mediaStyle - Style of media to include
- * @param {boolean} params.useBrandStyle - Whether to use brand styling
- * @param {string} params.outlineText - Optional outline text
- * @returns {Promise<Object>} Generated presentation data
- */
-router.post('/get-presentation-data', validateOpenAIApiKey, authMiddleware, async (req, res) => {
+    // Construct the specific folder path requested
+    const fileName = `${userId}/presentationImages/${uuidv4()}.png`;
+
+    const params = {
+      Bucket: process.env.AWS_S3_BUCKET,
+      Key: fileName,
+      Body: response.data,
+      ContentType: 'image/png',
+      // ACL: 'public-read' // Uncomment if your bucket requires it
+    };
+
+    const data = await s3.upload(params).promise();
+    return data.Location;
+  } catch (err) {
+    console.error('S3 Upload Error:', err.message);
+    return null;
+  }
+};
+
+
+// --- ROUTE 1: Get Presentation Outline (Draft) ---
+router.post('/get-presentation-outline', validateOpenAIApiKey, authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'User ID not found in token' });
-    }
-
     const { topic, tone, length, mediaStyle, outlineText } = req.body;
 
-    if (!topic) {
-      return res.status(400).json({ error: 'Topic is required' });
-    }
+    if (!topic) return res.status(400).json({ error: 'Topic is required' });
 
-    const validLength = parseInt(length) || 10;
-    if (validLength < 1 || validLength > 20) {
-      return res.status(400).json({ error: 'Length must be between 1 and 20' });
-    }
-
-    const validTones = ['professional', 'friendly', 'minimal', 'corporate', 'creative'];
-    const normalizedTone = tone ? tone.toLowerCase() : 'professional';
-    if (!validTones.includes(normalizedTone)) {
-      return res.status(400).json({ error: `Invalid tone. Allowed: ${validTones.join(', ')}` });
-    }
-
-    const validMediaStyles = ['AI Graphics', 'Stock Images', 'None'];
-    const validatedMediaStyle = validMediaStyles.includes(mediaStyle) ? mediaStyle : 'AI Graphics';
+    const slideCount = parseInt(length) || 10;
+    const validTone = tone || 'professional';
 
     const openaiPrompt = `
-      You are an expert presentation planner.
-
-      Create a presentation OUTLINE based on the following inputs:
+      Create a presentation OUTLINE.
       Topic: ${topic}
-      Tone: ${normalizedTone}
-      Number of slides: ${validLength}
-      Outline Text: ${outlineText || 'No specific outline provided, create a logical flow.'}
-      MediaStyle: ${validatedMediaStyle}
+      Tone: ${validTone}
+      Slides: ${slideCount}
+      Extra Context: ${outlineText || 'None'}
 
       Rules:
-      - This is an outline preview.
-      - Decide slide content type intelligently (bullets, paragraph, comparison).
-      - Avoid slides that look too empty or too text-heavy.
-      - Keep content concise but meaningful.
-      - **CRITICAL: Since MediaStyle is '${validatedMediaStyle}', you MUST include a detailed 'imagePrompt' field for every slide describing the visual.**
+      - Return valid JSON matching the format below.
+      - If MediaStyle is 'AI Graphics', generate a detailed 'imagePrompt' for DALL-E.
       - If MediaStyle is 'None', leave 'imagePrompt' empty.
 
-      Return ONLY valid JSON in the exact format specified below.
-      Do not add explanations or markdown.
-
+      Format:
       {
-        "meta": {
-          "topic": "Presentation Topic",
-          "tone": "Tone used",
-          "slideCount": "Number of slides",
-          "stage": "outline"
-        },
+        "meta": { "topic": "${topic}", "tone": "${validTone}", "slideCount": ${slideCount}, "stage": "draft" },
         "slides": [
           {
             "slideNo": 1,
-            "title": "Slide Title",
+            "title": "Title",
             "layout": "title",
             "contentType": "paragraph",
-            "content": "Slide Content",
-            "imagePrompt": "A futuristic digital illustration representing [Topic], high resolution, abstract style"
-          },
-          {
-            "slideNo": 2,
-            "title": "Slide Title",
-            "layout": "content",
-            "contentType": "bullets",
-            "content": [
-              "Bullet Point 1",
-              "Bullet Point 2"
-            ],
-            "imagePrompt": "A clean vector icon comparing two items, flat design, minimal background"
-          },
-          {
-            "slideNo": 3,
-            "title": "Slide Title",
-            "layout": "content",
-            "contentType": "comparison",
-            "content": {
-              "left": [ "Point A1", "Point A2" ],
-              "right": [ "Point B1", "Point B2" ]
-            },
-            "imagePrompt": "Split screen concept art showing contrast between old and new technology"
+            "content": "Text here",
+            "imagePrompt": "Visual description"
           }
         ]
       }
     `;
 
-    // 5. CALL OPENAI
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are an expert presentation creator. Output ONLY valid JSON.' },
+        { role: 'system', content: 'You are a presentation architect. Output JSON only.' },
         { role: 'user', content: openaiPrompt }
       ],
-      temperature: 0.7,
-      max_tokens: 3000,
       response_format: { type: "json_object" }
     });
 
-    let presentationData;
+    const presentationData = JSON.parse(completion.choices[0].message.content);
 
-    try {
-      let responseText = completion.choices[0]?.message?.content?.trim();
-
-      if (responseText.startsWith('```json')) {
-        responseText = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
-      } else if (responseText.startsWith('```')) {
-        responseText = responseText.replace(/^```/, '').replace(/```$/, '').trim();
-      }
-
-      presentationData = JSON.parse(responseText);
-
-      const newPresentation = new PresentationOutline({
-        userId: userId,
-        meta: {
-          topic: presentationData.meta.topic || topic,
-          tone: presentationData.meta.tone || normalizedTone,
-          slideCount: presentationData.meta.slideCount || validLength,
-          stage: 'outline'
-        },
-        slides: presentationData.slides
-      });
-
-      const savedPresentation = await newPresentation.save();
-      console.log('Saved Presentation ID:', savedPresentation._id);
-
-      const responseData = savedPresentation.toObject();
-
-      if (responseData.slides && Array.isArray(responseData.slides)) {
-        responseData.slides = responseData.slides.map(slide => {
-          const { imagePrompt, _id, ...cleanSlide } = slide;
-          return cleanSlide;
-        });
-      }
-
-      return res.status(201).json({
-        success: true,
-        message: 'Presentation generated and saved successfully',
-        presentationId: savedPresentation._id,
-        data: responseData // This object now has no imagePrompt or _id in slides
-      });
-
-    } catch (parseError) {
-      console.error('Error parsing/saving data:', parseError);
-      return res.status(500).json({
-        error: 'Failed to generate valid presentation structure.',
-        details: parseError.message
-      });
-    }
+    res.status(200).json({
+      success: true,
+      data: presentationData
+    });
 
   } catch (error) {
-    console.error('API Error:', error);
-    let status = 500;
-    let message = 'Internal Server Error';
-
-    if (error.response) {
-      status = error.response.status;
-      message = error.response.data?.error?.message || 'OpenAI API Error';
-    } else {
-      message = error.message;
-    }
-
-    return res.status(status).json({ error: message });
+    console.error('Outline Error:', error);
+    res.status(500).json({ error: 'Failed to generate outline', details: error.message });
   }
 });
 
-/**
- * Rewrite slide content using AI
- */
-router.post('/rewrite-slide', validateOpenAIApiKey, async (req, res) => {
+
+// --- ROUTE 2: Finalize Presentation (Generate Images + Save) ---
+router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, res) => {
+  const userId = req.user.id; // Strictly from Token
+  const { meta, slides } = req.body;
+
+  if (!slides || !Array.isArray(slides)) {
+    return res.status(400).json({ error: "Invalid slides data" });
+  }
+
   try {
-    const { content, instruction } = req.body;
-    if (!content || !instruction) return res.status(400).json({ error: "Missing fields" });
+    console.log(`Finalizing Presentation for User: ${userId}`);
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert content editor. Improve the content as requested while maintaining the core meaning.'
-        },
-        {
-          role: 'user',
-          content: `Content: ${content}
+    // 1. Expand Content via GPT-4
+    const systemPrompt = `
+      You are an expert designer. Expand this outline into a final presentation.
+      Topic: ${meta.topic}
+      Tone: ${meta.tone}
 
-Instruction: ${instruction}
+      Requirements:
+      1. Expand 'content' into professional text.
+      2. Ensure every slide has a detailed 'imagePrompt' (no text/letters in prompt).
+      3. Output strictly valid JSON.
 
-Return only the improved content in the same format.`
+      Input Slides: ${JSON.stringify(slides)}
+    `;
+
+    const gptResponse = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [{ role: "system", content: systemPrompt }],
+      response_format: { type: "json_object" }
+    });
+
+    const parsedData = JSON.parse(gptResponse.choices[0].message.content);
+    const expandedSlides = parsedData.slides || [];
+
+    // 2. Parallel Image Generation (All at once)
+    const finalSlides = await Promise.all(expandedSlides.map(async (slide) => {
+      let s3Url = "";
+      const prompt = slide.imagePrompt;
+
+      // Only generate if prompt exists and is long enough
+      if (prompt && prompt.length > 5) {
+        try {
+          // A. DALL-E 3 Generation
+          const imageResponse = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: `Presentation style, minimal, no text, ${meta.tone}: ${prompt}`,
+            n: 1,
+            size: "1024x1024",
+            quality: "standard"
+          });
+
+          // B. Stream Upload to S3 (Using strict folder structure)
+          const tempUrl = imageResponse.data[0].url;
+          s3Url = await uploadToS3(tempUrl, userId);
+
+        } catch (imgErr) {
+          console.error(`Image Gen Failed (Slide ${slide.slideNo}):`, imgErr.message);
         }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
+      }
+
+      // Return final structure
+      return {
+        slideNo: slide.slideNo,
+        title: slide.title,
+        layout: slide.layout || 'content',
+        contentType: slide.contentType,
+        content: slide.content,
+        image: {
+          prompt: prompt || "",
+          url: s3Url || ""
+        }
+      };
+    }));
+
+    // 3. Create & Save New Presentation Document
+    // Since ID is not coming from frontend, we always create new
+    const newPresentation = new Presentation({
+      userId: userId,
+      meta: { ...meta, stage: 'final' },
+      slides: finalSlides
     });
 
-    const rewrittenContent = completion.choices[0]?.message?.content?.trim();
+    await newPresentation.save();
 
-    res.json({ rewrittenContent });
-  } catch (e) {
-    console.error('Rewrite error:', e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-/**
- * Generate single slide image
- */
-router.post('/generate-slide-image', validateOpenAIApiKey, async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ error: "Prompt required" });
-
-    const response = await openai.images.generate({
-      model: 'dall-e-3',
-      prompt: prompt,
-      n: 1,
-      size: '1024x1024',
-      response_format: 'b64_json'
+    res.status(200).json({
+      success: true,
+      message: "Presentation finalized",
+      presentationId: newPresentation._id,
+      data: newPresentation
     });
 
-    const imageBase64 = response.data[0].b64_json;
-
-    // Convert base64 to buffer
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 9);
-    const filename = `presentation-image-${timestamp}-${randomId}.png`;
-
-    // Upload to S3 temp folder
-    const s3Key = `temp/presentation-images/${filename}`;
-    const params = {
-      Bucket: process.env.AWS_S3_BUCKET,
-      Key: s3Key,
-      Body: imageBuffer,
-      ContentType: 'image/png',
-    };
-
-    const uploadResult = await s3.upload(params).promise();
-
-    // Return the S3 URL
-    res.json({ imageUrl: uploadResult.Location });
-  } catch(e) {
-    console.error('Image generation error:', e);
-    res.status(500).json({ error: e.message });
+  } catch (error) {
+    console.error("Finalization Critical Error:", error);
+    res.status(500).json({
+      error: "Failed to generate presentation",
+      details: error.message
+    });
   }
 });
 
