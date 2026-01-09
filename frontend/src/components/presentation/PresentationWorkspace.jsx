@@ -46,6 +46,7 @@ import { createImageLayer } from './utils/imageUtils';
 import { getAutoSizedTextFrame } from './utils/textLayout';
 import { getKonvaFontStyle } from './utils/fontUtils';
 import { enhancePresentationText } from './ai/api';
+import { convertBackendFormatToSlides } from './utils/convertBackendFormat';
 
 const useLayerEffects = (nodeRef, effects, scaleFactor = 1, dependencies = []) => {
   useEffect(() => {
@@ -589,14 +590,24 @@ const PresentationWorkspace = ({ layout, onBack, initialData }) => {
   // Initialize slides from initialData if provided, otherwise use default
   const initializeSlides = () => {
     if (initialData && initialData.slides && Array.isArray(initialData.slides)) {
-      // Convert final PPT JSON format to PresentationWorkspace format
-      return initialData.slides.map((slide, index) => ({
-        id: slide.id || `slide-${index + 1}`,
-        name: slide.name || slide.title || `Slide ${index + 1}`,
-        background: slide.background || slide.backgroundColor || '#ffffff',
-        layers: slide.layers || [],
-        animationDuration: slide.animationDuration || DEFAULT_SLIDE_DURATION,
-      }));
+      // Check if this is the backend format (has slideNo, contentType, layout)
+      const isBackendFormat = initialData.slides.some(
+        slide => slide.slideNo !== undefined || slide.contentType !== undefined || slide.layout !== undefined
+      );
+
+      if (isBackendFormat) {
+        // Convert backend format to PresentationWorkspace format
+        return convertBackendFormatToSlides(initialData, layout);
+      } else {
+        // Already in PresentationWorkspace format
+        return initialData.slides.map((slide, index) => ({
+          id: slide.id || `slide-${index + 1}`,
+          name: slide.name || slide.title || `Slide ${index + 1}`,
+          background: slide.background || slide.backgroundColor || '#ffffff',
+          layers: slide.layers || [],
+          animationDuration: slide.animationDuration || DEFAULT_SLIDE_DURATION,
+        }));
+      }
     }
     return [
       {
