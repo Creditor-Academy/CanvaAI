@@ -15,7 +15,7 @@ const s3 = require('../utils/s3');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // --- HELPER: Upload to S3 (Stream Optimized) ---
-const uploadToS3 = async (url, userId) => {
+const uploadToS3 = async (url, userId, presentationId, slideId) => {
   try {
     const response = await axios({
       method: 'get',
@@ -23,8 +23,8 @@ const uploadToS3 = async (url, userId) => {
       responseType: 'stream'
     });
 
-    // Construct the specific folder path requested
-    const fileName = `${userId}/presentationImages/${uuidv4()}.png`;
+    const folder = "presentationImages";
+    const fileName = `${userId}/${folder}/${presentationId}/${slideId}.png`;
 
     const params = {
       Bucket: process.env.AWS_S3_BUCKET,
@@ -65,6 +65,8 @@ router.post('/get-presentation-outline', validateOpenAIApiKey, authMiddleware, a
       - Return valid JSON matching the format below.
       - If MediaStyle is 'AI Graphics', generate a detailed 'imagePrompt' for DALL-E.
       - If MediaStyle is 'None', leave 'imagePrompt' empty.
+      - imagePrompt should always be there and should be a valid prompt for DALL-E.
+      - Only give 'paragraph' contentType.
 
       Format:
       {
@@ -76,7 +78,7 @@ router.post('/get-presentation-outline', validateOpenAIApiKey, authMiddleware, a
             "layout": "title",
             "contentType": "paragraph",
             "content": "Text here",
-            "imagePrompt": "Visual description"
+            "imagePrompt": "Visual description for DAll-e"
           }
         ]
       }
@@ -107,7 +109,7 @@ router.post('/get-presentation-outline', validateOpenAIApiKey, authMiddleware, a
 
 // --- ROUTE 2: Finalize Presentation (Generate Images + Save) ---
 router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, res) => {
-  const userId = req.user.id; // Strictly from Token
+  const userId = req.user.id;
   const { meta, slides } = req.body;
 
   if (!slides || !Array.isArray(slides)) {
@@ -117,7 +119,8 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
   try {
     console.log(`Finalizing Presentation for User: ${userId}`);
 
-    // 1. Expand Content via GPT-4
+    const presentationId = new mongoose.Types.ObjectId();
+
     const systemPrompt = `
       You are an expert designer. Expand this outline into a final presentation.
       Topic: ${meta.topic}
@@ -140,12 +143,16 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
     const parsedData = JSON.parse(gptResponse.choices[0].message.content);
     const expandedSlides = parsedData.slides || [];
 
-    // 2. Parallel Image Generation (All at once)
+    // 3. Parallel Image Generation & Upload
     const finalSlides = await Promise.all(expandedSlides.map(async (slide) => {
+
+      // Pre-generate Slide ID for consistency between S3 and DB
+      const slideId = new mongoose.Types.ObjectId();
+
       let s3Url = "";
       const prompt = slide.imagePrompt;
 
-      // Only generate if prompt exists and is long enough
+      // Only generate if prompt exists
       if (prompt && prompt.length > 5) {
         try {
           // A. DALL-E 3 Generation
@@ -157,9 +164,10 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
             quality: "standard"
           });
 
-          // B. Stream Upload to S3 (Using strict folder structure)
+          // B. Stream Upload to S3
+          // We pass the pre-generated presentationId and slideId
           const tempUrl = imageResponse.data[0].url;
-          s3Url = await uploadToS3(tempUrl, userId);
+          s3Url = await uploadToS3(tempUrl, userId, presentationId.toString(), slideId.toString());
 
         } catch (imgErr) {
           console.error(`Image Gen Failed (Slide ${slide.slideNo}):`, imgErr.message);
@@ -168,6 +176,7 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
 
       // Return final structure
       return {
+        _id: slideId,
         slideNo: slide.slideNo,
         title: slide.title,
         layout: slide.layout || 'content',
@@ -180,9 +189,9 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
       };
     }));
 
-    // 3. Create & Save New Presentation Document
-    // Since ID is not coming from frontend, we always create new
+    // 4. Create & Save New Presentation Document
     const newPresentation = new Presentation({
+      _id: presentationId, // <--- CRITICAL: Force MongoDB to use our pre-generated ID
       userId: userId,
       meta: { ...meta, stage: 'final' },
       slides: finalSlides
