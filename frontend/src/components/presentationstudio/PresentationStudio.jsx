@@ -164,8 +164,8 @@ const PresentationStudio = () => {
     // Step 3: Final Presentation Workspace
     if (finalPresentationData) {
       // Convert final PPT JSON to PresentationWorkspace format
-      // Assuming finalPresentationData has slides array with proper structure
-      const layout = finalPresentationData.layout || { width: 1920, height: 1080 };
+      // Default to 16:9 widescreen layout (1920x1080)
+      const layout = { width: 1920, height: 1080 };
       return (
         <PresentationWorkspace
           layout={layout}

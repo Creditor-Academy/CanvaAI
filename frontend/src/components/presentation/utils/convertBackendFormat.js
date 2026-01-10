@@ -153,8 +153,10 @@ export const convertBackendFormatToSlides = (backendData, layout) => {
       }
     }
 
-    // Create image layer if image exists
-    if (slide.image && slide.image.url) {
+    // Create image layer if image exists and has a valid URL
+    if (slide.image && slide.image.url && slide.image.url.trim() !== '') {
+      console.log(`Converting slide ${slide.slideNo}: Image URL =`, slide.image.url);
+      
       // Position image based on layout
       let imageX, imageY, imageWidth, imageHeight;
 

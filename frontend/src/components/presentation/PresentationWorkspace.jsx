@@ -119,17 +119,70 @@ const ImageLayer = React.forwardRef((
   const imageRef = useRef(null);
 
   useEffect(() => {
+    if (!layer.src || layer.src.trim() === '') {
+      console.warn('ImageLayer: No src provided', layer);
+      return;
+    }
+
+    console.log('ImageLayer: Loading image', layer.src);
     const img = new window.Image();
-    img.crossOrigin = 'anonymous';
+    
+    // For S3 URLs, we may need to handle CORS differently
+    // Try with crossOrigin first, but fallback if it fails
+    const isS3Url = layer.src && layer.src.includes('amazonaws.com');
+    
+    if (isS3Url) {
+      // S3 URLs might work with or without crossOrigin depending on bucket CORS config
+      img.crossOrigin = 'anonymous';
+    } else {
+      img.crossOrigin = 'anonymous';
+    }
+    
     img.onload = () => {
+      console.log('ImageLayer: Image loaded successfully', layer.src);
       setImageLoaded(true);
       if (imageRef.current) {
         imageRef.current.image(img);
+        const layerNode = imageRef.current.getLayer();
+        if (layerNode) {
+          layerNode.batchDraw();
+        }
       }
     };
-    img.onerror = () => {
-      setImageLoaded(false);
+    
+    img.onerror = (error) => {
+      console.error('ImageLayer: Failed to load image', {
+        src: layer.src,
+        error: error,
+        isS3Url: isS3Url,
+        layer: layer
+      });
+      
+      // Try loading without crossOrigin as fallback (for S3 or CORS issues)
+      if (img.crossOrigin && isS3Url) {
+        console.log('ImageLayer: Retrying without crossOrigin', layer.src);
+        const imgRetry = new window.Image();
+        imgRetry.onload = () => {
+          console.log('ImageLayer: Image loaded without crossOrigin', layer.src);
+          setImageLoaded(true);
+          if (imageRef.current) {
+            imageRef.current.image(imgRetry);
+            const layerNode = imageRef.current.getLayer();
+            if (layerNode) {
+              layerNode.batchDraw();
+            }
+          }
+        };
+        imgRetry.onerror = () => {
+          console.error('ImageLayer: Failed even without crossOrigin', layer.src);
+          setImageLoaded(false);
+        };
+        imgRetry.src = layer.src;
+      } else {
+        setImageLoaded(false);
+      }
     };
+    
     img.src = layer.src;
   }, [layer.src]);
 
@@ -595,9 +648,26 @@ const PresentationWorkspace = ({ layout, onBack, initialData }) => {
         slide => slide.slideNo !== undefined || slide.contentType !== undefined || slide.layout !== undefined
       );
 
+      console.log('Initializing slides:', {
+        isBackendFormat,
+        slideCount: initialData.slides.length,
+        firstSlide: initialData.slides[0]
+      });
+
       if (isBackendFormat) {
         // Convert backend format to PresentationWorkspace format
-        return convertBackendFormatToSlides(initialData, layout);
+        const convertedSlides = convertBackendFormatToSlides(initialData, layout);
+        console.log('Converted slides:', convertedSlides);
+        
+        // Log image layers
+        convertedSlides.forEach((slide, idx) => {
+          const imageLayers = slide.layers.filter(l => l.type === 'image');
+          if (imageLayers.length > 0) {
+            console.log(`Slide ${idx + 1} image layers:`, imageLayers);
+          }
+        });
+        
+        return convertedSlides;
       } else {
         // Already in PresentationWorkspace format
         return initialData.slides.map((slide, index) => ({
@@ -2818,7 +2888,23 @@ const handleApplyEnhancedText = (enhancedText) => {
                 <Layer>
                   {activeSlide?.layers.map((layer) => {
                     const layerRef = getLayerNodeRef(layer.id);
-                    if (!layer.visible) return null;
+                    if (!layer.visible) {
+                      console.log('Layer not visible:', layer.id, layer.type, layer.name);
+                      return null;
+                    }
+                    
+                    // Debug: Log image layers
+                    if (layer.type === 'image') {
+                      console.log('Rendering image layer:', {
+                        id: layer.id,
+                        src: layer.src,
+                        x: layer.x,
+                        y: layer.y,
+                        width: layer.width,
+                        height: layer.height,
+                        visible: layer.visible
+                      });
+                    }
                     
                     // Skip child layers (they're rendered as part of their parent group)
                     if (layer.parentId) return null;
