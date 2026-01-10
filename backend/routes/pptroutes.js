@@ -110,8 +110,21 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
   const userId = req.user.id; // Strictly from Token
   const { meta, slides } = req.body;
 
+  // Validate request body
+  if (!meta || typeof meta !== 'object') {
+    return res.status(400).json({ error: "Invalid or missing meta data", details: "meta object is required" });
+  }
+
+  if (!meta.topic || typeof meta.topic !== 'string' || meta.topic.trim() === '') {
+    return res.status(400).json({ error: "Invalid meta data", details: "meta.topic is required and must be a non-empty string" });
+  }
+
   if (!slides || !Array.isArray(slides)) {
-    return res.status(400).json({ error: "Invalid slides data" });
+    return res.status(400).json({ error: "Invalid slides data", details: "slides must be an array" });
+  }
+
+  if (slides.length === 0) {
+    return res.status(400).json({ error: "Invalid slides data", details: "At least one slide is required" });
   }
 
   try {
@@ -127,6 +140,7 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
       1. Expand 'content' into professional text.
       2. Ensure every slide has a detailed 'imagePrompt' (no text/letters in prompt).
       3. Output strictly valid JSON.
+      4. IMPORTANT: contentType must be one of: 'paragraph', 'bullets', or 'comparison' (NOT 'list' or any other value).
 
       Input Slides: ${JSON.stringify(slides)}
     `;
@@ -166,12 +180,27 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
         }
       }
 
+      // Normalize contentType to match schema enum: 'paragraph', 'bullets', 'comparison'
+      let contentType = slide.contentType || 'paragraph';
+      if (contentType === 'list') {
+        contentType = 'bullets';
+      } else if (!['paragraph', 'bullets', 'comparison'].includes(contentType)) {
+        // Infer from content structure if invalid
+        if (Array.isArray(slide.content)) {
+          contentType = 'bullets';
+        } else if (typeof slide.content === 'object' && slide.content !== null && (slide.content.left || slide.content.right)) {
+          contentType = 'comparison';
+        } else {
+          contentType = 'paragraph'; // Default fallback
+        }
+      }
+
       // Return final structure
       return {
         slideNo: slide.slideNo,
         title: slide.title,
         layout: slide.layout || 'content',
-        contentType: slide.contentType,
+        contentType: contentType,
         content: slide.content,
         image: {
           prompt: prompt || "",
@@ -198,10 +227,17 @@ router.post('/finalize-ppt', validateOpenAIApiKey, authMiddleware, async (req, r
     });
 
   } catch (error) {
-    console.error("Finalization Critical Error:", error);
+    console.error("Finalization Critical Error:", {
+      message: error.message,
+      stack: error.stack,
+      userId: userId,
+      meta: meta,
+      slideCount: slides?.length
+    });
     res.status(500).json({
       error: "Failed to generate presentation",
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
