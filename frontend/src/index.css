@@ -1,4 +1,7 @@
+@import "tailwindcss";
+
 /* Hide native scrollbars for the canvas working area only */
+
 .canvas-scroll {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */

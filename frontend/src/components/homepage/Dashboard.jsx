@@ -329,21 +329,10 @@ const handleCreateClick = async () => {
         boxSizing: "border-box",
       }}
     >
-      <h1
-        style={{
-          fontSize: isSmallMobile ? "1.55rem" : isPhone ? "clamp(1.8rem,6vw,2.6rem)" : "clamp(2rem,5vw,3rem)",
-          fontWeight: 800,
-          margin: isSmallMobile ? "0 0 10px 0" : isPhone ? "0 0 14px 0" : "0 0 18px 0",
-          background: "linear-gradient(90deg,#6b8cff 0%,#9b8bfd 50%,#f472b6 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          textAlign: "center",
-          lineHeight: 1.2,
-          padding: isSmallMobile ? "0 8px" : "0",
-        }}
-      >
-        What will you create today?
-      </h1>
+      <h1 className="text-[1.55rem] sm:text-[1.8rem] md:text-[2rem] font-black mb-[10px] sm:mb-[14px] md:mb-[18px] bg-gradient-to-r from-blue-400 via-purple-400 to-pink-500 bg-clip-text text-transparent text-center leading-[1.2] px-2 sm:px-0">
+  What will you create today?
+</h1>
+
 
       {!isCodeMode && (
       <div
