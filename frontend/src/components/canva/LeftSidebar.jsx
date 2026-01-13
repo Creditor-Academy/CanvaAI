@@ -116,6 +116,7 @@ const LeftSidebar = ({
         )}
       </div>
 
+      {/* Text Tools – this is what actually inserts headings */}
       {/* Text Tools */}
       <div style={{ marginTop: 12 }}>
         <button

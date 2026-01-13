@@ -66,17 +66,70 @@ const PreviewImageLayer = ({ layer, x, y, width, height, scale }) => {
   const imageRef = useRef(null);
 
   useEffect(() => {
+    if (!layer.src || layer.src.trim() === '') {
+      console.warn('PreviewImageLayer: No src provided', layer);
+      return;
+    }
+
+    console.log('PreviewImageLayer: Loading image', layer.src);
     const img = new window.Image();
-    img.crossOrigin = 'anonymous';
+    
+    // For S3 URLs, we may need to handle CORS differently
+    // Try with crossOrigin first, but fallback if it fails
+    const isS3Url = layer.src && layer.src.includes('amazonaws.com');
+    
+    if (isS3Url) {
+      // S3 URLs might work with or without crossOrigin depending on bucket CORS config
+      img.crossOrigin = 'anonymous';
+    } else {
+      img.crossOrigin = 'anonymous';
+    }
+    
     img.onload = () => {
+      console.log('PreviewImageLayer: Image loaded successfully', layer.src);
       setImageLoaded(true);
       if (imageRef.current) {
         imageRef.current.image(img);
+        const layerNode = imageRef.current.getLayer();
+        if (layerNode) {
+          layerNode.batchDraw();
+        }
       }
     };
-    img.onerror = () => {
-      setImageLoaded(false);
+    
+    img.onerror = (error) => {
+      console.error('PreviewImageLayer: Failed to load image', {
+        src: layer.src,
+        error: error,
+        isS3Url: isS3Url,
+        layer: layer
+      });
+      
+      // Try loading without crossOrigin as fallback (for S3 or CORS issues)
+      if (img.crossOrigin && isS3Url) {
+        console.log('PreviewImageLayer: Retrying without crossOrigin', layer.src);
+        const imgRetry = new window.Image();
+        imgRetry.onload = () => {
+          console.log('PreviewImageLayer: Image loaded without crossOrigin', layer.src);
+          setImageLoaded(true);
+          if (imageRef.current) {
+            imageRef.current.image(imgRetry);
+            const layerNode = imageRef.current.getLayer();
+            if (layerNode) {
+              layerNode.batchDraw();
+            }
+          }
+        };
+        imgRetry.onerror = () => {
+          console.error('PreviewImageLayer: Failed even without crossOrigin', layer.src);
+          setImageLoaded(false);
+        };
+        imgRetry.src = layer.src;
+      } else {
+        setImageLoaded(false);
+      }
     };
+    
     img.src = layer.src;
   }, [layer.src]);
 
@@ -237,7 +290,23 @@ const PreviewModal = ({
           />
         </Layer>
         {slide.layers.map((layer) => {
-          if (!layer.visible) return null;
+          if (!layer.visible) {
+            console.log('PreviewModal: Layer not visible:', layer.id, layer.type, layer.name);
+            return null;
+          }
+
+          // Debug: Log image layers
+          if (layer.type === 'image') {
+            console.log('PreviewModal: Rendering image layer:', {
+              id: layer.id,
+              src: layer.src,
+              x: layer.x,
+              y: layer.y,
+              width: layer.width,
+              height: layer.height,
+              visible: layer.visible
+            });
+          }
 
           const previewX = layer.x * previewScale;
           const previewY = layer.y * previewScale;

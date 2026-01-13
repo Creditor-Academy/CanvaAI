@@ -6,11 +6,8 @@ import {
 
 const LayerManager = ({ layers, selectedLayer, onLayerSelect, onLayerUpdate, onLayerDelete, onLayerDuplicate }) => {
   const [expandedGroups, setExpandedGroups] = useState(new Set());
-<<<<<<< HEAD
-=======
   const [renamingLayerId, setRenamingLayerId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
->>>>>>> rc
 
   const styles = {
     container: {
@@ -200,8 +197,6 @@ const LayerManager = ({ layers, selectedLayer, onLayerSelect, onLayerUpdate, onL
     onLayerDelete(layer.id);
   };
 
-<<<<<<< HEAD
-=======
   const startRenameLayer = (layer, e) => {
     if (e) e.stopPropagation();
     setRenamingLayerId(layer.id);
@@ -223,7 +218,6 @@ const LayerManager = ({ layers, selectedLayer, onLayerSelect, onLayerUpdate, onL
     setRenameValue('');
   };
 
->>>>>>> rc
   const handleGroupToggle = (groupId) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(groupId)) {
@@ -294,9 +288,6 @@ const LayerManager = ({ layers, selectedLayer, onLayerSelect, onLayerUpdate, onL
           </div>
           
           <div style={styles.layerInfo}>
-<<<<<<< HEAD
-            <p style={styles.layerName}>{layer.name}</p>
-=======
             {renamingLayerId === layer.id ? (
               <input
                 autoFocus
@@ -334,7 +325,6 @@ const LayerManager = ({ layers, selectedLayer, onLayerSelect, onLayerUpdate, onL
                 {layer.name}
               </p>
             )}
->>>>>>> rc
             <p style={styles.layerType}>
               {layer.type} • {layer.width}×{layer.height}
             </p>

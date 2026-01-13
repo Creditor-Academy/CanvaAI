@@ -20,7 +20,7 @@ const getAuthHeaders = () => {
  * @returns {Promise<Object>} - Generated outline with slides
  */
 export const generateOutline = async (params) => {
-  const response = await fetch(`${API_BASE_URL}/get-presentation-data`, {
+  const response = await fetch(`${API_BASE_URL}/get-presentation-outline`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({
@@ -42,7 +42,7 @@ export const generateOutline = async (params) => {
  * @returns {Promise<Object>} - Generated slides and theme
  */
 export const generatePresentation = async (params) => {
-  const response = await fetch(`${API_BASE_URL}/get-presentation-data`, {
+  const response = await fetch(`${API_BASE_URL}/get-presentation-outline`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({
