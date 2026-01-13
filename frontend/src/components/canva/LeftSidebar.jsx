@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import React from 'react';
-import { FiType, FiImage, FiSquare, FiUpload, FiTriangle, FiEdit3, FiMove, FiGrid, FiChevronDown, FiChevronRight, FiStar, FiHeart, FiArrowUp, FiArrowDown, FiArrowLeft, FiArrowRight, FiCloud, FiZap, FiCrop, FiFilter, FiX } from 'react-icons/fi';
-=======
 // LeftSidebar.jsx
 import React from 'react';
 import {
@@ -11,6 +7,7 @@ import {
   FiImage,
   FiUpload,
   FiTriangle,
+  FiEdit3,
   FiChevronDown,
   FiChevronRight,
   FiStar,
@@ -26,7 +23,6 @@ import {
   FiFilter,
   FiX
 } from 'react-icons/fi';
->>>>>>> rc
 
 const LeftSidebar = ({
   styles,
@@ -51,9 +47,24 @@ const LeftSidebar = ({
   showGrid,
   setShowGrid
 }) => {
-<<<<<<< HEAD
+  const customStyles = {
+    ...styles,
+    sidebar: {
+      ...styles.leftSidebar,
+      background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
+      borderRight: '2px solid #374151'
+    }
+  };
+
+  const getButtonStyle = (buttonName) => ({
+    ...styles.toolButton,
+    border: hoveredOption === buttonName ? '1px solid #ffffff' : '1px solid #374151',
+    backgroundColor: hoveredOption === buttonName ? '#334155' : 'transparent',
+    ...(selectedTool === buttonName ? styles.activeTool : {})
+  });
+
   return (
-    <div style={styles.leftSidebar} className="custom-scrollbar">
+    <div style={customStyles.sidebar} className="custom-scrollbar">
       <div style={{ 
         padding: "0 0 20px 0", 
         display: "flex", 
@@ -78,34 +89,6 @@ const LeftSidebar = ({
         <span style={{ fontWeight: 700, fontSize: "1.12rem", color: "#ffffff" }}>Design Tools</span>
       </div>
 
-      <div>
-        <button
-          style={{ ...styles.toolButton, justifyContent: 'space-between' }}
-          onClick={() => toggleSection('selection')}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FiMove size={16} />
-            Selection
-=======
-  const customStyles = {
-    ...styles,
-    sidebar: {
-      ...styles.leftSidebar,
-      background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
-      borderRight: '2px solid #374151'
-    }
-  };
-
-  const getButtonStyle = (buttonName) => ({
-    ...styles.toolButton,
-    border: hoveredOption === buttonName ? '1px solid #ffffff' : '1px solid #374151',
-    backgroundColor: hoveredOption === buttonName ? '#334155' : 'transparent',
-    ...(selectedTool === buttonName ? styles.activeTool : {})
-  });
-
-  return (
-    <div style={customStyles.sidebar}>
-      {/* Selection section (optional, from original code) */}
       <div style={{ marginTop: 0 }}>
         <button
           style={{ ...styles.toolButton, justifyContent: 'space-between' }}
@@ -113,72 +96,27 @@ const LeftSidebar = ({
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <FiMove size={16} /> Selection
->>>>>>> rc
           </span>
           {openSections.selection ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
         </button>
         {openSections.selection && (
           <div style={{ paddingLeft: 8 }}>
-<<<<<<< HEAD
-            <div
-              style={{
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                backgroundColor: '#334155',
-                padding: '8px',
-                marginTop: '6px'
-              }}
-            >
-              <button
-                style={{
-                  ...styles.toolButton,
-                  border: hoveredOption === 'select' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'select' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'select' ? styles.activeTool : {})
-                }}
-=======
             <div style={{ border: '1px solid #334155', borderRadius: 8, backgroundColor: '#334155', padding: 8, marginTop: 6 }}>
               <button
                 style={getButtonStyle('select')}
->>>>>>> rc
                 onMouseEnter={() => setHoveredOption('select')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => handleToolSelect('select')}
               >
                 <FiMove size={16} />
-<<<<<<< HEAD
                 Select & Move
-=======
-                Select / Move
->>>>>>> rc
               </button>
             </div>
           </div>
         )}
       </div>
 
-<<<<<<< HEAD
-      <div style={{ marginTop: '12px' }}>
-        <button
-          style={{ ...styles.toolButton, justifyContent: 'space-between' }}
-          onClick={() => toggleSection('text')}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FiType size={16} /> Text
-          </span>
-          {openSections.text ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
-        </button>
-
-        {openSections.text && (
-          <div style={{ paddingLeft: 8 }}>
-            <div style={{ border: '1px solid #334155', borderRadius: 8, backgroundColor: '#334155', padding: 8, marginTop: 6 }}>
-              <button
-                style={getButtonStyle('heading')}
-                onMouseEnter={() => setHoveredOption('heading')}
-                onMouseLeave={() => setHoveredOption(null)}
-                onClick={() => { handleAddElement(100, 100, 'heading'); setSelectedTool('select'); }}
-=======
-      {/* Text Tools – this is what actually inserts headings */}
+      {/* Text Tools */}
       <div style={{ marginTop: 12 }}>
         <button
           style={{ ...styles.toolButton, justifyContent: 'space-between' }}
@@ -201,18 +139,10 @@ const LeftSidebar = ({
                   handleAddElement(100, 100, 'heading');
                   setSelectedTool('select');
                 }}
->>>>>>> rc
               >
                 <FiType size={16} />
                 Add Heading
               </button>
-<<<<<<< HEAD
-              <button
-                style={getButtonStyle('subheading')}
-                onMouseEnter={() => setHoveredOption('subheading')}
-                onMouseLeave={() => setHoveredOption(null)}
-                onClick={() => { handleAddElement(100, 150, 'subheading'); setSelectedTool('select'); }}
-=======
 
               <button
                 style={getButtonStyle('subheading')}
@@ -222,18 +152,10 @@ const LeftSidebar = ({
                   handleAddElement(100, 150, 'subheading');
                   setSelectedTool('select');
                 }}
->>>>>>> rc
               >
                 <FiType size={16} />
                 Add Subheading
               </button>
-<<<<<<< HEAD
-              <button
-                style={getButtonStyle('textbox')}
-                onMouseEnter={() => setHoveredOption('textbox')}
-                onMouseLeave={() => setHoveredOption(null)}
-                onClick={() => { handleAddElement(100, 200, 'textbox'); setSelectedTool('select'); }}
-=======
 
               <button
                 style={getButtonStyle('textbox')}
@@ -243,7 +165,6 @@ const LeftSidebar = ({
                   handleAddElement(100, 200, 'textbox');
                   setSelectedTool('select');
                 }}
->>>>>>> rc
               >
                 <FiType size={16} />
                 Add Text Box
@@ -253,7 +174,6 @@ const LeftSidebar = ({
         )}
       </div>
 
-<<<<<<< HEAD
       <div style={{ marginTop: '12px' }}>
         <button
           style={{
@@ -280,12 +200,7 @@ const LeftSidebar = ({
               }}
             >
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'rectangle' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'rectangle' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'rectangle' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('rectangle')}
                 onMouseEnter={() => setHoveredOption('rectangle')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(120, 120, 'rectangle'); setSelectedTool('select'); }}
@@ -294,12 +209,7 @@ const LeftSidebar = ({
                 Rectangle
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'roundedRectangle' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'roundedRectangle' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'roundedRectangle' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('roundedRectangle')}
                 onMouseEnter={() => setHoveredOption('roundedRectangle')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(140, 140, 'roundedRectangle'); setSelectedTool('select'); }}
@@ -308,12 +218,7 @@ const LeftSidebar = ({
                 Rounded Rectangle
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'circle' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'circle' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'circle' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('circle')}
                 onMouseEnter={() => setHoveredOption('circle')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(160, 160, 'circle'); setSelectedTool('select'); }}
@@ -322,12 +227,7 @@ const LeftSidebar = ({
                 Circle
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'ellipse' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'ellipse' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'ellipse' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('ellipse')}
                 onMouseEnter={() => setHoveredOption('ellipse')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(180, 180, 'ellipse'); setSelectedTool('select'); }}
@@ -336,12 +236,7 @@ const LeftSidebar = ({
                 Ellipse
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'triangle' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'triangle' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'triangle' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('triangle')}
                 onMouseEnter={() => setHoveredOption('triangle')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(200, 200, 'triangle'); setSelectedTool('select'); }}
@@ -350,12 +245,7 @@ const LeftSidebar = ({
                 Triangle
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'rightTriangle' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'rightTriangle' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'rightTriangle' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('rightTriangle')}
                 onMouseEnter={() => setHoveredOption('rightTriangle')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(220, 220, 'rightTriangle'); setSelectedTool('select'); }}
@@ -364,12 +254,7 @@ const LeftSidebar = ({
                 Right Triangle
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'star' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'star' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'star' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('star')}
                 onMouseEnter={() => setHoveredOption('star')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(240, 240, 'star'); setSelectedTool('select'); }}
@@ -378,12 +263,7 @@ const LeftSidebar = ({
                 Star
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'star6' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'star6' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'star6' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('star6')}
                 onMouseEnter={() => setHoveredOption('star6')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(260, 260, 'star6'); setSelectedTool('select'); }}
@@ -392,12 +272,7 @@ const LeftSidebar = ({
                 6-Point Star
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'heart' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'heart' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'heart' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('heart')}
                 onMouseEnter={() => setHoveredOption('heart')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(280, 280, 'heart'); setSelectedTool('select'); }}
@@ -406,12 +281,7 @@ const LeftSidebar = ({
                 Heart
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'diamond' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'diamond' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'diamond' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('diamond')}
                 onMouseEnter={() => setHoveredOption('diamond')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(300, 300, 'diamond'); setSelectedTool('select'); }}
@@ -420,12 +290,7 @@ const LeftSidebar = ({
                 Diamond
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'pentagon' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'pentagon' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'pentagon' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('pentagon')}
                 onMouseEnter={() => setHoveredOption('pentagon')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(320, 320, 'pentagon'); setSelectedTool('select'); }}
@@ -434,12 +299,7 @@ const LeftSidebar = ({
                 Pentagon
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'hexagon' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'hexagon' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'hexagon' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('hexagon')}
                 onMouseEnter={() => setHoveredOption('hexagon')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(340, 340, 'hexagon'); setSelectedTool('select'); }}
@@ -448,12 +308,7 @@ const LeftSidebar = ({
                 Hexagon
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'arrow' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'arrow' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'arrow' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('arrow')}
                 onMouseEnter={() => setHoveredOption('arrow')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(360, 360, 'arrow'); setSelectedTool('select'); }}
@@ -462,12 +317,7 @@ const LeftSidebar = ({
                 Arrow
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'arrowLeft' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'arrowLeft' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'arrowLeft' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('arrowLeft')}
                 onMouseEnter={() => setHoveredOption('arrowLeft')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(380, 380, 'arrowLeft'); setSelectedTool('select'); }}
@@ -476,12 +326,7 @@ const LeftSidebar = ({
                 Arrow Left
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'arrowUp' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'arrowUp' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'arrowUp' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('arrowUp')}
                 onMouseEnter={() => setHoveredOption('arrowUp')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(400, 400, 'arrowUp'); setSelectedTool('select'); }}
@@ -490,12 +335,7 @@ const LeftSidebar = ({
                 Arrow Up
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'arrowDown' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'arrowDown' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'arrowDown' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('arrowDown')}
                 onMouseEnter={() => setHoveredOption('arrowDown')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(420, 420, 'arrowDown'); setSelectedTool('select'); }}
@@ -504,12 +344,7 @@ const LeftSidebar = ({
                 Arrow Down
               </button>
               <button
-                style={{
-                  ...styles.toolbarButton,
-                  border: hoveredOption === 'cloud' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'cloud' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'cloud' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('cloud')}
                 onMouseEnter={() => setHoveredOption('cloud')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => { handleAddElement(440, 440, 'cloud'); setSelectedTool('select'); }}
@@ -548,12 +383,7 @@ const LeftSidebar = ({
               }}
             >
               <button
-                style={{
-                  ...styles.toolButton,
-                  border: hoveredOption === 'brush' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'brush' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'brush' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('brush')}
                 onMouseEnter={() => setHoveredOption('brush')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => handleToolSelect('brush')}
@@ -562,12 +392,7 @@ const LeftSidebar = ({
                 Brush
               </button>
               <button
-                style={{
-                  ...styles.toolButton,
-                  border: hoveredOption === 'pen' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'pen' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'pen' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('pen')}
                 onMouseEnter={() => setHoveredOption('pen')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => handleToolSelect('pen')}
@@ -576,12 +401,7 @@ const LeftSidebar = ({
                 Pen
               </button>
               <button
-                style={{
-                  ...styles.toolButton,
-                  border: hoveredOption === 'eraser' ? '1px solid #ffffff' : 'none',
-                  backgroundColor: hoveredOption === 'eraser' ? '#334155' : 'transparent',
-                  ...(selectedTool === 'eraser' ? styles.activeTool : {})
-                }}
+                style={getButtonStyle('eraser')}
                 onMouseEnter={() => setHoveredOption('eraser')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => handleToolSelect('eraser')}
@@ -654,7 +474,7 @@ const LeftSidebar = ({
               }}
             >
               <button 
-                style={{ ...styles.toolbarButton, border: hoveredOption === 'upload' ? '1px solid #ffffff' : 'none', backgroundColor: hoveredOption === 'upload' ? '#334155' : 'transparent' }}
+                style={{ ...styles.toolButton, border: hoveredOption === 'upload' ? '1px solid #ffffff' : '1px solid #374151', backgroundColor: hoveredOption === 'upload' ? '#334155' : 'transparent' }}
                 onMouseEnter={() => setHoveredOption('upload')}
                 onMouseLeave={() => setHoveredOption(null)}
                 onClick={() => fileInputRef.current?.click()}
@@ -888,16 +708,8 @@ const LeftSidebar = ({
           </div>
         )}
       </div>
-=======
-      {/* You can copy Shapes / Media / Canvas sections from the original code if needed */}
->>>>>>> rc
     </div>
   );
 };
 
 export default LeftSidebar;
-<<<<<<< HEAD
-
-
-=======
->>>>>>> rc
