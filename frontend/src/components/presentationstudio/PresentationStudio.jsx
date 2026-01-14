@@ -7,7 +7,7 @@ import { PresentationWorkspace } from '../presentation';
 import { generateOutline } from '../../services/PresentationStudioService';
 import './styles/PresentationStudio.css';
 
-const PresentationStudio = () => {
+const PresentationStudio = ({ onBack }) => {
   const navigate = useNavigate();
 
   // Form data (Step 1: Input)
@@ -233,6 +233,7 @@ const PresentationStudio = () => {
             handleExport={() => {}}
             handleSharePresentation={() => {}}
             isExporting={false}
+            onBack={onBack}
           />
         )}
 

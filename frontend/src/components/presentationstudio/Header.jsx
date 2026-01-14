@@ -1,22 +1,54 @@
 import React, { useState } from 'react';
-import { FiDownload, FiShare2, FiSave, FiRefreshCw } from 'react-icons/fi';
+import { FiDownload, FiShare2, FiSave, FiRefreshCw, FiArrowLeft } from 'react-icons/fi';
 import { MdAutoAwesome } from 'react-icons/md';
 
 const Header = ({ 
   handleSavePresentation, 
   handleExport, 
   handleSharePresentation, 
-  isExporting 
+  isExporting,
+  onBack 
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
     <div className="presentation-studio-header">
-      <div>
-        <h1 className="presentation-studio-title">AI Presentation Studio</h1>
-        <p className="presentation-studio-subtitle">
-          Create stunning presentations with AI in seconds
-        </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: '1px solid rgba(15, 23, 42, 0.1)',
+              background: '#ffffff',
+              color: '#0f172a',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#f8fafc';
+              e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.borderColor = 'rgba(15, 23, 42, 0.1)';
+            }}
+            title="Back to layout selection"
+          >
+            <FiArrowLeft size={20} />
+          </button>
+        )}
+        <div>
+          <h1 className="presentation-studio-title">AI Presentation Studio</h1>
+          <p className="presentation-studio-subtitle">
+            Create stunning presentations with AI in seconds
+          </p>
+        </div>
       </div>
       {/* <div className="presentation-studio-header-actions">
         <button 
