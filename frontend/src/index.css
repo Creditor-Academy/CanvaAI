@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/athena-variables.css";
 
 /* Hide native scrollbars for the canvas working area only */
 
@@ -21,7 +22,7 @@ html, body, #root {
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-family: var(--athena-font-body);
   background: #ffffff;
   color: #111827;
 }

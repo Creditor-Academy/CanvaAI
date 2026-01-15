@@ -1,25 +1,30 @@
 .help-container {
-  --help-primary: #7f56da;
-  --help-primary-dark: #6d28d9;
-  --help-gradient: linear-gradient(135deg, #7f56da, #a855f7);
-  --help-accent: #f6f0ff;
+  --help-primary: var(--athena-primary-blue);
+  --help-primary-dark: var(--athena-deep-blue);
+  --help-gradient: var(--athena-hero-gradient);
+  --help-accent: #eff6ff;
   --help-surface: #ffffff;
-  --help-border: #ede9fe;
-  --help-shadow: rgba(127, 86, 218, 0.12);
+  --help-border: #dbeafe;
+  --help-shadow: rgba(59, 130, 246, 0.12);
   --help-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --help-motion-fast: 0.18s;
   --help-motion-medium: 0.42s;
   --help-motion-slow: 0.6s;
-  --help-text: #1a1a1a;
-  --help-text-muted: #6b5b95;
-  --help-muted-strong: #3a275d;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --help-text: var(--athena-text-primary);
+  --help-text-muted: var(--athena-text-secondary);
+  --help-muted-strong: var(--athena-deep-blue);
+  font-family: var(--athena-font-body);
   background: var(--help-accent);
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
   padding: 3rem 2rem;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.help-container h1,
+.help-container .section-title {
+  font-family: var(--athena-font-heading);
 }
 
 .help-header {
@@ -36,7 +41,7 @@
 
 .help-header:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 22px rgba(127, 86, 218, 0.18);
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.18);
 }
 
 .help-header h1 {
@@ -74,7 +79,7 @@
   justify-content: center;
   color: #fff;
   background: var(--help-gradient);
-  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.28);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.28);
   flex-shrink: 0;
 }
 
@@ -100,19 +105,20 @@
   padding: 0.85rem 1.5rem;
   border-radius: 10px;
   border: none;
-  background: var(--help-primary);
+  background: var(--athena-btn-secondary);
   color: #fff;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(127, 86, 218, 0.25);
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.25);
   transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .help-container .contact-support-btn:hover {
-  background: var(--help-primary-dark);
+  background: var(--athena-btn-secondary);
+  filter: brightness(0.95);
   transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(127, 86, 218, 0.32);
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.32);
 }
 
 .search-section {
@@ -135,7 +141,7 @@
 .help-container .search-icon {
   position: absolute;
   left: 1rem;
-  color: #8b75d9;
+  color: var(--athena-primary-blue);
   font-size: 1.2rem;
   z-index: 1;
 }
@@ -143,24 +149,24 @@
 .help-container .search-input {
   width: 100%;
   padding: 1rem 1rem 1rem 3rem;
-  border: 1.8px solid #e4e1ee;
+  border: 1.8px solid #dbeafe;
   border-radius: 12px;
   background: var(--help-surface);
   color: #2d2d2d;
   box-sizing: border-box;
   font-size: 1rem;
-  box-shadow: 0 2px 8px rgba(127, 86, 218, 0.04);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.04);
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .help-container .search-input:hover {
-  border-color: #d3c6f7;
+  border-color: #bfdbfe;
 }
 
 .help-container .search-input:focus {
   outline: none;
   border-color: var(--help-primary);
-  box-shadow: 0 0 0 3px rgba(127, 86, 218, 0.15);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .help-container .search-input::placeholder {
@@ -204,16 +210,16 @@
 }
 
 .help-container .quick-filter-btn:hover {
-  background: #ece3ff;
+  background: #dbeafe;
   color: var(--help-muted-strong);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(127, 86, 218, 0.18);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.18);
 }
 
 .help-container .quick-filter-btn.active {
-  background: var(--help-primary);
+  background: var(--athena-btn-secondary);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(127, 86, 218, 0.32);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.32);
 }
 
 .help-container .category-filters {
@@ -246,23 +252,23 @@
 }
 
 .help-container .category-filter-btn:hover {
-  background: #ece3ff;
+  background: #dbeafe;
   color: var(--help-muted-strong);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(127, 86, 218, 0.18);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.18);
 }
 
 .help-container .category-filter-btn.active {
-  background: var(--help-primary);
+  background: var(--athena-btn-secondary);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(127, 86, 218, 0.32);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.32);
 }
 
 .help-container .content-section {
   background: var(--help-surface);
   border-radius: 16px;
   padding: 2.5rem;
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.08);
   border: 1px solid var(--help-border);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   animation: fadeInUp 0.4s ease-out;
@@ -270,7 +276,7 @@
 
 .help-container .content-section:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.14);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.14);
 }
 
 /* Section switch animations */
@@ -335,23 +341,23 @@
 }
 
 .help-container .faq-item {
-  background: #faf9ff;
-  border: 1px solid #e9d8fd;
+  background: #f0f9ff;
+  border: 1px solid #dbeafe;
   border-radius: 12px;
   transition: border 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   overflow: hidden;
 }
 
 .help-container .faq-item:hover {
-  border-color: #a78bfa;
-  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.12);
+  border-color: var(--athena-sky-blue);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.12);
   transform: translateY(-2px);
 }
 
 .help-container .faq-item.expanded {
   border-color: var(--help-primary);
   background: #fff;
-  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.16);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.16);
 }
 
 .help-container .faq-question {
@@ -365,7 +371,7 @@
 }
 
 .help-container .faq-question:hover {
-  background: #f3f0ff;
+  background: #eff6ff;
 }
 
 .help-container .question-text {
@@ -382,8 +388,8 @@
 }
 
 .help-container .popular-badge {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: #dbeafe;
+  color: var(--athena-deep-blue);
   padding: 0.25rem 0.75rem;
   border-radius: 10px;
   font-size: 0.75rem;
@@ -401,7 +407,7 @@
 
 .help-container .faq-answer {
   padding: 0 1.5rem 1.5rem;
-  border-top: 1px solid #ede9fe;
+  border-top: 1px solid #dbeafe;
   animation: slideDown 0.35s ease;
 }
 
@@ -444,12 +450,12 @@
   border-radius: 12px;
   padding: 1.75rem;
   transition: border 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.08);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
 }
 
 .help-container .tutorial-card:hover {
-  border-color: #a78bfa;
-  box-shadow: 0 10px 20px rgba(124, 58, 237, 0.16);
+  border-color: var(--athena-sky-blue);
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.16);
   transform: translateY(-4px);
 }
 
@@ -468,8 +474,8 @@
 }
 
 .help-container .tutorial-duration {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: #dbeafe;
+  color: var(--athena-deep-blue);
   padding: 0.25rem 0.75rem;
   border-radius: 8px;
   font-size: 0.75rem;
@@ -498,7 +504,7 @@
 }
 
 .help-container .read-more-btn {
-  background: var(--help-primary);
+  background: var(--athena-btn-secondary);
   color: #fff;
   border: none;
   padding: 0.6rem 1.25rem;
@@ -510,9 +516,10 @@
 }
 
 .help-container .read-more-btn:hover {
-  background: var(--help-primary-dark);
+  background: var(--athena-btn-secondary);
+  filter: brightness(0.95);
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.22);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.22);
 }
 
 .help-container .contact-options {
@@ -551,9 +558,9 @@
 }
 
 .help-container .contact-card:hover {
-  border-color: #a78bfa;
+  border-color: var(--athena-sky-blue);
   transform: translateY(-5px);
-  box-shadow: 0 12px 26px rgba(124, 58, 237, 0.18);
+  box-shadow: 0 12px 26px rgba(59, 130, 246, 0.18);
 }
 
 .help-container .contact-card:hover::before {
@@ -570,12 +577,12 @@
   justify-content: center;
   font-size: 3rem;
   color: var(--help-primary);
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(59, 130, 246, 0.08);
   transition: background 0.3s ease, transform 0.3s ease;
 }
 
 .help-container .contact-card:hover .contact-icon {
-  background: rgba(124, 58, 237, 0.18);
+  background: rgba(59, 130, 246, 0.18);
   transform: scale(1.08);
 }
 
@@ -598,7 +605,7 @@
 .help-container .contact-btn {
   width: 100%;
   border: none;
-  background: var(--help-primary);
+  background: var(--athena-btn-secondary);
   color: #fff;
   border-radius: 10px;
   padding: 0.7rem 1.5rem;
@@ -610,9 +617,10 @@
 }
 
 .help-container .contact-btn:hover {
-  background: var(--help-primary-dark);
+  background: var(--athena-btn-secondary);
+  filter: brightness(0.95);
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.24);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.24);
 }
 
 .help-container .feedback-form {
@@ -651,18 +659,18 @@
 .help-container .form-textarea:focus {
   outline: none;
   border-color: var(--help-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
-/* Purple theme for selected option */
+/* Athena theme for selected option */
 .help-container .form-select option:checked {
-  background: linear-gradient(135deg, #7f56da, #a855f7) !important;
+  background: var(--athena-hero-gradient) !important;
   color: #fff !important;
   font-weight: 600;
 }
 
 .help-container .form-select option[selected] {
-  background: linear-gradient(135deg, #7f56da, #a855f7) !important;
+  background: var(--athena-hero-gradient) !important;
   color: #fff !important;
 }
 
@@ -673,7 +681,7 @@
 }
 
 .help-container .submit-feedback-btn {
-  background: var(--help-primary);
+  background: var(--athena-btn-secondary);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -685,9 +693,10 @@
 }
 
 .help-container .submit-feedback-btn:hover {
-  background: var(--help-primary-dark);
+  background: var(--athena-btn-secondary);
+  filter: brightness(0.95);
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
 }
 
 .help-container .quick-filters::-webkit-scrollbar,

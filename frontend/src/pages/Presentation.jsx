@@ -216,7 +216,7 @@ const Presentation = () => {
                 </span>
                 <span
                   style={{
-                    background: '#0f172a',
+                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                     color: '#ffffff',
                     padding: '10px 18px',
                     borderRadius: '12px',
@@ -240,8 +240,8 @@ const Presentation = () => {
               gap: '12px',
               padding: '28px 26px',
               borderRadius: '24px',
-              border: '2px dashed rgba(99, 102, 241, 0.3)',
-              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08))',
+              border: '2px dashed rgba(251, 191, 36, 0.3)',
+              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.08))',
               boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
               cursor: 'pointer',
               textAlign: 'left',
@@ -252,13 +252,13 @@ const Presentation = () => {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-6px)';
-              e.currentTarget.style.boxShadow = '0 24px 60px rgba(99, 102, 241, 0.15)';
-              e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)';
+              e.currentTarget.style.boxShadow = '0 24px 60px rgba(251, 191, 36, 0.2)';
+              e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.5)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = '0 18px 48px rgba(15, 23, 42, 0.08)';
-              e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+              e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.3)';
             }}
           >
             <div
@@ -266,8 +266,8 @@ const Presentation = () => {
                 width: '64px',
                 height: '64px',
                 borderRadius: '20px',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2))',
-                color: '#6366f1',
+                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2))',
+                color: '#f59e0b',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -284,8 +284,8 @@ const Presentation = () => {
                   gap: '8px',
                   padding: '6px 12px',
                   borderRadius: '999px',
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  color: '#6366f1',
+                  background: 'rgba(251, 191, 36, 0.15)',
+                  color: '#f59e0b',
                   fontWeight: 600,
                   fontSize: '0.85rem',
                   marginBottom: '10px',
@@ -326,12 +326,12 @@ const Presentation = () => {
                 justifyContent: 'flex-end',
                 gap: '8px',
                 fontWeight: 600,
-                color: '#6366f1',
+                color: '#f59e0b',
               }}
             >
               <span
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                   color: '#ffffff',
                   padding: '10px 18px',
                   borderRadius: '12px',

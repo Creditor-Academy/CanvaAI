@@ -1,24 +1,24 @@
 /* landing.css */
 :root{
-  --bg-hero: linear-gradient(180deg,#f3f6ff 0%, #fbf7ff 100%);
-  --accent1: #5b6ef5;       /* blue */
-  --accent2: #c06bff;       /* purple */
-  --muted: #6e6f86;
+  --bg-hero: linear-gradient(180deg, #f0f9ff 0%, #f9fafb 100%);
+  --accent1: var(--athena-primary-blue);       /* Athena Blue */
+  --accent2: var(--athena-gold);               /* Athena Gold */
+  --muted: var(--athena-text-secondary);
   --card-bg: rgba(255,255,255,0.66);
   --glass-border: rgba(255,255,255,0.28);
   --dark-card: linear-gradient(180deg, rgba(20,18,30,0.9), rgba(26,24,40,0.92));
   --max-width: 1200px;
   --radius-lg: 20px;
   --glass-blur: 12px;
-  --shadow-soft: 0 12px 30px rgba(20,18,40,0.08);
-  --shadow-strong: 0 18px 50px rgba(20,18,40,0.12);
-  --text: #141424;
-  --text-muted: #646579;
+  --shadow-soft: 0 12px 30px rgba(30, 64, 175, 0.08);
+  --shadow-strong: 0 18px 50px rgba(30, 64, 175, 0.12);
+  --text: var(--athena-text-primary);
+  --text-muted: var(--athena-text-secondary);
   --nav-bg: var(--section-even-bg);
   --nav-border: rgba(255,255,255,0.4);
-  --section-even-bg: linear-gradient(180deg, rgba(91,110,245,0.28), rgba(192,107,255,0.24));
+  --section-even-bg: linear-gradient(180deg, rgba(59, 130, 246, 0.28), rgba(251, 191, 36, 0.24));
   --modal-bg: #ffffff;
-  --modal-panel-bg: #f9fafb;
+  --modal-panel-bg: var(--athena-bg-light);
   --modal-input-bg: #ffffff;
   --overlay-bg: rgba(15,23,42,0.75);
 }
@@ -34,11 +34,16 @@ body,html,#root{
 }
 .landing-page{
   min-height:100vh;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  font-family: var(--athena-font-body);
   color:var(--text);
   background: var(--bg-hero);
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
+}
+
+.landing-page h1,
+.landing-page .h2 {
+  font-family: var(--athena-font-heading);
 }
 
 .landing-page.dark{
@@ -51,7 +56,7 @@ body,html,#root{
   --shadow-strong: 0 18px 50px rgba(0,0,0,0.45);
   --nav-bg: var(--section-even-bg);
   --nav-border: rgba(255,255,255,0.08);
-  --section-even-bg: linear-gradient(180deg, rgba(91,110,245,0.35), rgba(192,107,255,0.28));
+  --section-even-bg: linear-gradient(180deg, rgba(59, 130, 246, 0.35), rgba(251, 191, 36, 0.28));
   --modal-bg: #1a1a28;
   --modal-panel-bg: #232336;
   --modal-input-bg: #1f2030;
@@ -118,16 +123,16 @@ body,html,#root{
   border:none;
 }
 .btn-cta {
-  background: linear-gradient(90deg,var(--accent1), var(--accent2));
+  background: var(--athena-btn-primary);
   color:white;
-  box-shadow: 0 10px 30px rgba(93,69,255,0.18);
+  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.25);
 }
 .btn-ghost {
   background:transparent;
-  border:2px solid rgba(88,93,255,0.14);
+  border:2px solid rgba(59, 130, 246, 0.2);
   color:var(--text);
 }
-.landing-page.dark .btn-ghost{ border-color: rgba(88,93,255,0.28); color: var(--text) }
+.landing-page.dark .btn-ghost{ border-color: rgba(59, 130, 246, 0.35); color: var(--text) }
 
 /* Enhanced mobile responsiveness */
 @media (max-width: 1200px) {

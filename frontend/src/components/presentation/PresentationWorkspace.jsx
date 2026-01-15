@@ -2241,7 +2241,7 @@ const handleApplyEnhancedText = (enhancedText) => {
               width: 36,
               height: 36,
               borderRadius: 12,
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -2403,14 +2403,14 @@ const handleApplyEnhancedText = (enhancedText) => {
             onClick={() => setIsShareModalOpen(true)}
             style={{
               border: 'none',
-              background: 'linear-gradient(135deg, #4338ca 0%, #4f46ef 50%, #7c3aed 100%)',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
               borderRadius: 10,
               padding: '6px 20px',
               fontWeight: 600,
               fontSize: '0.85rem',
               color: '#ffffff',
               cursor: 'pointer',
-              boxShadow: '0 14px 30px rgba(79, 70, 229, 0.32)',
+              boxShadow: '0 14px 30px rgba(251, 191, 36, 0.32)',
             }}
           >
             Share
@@ -2543,7 +2543,7 @@ const handleApplyEnhancedText = (enhancedText) => {
                   style={{
                     borderRadius: 12,
                     padding: '8px',
-                    background: isActive ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : '#f8fafc',
+                    background: isActive ? 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' : '#f8fafc',
                     color: isActive ? '#ffffff' : '#0f172a',
                     cursor: isDragging ? 'grabbing' : 'grab',
                     display: 'flex',
@@ -2552,7 +2552,7 @@ const handleApplyEnhancedText = (enhancedText) => {
                     transition: 'transform 150ms ease, opacity 150ms ease',
                     opacity: isDragging ? 0.5 : 1,
                     transform: isDragOver ? 'translateY(4px)' : 'translateY(0)',
-                    border: isDragOver ? '2px dashed rgba(79, 70, 229, 0.5)' : '2px solid transparent',
+                    border: isDragOver ? '2px dashed rgba(251, 191, 36, 0.5)' : '2px solid transparent',
                     marginBottom: isDragOver ? '8px' : '0',
                   }}
                   onClick={() => setActiveSlideId(slide.id)}
