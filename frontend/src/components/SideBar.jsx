@@ -27,8 +27,6 @@ const NAV_ITEMS = [
     key: "presentation",
     icon: <FiLayout size={18} />,
     section: "Navigation",
-    sublabel: "Beta",
-    sublabelClass: "beta",
     path: "/presentation"
   },
   {

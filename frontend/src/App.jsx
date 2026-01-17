@@ -44,6 +44,7 @@ import UiPhotoGenerator from "./components/aigenerator/UiPhotoGenerator";
 import SmartCrop from "./components/aigenerator/SmartCrop";
 
 import PresentationStudio from "./components/presentationstudio/PresentationStudio";
+import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
 import EditorPage from './pages/EditorPage';
@@ -138,6 +139,24 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
+
+            {/* Full-screen Presentation Editor - No sidebar */}
+            <Route
+              path="/presentation-editor"
+              element={
+                <ProtectedRoute>
+                  <PresentationEditor2 />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/presentation-editor/:id"
+              element={
+                <ProtectedRoute>
+                  <PresentationEditor2 />
+                </ProtectedRoute>
+              }
+            />
 
             {/* PROTECTED ROUTES */}
             <Route

@@ -38,6 +38,12 @@ import FontFamilySelector from './controls/FontFamilySelector';
 import FontStyleControls from './controls/FontStyleControls';
 import TextAlignControls from './controls/TextAlignControls';
 
+// Editor layout components
+import TopBar from './editor/TopBar';
+import SlidesPanel from './editor/SlidesPanel';
+import CanvasArea from './editor/CanvasArea';
+import RightPanel from './editor/RightPanel';
+
 import { getShapePoints } from './utils/shapeUtils';
 import { useHistory } from './utils/useHistory';
 import { applyLayerEffectsToNode } from './utils/effectUtils';
@@ -692,6 +698,7 @@ const PresentationWorkspace = ({ layout, onBack, initialData }) => {
 
   const [slides, setSlides] = useState(initializeSlides);
   const [activeSlideId, setActiveSlideId] = useState('slide-1');
+  const [presentationTitle, setPresentationTitle] = useState(initialData?.title || layout?.name || 'Untitled Presentation');
   const [selectedTool, setSelectedTool] = useState('select');
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [selectedLayerId, setSelectedLayerId] = useState(null);
@@ -2207,216 +2214,62 @@ const handleApplyEnhancedText = (enhancedText) => {
           position: 'relative',
       }}
     >
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          background: '#ffffff',
-          borderRadius: '16px',
-          padding: '12px 16px',
-          boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
-          flexShrink: 0,
-        }}
-      >
-        <button
-          onClick={onBack}
+      {/* Timing toast - keep outside TopBar */}
+      {timingToast && (
+        <div
           style={{
-            border: '1px solid rgba(99, 102, 241, 0.18)',
-            background: 'rgba(99, 102, 241, 0.08)',
-            color: '#4338ca',
-            borderRadius: '14px',
-            padding: '10px 12px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
+            position: 'fixed',
+            bottom: 28,
+            right: 28,
+            background: 'rgba(15, 23, 42, 0.92)',
+            color: '#fff',
+            padding: '10px 16px',
+            borderRadius: 12,
+            fontWeight: 600,
+            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.35)',
+            zIndex: 1000,
           }}
         >
-          <ChevronLeft size={18} />
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-            }}
-          >
-            {layout.aspectLabel}
-          </div>
-          <div>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: '1rem',
-                color: '#0f172a',
-              }}
-            >
-              {layout.name}
-            </div>
+          {timingToast}
+        </div>
+      )}
 
-            {timingToast && (
-              <div
-                style={{
-                  position: 'fixed',
-                  bottom: 28,
-                  right: 28,
-                  background: 'rgba(15, 23, 42, 0.92)',
-                  color: '#fff',
-                  padding: '10px 16px',
-                  borderRadius: 12,
-                  fontWeight: 600,
-                  boxShadow: '0 18px 40px rgba(15, 23, 42, 0.35)',
-                  zIndex: 1000,
-                }}
-              >
-                {timingToast}
-              </div>
-            )}
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: '#475569',
-                marginTop: 2,
-              }}
-            >
-              {layout.width} × {layout.height}px canvas
-            </div>
-          </div>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <UndoRedoControls
-            historyIndex={historyIndex}
-            historyLength={historyLength}
-            onUndo={onUndo}
-            onRedo={onRedo}
-          />
-          <div
-            style={{
-              width: 1,
-              height: 20,
-              background: 'rgba(15, 23, 42, 0.1)',
-            }}
-          />
-          <ZoomControls
-            zoom={zoom}
-            onZoomChange={handleZoomChange}
-            onFitToScreen={handleFitToScreen}
-            onZoomTo100={handleZoomTo100}
-            compact={true}
-          />
-          <div
-            style={{
-              width: 1,
-              height: 20,
-              background: 'rgba(15, 23, 42, 0.1)',
-            }}
-          />
-          <div style={{ position: 'relative' }}>
-            <button
-              ref={previewButtonRef}
-              onClick={() => setPreviewDropdownOpen((prev) => !prev)}
-              style={{
-                border: '1px solid rgba(15, 23, 42, 0.1)',
-                background: 'rgba(15, 23, 42, 0.04)',
-                borderRadius: 10,
-                padding: '6px 14px',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                color: '#0f172a',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              Preview
-              <span style={{ fontSize: '0.7rem' }}>▾</span>
-            </button>
-            {previewDropdownOpen && (
-              <div
-                ref={previewDropdownRef}
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 6px)',
-                  width: 240,
-                  borderRadius: 14,
-                  background: '#ffffff',
-                  border: '1px solid rgba(15, 23, 42, 0.08)',
-                  boxShadow: '0 18px 40px rgba(15, 23, 42, 0.18)',
-                  padding: '8px 0',
-                  zIndex: 50,
-                }}
-              >
-                <button
-                  onClick={() => openPreview('manual')}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    padding: '10px 16px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Present fullscreen</div>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
-                    Use ← → keys to move through slides.
-                  </p>
-                </button>
-                <div
-                  style={{
-                    height: 1,
-                    background: 'rgba(15, 23, 42, 0.06)',
-                    margin: '4px 0',
-                  }}
-                />
-                <button
-                  onClick={() => openPreview('autoplay')}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    padding: '10px 16px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Auto play</div>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
-                    Plays fullscreen using slide timings.
-                  </p>
-                </button>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => setIsShareModalOpen(true)}
-            style={{
-              border: 'none',
-              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-              borderRadius: 10,
-              padding: '6px 20px',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              color: '#ffffff',
-              cursor: 'pointer',
-              boxShadow: '0 14px 30px rgba(251, 191, 36, 0.32)',
-            }}
-          >
-            Share
-          </button>
-        </div>
-      </header>
+      <TopBar
+        layout={layout}
+        onBack={onBack}
+        presentationTitle={presentationTitle}
+        onTitleChange={setPresentationTitle}
+        historyIndex={historyIndex}
+        historyLength={historyLength}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        zoom={zoom}
+        onZoomChange={handleZoomChange}
+        onFitToScreen={handleFitToScreen}
+        onZoomTo100={handleZoomTo100}
+        onPresent={() => openPreview('manual')}
+        onShare={() => setIsShareModalOpen(true)}
+        selectedTool={selectedTool}
+        onToolSelect={handleToolSelect}
+        onBackgroundClick={() => {
+          // Placeholder - can be enhanced later
+          console.log('Background clicked');
+        }}
+        onLayoutClick={() => {
+          // Placeholder - can be enhanced later
+          console.log('Layout clicked');
+        }}
+        onThemeClick={() => {
+          // Placeholder - can be enhanced later
+          console.log('Theme clicked');
+        }}
+        previewDropdownOpen={previewDropdownOpen}
+        onPreviewDropdownToggle={() => setPreviewDropdownOpen((prev) => !prev)}
+        onPreviewManual={() => openPreview('manual')}
+        onPreviewAutoplay={() => openPreview('autoplay')}
+        previewButtonRef={previewButtonRef}
+        previewDropdownRef={previewDropdownRef}
+      />
 
       <div
         style={{
@@ -2435,671 +2288,307 @@ const handleApplyEnhancedText = (enhancedText) => {
           position: 'relative',
         }}
       >
-        {/* Slides rail */}
-        {leftSidebarVisible && (
-        <aside
-          style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '12px',
-            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            height: '100%',
-            minHeight: 0,
-            maxHeight: '100%',
-          }}
-          className="custom-scrollbar"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#0f172a' }}>Slides</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button
-              onClick={handleAddSlide}
-              title="Add slide"
+        {/* Slides Panel */}
+        <SlidesPanel
+          slides={slides}
+          activeSlideId={activeSlideId}
+          onSlideSelect={setActiveSlideId}
+          onAddSlide={handleAddSlide}
+          onDuplicateSlide={handleDuplicateSlide}
+          onDeleteSlide={handleDeleteSlide}
+          onReorderSlides={handleReorderSlides}
+          isVisible={leftSidebarVisible}
+          onToggleVisibility={() => setLeftSidebarVisible(false)}
+          draggedSlideId={draggedSlideId}
+          setDraggedSlideId={setDraggedSlideId}
+          dragOverSlideId={dragOverSlideId}
+          setDragOverSlideId={setDragOverSlideId}
+        />
+
+        {/* Canvas Area */}
+        <CanvasArea
+          layout={layout}
+          activeSlide={activeSlide}
+          canvasRenderWidth={canvasRenderWidth}
+          canvasRenderHeight={canvasRenderHeight}
+          scale={scale}
+          isPanning={isPanning}
+          selectedTool={selectedTool}
+          selectedPreset={selectedPreset}
+          selectedLayerId={selectedLayerId}
+          slideDuration={slideDuration}
+          isTimingPanelOpen={isTimingPanelOpen}
+          onTimingPanelToggle={() => setIsTimingPanelOpen((prev) => !prev)}
+          onSlideTimingChange={handleSlideTimingChange}
+          onApplyTimingToAllSlides={handleApplyTimingToAllSlides}
+          canvasContainerRef={canvasContainerRef}
+          stageWrapperRef={stageWrapperRef}
+          stageRef={stageRef}
+          onWheel={handleWheel}
+          onPanStart={handlePanStart}
+          onPanEnd={handlePanEnd}
+          onStageClick={handleStageClick}
+          timingButtonRef={timingButtonRef}
+          timingPanelRef={timingPanelRef}
+          renderStageContent={() => (
+            <Stage
+              ref={stageRef}
+              width={canvasRenderWidth}
+              height={canvasRenderHeight}
+              onClick={handleStageClick}
+              onTap={handleStageClick}
+              onMouseDown={handlePanStart}
+              data-canvas-stage
               style={{
-                border: 'none',
-                background: 'rgba(99, 102, 241, 0.1)',
-                color: '#4f46e5',
-                  borderRadius: 10,
-                  padding: '4px',
-                display: 'inline-flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                cursor: 'pointer',
+                cursor: isPanning 
+                  ? 'grabbing' 
+                  : selectedPreset 
+                  ? 'crosshair' 
+                  : selectedTool === 'select' && !selectedPreset && !selectedLayerId
+                  ? 'grab' 
+                  : 'default' 
               }}
-            >
-                <Plus size={14} />
-              </button>
-              <button
-                onClick={() => setLeftSidebarVisible(false)}
-                title="Hide slides panel"
-                style={{
-                  border: 'none',
-                  background: 'rgba(15, 23, 42, 0.06)',
-                  color: '#475569',
-                  borderRadius: 10,
-                  padding: '4px',
-                  display: 'inline-flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <ChevronLeft size={14} />
-            </button>
-            </div>
-          </div>
-
-          <div
-            className="custom-scrollbar"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              flex: 1,
-              minHeight: 0,
-              paddingRight: '4px',
-            }}
-          >
-            {slides.map((slide, index) => {
-              const isActive = slide.id === activeSlideId;
-              const isDragging = draggedSlideId === slide.id;
-              const isDragOver = dragOverSlideId === slide.id;
-              
-              return (
-                <div
-                  key={slide.id}
-                  draggable
-                  onDragStart={() => setDraggedSlideId(slide.id)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (draggedSlideId && draggedSlideId !== slide.id) {
-                      setDragOverSlideId(slide.id);
-                    }
-                  }}
-                  onDragLeave={() => {
-                    if (dragOverSlideId === slide.id) {
-                      setDragOverSlideId(null);
-                    }
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (draggedSlideId && draggedSlideId !== slide.id) {
-                      handleReorderSlides(draggedSlideId, slide.id);
-                    }
-                    setDraggedSlideId(null);
-                    setDragOverSlideId(null);
-                  }}
-                  onDragEnd={() => {
-                    setDraggedSlideId(null);
-                    setDragOverSlideId(null);
-                  }}
-                  style={{
-                    borderRadius: 12,
-                    padding: '8px',
-                    background: isActive ? 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' : '#f8fafc',
-                    color: isActive ? '#ffffff' : '#0f172a',
-                    cursor: isDragging ? 'grabbing' : 'grab',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    transition: 'transform 150ms ease, opacity 150ms ease',
-                    opacity: isDragging ? 0.5 : 1,
-                    transform: isDragOver ? 'translateY(4px)' : 'translateY(0)',
-                    border: isDragOver ? '2px dashed rgba(251, 191, 36, 0.5)' : '2px solid transparent',
-                    marginBottom: isDragOver ? '8px' : '0',
-                  }}
-                  onClick={() => setActiveSlideId(slide.id)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <GripVertical 
-                        size={14} 
-                        style={{ 
-                          color: isActive ? 'rgba(255, 255, 255, 0.6)' : '#94a3b8',
-                          cursor: 'grab',
-                          flexShrink: 0,
-                        }} 
-                      />
-                      <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>Slide {index + 1}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDuplicateSlide(slide);
-                      }}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: isActive ? '#e0e7ff' : '#6366f1',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                          padding: 4,
-                          borderRadius: 6,
-                      }}
-                        title="Duplicate slide"
-                    >
-                        <Copy size={14} />
-                    </button>
-                      {slides.length > 1 && (
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDeleteSlide(slide.id);
-                          }}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: isActive ? '#fca5a5' : '#ef4444',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            padding: 4,
-                            borderRadius: 6,
-                          }}
-                          title="Delete slide"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      borderRadius: 10,
-                      background: '#ffffff',
-                      height: 70,
-                      border: '1px solid rgba(15, 23, 42, 0.08)',
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: '8px',
-                        borderRadius: 8,
-                        background: slide.background,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#94a3b8',
-                        fontSize: '0.65rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {slide.layers.length ? `${slide.layers.length} elements` : 'Empty'}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-        )}
-
-        {/* Canvas area */}
-        <section
-          style={{
-            background: '#f1f5f9',
-            borderRadius: '22px',
-            padding: '16px',
-            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            height: '100%',
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '12px',
-              justifyContent: 'space-between',
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px' }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 10,
-                  background: 'rgba(79, 70, 229, 0.12)',
-                  color: '#4338ca',
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <Layers size={12} />
-                <span>{activeSlide?.layers.length || 0} layers</span>
-              </span>
-              <span style={{ color: '#475569', fontSize: '0.75rem' }}>
-                Tip: Choose a preset on the right, then click anywhere on the slide.
-              </span>
-            </div>
-
-            <div style={{ position: 'relative', flex: '0 1 auto' }}>
-              <button
-                ref={timingButtonRef}
-                onClick={() => setIsTimingPanelOpen((prev) => !prev)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 14px',
-                  borderRadius: 14,
-                  background: '#ffffff',
-                  border: '1px solid rgba(148, 163, 184, 0.18)',
-                  fontWeight: 600,
-                  color: '#0f172a',
-                  cursor: 'pointer',
-                  boxShadow: isTimingPanelOpen ? '0 10px 25px rgba(15, 23, 42, 0.12)' : 'none',
-                }}
-              >
-                <Timer size={16} color="#4f46e5" />
-                <span>{slideDuration}s</span>
-              </button>
-              {isTimingPanelOpen && (
-                <div
-                  ref={timingPanelRef}
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 10px)',
-                    right: 0,
-                    width: 320,
-                    borderRadius: 16,
-                    background: '#ffffff',
-                    border: '1px solid rgba(148, 163, 184, 0.2)',
-                    boxShadow: '0 18px 40px rgba(15, 23, 42, 0.2)',
-                    padding: '14px 16px',
-                    zIndex: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, color: '#0f172a' }}>Slide animation timing</span>
-                    <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>
-                      {slideDuration}s
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <input
-                      type="range"
-                      min={1}
-                      max={60}
-                      value={slideDuration}
-                      onChange={(e) => handleSlideTimingChange(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      max={60}
-                      value={slideDuration}
-                      onChange={(e) => handleSlideTimingChange(e.target.value)}
-                      style={{
-                        width: 60,
-                        borderRadius: 10,
-                        border: '1px solid rgba(148, 163, 184, 0.5)',
-                        padding: '6px 8px',
-                        textAlign: 'center',
-                      }}
-                    />
-                  </div>
-                  <button
-                    onClick={handleApplyTimingToAllSlides}
-                    style={{
-                      border: 'none',
-                      borderRadius: 10,
-                      padding: '8px 12px',
-                      background: '#4f46e5',
-                      color: '#fff',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Apply to all slides
-                  </button>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                    Determines how long this slide stays visible when animations auto-play.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '6px 12px',
-                borderRadius: 12,
-                background: '#ffffff',
-                border: '1px solid rgba(148, 163, 184, 0.18)',
-                fontWeight: 600,
-                color: '#0f172a',
-              }}
-            >
-              <Maximize size={14} />
-              {layout.aspectLabel}
-            </div>
-          </div>
-
-          <div
-            ref={canvasContainerRef}
-            onWheel={handleWheel}
-            onMouseDown={handlePanStart}
-            onMouseLeave={handlePanEnd}
-            data-canvas-container
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'flex-start',
-              overflowY: 'auto',
-              overflowX: 'auto',
-              maxHeight: '100%',
-              maxWidth: '100%',
-              minHeight: 0,
-              minWidth: 0,
-              padding: '20px',
-              position: 'relative',
-              cursor: isPanning ? 'grabbing' : (selectedTool === 'select' && !selectedPreset && !selectedLayerId ? 'grab' : selectedPreset ? 'crosshair' : 'default'),
-            }}
-            className="custom-scrollbar"
-          >
-            <div
-              ref={stageWrapperRef}
-              style={{
-                width: canvasRenderWidth,
-                height: canvasRenderHeight,
-                minWidth: canvasRenderWidth,
-                minHeight: canvasRenderHeight,
-                background: '#ffffff',
-                borderRadius: 24,
-                boxShadow: '0 30px 60px rgba(15, 23, 42, 0.14)',
-                border: '1px solid rgba(148, 163, 184, 0.25)',
-                position: 'relative',
-                overflow: 'hidden',
-                flexShrink: 0,
-                backgroundImage:
-                  'linear-gradient(0deg, transparent 24%, rgba(148, 163, 184, 0.08) 25%, rgba(148, 163, 184, 0.08) 26%, transparent 27%), linear-gradient(90deg, transparent 24%, rgba(148, 163, 184, 0.08) 25%, rgba(148, 163, 184, 0.08) 26%, transparent 27%)',
-                backgroundSize: '40px 40px',
-              }}
-            >
-              <Stage
-                ref={stageRef}
-                width={canvasRenderWidth}
-                height={canvasRenderHeight}
-                onClick={handleStageClick}
-                onTap={handleStageClick}
-                onMouseDown={handlePanStart}
-                data-canvas-stage
-                  style={{
-                  cursor: isPanning 
-                    ? 'grabbing' 
-                    : selectedPreset 
-                    ? 'crosshair' 
-                    : selectedTool === 'select' && !selectedPreset && !selectedLayerId
-                    ? 'grab' 
-                    : 'default' 
-                }}
-                onMouseMove={(e) => {
-                  // Update cursor on hover
-                  if (!isPanning && selectedTool === 'select' && !selectedPreset && !selectedLayerId) {
-                    const stage = e.target.getStage();
-                    if (stage && (e.target === stage || e.target.name() === 'background')) {
-                      if (stage.container()) {
-                        stage.container().style.cursor = 'grab';
-                      }
+              onMouseMove={(e) => {
+                // Update cursor on hover
+                if (!isPanning && selectedTool === 'select' && !selectedPreset && !selectedLayerId) {
+                  const stage = e.target.getStage();
+                  if (stage && (e.target === stage || e.target.name() === 'background')) {
+                    if (stage.container()) {
+                      stage.container().style.cursor = 'grab';
                     }
                   }
-                }}
-              >
-                {/* Background Layer */}
-                <Layer>
-                  <Rect
-                    name="background"
-                    x={0}
-                    y={0}
-                    width={layout.width * scale}
-                    height={layout.height * scale}
-                    fill={activeSlide?.background || '#ffffff'}
-                  />
-                </Layer>
-                
-                {/* Elements Layer - All elements grouped together */}
-                <Layer>
-                  {activeSlide?.layers.map((layer) => {
-                    const layerRef = getLayerNodeRef(layer.id);
-                    if (!layer.visible) {
-                      console.log('Layer not visible:', layer.id, layer.type, layer.name);
-                      return null;
-                    }
-                    
-                    // Debug: Log image layers
-                    if (layer.type === 'image') {
-                      console.log('Rendering image layer:', {
-                        id: layer.id,
-                        src: layer.src,
-                        x: layer.x,
-                        y: layer.y,
-                        width: layer.width,
-                        height: layer.height,
-                        visible: layer.visible
-                      });
-                    }
-                    
-                    // Skip child layers (they're rendered as part of their parent group)
-                    if (layer.parentId) return null;
+                }
+              }}
+            >
+              {/* Background Layer */}
+              <Layer>
+                <Rect
+                  name="background"
+                  x={0}
+                  y={0}
+                  width={layout.width * scale}
+                  height={layout.height * scale}
+                  fill={activeSlide?.background || '#ffffff'}
+                />
+              </Layer>
+              
+              {/* Elements Layer - All elements grouped together */}
+              <Layer>
+                {activeSlide?.layers.map((layer) => {
+                  const layerRef = getLayerNodeRef(layer.id);
+                  if (!layer.visible) {
+                    console.log('Layer not visible:', layer.id, layer.type, layer.name);
+                    return null;
+                  }
+                  
+                  // Debug: Log image layers
+                  if (layer.type === 'image') {
+                    console.log('Rendering image layer:', {
+                      id: layer.id,
+                      src: layer.src,
+                      x: layer.x,
+                      y: layer.y,
+                      width: layer.width,
+                      height: layer.height,
+                      visible: layer.visible
+                    });
+                  }
+                  
+                  // Skip child layers (they're rendered as part of their parent group)
+                  if (layer.parentId) return null;
 
-                    const scaledX = layer.x * scale;
-                    const scaledY = layer.y * scale;
-                    const scaledWidth = layer.width * scale;
-                    const scaledHeight = layer.height * scale;
+                  const scaledX = layer.x * scale;
+                  const scaledY = layer.y * scale;
+                  const scaledWidth = layer.width * scale;
+                  const scaledHeight = layer.height * scale;
 
-                    let renderedLayer = null;
+                  let renderedLayer = null;
 
-                    if (layer.type === 'group') {
-                      // Render group with its children
-                      const childLayers = activeSlide.layers.filter((l) => l.parentId === layer.id);
-                      const childElements = childLayers.map((childLayer) => {
-                        const childRef = getLayerNodeRef(childLayer.id);
-                        const childScaledX = childLayer.x * scale;
-                        const childScaledY = childLayer.y * scale;
-                        const childScaledWidth = childLayer.width * scale;
-                        const childScaledHeight = childLayer.height * scale;
+                  if (layer.type === 'group') {
+                    // Render group with its children
+                    const childLayers = activeSlide.layers.filter((l) => l.parentId === layer.id);
+                    const childElements = childLayers.map((childLayer) => {
+                      const childRef = getLayerNodeRef(childLayer.id);
+                      const childScaledX = childLayer.x * scale;
+                      const childScaledY = childLayer.y * scale;
+                      const childScaledWidth = childLayer.width * scale;
+                      const childScaledHeight = childLayer.height * scale;
 
-                        let childRendered = null;
-                        if (childLayer.type === 'text') {
-                          childRendered = (
-                            <TextLayer
-                              ref={childRef}
-                              layer={childLayer}
-                              scaledX={childScaledX}
-                              scaledY={childScaledY}
-                              scaledWidth={childScaledWidth}
-                              scaledHeight={childScaledHeight}
-                              scale={scale}
-                              onDragMove={(e) => handleLayerDragMove(childLayer, e)}
-                              onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
-                              onClick={(e) => handleLayerClick(childLayer, e)}
-                            />
-                          );
-                        } else if (childLayer.type === 'image') {
-                          childRendered = (
-                            <ImageLayer
-                              ref={childRef}
-                              layer={childLayer}
-                              scaledX={childScaledX}
-                              scaledY={childScaledY}
-                              scaledWidth={childScaledWidth}
-                              scaledHeight={childScaledHeight}
-                              scale={scale}
-                              onDragMove={(e) => handleLayerDragMove(childLayer, e)}
-                              onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
-                              onClick={(e) => handleLayerClick(childLayer, e)}
-                            />
-                          );
-                        } else if (childLayer.type === 'shape') {
-                          childRendered = (
-                            <ShapeLayer
-                              ref={childRef}
-                              layer={childLayer}
-                              scaledX={childScaledX}
-                              scaledY={childScaledY}
-                              scaledWidth={childScaledWidth}
-                              scaledHeight={childScaledHeight}
-                              scale={scale}
-                              onDragMove={(e) => handleLayerDragMove(childLayer, e)}
-                              onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
-                              onClick={(e) => handleLayerClick(childLayer, e)}
-                            />
-                          );
-                        }
-                        return childRendered;
-                      });
+                      let childRendered = null;
+                      if (childLayer.type === 'text') {
+                        childRendered = (
+                          <TextLayer
+                            ref={childRef}
+                            layer={childLayer}
+                            scaledX={childScaledX}
+                            scaledY={childScaledY}
+                            scaledWidth={childScaledWidth}
+                            scaledHeight={childScaledHeight}
+                            scale={scale}
+                            onDragMove={(e) => handleLayerDragMove(childLayer, e)}
+                            onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
+                            onClick={(e) => handleLayerClick(childLayer, e)}
+                          />
+                        );
+                      } else if (childLayer.type === 'image') {
+                        childRendered = (
+                          <ImageLayer
+                            ref={childRef}
+                            layer={childLayer}
+                            scaledX={childScaledX}
+                            scaledY={childScaledY}
+                            scaledWidth={childScaledWidth}
+                            scaledHeight={childScaledHeight}
+                            scale={scale}
+                            onDragMove={(e) => handleLayerDragMove(childLayer, e)}
+                            onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
+                            onClick={(e) => handleLayerClick(childLayer, e)}
+                          />
+                        );
+                      } else if (childLayer.type === 'shape') {
+                        childRendered = (
+                          <ShapeLayer
+                            ref={childRef}
+                            layer={childLayer}
+                            scaledX={childScaledX}
+                            scaledY={childScaledY}
+                            scaledWidth={childScaledWidth}
+                            scaledHeight={childScaledHeight}
+                            scale={scale}
+                            onDragMove={(e) => handleLayerDragMove(childLayer, e)}
+                            onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
+                            onClick={(e) => handleLayerClick(childLayer, e)}
+                          />
+                        );
+                      }
+                      return childRendered;
+                    });
 
-                      renderedLayer = (
-                        <GroupLayer
-                          ref={layerRef}
-                          layer={layer}
-                          scaledX={scaledX}
-                          scaledY={scaledY}
-                          scaledWidth={scaledWidth}
-                          scaledHeight={scaledHeight}
-                          scale={scale}
-                          onDragMove={(e) => handleLayerDragMove(layer, e)}
-                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                          onClick={(e) => handleLayerClick(layer, e)}
-                        >
-                          {childElements}
-                        </GroupLayer>
-                      );
-                    } else if (layer.type === 'text') {
-                      renderedLayer = (
-                        <TextLayer
-                          ref={layerRef}
-                          layer={layer}
-                          scaledX={scaledX}
-                          scaledY={scaledY}
-                          scaledWidth={scaledWidth}
-                          scaledHeight={scaledHeight}
-                          scale={scale}
-                          onDragMove={(e) => handleLayerDragMove(layer, e)}
-                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                          onClick={(e) => handleLayerClick(layer, e)}
-                        />
-                      );
-                    } else if (layer.type === 'image') {
-                      renderedLayer = (
-                        <ImageLayer
-                          ref={layerRef}
-                          layer={layer}
-                          scaledX={scaledX}
-                          scaledY={scaledY}
-                          scaledWidth={scaledWidth}
-                          scaledHeight={scaledHeight}
-                          scale={scale}
-                          onDragMove={(e) => handleLayerDragMove(layer, e)}
-                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                          onClick={(e) => handleLayerClick(layer, e)}
-                        />
-                      );
-                    } else if (layer.type === 'shape') {
-                      renderedLayer = (
-                        <ShapeLayer
-                          ref={layerRef}
-                          layer={layer}
-                          scaledX={scaledX}
-                          scaledY={scaledY}
-                          scaledWidth={scaledWidth}
-                          scaledHeight={scaledHeight}
-                          scale={scale}
-                          onDragMove={(e) => handleLayerDragMove(layer, e)}
-                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                          onClick={(e) => handleLayerClick(layer, e)}
-                        />
-                      );
-                    }
-
-                    if (!renderedLayer) return null;
-
-                    return (
-                      <ElementGroup
-                        key={layer.id}
-                        effects={layer.effects}
+                    renderedLayer = (
+                      <GroupLayer
+                        ref={layerRef}
+                        layer={layer}
+                        scaledX={scaledX}
+                        scaledY={scaledY}
+                        scaledWidth={scaledWidth}
+                        scaledHeight={scaledHeight}
                         scale={scale}
+                        onDragMove={(e) => handleLayerDragMove(layer, e)}
+                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                        onClick={(e) => handleLayerClick(layer, e)}
                       >
-                        {renderedLayer}
-                      </ElementGroup>
+                        {childElements}
+                      </GroupLayer>
                     );
-                  })}
-                </Layer>
-                
-                {/* Selection/Transform Layer - For resize handles and rotate handle */}
-                <Layer>
-                  {activeSlide?.layers.map((layer) => {
-                    if (!layer.visible) return null;
-                    const isSelected = selectedLayerId === layer.id;
-                    if (!isSelected) return null;
-                    
-                    const layerRef = getLayerNodeRef(layer.id);
-                    const selectionVersion = `${layer.x}-${layer.y}-${layer.width}-${layer.height}-${layer.rotation}-${scale}`;
-                    
-                    return (
-                      <React.Fragment key={`handles-${layer.id}`}>
-                        <ResizeHandles
-                          isVisible={isSelected}
-                          targetRef={layerRef}
-                          scale={scale}
-                          expectedWidth={layer.width}
-                          expectedHeight={layer.height}
-                          onResize={(node) => handleLayerResize(layer.id, node)}
-                          selectionKey={selectionVersion}
-                        />
-                        <RotateHandle
-                          isVisible={isSelected}
-                          targetRef={layerRef}
-                          scale={scale}
-                          layer={layer}
-                          onRotate={(rotation) => handleLayerRotate(layer.id, rotation)}
-                        />
-                      </React.Fragment>
+                  } else if (layer.type === 'text') {
+                    renderedLayer = (
+                      <TextLayer
+                        ref={layerRef}
+                        layer={layer}
+                        scaledX={scaledX}
+                        scaledY={scaledY}
+                        scaledWidth={scaledWidth}
+                        scaledHeight={scaledHeight}
+                        scale={scale}
+                        onDragMove={(e) => handleLayerDragMove(layer, e)}
+                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                        onClick={(e) => handleLayerClick(layer, e)}
+                      />
                     );
-                  })}
-                </Layer>
-              </Stage>
-              <LayerActionBar
-                layer={selectedLayer}
-                bounds={selectionBounds}
-                onDuplicate={(layer) => handleDuplicateLayer(layer.id)}
-                onEdit={handleLayerEditButton}
-                onDelete={(layer) => handleRemoveLayer(layer.id)}
-                onEnhance={handleLayerEnhance}
-                onUpload={handleLayerImageUpload}
-                enhancing={selectedLayer ? enhancingLayerId === selectedLayer.id : false}
-                uploading={selectedLayer ? uploadingLayerId === selectedLayer.id : false}
-              />
-            </div>
-          </div>
-        </section>
+                  } else if (layer.type === 'image') {
+                    renderedLayer = (
+                      <ImageLayer
+                        ref={layerRef}
+                        layer={layer}
+                        scaledX={scaledX}
+                        scaledY={scaledY}
+                        scaledWidth={scaledWidth}
+                        scaledHeight={scaledHeight}
+                        scale={scale}
+                        onDragMove={(e) => handleLayerDragMove(layer, e)}
+                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                        onClick={(e) => handleLayerClick(layer, e)}
+                      />
+                    );
+                  } else if (layer.type === 'shape') {
+                    renderedLayer = (
+                      <ShapeLayer
+                        ref={layerRef}
+                        layer={layer}
+                        scaledX={scaledX}
+                        scaledY={scaledY}
+                        scaledWidth={scaledWidth}
+                        scaledHeight={scaledHeight}
+                        scale={scale}
+                        onDragMove={(e) => handleLayerDragMove(layer, e)}
+                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                        onClick={(e) => handleLayerClick(layer, e)}
+                      />
+                    );
+                  }
+
+                  if (!renderedLayer) return null;
+
+                  return (
+                    <ElementGroup
+                      key={layer.id}
+                      effects={layer.effects}
+                      scale={scale}
+                    >
+                      {renderedLayer}
+                    </ElementGroup>
+                  );
+                })}
+              </Layer>
+              
+              {/* Selection/Transform Layer - For resize handles and rotate handle */}
+              <Layer>
+                {activeSlide?.layers.map((layer) => {
+                  if (!layer.visible) return null;
+                  const isSelected = selectedLayerId === layer.id;
+                  if (!isSelected) return null;
+                  
+                  const layerRef = getLayerNodeRef(layer.id);
+                  const selectionVersion = `${layer.x}-${layer.y}-${layer.width}-${layer.height}-${layer.rotation}-${scale}`;
+                  
+                  return (
+                    <React.Fragment key={`handles-${layer.id}`}>
+                      <ResizeHandles
+                        isVisible={isSelected}
+                        targetRef={layerRef}
+                        scale={scale}
+                        expectedWidth={layer.width}
+                        expectedHeight={layer.height}
+                        onResize={(node) => handleLayerResize(layer.id, node)}
+                        selectionKey={selectionVersion}
+                      />
+                      <RotateHandle
+                        isVisible={isSelected}
+                        targetRef={layerRef}
+                        scale={scale}
+                        layer={layer}
+                        onRotate={(rotation) => handleLayerRotate(layer.id, rotation)}
+                      />
+                    </React.Fragment>
+                  );
+                })}
+              </Layer>
+            </Stage>
+          )}
+          renderLayerActionBar={() => (
+            <LayerActionBar
+              layer={selectedLayer}
+              bounds={selectionBounds}
+              onDuplicate={(layer) => handleDuplicateLayer(layer.id)}
+              onEdit={handleLayerEditButton}
+              onDelete={(layer) => handleRemoveLayer(layer.id)}
+              onEnhance={handleLayerEnhance}
+              onUpload={handleLayerImageUpload}
+              enhancing={selectedLayer ? enhancingLayerId === selectedLayer.id : false}
+              uploading={selectedLayer ? uploadingLayerId === selectedLayer.id : false}
+            />
+          )}
+        />
 
         {/* Tools & inspector */}
         {rightSidebarVisible && (

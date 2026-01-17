@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiMonitor, FiMaximize, FiZap } from 'react-icons/fi';
 import { PresentationWorkspace } from '../components/presentation';
 import PresentationStudio from '../components/presentationstudio/PresentationStudio';
 import { PRESENTATION_LAYOUTS } from '../components/presentation/layout/layouts';
 
 const Presentation = () => {
+  const navigate = useNavigate();
   const [selectedLayout, setSelectedLayout] = useState(null);
   const [showAIStudio, setShowAIStudio] = useState(false);
+
+  // Open new editor in new tab
+  const openNewEditor = () => {
+    window.open('/presentation-editor', '_blank');
+  };
 
   // Filter layouts to only show 16:9 and 4:3
   const availableLayouts = PRESENTATION_LAYOUTS.filter(layout => 
@@ -93,6 +100,26 @@ const Presentation = () => {
           >
             Pick a layout that fits your story, or let AI create a stunning presentation for you.
           </p>
+          {/* New Editor Button */}
+          <button
+            onClick={openNewEditor}
+            style={{
+              marginTop: '20px',
+              padding: '12px 24px',
+              background: '#3b82f6',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            🚀 Open New Editor (Full Screen)
+          </button>
         </div>
 
         <div
