@@ -515,7 +515,7 @@ const LeftSidebar = ({
                       onMouseLeave={() => setHoveredOption(null)}
                       title={`Add ${img.name} to canvas`}
                     >
-                      <img src={img.src} alt={img.name} style={{ width: '100%', height: 70, objectFit: 'cover' }} />
+                      <img src={img.src} alt={img.name} style={{ width: '100%', height: 70, objectFit: 'contain' }} />
                     </button>
                   ))}
                 </div>

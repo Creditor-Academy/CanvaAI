@@ -9,7 +9,6 @@ import TextStyleButton from './TextStyleButton';
  */
 const FloatingToolbar = ({
   layer,
-  styles,
   onColorChange,
   onDuplicate,
   onDelete,
@@ -22,21 +21,30 @@ const FloatingToolbar = ({
   const hasTextContent = layer.type === 'text' && layer.text?.trim();
 
   return (
-    <div style={styles.floatingBar} onMouseDown={(e) => e.stopPropagation()}>
+    <div 
+      className="absolute -top-11 left-0 flex items-center gap-2 bg-white/95 border border-gray-200 rounded-[18px] px-2.5 py-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm z-20" 
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       {/* Color Picker */}
       <input
         type="color"
         aria-label="Change color"
         value={getLayerPrimaryColor(layer)}
         onChange={(e) => onColorChange(e.target.value)}
-        style={styles.floatingColor}
+        className="w-7 h-7 p-0 border border-gray-200 rounded-lg bg-none cursor-pointer appearance-none"
+        style={{
+          WebkitAppearance: 'none',
+          appearance: 'none'
+        }}
       />
       
       {/* Duplicate Button */}
       <button
+        type="button"
         title="Duplicate"
-        style={styles.floatingBtn}
+        className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={(e) => {
+          e.preventDefault();
           e.stopPropagation();
           onDuplicate(layer.id);
         }}
@@ -46,9 +54,11 @@ const FloatingToolbar = ({
       
       {/* Delete Button */}
       <button
+        type="button"
         title="Delete"
-        style={styles.floatingBtn}
+        className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={(e) => {
+          e.preventDefault();
           e.stopPropagation();
           onDelete(layer.id);
         }}

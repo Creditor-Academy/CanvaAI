@@ -390,7 +390,13 @@ const SideBar = () => {
                     <li key={item.key}>
                       <button
                         onClick={() => {
-                          navigate(item.path);
+                          // Open canva-clone in a new tab
+                          if (item.key === 'canvaClone') {
+                            const baseUrl = window.location.origin;
+                            window.open(`${baseUrl}${item.path}`, '_blank');
+                          } else {
+                            navigate(item.path);
+                          }
                           if (isMobile) setIsOpen(false);
                         }}
                         style={{
