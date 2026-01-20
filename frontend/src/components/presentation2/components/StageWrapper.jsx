@@ -45,19 +45,18 @@ const StageWrapper = ({
           width={scaledWidth}
           height={scaledHeight}
           fill={background || '#ffffff'}
+          name="background"
         />
       </Layer>
 
       {/* Content Layer */}
       <Layer>
-        {/* TODO: Render layers here */}
-        {/* This will be handled by renderLayers prop or direct layer rendering */}
         {renderLayers ? renderLayers() : null}
       </Layer>
 
       {/* Selection/Transform Layer */}
       <Layer>
-        {/* TODO: Render selection handles and transform controls */}
+        {/* Transform handles are rendered with their respective layers */}
         {/* TODO: Render alignment guides */}
       </Layer>
     </Stage>

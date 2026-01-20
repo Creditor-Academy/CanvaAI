@@ -2215,38 +2215,38 @@ const handleApplyEnhancedText = (enhancedText) => {
       }}
     >
       {/* Timing toast - keep outside TopBar */}
-      {timingToast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 28,
-            right: 28,
-            background: 'rgba(15, 23, 42, 0.92)',
-            color: '#fff',
-            padding: '10px 16px',
-            borderRadius: 12,
-            fontWeight: 600,
-            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.35)',
-            zIndex: 1000,
-          }}
-        >
-          {timingToast}
-        </div>
-      )}
+            {timingToast && (
+              <div
+                style={{
+                  position: 'fixed',
+                  bottom: 28,
+                  right: 28,
+                  background: 'rgba(15, 23, 42, 0.92)',
+                  color: '#fff',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  boxShadow: '0 18px 40px rgba(15, 23, 42, 0.35)',
+                  zIndex: 1000,
+                }}
+              >
+                {timingToast}
+              </div>
+            )}
 
       <TopBar
         layout={layout}
         onBack={onBack}
         presentationTitle={presentationTitle}
         onTitleChange={setPresentationTitle}
-        historyIndex={historyIndex}
-        historyLength={historyLength}
-        onUndo={onUndo}
-        onRedo={onRedo}
-        zoom={zoom}
-        onZoomChange={handleZoomChange}
-        onFitToScreen={handleFitToScreen}
-        onZoomTo100={handleZoomTo100}
+            historyIndex={historyIndex}
+            historyLength={historyLength}
+            onUndo={onUndo}
+            onRedo={onRedo}
+            zoom={zoom}
+            onZoomChange={handleZoomChange}
+            onFitToScreen={handleFitToScreen}
+            onZoomTo100={handleZoomTo100}
         onPresent={() => openPreview('manual')}
         onShare={() => setIsShareModalOpen(true)}
         selectedTool={selectedTool}
@@ -2324,269 +2324,269 @@ const handleApplyEnhancedText = (enhancedText) => {
           canvasContainerRef={canvasContainerRef}
           stageWrapperRef={stageWrapperRef}
           stageRef={stageRef}
-          onWheel={handleWheel}
+            onWheel={handleWheel}
           onPanStart={handlePanStart}
           onPanEnd={handlePanEnd}
           onStageClick={handleStageClick}
           timingButtonRef={timingButtonRef}
           timingPanelRef={timingPanelRef}
           renderStageContent={() => (
-            <Stage
-              ref={stageRef}
-              width={canvasRenderWidth}
-              height={canvasRenderHeight}
-              onClick={handleStageClick}
-              onTap={handleStageClick}
-              onMouseDown={handlePanStart}
-              data-canvas-stage
-              style={{
-                cursor: isPanning 
-                  ? 'grabbing' 
-                  : selectedPreset 
-                  ? 'crosshair' 
-                  : selectedTool === 'select' && !selectedPreset && !selectedLayerId
-                  ? 'grab' 
-                  : 'default' 
-              }}
-              onMouseMove={(e) => {
-                // Update cursor on hover
-                if (!isPanning && selectedTool === 'select' && !selectedPreset && !selectedLayerId) {
-                  const stage = e.target.getStage();
-                  if (stage && (e.target === stage || e.target.name() === 'background')) {
-                    if (stage.container()) {
-                      stage.container().style.cursor = 'grab';
+              <Stage
+                ref={stageRef}
+                width={canvasRenderWidth}
+                height={canvasRenderHeight}
+                onClick={handleStageClick}
+                onTap={handleStageClick}
+                onMouseDown={handlePanStart}
+                data-canvas-stage
+                  style={{
+                  cursor: isPanning 
+                    ? 'grabbing' 
+                    : selectedPreset 
+                    ? 'crosshair' 
+                    : selectedTool === 'select' && !selectedPreset && !selectedLayerId
+                    ? 'grab' 
+                    : 'default' 
+                }}
+                onMouseMove={(e) => {
+                  // Update cursor on hover
+                  if (!isPanning && selectedTool === 'select' && !selectedPreset && !selectedLayerId) {
+                    const stage = e.target.getStage();
+                    if (stage && (e.target === stage || e.target.name() === 'background')) {
+                      if (stage.container()) {
+                        stage.container().style.cursor = 'grab';
+                      }
                     }
                   }
-                }
-              }}
-            >
-              {/* Background Layer */}
-              <Layer>
-                <Rect
-                  name="background"
-                  x={0}
-                  y={0}
-                  width={layout.width * scale}
-                  height={layout.height * scale}
-                  fill={activeSlide?.background || '#ffffff'}
-                />
-              </Layer>
-              
-              {/* Elements Layer - All elements grouped together */}
-              <Layer>
-                {activeSlide?.layers.map((layer) => {
-                  const layerRef = getLayerNodeRef(layer.id);
-                  if (!layer.visible) {
-                    console.log('Layer not visible:', layer.id, layer.type, layer.name);
-                    return null;
-                  }
-                  
-                  // Debug: Log image layers
-                  if (layer.type === 'image') {
-                    console.log('Rendering image layer:', {
-                      id: layer.id,
-                      src: layer.src,
-                      x: layer.x,
-                      y: layer.y,
-                      width: layer.width,
-                      height: layer.height,
-                      visible: layer.visible
-                    });
-                  }
-                  
-                  // Skip child layers (they're rendered as part of their parent group)
-                  if (layer.parentId) return null;
+                }}
+              >
+                {/* Background Layer */}
+                <Layer>
+                  <Rect
+                    name="background"
+                    x={0}
+                    y={0}
+                    width={layout.width * scale}
+                    height={layout.height * scale}
+                    fill={activeSlide?.background || '#ffffff'}
+                  />
+                </Layer>
+                
+                {/* Elements Layer - All elements grouped together */}
+                <Layer>
+                  {activeSlide?.layers.map((layer) => {
+                    const layerRef = getLayerNodeRef(layer.id);
+                    if (!layer.visible) {
+                      console.log('Layer not visible:', layer.id, layer.type, layer.name);
+                      return null;
+                    }
+                    
+                    // Debug: Log image layers
+                    if (layer.type === 'image') {
+                      console.log('Rendering image layer:', {
+                        id: layer.id,
+                        src: layer.src,
+                        x: layer.x,
+                        y: layer.y,
+                        width: layer.width,
+                        height: layer.height,
+                        visible: layer.visible
+                      });
+                    }
+                    
+                    // Skip child layers (they're rendered as part of their parent group)
+                    if (layer.parentId) return null;
 
-                  const scaledX = layer.x * scale;
-                  const scaledY = layer.y * scale;
-                  const scaledWidth = layer.width * scale;
-                  const scaledHeight = layer.height * scale;
+                    const scaledX = layer.x * scale;
+                    const scaledY = layer.y * scale;
+                    const scaledWidth = layer.width * scale;
+                    const scaledHeight = layer.height * scale;
 
-                  let renderedLayer = null;
+                    let renderedLayer = null;
 
-                  if (layer.type === 'group') {
-                    // Render group with its children
-                    const childLayers = activeSlide.layers.filter((l) => l.parentId === layer.id);
-                    const childElements = childLayers.map((childLayer) => {
-                      const childRef = getLayerNodeRef(childLayer.id);
-                      const childScaledX = childLayer.x * scale;
-                      const childScaledY = childLayer.y * scale;
-                      const childScaledWidth = childLayer.width * scale;
-                      const childScaledHeight = childLayer.height * scale;
+                    if (layer.type === 'group') {
+                      // Render group with its children
+                      const childLayers = activeSlide.layers.filter((l) => l.parentId === layer.id);
+                      const childElements = childLayers.map((childLayer) => {
+                        const childRef = getLayerNodeRef(childLayer.id);
+                        const childScaledX = childLayer.x * scale;
+                        const childScaledY = childLayer.y * scale;
+                        const childScaledWidth = childLayer.width * scale;
+                        const childScaledHeight = childLayer.height * scale;
 
-                      let childRendered = null;
-                      if (childLayer.type === 'text') {
-                        childRendered = (
-                          <TextLayer
-                            ref={childRef}
-                            layer={childLayer}
-                            scaledX={childScaledX}
-                            scaledY={childScaledY}
-                            scaledWidth={childScaledWidth}
-                            scaledHeight={childScaledHeight}
-                            scale={scale}
-                            onDragMove={(e) => handleLayerDragMove(childLayer, e)}
-                            onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
-                            onClick={(e) => handleLayerClick(childLayer, e)}
-                          />
-                        );
-                      } else if (childLayer.type === 'image') {
-                        childRendered = (
-                          <ImageLayer
-                            ref={childRef}
-                            layer={childLayer}
-                            scaledX={childScaledX}
-                            scaledY={childScaledY}
-                            scaledWidth={childScaledWidth}
-                            scaledHeight={childScaledHeight}
-                            scale={scale}
-                            onDragMove={(e) => handleLayerDragMove(childLayer, e)}
-                            onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
-                            onClick={(e) => handleLayerClick(childLayer, e)}
-                          />
-                        );
-                      } else if (childLayer.type === 'shape') {
-                        childRendered = (
-                          <ShapeLayer
-                            ref={childRef}
-                            layer={childLayer}
-                            scaledX={childScaledX}
-                            scaledY={childScaledY}
-                            scaledWidth={childScaledWidth}
-                            scaledHeight={childScaledHeight}
-                            scale={scale}
-                            onDragMove={(e) => handleLayerDragMove(childLayer, e)}
-                            onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
-                            onClick={(e) => handleLayerClick(childLayer, e)}
-                          />
-                        );
-                      }
-                      return childRendered;
-                    });
+                        let childRendered = null;
+                        if (childLayer.type === 'text') {
+                          childRendered = (
+                            <TextLayer
+                              ref={childRef}
+                              layer={childLayer}
+                              scaledX={childScaledX}
+                              scaledY={childScaledY}
+                              scaledWidth={childScaledWidth}
+                              scaledHeight={childScaledHeight}
+                              scale={scale}
+                              onDragMove={(e) => handleLayerDragMove(childLayer, e)}
+                              onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
+                              onClick={(e) => handleLayerClick(childLayer, e)}
+                            />
+                          );
+                        } else if (childLayer.type === 'image') {
+                          childRendered = (
+                            <ImageLayer
+                              ref={childRef}
+                              layer={childLayer}
+                              scaledX={childScaledX}
+                              scaledY={childScaledY}
+                              scaledWidth={childScaledWidth}
+                              scaledHeight={childScaledHeight}
+                              scale={scale}
+                              onDragMove={(e) => handleLayerDragMove(childLayer, e)}
+                              onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
+                              onClick={(e) => handleLayerClick(childLayer, e)}
+                            />
+                          );
+                        } else if (childLayer.type === 'shape') {
+                          childRendered = (
+                            <ShapeLayer
+                              ref={childRef}
+                              layer={childLayer}
+                              scaledX={childScaledX}
+                              scaledY={childScaledY}
+                              scaledWidth={childScaledWidth}
+                              scaledHeight={childScaledHeight}
+                              scale={scale}
+                              onDragMove={(e) => handleLayerDragMove(childLayer, e)}
+                              onDragEnd={(e) => handleLayerDragEnd(childLayer, e)}
+                              onClick={(e) => handleLayerClick(childLayer, e)}
+                            />
+                          );
+                        }
+                        return childRendered;
+                      });
 
-                    renderedLayer = (
-                      <GroupLayer
-                        ref={layerRef}
-                        layer={layer}
-                        scaledX={scaledX}
-                        scaledY={scaledY}
-                        scaledWidth={scaledWidth}
-                        scaledHeight={scaledHeight}
+                      renderedLayer = (
+                        <GroupLayer
+                          ref={layerRef}
+                          layer={layer}
+                          scaledX={scaledX}
+                          scaledY={scaledY}
+                          scaledWidth={scaledWidth}
+                          scaledHeight={scaledHeight}
+                          scale={scale}
+                          onDragMove={(e) => handleLayerDragMove(layer, e)}
+                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                          onClick={(e) => handleLayerClick(layer, e)}
+                        >
+                          {childElements}
+                        </GroupLayer>
+                      );
+                    } else if (layer.type === 'text') {
+                      renderedLayer = (
+                        <TextLayer
+                          ref={layerRef}
+                          layer={layer}
+                          scaledX={scaledX}
+                          scaledY={scaledY}
+                          scaledWidth={scaledWidth}
+                          scaledHeight={scaledHeight}
+                          scale={scale}
+                          onDragMove={(e) => handleLayerDragMove(layer, e)}
+                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                          onClick={(e) => handleLayerClick(layer, e)}
+                        />
+                      );
+                    } else if (layer.type === 'image') {
+                      renderedLayer = (
+                        <ImageLayer
+                          ref={layerRef}
+                          layer={layer}
+                          scaledX={scaledX}
+                          scaledY={scaledY}
+                          scaledWidth={scaledWidth}
+                          scaledHeight={scaledHeight}
+                          scale={scale}
+                          onDragMove={(e) => handleLayerDragMove(layer, e)}
+                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                          onClick={(e) => handleLayerClick(layer, e)}
+                        />
+                      );
+                    } else if (layer.type === 'shape') {
+                      renderedLayer = (
+                        <ShapeLayer
+                          ref={layerRef}
+                          layer={layer}
+                          scaledX={scaledX}
+                          scaledY={scaledY}
+                          scaledWidth={scaledWidth}
+                          scaledHeight={scaledHeight}
+                          scale={scale}
+                          onDragMove={(e) => handleLayerDragMove(layer, e)}
+                          onDragEnd={(e) => handleLayerDragEnd(layer, e)}
+                          onClick={(e) => handleLayerClick(layer, e)}
+                        />
+                      );
+                    }
+
+                    if (!renderedLayer) return null;
+
+                    return (
+                      <ElementGroup
+                        key={layer.id}
+                        effects={layer.effects}
                         scale={scale}
-                        onDragMove={(e) => handleLayerDragMove(layer, e)}
-                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                        onClick={(e) => handleLayerClick(layer, e)}
                       >
-                        {childElements}
-                      </GroupLayer>
+                        {renderedLayer}
+                      </ElementGroup>
                     );
-                  } else if (layer.type === 'text') {
-                    renderedLayer = (
-                      <TextLayer
-                        ref={layerRef}
-                        layer={layer}
-                        scaledX={scaledX}
-                        scaledY={scaledY}
-                        scaledWidth={scaledWidth}
-                        scaledHeight={scaledHeight}
-                        scale={scale}
-                        onDragMove={(e) => handleLayerDragMove(layer, e)}
-                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                        onClick={(e) => handleLayerClick(layer, e)}
-                      />
+                  })}
+                </Layer>
+                
+                {/* Selection/Transform Layer - For resize handles and rotate handle */}
+                <Layer>
+                  {activeSlide?.layers.map((layer) => {
+                    if (!layer.visible) return null;
+                    const isSelected = selectedLayerId === layer.id;
+                    if (!isSelected) return null;
+                    
+                    const layerRef = getLayerNodeRef(layer.id);
+                    const selectionVersion = `${layer.x}-${layer.y}-${layer.width}-${layer.height}-${layer.rotation}-${scale}`;
+                    
+                    return (
+                      <React.Fragment key={`handles-${layer.id}`}>
+                        <ResizeHandles
+                          isVisible={isSelected}
+                          targetRef={layerRef}
+                          scale={scale}
+                          expectedWidth={layer.width}
+                          expectedHeight={layer.height}
+                          onResize={(node) => handleLayerResize(layer.id, node)}
+                          selectionKey={selectionVersion}
+                        />
+                        <RotateHandle
+                          isVisible={isSelected}
+                          targetRef={layerRef}
+                          scale={scale}
+                          layer={layer}
+                          onRotate={(rotation) => handleLayerRotate(layer.id, rotation)}
+                        />
+                      </React.Fragment>
                     );
-                  } else if (layer.type === 'image') {
-                    renderedLayer = (
-                      <ImageLayer
-                        ref={layerRef}
-                        layer={layer}
-                        scaledX={scaledX}
-                        scaledY={scaledY}
-                        scaledWidth={scaledWidth}
-                        scaledHeight={scaledHeight}
-                        scale={scale}
-                        onDragMove={(e) => handleLayerDragMove(layer, e)}
-                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                        onClick={(e) => handleLayerClick(layer, e)}
-                      />
-                    );
-                  } else if (layer.type === 'shape') {
-                    renderedLayer = (
-                      <ShapeLayer
-                        ref={layerRef}
-                        layer={layer}
-                        scaledX={scaledX}
-                        scaledY={scaledY}
-                        scaledWidth={scaledWidth}
-                        scaledHeight={scaledHeight}
-                        scale={scale}
-                        onDragMove={(e) => handleLayerDragMove(layer, e)}
-                        onDragEnd={(e) => handleLayerDragEnd(layer, e)}
-                        onClick={(e) => handleLayerClick(layer, e)}
-                      />
-                    );
-                  }
-
-                  if (!renderedLayer) return null;
-
-                  return (
-                    <ElementGroup
-                      key={layer.id}
-                      effects={layer.effects}
-                      scale={scale}
-                    >
-                      {renderedLayer}
-                    </ElementGroup>
-                  );
-                })}
-              </Layer>
-              
-              {/* Selection/Transform Layer - For resize handles and rotate handle */}
-              <Layer>
-                {activeSlide?.layers.map((layer) => {
-                  if (!layer.visible) return null;
-                  const isSelected = selectedLayerId === layer.id;
-                  if (!isSelected) return null;
-                  
-                  const layerRef = getLayerNodeRef(layer.id);
-                  const selectionVersion = `${layer.x}-${layer.y}-${layer.width}-${layer.height}-${layer.rotation}-${scale}`;
-                  
-                  return (
-                    <React.Fragment key={`handles-${layer.id}`}>
-                      <ResizeHandles
-                        isVisible={isSelected}
-                        targetRef={layerRef}
-                        scale={scale}
-                        expectedWidth={layer.width}
-                        expectedHeight={layer.height}
-                        onResize={(node) => handleLayerResize(layer.id, node)}
-                        selectionKey={selectionVersion}
-                      />
-                      <RotateHandle
-                        isVisible={isSelected}
-                        targetRef={layerRef}
-                        scale={scale}
-                        layer={layer}
-                        onRotate={(rotation) => handleLayerRotate(layer.id, rotation)}
-                      />
-                    </React.Fragment>
-                  );
-                })}
-              </Layer>
-            </Stage>
+                  })}
+                </Layer>
+              </Stage>
           )}
           renderLayerActionBar={() => (
-            <LayerActionBar
-              layer={selectedLayer}
-              bounds={selectionBounds}
-              onDuplicate={(layer) => handleDuplicateLayer(layer.id)}
-              onEdit={handleLayerEditButton}
-              onDelete={(layer) => handleRemoveLayer(layer.id)}
-              onEnhance={handleLayerEnhance}
-              onUpload={handleLayerImageUpload}
-              enhancing={selectedLayer ? enhancingLayerId === selectedLayer.id : false}
-              uploading={selectedLayer ? uploadingLayerId === selectedLayer.id : false}
-            />
+              <LayerActionBar
+                layer={selectedLayer}
+                bounds={selectionBounds}
+                onDuplicate={(layer) => handleDuplicateLayer(layer.id)}
+                onEdit={handleLayerEditButton}
+                onDelete={(layer) => handleRemoveLayer(layer.id)}
+                onEnhance={handleLayerEnhance}
+                onUpload={handleLayerImageUpload}
+                enhancing={selectedLayer ? enhancingLayerId === selectedLayer.id : false}
+                uploading={selectedLayer ? uploadingLayerId === selectedLayer.id : false}
+              />
           )}
         />
 

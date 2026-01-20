@@ -21,6 +21,25 @@ import {
   FileText,
   Save,
   Check,
+  Scissors,
+  Copy,
+  Clipboard,
+  Bold,
+  Italic,
+  Underline,
+  Superscript,
+  Subscript,
+  PlusCircle,
+  MinusCircle,
+  Palette,
+  Highlighter,
+  Table,
+  PieChart,
+  TrendingUp,
+  Upload,
+  Link,
+  SpellCheck,
+  BarChart,
 } from 'lucide-react';
 
 /**
@@ -67,8 +86,35 @@ const TopBar = ({
   onLayout,
   onTheme,
   onTransition,
+  
+  // Menu handlers
+  onRename,
+  onCut,
+  onCopy,
+  onPaste,
+  onInsertImage,
+  onInsertImageFromUrl,
+  onInsertTextBox,
+  onInsertTitleBox,
+  onInsertShape,
+  onInsertTable,
+  onInsertChart,
+  onFormatBold,
+  onFormatItalic,
+  onFormatUnderline,
+  onFormatSuperscript,
+  onFormatSubscript,
+  onFormatSizeIncrease,
+  onFormatSizeDecrease,
+  onFormatColor,
+  onFormatHighlightColor,
+  onFormatCapitalization,
+  onSlideChangeBackground,
+  onSlideDuplicate,
+  onSpellingCheck,
 }) => {
   const [showMenuDropdown, setShowMenuDropdown] = useState(null);
+  const [showSubmenu, setShowSubmenu] = useState(null);
   const [showZoomDropdown, setShowZoomDropdown] = useState(false);
   const menuRef = useRef(null);
   const zoomRef = useRef(null);
@@ -78,6 +124,7 @@ const TopBar = ({
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenuDropdown(null);
+        setShowSubmenu(null);
       }
       if (zoomRef.current && !zoomRef.current.contains(event.target)) {
         setShowZoomDropdown(false);
@@ -90,15 +137,15 @@ const TopBar = ({
 
   const menuItems = [
     { id: 'file', label: 'File' },
-    { id: 'edit', label: 'Edit' },
-    { id: 'view', label: 'View' },
+    // { id: 'edit', label: 'Edit' },
+    // { id: 'view', label: 'View' },
     { id: 'insert', label: 'Insert' },
     { id: 'format', label: 'Format' },
     { id: 'slide', label: 'Slide' },
-    { id: 'arrange', label: 'Arrange' },
+    // { id: 'arrange', label: 'Arrange' },
     { id: 'tools', label: 'Tools' },
-    { id: 'extensions', label: 'Extensions' },
-    { id: 'help', label: 'Help' },
+    // { id: 'extensions', label: 'Extensions' },
+    // { id: 'help', label: 'Help' },
   ];
 
   const tools = [
@@ -110,9 +157,175 @@ const TopBar = ({
   ];
 
   const handleMenuClick = (menuId) => {
-    // TODO: Implement menu actions
-    console.log('Menu clicked:', menuId);
-    setShowMenuDropdown(null);
+    setShowMenuDropdown(showMenuDropdown === menuId ? null : menuId);
+  };
+
+  // File menu items
+  const fileMenuItems = [
+    { id: 'rename', label: 'Rename', icon: FileText, onClick: onRename },
+    { id: 'cut', label: 'Cut', icon: Scissors, onClick: onCut, shortcut: 'Ctrl+X' },
+    { id: 'copy', label: 'Copy', icon: Copy, onClick: onCopy, shortcut: 'Ctrl+C' },
+    { id: 'paste', label: 'Paste', icon: Clipboard, onClick: onPaste, shortcut: 'Ctrl+V' },
+  ];
+
+  // Insert menu items
+  const insertMenuItems = [
+    { 
+      id: 'image', 
+      label: 'Image', 
+      icon: ImageIcon, 
+      hasSubmenu: true,
+      submenu: [
+        { id: 'upload', label: 'Upload from computer', icon: Upload, onClick: onInsertImage },
+        { id: 'url', label: 'Insert from URL', icon: Link, onClick: onInsertImageFromUrl },
+      ]
+    },
+    { id: 'textbox', label: 'Text box', icon: Type, onClick: onInsertTextBox },
+    { id: 'titlebox', label: 'Title box', icon: Type, onClick: onInsertTitleBox },
+    { id: 'shape', label: 'Shape', icon: Shapes, onClick: onInsertShape },
+    { id: 'newslide', label: 'New slide', icon: Plus, onClick: onAddSlide },
+    { id: 'table', label: 'Table', icon: Table, onClick: onInsertTable },
+    { 
+      id: 'chart', 
+      label: 'Chart', 
+      icon: PieChart,
+      hasSubmenu: true,
+      submenu: [
+        { id: 'pie', label: 'Pie chart', icon: PieChart, onClick: () => onInsertChart?.('pie') },
+        { id: 'line', label: 'Line chart', icon: TrendingUp, onClick: () => onInsertChart?.('line') },
+        { id: 'bar', label: 'Bar chart', icon: BarChart, onClick: () => onInsertChart?.('bar') },
+      ]
+    },
+  ];
+
+  // Format menu items
+  const formatMenuItems = [
+    {
+      id: 'text',
+      label: 'Text',
+      hasSubmenu: true,
+      submenu: [
+        { id: 'bold', label: 'Bold', icon: Bold, onClick: onFormatBold, shortcut: 'Ctrl+B' },
+        { id: 'italic', label: 'Italic', icon: Italic, onClick: onFormatItalic, shortcut: 'Ctrl+I' },
+        { id: 'underline', label: 'Underline', icon: Underline, onClick: onFormatUnderline, shortcut: 'Ctrl+U' },
+        { id: 'superscript', label: 'Superscript', icon: Superscript, onClick: onFormatSuperscript },
+        { id: 'subscript', label: 'Subscript', icon: Subscript, onClick: onFormatSubscript },
+      ]
+    },
+    {
+      id: 'size',
+      label: 'Size',
+      hasSubmenu: true,
+      submenu: [
+        { id: 'increase', label: 'Increase', icon: PlusCircle, onClick: onFormatSizeIncrease },
+        { id: 'decrease', label: 'Decrease', icon: MinusCircle, onClick: onFormatSizeDecrease },
+      ]
+    },
+    { id: 'color', label: 'Color', icon: Palette, onClick: onFormatColor },
+    { id: 'highlight', label: 'Highlight color', icon: Highlighter, onClick: onFormatHighlightColor },
+    {
+      id: 'capitalization',
+      label: 'Capitalization',
+      hasSubmenu: true,
+      submenu: [
+        { id: 'lowercase', label: 'lowercase', onClick: () => onFormatCapitalization?.('lowercase') },
+        { id: 'uppercase', label: 'UPPERCASE', onClick: () => onFormatCapitalization?.('uppercase') },
+        { id: 'title', label: 'Title Case', onClick: () => onFormatCapitalization?.('title') },
+      ]
+    },
+  ];
+
+  // Slide menu items
+  const slideMenuItems = [
+    { id: 'new', label: 'New slide', icon: Plus, onClick: onAddSlide },
+    { id: 'background', label: 'Change background', icon: Palette, onClick: onSlideChangeBackground },
+    { id: 'duplicate', label: 'Duplicate slide', icon: Copy, onClick: onSlideDuplicate },
+  ];
+
+  // Tools menu items
+  const toolsMenuItems = [
+    { id: 'spelling', label: 'Spelling check', icon: SpellCheck, onClick: onSpellingCheck },
+  ];
+
+  // Render dropdown menu
+  const renderDropdown = (menuId, items) => {
+    if (showMenuDropdown !== menuId) return null;
+
+    return (
+      <div className="absolute top-full left-0 mt-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-[200px] py-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isSubmenuOpen = showSubmenu === `${menuId}-${item.id}`;
+
+          if (item.hasSubmenu) {
+            return (
+              <div
+                key={item.id}
+                className="relative"
+                onMouseEnter={() => setShowSubmenu(`${menuId}-${item.id}`)}
+                onMouseLeave={() => setShowSubmenu(null)}
+              >
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    {Icon && <Icon size={16} />}
+                    <span>{item.label}</span>
+                  </div>
+                  <span className="text-gray-400">›</span>
+                </button>
+                {isSubmenuOpen && item.submenu && (
+                  <div className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded shadow-lg min-w-[180px] py-1 z-50">
+                    {item.submenu.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      return (
+                        <button
+                          key={subItem.id}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center justify-between gap-2"
+                          onClick={() => {
+                            subItem.onClick?.();
+                            setShowMenuDropdown(null);
+                            setShowSubmenu(null);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {SubIcon && <SubIcon size={16} />}
+                            <span>{subItem.label}</span>
+                          </div>
+                          {subItem.shortcut && (
+                            <span className="text-xs text-gray-400">{subItem.shortcut}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={item.id}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center justify-between gap-2"
+              onClick={() => {
+                item.onClick?.();
+                setShowMenuDropdown(null);
+                setShowSubmenu(null);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                {Icon && <Icon size={16} />}
+                <span>{item.label}</span>
+              </div>
+              {item.shortcut && (
+                <span className="text-xs text-gray-400">{item.shortcut}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -201,16 +414,29 @@ const TopBar = ({
       </div>
 
       {/* Row 2: Menu Bar */}
-      <div className="flex items-center px-4 border-b border-gray-200 bg-white">
-        {menuItems.map((menu) => (
-          <button
-            key={menu.id}
-            onClick={() => handleMenuClick(menu.id)}
-            className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
-          >
-            {menu.label}
-          </button>
-        ))}
+      <div className="flex items-center px-4 border-b border-gray-200 bg-white relative" ref={menuRef}>
+        {menuItems.map((menu) => {
+          let menuData = null;
+          if (menu.id === 'file') menuData = fileMenuItems;
+          else if (menu.id === 'insert') menuData = insertMenuItems;
+          else if (menu.id === 'format') menuData = formatMenuItems;
+          else if (menu.id === 'slide') menuData = slideMenuItems;
+          else if (menu.id === 'tools') menuData = toolsMenuItems;
+
+          return (
+            <div key={menu.id} className="relative">
+              <button
+                onClick={() => handleMenuClick(menu.id)}
+                className={`px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors ${
+                  showMenuDropdown === menu.id ? 'bg-gray-100' : ''
+                }`}
+              >
+                {menu.label}
+              </button>
+              {menuData && renderDropdown(menu.id, menuData)}
+            </div>
+          );
+        })}
       </div>
 
       {/* Row 3: Toolbar */}
