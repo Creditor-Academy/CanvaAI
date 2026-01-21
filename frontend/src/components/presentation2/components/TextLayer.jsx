@@ -113,7 +113,7 @@ const TextLayer = forwardRef(({
         verticalAlign="middle"
         padding={8 * scale}
         wrap="word"
-        listening={false}
+        listening={true}
       />
     </Group>
   );

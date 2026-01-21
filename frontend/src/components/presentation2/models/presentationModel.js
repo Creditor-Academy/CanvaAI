@@ -42,27 +42,63 @@
  * @returns {Presentation}
  */
 export const createEmptyPresentation = () => {
+  const defaultWidth = 960;
+  const defaultHeight = 540;
+  
   return {
     id: `presentation-${Date.now()}`,
     title: 'Untitled Presentation',
-    slides: [createEmptySlide()],
+    slides: [createEmptySlide({ width: defaultWidth, height: defaultHeight })],
     settings: {
-      width: 960,
-      height: 540,
+      width: defaultWidth,
+      height: defaultHeight,
     },
   };
 };
 
 /**
- * Creates a new empty slide
+ * Creates a new empty slide with default title and body text boxes (like Google Slides)
+ * @param {Object} options - Options for creating the slide
+ * @param {number} options.width - Canvas width (default: 960)
+ * @param {number} options.height - Canvas height (default: 540)
  * @returns {Slide}
  */
-export const createEmptySlide = () => {
+export const createEmptySlide = (options = {}) => {
+  const canvasWidth = options.width || 960;
+  const canvasHeight = options.height || 540;
+  
+  // Create default title box (positioned at top center)
+  const titleBox = createLayer('text', {
+    x: (canvasWidth / 2) - 200, // Center horizontally
+    y: 60, // Top area
+    width: 400,
+    height: 60,
+    text: 'Title',
+    fontSize: 36,
+    fontFamily: 'Arial',
+    fontWeight: 'bold',
+    color: '#000000',
+    textAlign: 'center',
+  });
+  
+  // Create default body text box (positioned below title)
+  const bodyBox = createLayer('text', {
+    x: (canvasWidth / 2) - 250, // Center horizontally
+    y: 150, // Below title
+    width: 500,
+    height: 300,
+    text: 'Body text',
+    fontSize: 18,
+    fontFamily: 'Arial',
+    color: '#000000',
+    textAlign: 'left',
+  });
+  
   return {
     id: `slide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: 'Slide 1',
     background: '#ffffff',
-    layers: [],
+    layers: [titleBox, bodyBox],
   };
 };
 

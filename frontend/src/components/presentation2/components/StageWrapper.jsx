@@ -3,31 +3,29 @@ import { Stage, Layer, Rect } from 'react-konva';
 
 /**
  * StageWrapper Component
- * 
- * React-konva Stage wrapper that handles:
- * - Stage rendering
- * - Layer management
- * - Selection
- * - Transform handles
- * 
- * This is where all canvas rendering logic lives.
+ *
+ * A simplified and robust React-Konva Stage wrapper.
+ * It creates a background layer and a content layer where all
+ * dynamic elements (shapes, text, transformers) will be rendered.
  */
 const StageWrapper = ({
   width,
   height,
   zoom,
   background,
-  layers = [],
-  selectedIds = [],
   onStageClick,
-  onLayerClick,
-  onLayerDragEnd,
-  onLayerTransformEnd,
-  renderLayers,
+  selectedTool = 'select',
+  renderLayers, // Function to render layers
+  children, // All dynamic content will be passed as children
 }) => {
-  // Calculate scaled dimensions
+  // Calculate scaled dimensions for the stage
   const scaledWidth = width * zoom;
   const scaledHeight = height * zoom;
+
+  // Determine cursor style based on the currently selected tool
+  const cursorStyle = selectedTool === 'text' ? 'text' :
+                      selectedTool === 'shape' ? 'crosshair' :
+                      'default';
 
   return (
     <Stage
@@ -35,9 +33,9 @@ const StageWrapper = ({
       height={scaledHeight}
       onClick={onStageClick}
       onTap={onStageClick}
-      style={{ cursor: 'default' }}
+      style={{ cursor: cursorStyle }}
     >
-      {/* Background Layer */}
+      {/* Background Layer: A simple rectangle for the slide background */}
       <Layer>
         <Rect
           x={0}
@@ -49,15 +47,9 @@ const StageWrapper = ({
         />
       </Layer>
 
-      {/* Content Layer */}
+      {/* Content Layer: Renders dynamically created layers or children */}
       <Layer>
-        {renderLayers ? renderLayers() : null}
-      </Layer>
-
-      {/* Selection/Transform Layer */}
-      <Layer>
-        {/* Transform handles are rendered with their respective layers */}
-        {/* TODO: Render alignment guides */}
+        {renderLayers ? renderLayers() : children}
       </Layer>
     </Stage>
   );
