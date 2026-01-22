@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 
 import SideBar from "./components/SideBar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
@@ -51,15 +51,21 @@ import EditorPage from './pages/EditorPage';
 
 const AppContent = () => {
   const { isCollapsed, isMobile } = useSidebar();
+  const location = useLocation();
+
+  // Check if current route is a canva-clone route
+  const isCanvaCloneRoute = location.pathname.startsWith('/canva-clone');
 
   const getContentMargin = () => {
+    // No margin for canva-clone routes
+    if (isCanvaCloneRoute) return "0";
     if (isMobile) return "0";
     return isCollapsed ? "60px" : "260px";
   };
 
   return (
     <div>
-      <SideBar />
+      {!isCanvaCloneRoute && <SideBar />}
       <div
         className="app-content"
         style={{
@@ -103,9 +109,9 @@ const AppContent = () => {
           <Route path="/canva-clone" element={<CanvaClone />} />
           <Route path="/canva-clone/:id" element={<CanvaClone />} />
           <Route path="/brand-kit" element={<Brandkit />} />
-          <Route path="/brand-kit-result" element={<BrandKitResult/>} />
+          <Route path="/brand-kit-result" element={<BrandKitResult />} />
           <Route path="/brand-kit-detail" element={<BrandKitDetail />} />
-          <Route path="/docGenerator" element={<DocumentGenerator/>} />
+          <Route path="/docGenerator" element={<DocumentGenerator />} />
           <Route path="/editor" element={<EditorPage />} />
 
           <Route path="/docGenerator" element={<DocumentGenerator />} />

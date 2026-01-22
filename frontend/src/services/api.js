@@ -40,7 +40,7 @@ class ApiService {
 
       if (!response.ok) {
         console.error('Response error:', data);
-        throw new Error((data && data.msg) || 'Something went wrong');
+        throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
       }
 
       return data;

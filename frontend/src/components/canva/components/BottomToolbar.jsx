@@ -38,6 +38,7 @@ const BottomToolbar = ({
   onDuplicate,
   hasSelection,
   canvasSize,
+  setCanvasSize,
   selectedTool
 }) => {
   const [zoomValue, setZoomValue] = useState(zoom);
@@ -214,6 +215,28 @@ const BottomToolbar = ({
           Pages {currentPage}/{totalPages}
         </span>
       </div>
+
+      {/* Canvas Size Controls */}
+      {canvasSize && setCanvasSize && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md bg-white">
+          <span className="text-xs text-gray-600 font-medium">Size:</span>
+          <input
+            type="number"
+            value={canvasSize.width}
+            onChange={(e) => setCanvasSize(prev => ({ ...prev, width: parseInt(e.target.value) || 800 }))}
+            className="w-16 h-6 px-1.5 border border-gray-300 rounded text-xs text-center text-gray-800 focus:outline-none focus:border-blue-500"
+            title="Width"
+          />
+          <span className="text-xs text-gray-400">×</span>
+          <input
+            type="number"
+            value={canvasSize.height}
+            onChange={(e) => setCanvasSize(prev => ({ ...prev, height: parseInt(e.target.value) || 600 }))}
+            className="w-16 h-6 px-1.5 border border-gray-300 rounded text-xs text-center text-gray-800 focus:outline-none focus:border-blue-500"
+            title="Height"
+          />
+        </div>
+      )}
 
       {/* Grid Toggle */}
       <button

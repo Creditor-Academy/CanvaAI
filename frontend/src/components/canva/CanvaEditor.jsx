@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { FiMove, FiChevronDown, FiChevronRight, FiFilter, FiZap, FiCrop } from 'react-icons/fi';
 import api from '../../services/api';
 import { getFilterCSS, getShadowCSS, hexToRgba } from '../../utils/styleUtils';
 import { isHeadingLayer } from '../../utils/textUtils';
-import TextFormattingToolbar from './components/TextFormattingToolbar';
-import ImageEditingToolbar from './components/ImageEditingToolbar';
+import EditingToolbar from './components/EditingToolbar';
 import BottomToolbar from './components/BottomToolbar';
 import SaveExportModal from './SaveExportModal';
 import TextStyleModal from './TextStyleModal';
 import RightSidebar from './components/RightSidebar';
 import CanvasArea from './canvas/CanvasArea';
-import LeftCanvasSidebar from './components/leftCanvasSidebar';
+import LeftCanvasSidebar from './components/LeftCanvasSidebar';
 
 // Import hooks
 import { useHistory } from './hooks/useHistory';
@@ -55,6 +55,7 @@ const CanvaEditor = () => {
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [canvasBgColor, setCanvasBgColor] = useState('#22c55e'); // Default green
+  const [canvasBgImage, setCanvasBgImage] = useState(null); // Background image URL
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
   const [isHeading, setIsHeading] = useState(false);
@@ -71,6 +72,8 @@ const CanvaEditor = () => {
   const [pages, setPages] = useState([{ id: 1, layers: [] }]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
 
   // Refs - store refs per page
   const canvasAreaRefs = useRef({});
@@ -252,6 +255,18 @@ const CanvaEditor = () => {
     }
   }, [layers.length, handleAddElement, saveToHistory, canvasSize, projectId]);
 
+  // Keep right sidebar open when text layer is selected (only on selection, not on every state change)
+  useEffect(() => {
+    if (selectedLayer) {
+      const layer = layers.find(l => l.id === selectedLayer);
+      if (layer && layer.type === 'text' && isRightSidebarCollapsed) {
+        setIsRightSidebarCollapsed(false);
+      }
+    }
+    // Only run when selectedLayer or layers change, not when isRightSidebarCollapsed changes
+    // This allows manual collapse/expand to work without interference
+  }, [selectedLayer, layers]);
+
   const toggleSection = (key) => {
     setOpenSections(prev => {
       const isCurrentlyOpen = !!prev[key];
@@ -310,8 +325,12 @@ const CanvaEditor = () => {
       });
       const isHeadingText = isHeadingLayer(layer);
       setIsHeading(isHeadingText);
+      // Expand right sidebar if it's collapsed when selecting text
+      if (isRightSidebarCollapsed) {
+        setIsRightSidebarCollapsed(false);
+      }
     }
-  }, [handleLayerSelectBase, layers]);
+  }, [handleLayerSelectBase, layers, isRightSidebarCollapsed]);
 
   // handleLayerDelete is already provided by useLayerActions hook
 
@@ -779,18 +798,77 @@ const CanvaEditor = () => {
 
   // Image upload handler
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file');
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size must be less than 10MB');
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imageDataUrl = event.target.result;
+
+      // Validate that we got a valid data URL
+      if (!imageDataUrl || typeof imageDataUrl !== 'string' || !imageDataUrl.startsWith('data:image/')) {
+        alert('Invalid image file. Please try a different file.');
+        e.target.value = '';
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        // Validate image loaded successfully
+        if (!img.naturalWidth || !img.naturalHeight) {
+          alert('Invalid image dimensions. Please try a different file.');
+          e.target.value = '';
+          return;
+        }
+
+        // Calculate dimensions to fit on canvas while maintaining aspect ratio
+        const maxWidth = Math.min(canvasSize.width * 0.6, img.naturalWidth);
+        const maxHeight = Math.min(canvasSize.height * 0.6, img.naturalHeight);
+
+        let width = img.naturalWidth;
+        let height = img.naturalHeight;
+
+        // Scale down if image is too large
+        if (width > maxWidth || height > maxHeight) {
+          const scale = Math.min(maxWidth / width, maxHeight / height);
+          width = width * scale;
+          height = height * scale;
+        }
+
+        // Ensure minimum size
+        if (width < 100) {
+          const scale = 100 / width;
+          width = 100;
+          height = height * scale;
+        }
+        if (height < 100) {
+          const scale = 100 / height;
+          height = 100;
+          width = width * scale;
+        }
+
         const newImage = {
           id: Date.now().toString(),
           type: 'image',
-          src: event.target.result,
-          x: canvasSize.width / 2 - 100,
-          y: canvasSize.height / 2 - 100,
-          width: 200,
-          height: 200,
+          src: imageDataUrl,
+          x: Math.max(0, (canvasSize.width - width) / 2),
+          y: Math.max(0, (canvasSize.height - height) / 2),
+          width: Math.round(width),
+          height: Math.round(height),
           opacity: 100,
           brightness: 100,
           contrast: 100,
@@ -798,22 +876,148 @@ const CanvaEditor = () => {
           cornerRadius: 0,
           strokeWidth: 0,
           strokeColor: '#000000',
-          shadows: { enabled: false }
+          shadows: { enabled: false },
+          visible: true,
+          locked: false,
+          rotation: 0,
+          name: file.name || 'Uploaded Image'
         };
-        setLayers(prev => [...prev, newImage]);
+
+        // Update layers state
+        setLayers(prev => {
+          const newLayers = [...prev, newImage];
+          // Save to history with the new layers array
+          saveToHistory(newLayers);
+          return newLayers;
+        });
+
         setSelectedLayer(newImage.id);
-        saveToHistory();
+
+        // Add to uploaded images for the "Recently Uploaded" section
+        setUploadedImages(prev => {
+          // Keep only the last 10 uploaded images
+          const updated = [newImage, ...prev.filter(img => img.id !== newImage.id)].slice(0, 10);
+          return updated;
+        });
+
+        console.log('Image uploaded successfully:', {
+          id: newImage.id,
+          type: newImage.type,
+          srcLength: newImage.src.length,
+          srcPreview: newImage.src.substring(0, 50) + '...',
+          dimensions: `${newImage.width}x${newImage.height}`,
+          position: `(${Math.round(newImage.x)}, ${Math.round(newImage.y)})`,
+          visible: newImage.visible,
+          canvasSize: `${canvasSize.width}x${canvasSize.height}`
+        });
       };
-      reader.readAsDataURL(file);
-    }
+
+      img.onerror = () => {
+        console.error('Image load error:', { file: file.name, type: file.type, size: file.size });
+        alert('Failed to load image. The file may be corrupted. Please try a different file.');
+        e.target.value = ''; // Reset input
+      };
+
+      img.src = imageDataUrl;
+    };
+
+    reader.onerror = () => {
+      alert('Failed to read image file. Please try again.');
+      e.target.value = ''; // Reset input
+    };
+
+    reader.readAsDataURL(file);
+
+    // Reset input to allow uploading the same file again
+    e.target.value = '';
   };
 
   // AI generated image handler
   const handleAIGeneratedImage = (newImage) => {
-    setLayers(prev => [...prev, newImage]);
+    setLayers(prev => {
+      const newLayers = [...prev, newImage];
+      saveToHistory(newLayers);
+      return newLayers;
+    });
     setSelectedLayer(newImage.id);
-    saveToHistory();
   };
+
+  // Handler to add uploaded image from "Recently Uploaded" section to canvas
+  const handleAddUploadedImage = useCallback((uploadedImage) => {
+    if (!uploadedImage || !uploadedImage.src) {
+      console.error('Invalid image data');
+      return;
+    }
+
+    // Create a new image to get dimensions
+    const img = new Image();
+    img.onload = () => {
+      // Calculate dimensions to fit on canvas while maintaining aspect ratio
+      const maxWidth = Math.min(canvasSize.width * 0.6, img.naturalWidth);
+      const maxHeight = Math.min(canvasSize.height * 0.6, img.naturalHeight);
+
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+
+      // Scale down if image is too large
+      if (width > maxWidth || height > maxHeight) {
+        const scale = Math.min(maxWidth / width, maxHeight / height);
+        width = width * scale;
+        height = height * scale;
+      }
+
+      // Ensure minimum size
+      if (width < 100) {
+        const scale = 100 / width;
+        width = 100;
+        height = height * scale;
+      }
+      if (height < 100) {
+        const scale = 100 / height;
+        height = 100;
+        width = width * scale;
+      }
+
+      // Create new layer with new ID (so it's a new instance, not a duplicate)
+      const newImage = {
+        id: Date.now().toString(),
+        type: 'image',
+        src: uploadedImage.src,
+        x: Math.max(0, (canvasSize.width - width) / 2),
+        y: Math.max(0, (canvasSize.height - height) / 2),
+        width: Math.round(width),
+        height: Math.round(height),
+        opacity: uploadedImage.opacity || 100,
+        brightness: uploadedImage.brightness || 100,
+        contrast: uploadedImage.contrast || 100,
+        blur: uploadedImage.blur || 0,
+        cornerRadius: uploadedImage.cornerRadius || 0,
+        strokeWidth: uploadedImage.strokeWidth || 0,
+        strokeColor: uploadedImage.strokeColor || '#000000',
+        shadows: uploadedImage.shadows || { enabled: false },
+        visible: true,
+        locked: false,
+        rotation: 0,
+        name: uploadedImage.name || 'Uploaded Image'
+      };
+
+      // Add to layers
+      setLayers(prev => {
+        const newLayers = [...prev, newImage];
+        saveToHistory(newLayers);
+        return newLayers;
+      });
+
+      setSelectedLayer(newImage.id);
+    };
+
+    img.onerror = () => {
+      console.error('Failed to load image from uploaded images');
+      alert('Failed to load image. Please try uploading it again.');
+    };
+
+    img.src = uploadedImage.src;
+  }, [canvasSize, saveToHistory]);
 
   // Template selection handler
   const handleTemplateSelect = (template) => {
@@ -867,90 +1071,122 @@ const CanvaEditor = () => {
 
   // Return JSX
   return (
-    <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden">
+    <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden touch-none">
 
-      {/* Left Sidebar */}
-      <LeftCanvasSidebar
-        toggleSection={toggleSection}
-        openSections={openSections}
-        hoveredOption={hoveredOption}
-        setHoveredOption={setHoveredOption}
-        selectedTool={selectedTool}
-        handleToolSelect={handleToolSelect}
-        handleAddElement={handleAddElement}
-        setSelectedTool={setSelectedTool}
-        fileInputRef={fileInputRef}
-        handleImageUpload={handleImageUpload}
-        uploadedImages={uploadedImages}
-        handleLayerDuplicate={handleLayerDuplicate}
-        handleAIGeneratedImage={handleAIGeneratedImage}
-        imageSettings={imageSettings}
-        templates={templates}
-        handleTemplateSelect={handleTemplateSelect}
-        drawingSettings={drawingSettings}
-        handleDrawingSettingsChange={handleDrawingSettingsChange}
-        canvasSize={canvasSize}
-        setCanvasSize={setCanvasSize}
-        onCanvasBgColorChange={setCanvasBgColor}
-      />
+      {/* Mobile Left Sidebar Toggle Button */}
+      <button
+        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+        className="lg:hidden fixed top-20 left-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
+        aria-label="Toggle left sidebar"
+      >
+        <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col bg-gray-50 min-w-0 overflow-hidden transition-all duration-300 relative">
-        {/* Text Formatting Toolbar - Sticky positioned, always shows */}
-        <div className="sticky top-0 left-0 right-0 z-[99] bg-white">
-          <TextFormattingToolbar
-            selectedLayer={selectedLayer}
-            layer={selectedLayer && layers.find(l => l.id === selectedLayer)?.type === 'text' ? layers.find(l => l.id === selectedLayer) : null}
-            textSettings={textSettings}
-            onTextSettingsChange={handleTextSettingsChange}
-            onTextColorChange={handleTextColorChange}
-            onTextAlignChange={handleTextAlignChange}
-            onToggleBold={handleToggleBold}
-            onToggleItalic={handleToggleItalic}
-            onToggleUnderline={handleToggleUnderline}
-            onToggleStrikethrough={handleToggleStrikethrough}
-            onToggleCase={handleToggleCase}
-            onEffects={handleEffects}
-            onAnimate={handleAnimate}
-            onPosition={handlePosition}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onSave={handleSave}
-            onExport={handleExport}
-            onDuplicate={handleDuplicateSelected}
-            hasSelection={!!selectedLayer}
+      {/* Mobile Left Sidebar Overlay */}
+      {isLeftSidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[15]"
+          onClick={() => setIsLeftSidebarOpen(false)}
+        />
+      )}
+
+      {/* Left Sidebar - Hidden on mobile, visible on desktop */}
+      <div className={`${isLeftSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:absolute left-0 lg:left-4 top-0 lg:top-40 bottom-0 z-[16] lg:z-[10] transition-transform duration-300 ease-in-out`}>
+        <div className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <LeftCanvasSidebar
+            toggleSection={toggleSection}
+            openSections={openSections}
+            hoveredOption={hoveredOption}
+            setHoveredOption={setHoveredOption}
+            selectedTool={selectedTool}
+            handleToolSelect={handleToolSelect}
+            handleAddElement={handleAddElement}
+            setSelectedTool={setSelectedTool}
+            fileInputRef={fileInputRef}
+            handleImageUpload={handleImageUpload}
+            uploadedImages={uploadedImages}
+            handleLayerDuplicate={handleLayerDuplicate}
+            handleAIGeneratedImage={handleAIGeneratedImage}
+            handleAddUploadedImage={handleAddUploadedImage}
+            imageSettings={imageSettings}
+            templates={templates}
+            handleTemplateSelect={handleTemplateSelect}
+            drawingSettings={drawingSettings}
+            handleDrawingSettingsChange={handleDrawingSettingsChange}
+            onCanvasBgColorChange={(color) => {
+              setCanvasBgColor(color);
+              setCanvasBgImage(null); // Clear background image when color is set
+            }}
+            onCanvasBgImageChange={(imageUrl) => {
+              setCanvasBgImage(imageUrl);
+              setCanvasBgColor('transparent'); // Clear background color when image is set
+            }}
           />
         </div>
+        {/* Close button for mobile */}
+        <button
+          onClick={() => setIsLeftSidebarOpen(false)}
+          className="lg:hidden absolute top-2 right-2 bg-white border border-gray-300 rounded-full p-1.5 shadow-lg hover:bg-gray-50 z-[17]"
+          aria-label="Close sidebar"
+        >
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-        {/* Image Editing Toolbar - Sticky positioned, shows only for image layers */}
-        {selectedLayer && layers.find(l => l.id === selectedLayer)?.type === 'image' && (
-          <div className="sticky top-0 left-0 right-0 z-[99] bg-white">
-            <ImageEditingToolbar
-              selectedLayer={selectedLayer}
-              layer={layers.find(l => l.id === selectedLayer)}
-              onEdit={handleImageEdit}
-              onEraser={handleImageEraser}
-              onClear={handleImageClear}
-              onAlign={handleImageAlign}
-              onDraw={handleImageDraw}
-              onFlip={handleImageFlip}
-              onAnimate={handleAnimate}
-              onPosition={handlePosition}
-            />
-          </div>
-        )}
+      {/* Main Area */}
+      <div className="flex-1 flex flex-col bg-gray-50 min-w-0 overflow-hidden transition-all duration-300 relative lg:ml-0">
+        {/* Toolbar Section - Sticky positioned, always shows */}
+        {/* Editing Toolbar - Contains Selection, Effects, and Layer-specific controls */}
+        <EditingToolbar
+          selectedLayer={selectedLayer}
+          layer={selectedLayer ? layers.find(l => l.id === selectedLayer) : null}
+          textSettings={textSettings}
+          onTextSettingsChange={handleTextSettingsChange}
+          onTextColorChange={handleTextColorChange}
+          onTextAlignChange={handleTextAlignChange}
+          onToggleBold={handleToggleBold}
+          onToggleItalic={handleToggleItalic}
+          onToggleUnderline={handleToggleUnderline}
+          onToggleStrikethrough={handleToggleStrikethrough}
+          onToggleCase={handleToggleCase}
+          onEffects={handleEffects}
+          onAnimate={handleAnimate}
+          onPosition={handlePosition}
+          onEdit={handleImageEdit}
+          onEraser={handleImageEraser}
+          onClear={handleImageClear}
+          onAlign={handleImageAlign}
+          onDraw={handleImageDraw}
+          onFlip={handleImageFlip}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onSave={handleSave}
+          onExport={handleExport}
+          onDuplicate={handleDuplicateSelected}
+          hasSelection={!!selectedLayer}
+          toggleSection={toggleSection}
+          openSections={openSections}
+          hoveredOption={hoveredOption}
+          setHoveredOption={setHoveredOption}
+          selectedTool={selectedTool}
+          handleToolSelect={handleToolSelect}
+        />
 
         {/* Canvas Area - scrollable container with all pages */}
-        <div className="flex-1 flex flex-col justify-start py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 flex flex-col justify-start py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden">
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
             const pageRefs = getOrCreateRefs(page.id);
             const pageLayers = isActivePage ? layers : (page.layers || []);
 
             return (
-              <div key={page.id} className="w-full flex justify-center items-center mb-16 last:mb-6 px-4">
+              <div key={page.id} className="w-full flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
                 <div className="flex justify-center items-center">
                   <CanvasArea
                     canvasAreaRef={pageRefs.canvasAreaRef}
@@ -995,6 +1231,7 @@ const CanvaEditor = () => {
                     getLayerPrimaryColor={getLayerPrimaryColor}
                     setSelectedLayer={isActivePage ? setSelectedLayer : () => { }}
                     canvasBgColor={canvasBgColor}
+                    canvasBgImage={canvasBgImage}
                     handleUndo={isActivePage ? handleUndo : () => { }}
                     handleRedo={isActivePage ? handleRedo : () => { }}
                     pageId={page.id}
@@ -1032,6 +1269,7 @@ const CanvaEditor = () => {
           onDuplicate={handleDuplicateSelected}
           hasSelection={!!selectedLayer}
           canvasSize={canvasSize}
+          setCanvasSize={setCanvasSize}
           selectedTool={selectedTool}
         />
 
@@ -1050,52 +1288,85 @@ const CanvaEditor = () => {
         onDownload={handleDownloadExport}
         onSaveWorksheet={handleSaveWorksheetToLocation}
       />
+      {/* Mobile Right Sidebar Toggle Button */}
+      {layers.length > 0 && (
+        <button
+          onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+          className="lg:hidden fixed top-20 right-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
+          aria-label="Toggle right sidebar"
+        >
+          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </button>
+      )}
+
+      {/* Mobile Right Sidebar Overlay */}
+      {isRightSidebarOpen && layers.length > 0 && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[15]"
+          onClick={() => setIsRightSidebarOpen(false)}
+        />
+      )}
+
       {/* Right Sidebar */}
       {
         layers.length > 0 && (
-          <RightSidebar
-            isRightSidebarCollapsed={isRightSidebarCollapsed}
-            setIsRightSidebarCollapsed={setIsRightSidebarCollapsed}
-            layers={layers}
-            selectedLayer={selectedLayer}
-            handleLayerSelect={handleLayerSelect}
-            handleLayerToggleVisibility={handleLayerToggleVisibility}
-            handleLayerDuplicate={handleLayerDuplicate}
-            handleLayerDelete={handleLayerDelete}
-            textSettings={textSettings}
-            handleTextContentChange={handleTextContentChange}
-            handleTextSettingsChange={handleTextSettingsChange}
-            shapeSettings={shapeSettings}
-            handleShapeSettingsChange={handleShapeSettingsChange}
-            imageSettings={imageSettings}
-            handleImageSettingsChange={handleImageSettingsChange}
-            drawingSettings={drawingSettings}
-            handleDrawingSettingsChange={handleDrawingSettingsChange}
-            setSelectedTool={setSelectedTool}
-            handleLayerDragStart={handleLayerDragStart}
-            handleLayerDragOver={handleLayerDragOver}
-            handleLayerDragLeave={handleLayerDragLeave}
-            handleLayerDrop={handleLayerDrop}
-            handleLayerDragEnd={handleLayerDragEnd}
-            draggedLayer={draggedLayer}
-            dragOverIndex={dragOverIndex}
-            isLayerDragging={isLayerDragging}
-            renamingLayerId={renamingLayerId}
-            setRenamingLayerId={setRenamingLayerId}
-            renameValue={renameValue}
-            setRenameValue={setRenameValue}
-            startRenameLayer={startRenameLayer}
-            commitRenameLayer={commitRenameLayer}
-            handleEffectChange={handleEffectChange}
-            handleEnhanceText={handleEnhanceText}
-            isEnhancingText={isEnhancingText}
-            isHeading={isHeading}
-            setIsHeading={setIsHeading}
-            fileInputRef={fileInputRef}
-            uploadedImages={uploadedImages}
-            strokeColorInputRef={strokeColorInputRef}
-            textColorInputRef={textColorInputRef}
-          />
+          <div className={`${isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 fixed lg:relative right-0 top-0 bottom-0 z-[16] lg:z-auto transition-transform duration-300 ease-in-out`}>
+            <RightSidebar
+              isRightSidebarCollapsed={isRightSidebarCollapsed}
+              setIsRightSidebarCollapsed={setIsRightSidebarCollapsed}
+              layers={layers}
+              selectedLayer={selectedLayer}
+              handleLayerSelect={handleLayerSelect}
+              handleLayerToggleVisibility={handleLayerToggleVisibility}
+              handleLayerDuplicate={handleLayerDuplicate}
+              handleLayerDelete={handleLayerDelete}
+              textSettings={textSettings}
+              handleTextContentChange={handleTextContentChange}
+              handleTextSettingsChange={handleTextSettingsChange}
+              shapeSettings={shapeSettings}
+              handleShapeSettingsChange={handleShapeSettingsChange}
+              imageSettings={imageSettings}
+              handleImageSettingsChange={handleImageSettingsChange}
+              drawingSettings={drawingSettings}
+              handleDrawingSettingsChange={handleDrawingSettingsChange}
+              setSelectedTool={setSelectedTool}
+              handleLayerDragStart={handleLayerDragStart}
+              handleLayerDragOver={handleLayerDragOver}
+              handleLayerDragLeave={handleLayerDragLeave}
+              handleLayerDrop={handleLayerDrop}
+              handleLayerDragEnd={handleLayerDragEnd}
+              draggedLayer={draggedLayer}
+              dragOverIndex={dragOverIndex}
+              isLayerDragging={isLayerDragging}
+              renamingLayerId={renamingLayerId}
+              setRenamingLayerId={setRenamingLayerId}
+              renameValue={renameValue}
+              setRenameValue={setRenameValue}
+              startRenameLayer={startRenameLayer}
+              commitRenameLayer={commitRenameLayer}
+              handleEffectChange={handleEffectChange}
+              handleEnhanceText={handleEnhanceText}
+              isEnhancingText={isEnhancingText}
+              isHeading={isHeading}
+              setIsHeading={setIsHeading}
+              fileInputRef={fileInputRef}
+              uploadedImages={uploadedImages}
+              strokeColorInputRef={strokeColorInputRef}
+              textColorInputRef={textColorInputRef}
+            />
+            {/* Close button for mobile */}
+            <button
+              onClick={() => setIsRightSidebarOpen(false)}
+              className="lg:hidden absolute top-2 left-2 bg-white border border-gray-300 rounded-full p-1.5 shadow-lg hover:bg-gray-50 z-[17]"
+              aria-label="Close sidebar"
+            >
+              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         )
       }
 

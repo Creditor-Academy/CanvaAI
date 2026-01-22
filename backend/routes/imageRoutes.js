@@ -31,7 +31,24 @@ router.post('/generate-image', async (req, res) => {
     const imageResponse = await query(prompt, apiKey);
     res.json(imageResponse); // OpenAI's response format matches frontend expectations
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('OpenAI API Error:', error);
+
+    // Handle specific OpenAI error types
+    let errorMessage = error.message || 'Failed to generate image';
+    let statusCode = 500;
+
+    if (error.message && error.message.includes('billing')) {
+      errorMessage = 'Billing hard limit has been reached. Please contact the administrator to update the OpenAI billing settings.';
+      statusCode = 400;
+    } else if (error.message && (error.message.includes('quota') || error.message.includes('rate limit'))) {
+      errorMessage = 'API quota or rate limit exceeded. Please try again later.';
+      statusCode = 429;
+    } else if (error.message && error.message.includes('invalid_api_key')) {
+      errorMessage = 'Invalid API key. Please check the OpenAI API key configuration.';
+      statusCode = 401;
+    }
+
+    res.status(statusCode).json({ error: errorMessage });
   }
 });
 
@@ -43,10 +60,10 @@ router.post('/remove-bg', uploadMiddleware, async (req, res) => {
     }
 
     const filePath = req.file.path;
-    
+
     // Read the original image file
     const imageBuffer = await fs.readFile(filePath);
-    
+
     // Check if REMOVE_BG_API_KEY is configured
     const removeBgApiKey = process.env.REMOVE_BG_API_KEY;
     if (!removeBgApiKey) {
@@ -58,17 +75,17 @@ router.post('/remove-bg', uploadMiddleware, async (req, res) => {
       await fs.unlink(filePath);
       return;
     }
-    
+
     // Use remove.bg API to remove background
     const FormData = require('form-data');
     const axios = require('axios');
-    
+
     const formData = new FormData();
     formData.append('image_file', imageBuffer, {
       filename: req.file.originalname,
       contentType: req.file.mimetype
     });
-    
+
     try {
       const response = await axios.post('https://api.remove.bg/v1.0/removebg', formData, {
         headers: {
@@ -77,7 +94,7 @@ router.post('/remove-bg', uploadMiddleware, async (req, res) => {
         },
         responseType: 'arraybuffer'
       });
-      
+
       // Send the processed image back to the client
       res.set('Content-Type', 'image/png');
       res.set('Content-Disposition', 'attachment; filename="bg-removed.png"');
@@ -89,7 +106,7 @@ router.post('/remove-bg', uploadMiddleware, async (req, res) => {
       res.set('Content-Disposition', 'attachment; filename="bg-removed.png"');
       res.status(200).send(imageBuffer);
     }
-    
+
     // Clean up uploaded file
     await fs.unlink(filePath);
   } catch (error) {

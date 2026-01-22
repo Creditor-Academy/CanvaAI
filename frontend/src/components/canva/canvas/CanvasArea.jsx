@@ -295,6 +295,7 @@ const CanvasArea = ({
   getLayerPrimaryColor,
   setSelectedLayer,
   canvasBgColor = '#22c55e',
+  canvasBgImage = null,
   handleUndo,
   handleRedo,
   pageId,
@@ -389,7 +390,7 @@ const CanvasArea = ({
           scrollbarWidth: '0',
           msOverflowStyle: 'none',
           margin: '0',
-          padding: '0 60px 0 0', // Add right padding to make room for the icon
+          padding: 'o',
           minHeight: 0,
           height: '100%',
           maxHeight: '100%',
@@ -451,7 +452,11 @@ const CanvasArea = ({
             className="relative overflow-hidden border-2 border-gray-200 shadow-sm transform-gpu"
             style={{
               ...canvasStyle,
-              backgroundColor: canvasBgColor,
+              backgroundColor: canvasBgImage ? 'transparent' : canvasBgColor,
+              backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : 'none',
+              backgroundSize: canvasBgImage ? 'cover' : 'auto',
+              backgroundPosition: canvasBgImage ? 'center' : 'initial',
+              backgroundRepeat: canvasBgImage ? 'no-repeat' : 'initial',
               transform: `scale(${zoom / 100})`,
               transformOrigin: 'top left',
               width: `${canvasSize.width}px`,

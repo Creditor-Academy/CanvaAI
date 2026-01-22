@@ -48,19 +48,22 @@ const RightSidebar = ({
 }) => {
   return (
     <div>
-        {/* Right Sidebar */}
-      <div className={`fixed right-5 top-20 bg-white overflow-y-auto h-[calc(100vh-100px)] z-10 transition-all duration-300 border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] custom-scrollbar ${
-        isRightSidebarCollapsed ? 'w-[60px] py-20 px-2' : 'w-[320px] py-20 px-5'
-      }`}>
+      {/* Right Sidebar */}
+      <div className={`fixed right-5 top-20 bg-white overflow-y-auto h-[calc(100vh-100px)] z-10 transition-all duration-300 border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] custom-scrollbar ${isRightSidebarCollapsed ? 'w-[60px] py-20 px-2' : 'w-[320px] py-20 px-5'
+        }`}>
         {/* Toggle Button */}
         <div className="flex justify-between items-center mb-5 pb-2.5 border-b border-gray-200">
           {!isRightSidebarCollapsed && (
             <h3 className="m-0 text-base">Layers</h3>
           )}
           <button
-            onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
-            className="p-2 border border-gray-200 rounded-md bg-white cursor-pointer flex items-center justify-center transition-all duration-200 min-w-[32px] h-8 hover:bg-gray-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsRightSidebarCollapsed(!isRightSidebarCollapsed);
+            }}
+            className="p-2 border border-gray-200 rounded-md bg-white cursor-pointer flex items-center justify-center transition-all duration-200 min-w-[32px] h-8 hover:bg-gray-50 z-20 relative"
             title={isRightSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            type="button"
           >
             {isRightSidebarCollapsed ? (
               <FiArrowLeft size={16} color="#666" />
@@ -85,19 +88,15 @@ const RightSidebar = ({
                   onDragLeave={handleLayerDragLeave}
                   onDrop={(e) => handleLayerDrop(e, index)}
                   onDragEnd={handleLayerDragEnd}
-                  className={`p-3 rounded-md my-1 text-sm cursor-pointer flex items-center justify-between transition-all duration-200 select-none ${
-                    draggedLayer === layer.id ? 'opacity-50 rotate-[5deg] shadow-lg' : ''
-                  } ${
-                    dragOverIndex === index ? 'border-t-[3px] border-t-blue-600 bg-blue-50' : ''
-                  } ${
-                    selectedLayer === layer.id ? 'border-2 border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white'
-                  }`}
+                  className={`p-3 rounded-md my-1 text-sm cursor-pointer flex items-center justify-between transition-all duration-200 select-none ${draggedLayer === layer.id ? 'opacity-50 rotate-[5deg] shadow-lg' : ''
+                    } ${dragOverIndex === index ? 'border-t-[3px] border-t-blue-600 bg-blue-50' : ''
+                    } ${selectedLayer === layer.id ? 'border-2 border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white'
+                    }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
                     <div
-                      className={`p-1 mr-2 text-gray-600 flex items-center justify-center ${
-                        isLayerDragging ? 'cursor-grabbing' : 'cursor-grab'
-                      }`}
+                      className={`p-1 mr-2 text-gray-600 flex items-center justify-center ${isLayerDragging ? 'cursor-grabbing' : 'cursor-grab'
+                        }`}
                       title="Drag to reorder"
                     >
                       <FiMove size={16} />
@@ -165,9 +164,8 @@ const RightSidebar = ({
                   <button
                     key={layer.id}
                     onClick={() => handleLayerSelect(layer.id)}
-                    className={`p-2 rounded-md cursor-pointer flex items-center justify-center transition-all duration-200 min-h-[32px] ${
-                      selectedLayer === layer.id ? 'border-2 border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white'
-                    } hover:bg-gray-50`}
+                    className={`p-2 rounded-md cursor-pointer flex items-center justify-center transition-all duration-200 min-h-[32px] ${selectedLayer === layer.id ? 'border-2 border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white'
+                      } hover:bg-gray-50`}
                     title={`${layer.name} (${layer.type})`}
                   >
                     {layer.type === 'text' && <FiType size={16} color="#666" />}
@@ -298,25 +296,22 @@ const RightSidebar = ({
                   <span className="text-sm font-medium text-gray-700">Align</span>
                   <div className="flex gap-1">
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${
-                        textSettings.textAlign === 'left' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                      } hover:bg-gray-100`}
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'left' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                        } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'left')}
                     >
                       <FiAlignLeft size={14} />
                     </button>
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${
-                        textSettings.textAlign === 'center' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                      } hover:bg-gray-100`}
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'center' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                        } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'center')}
                     >
                       <FiAlignCenter size={14} />
                     </button>
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${
-                        textSettings.textAlign === 'right' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                      } hover:bg-gray-100`}
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'right' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                        } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'right')}
                     >
                       <FiAlignRight size={14} />
@@ -327,25 +322,22 @@ const RightSidebar = ({
                   <span className="text-sm font-medium text-gray-700">Text Style</span>
                   <div className="flex gap-1">
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${
-                        textSettings.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                      } hover:bg-gray-100`}
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                        } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('fontWeight', textSettings.fontWeight === 'bold' ? 'normal' : 'bold')}
                     >
                       <FiBold size={14} />
                     </button>
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${
-                        textSettings.fontStyle === 'italic' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                      } hover:bg-gray-100`}
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.fontStyle === 'italic' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                        } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('fontStyle', textSettings.fontStyle === 'italic' ? 'normal' : 'italic')}
                     >
                       <FiItalic size={14} />
                     </button>
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${
-                        textSettings.textDecoration === 'underline' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                      } hover:bg-gray-100`}
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textDecoration === 'underline' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                        } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textDecoration', textSettings.textDecoration === 'underline' ? 'none' : 'underline')}
                     >
                       <FiUnderline size={14} />
@@ -397,9 +389,8 @@ const RightSidebar = ({
                       {uploadedImages.length > 0 && (
                         <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
                           {uploadedImages.map(ui => (
-                            <button key={ui.id} onClick={() => handleShapeSettingsChange('fillImageSrc', ui.src)} title={ui.name} className={`p-0 rounded overflow-hidden bg-white ${
-                              shapeSettings.fillImageSrc === ui.src ? 'border-2 border-blue-600' : 'border border-gray-200'
-                            }`}>
+                            <button key={ui.id} onClick={() => handleShapeSettingsChange('fillImageSrc', ui.src)} title={ui.name} className={`p-0 rounded overflow-hidden bg-white ${shapeSettings.fillImageSrc === ui.src ? 'border-2 border-blue-600' : 'border border-gray-200'
+                              }`}>
                               <img src={ui.src} alt={ui.name} className="w-full h-10 object-cover block" />
                             </button>
                           ))}
