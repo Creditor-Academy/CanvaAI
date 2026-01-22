@@ -46,7 +46,7 @@ import SmartCrop from "./components/aigenerator/SmartCrop";
 import PresentationStudio from "./components/presentationstudio/PresentationStudio";
 
 import LandingPage from "./pages/LandingPage";
-import EditorPage from './pages/EditorPage';
+import EditorTabPage from './pages/EditorTabPage';
 
 
 const AppContent = () => {
@@ -105,10 +105,9 @@ const AppContent = () => {
           <Route path="/brand-kit" element={<Brandkit />} />
           <Route path="/brand-kit-result" element={<BrandKitResult/>} />
           <Route path="/brand-kit-detail" element={<BrandKitDetail />} />
-          <Route path="/docGenerator" element={<DocumentGenerator/>} />
-          <Route path="/editor" element={<EditorPage />} />
-
           <Route path="/docGenerator" element={<DocumentGenerator />} />
+          <Route path="/editor" element={<EditorTabPage />} />
+
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
 
