@@ -48,6 +48,8 @@ import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
 import EditorPage from './pages/EditorPage';
+import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
+
 
 
 const AppContent = () => {
@@ -157,6 +159,27 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+
+            {/* Presentation Editor v3 (new canvas-based editor) */}
+<Route
+  path="/presentation-editor-v3"
+  element={
+    <ProtectedRoute>
+      <PresentationWorkspace />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/presentation-editor-v3/:id"
+  element={
+    <ProtectedRoute>
+      <PresentationWorkspace />
+    </ProtectedRoute>
+  }
+/>
+
 
             {/* PROTECTED ROUTES */}
             <Route
