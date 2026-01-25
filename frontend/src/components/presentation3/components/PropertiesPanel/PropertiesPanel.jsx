@@ -1,6 +1,7 @@
 import React from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 
+
 const PropertiesPanel = () => {
   const {
     slides,
@@ -13,6 +14,15 @@ const PropertiesPanel = () => {
     toggleItalic,
     toggleUnderline,
   } = usePresentationStore();
+  const FONTS = [
+  "Arial",
+  "Helvetica",
+  "Times New Roman",
+  "Georgia",
+  "Courier New",
+  "Verdana",
+];
+
 
   const activeSlide = slides.find(
     (slide) => slide.id === activeSlideId
@@ -83,6 +93,41 @@ const PropertiesPanel = () => {
               }
             />
           </div>
+        {/* Font Family */}
+        <div style={styles.control}>
+        <label style={styles.label}>Font</label>
+        <select
+          value={selectedLayer.fontFamily}
+          onChange={(e) =>
+            updateTextLayer(selectedLayer.id, {
+              fontFamily: e.target.value,
+            })
+          }
+        >
+          {FONTS.map((font) => (
+            <option key={font} value={font}>
+              {font}
+            </option>
+          ))}
+        </select>
+      </div>
+
+
+          {/* Link */}
+            <div style={styles.control}>
+             <label style={styles.label}>Link</label>
+              <input
+                type="text"
+                placeholder="https://example.com"
+                value={selectedLayer.link || ""}
+                onChange={(e) =>
+                  updateTextLayer(selectedLayer.id, {
+                    link: e.target.value,
+                  })
+                }
+              />
+            </div>
+
 
           {/* Bold / Italic / Underline */}
           <div style={styles.control}>

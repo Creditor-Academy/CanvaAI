@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 
 const SLIDE_WIDTH = 960;
@@ -15,6 +15,7 @@ const CanvasShell = () => {
     selectedLayerId,
     setSelectedLayer,
     clearSelection,
+    deleteSelectedLayer,
   } = usePresentationStore();
 
   const activeSlide = slides.find(
@@ -28,6 +29,24 @@ const CanvasShell = () => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   if (!activeSlide) return null;
+
+  /* =========================
+     DELETE KEY HANDLING
+  ========================= */
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (
+        (e.key === "Delete") &&
+        selectedLayerId
+      ) {
+        deleteSelectedLayer();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () =>
+      window.removeEventListener("keydown", onKeyDown);
+  }, [selectedLayerId, deleteSelectedLayer]);
 
   const handleMouseMove = (e) => {
     const slideRect = e.currentTarget.getBoundingClientRect();
@@ -73,6 +92,7 @@ const CanvasShell = () => {
         {activeSlide.layers.map((layer) => {
           if (layer.type !== "text") return null;
           const selected = selectedLayerId === layer.id;
+          const Wrapper = layer.link ? "a" : "div";
 
           return (
             <div
@@ -83,13 +103,6 @@ const CanvasShell = () => {
                 top: layer.y,
                 width: layer.width,
                 height: layer.height,
-                fontSize: layer.fontSize,
-                color: layer.color,
-                fontFamily: layer.fontFamily,
-                fontWeight: layer.fontWeight,
-                fontStyle: layer.fontStyle,
-                textDecoration: layer.textDecoration,
-                textAlign: layer.textAlign,
                 padding: "6px",
                 border: selected
                   ? "1.5px solid #2563eb"
@@ -111,18 +124,39 @@ const CanvasShell = () => {
                 });
               }}
             >
-              <div
-                contentEditable
+              <Wrapper
+                href={layer.link || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  fontSize: layer.fontSize,
+                  color: layer.color,
+                  fontFamily: layer.fontFamily,
+                  fontWeight: layer.fontWeight,
+                  fontStyle: layer.fontStyle,
+                  textDecoration: layer.textDecoration,
+                  textAlign: layer.textAlign,
+                  outline: "none",
+                  cursor: layer.link ? "pointer" : "text",
+                }}
+                contentEditable={!layer.link}
                 suppressContentEditableWarning
-                style={styles.content}
                 onBlur={(e) =>
                   updateTextLayer(layer.id, {
                     text: e.target.innerText,
                   })
                 }
+                onClick={(e) => {
+                  if (!layer.link) {
+                    e.preventDefault();
+                  }
+                }}
               >
                 {layer.text}
-              </div>
+              </Wrapper>
 
               {selected && (
                 <div
@@ -151,6 +185,10 @@ const CanvasShell = () => {
 
 export default CanvasShell;
 
+/* =========================
+   STYLES
+========================= */
+
 const styles = {
   wrapper: {
     flex: 1,
@@ -165,16 +203,6 @@ const styles = {
     position: "relative",
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
   },
-  content: {
-  width: "100%",
-  height: "100%",
-  outline: "none",
-  cursor: "text",
-  lineHeight: "1.2",
-  overflow: "hidden",
-  wordBreak: "break-word",
-},
-
   resizeHandle: {
     position: "absolute",
     right: -HANDLE_SIZE / 2,

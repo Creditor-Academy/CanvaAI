@@ -90,6 +90,7 @@ const usePresentationStore = create((set, get) => {
                 fontStyle: "normal",
                 textDecoration: "none",
                 textAlign: "left",
+                link: "",
               },
             ],
           }
@@ -164,6 +165,31 @@ toggleUnderline: (layerId) => {
                       layer.textDecoration === "underline"
                         ? "none"
                         : "underline",
+                  }
+                : layer
+            ),
+          }
+        : slide
+    ),
+  });
+},
+ setTextLink: (layerId, link) => {
+  const { slides, activeSlideId } = get();
+
+  set({
+    slides: slides.map((slide) =>
+      slide.id === activeSlideId
+        ? {
+            ...slide,
+            layers: slide.layers.map((layer) =>
+              layer.id === layerId
+                ? {
+                    ...layer,
+                    link,
+                    // ✅ Auto styles like Google Slides
+                    color: link ? "#2563eb" : "#000000",
+                    fontStyle: link ? "italic" : "normal",
+                    textDecoration: link ? "underline" : "none",
                   }
                 : layer
             ),
@@ -280,6 +306,28 @@ setTextAlignment: (layerId, align) => {
         ) || null
       );
     },
+
+    deleteSelectedLayer: () => {
+      const { slides, activeSlideId, selectedLayerId } = get();
+        if (!selectedLayerId) return;
+
+         set({
+            slides: slides.map((slide) =>
+              slide.id === activeSlideId
+        ? {
+            ...slide,
+            layers: slide.layers.filter(
+              (l) => l.id !== selectedLayerId
+            ),
+          }
+        : slide
+    ),
+    selectedLayerId: null,
+  });
+},
+
+
+
   };
 });
 
