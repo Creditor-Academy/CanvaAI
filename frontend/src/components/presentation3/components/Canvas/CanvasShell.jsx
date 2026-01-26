@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
+import ShapeLayer from "../../layers/ShapeLayer";
+import TextLayer from "../../layers/TextLayer";
 
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
@@ -28,7 +30,6 @@ const CanvasShell = () => {
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  if (!activeSlide) return null;
 
   /* =========================
      DELETE KEY HANDLING
@@ -94,6 +95,10 @@ const CanvasShell = () => {
           const selected = selectedLayerId === layer.id;
           const Wrapper = layer.link ? "a" : "div";
 
+            const isPlaceholderVisible =
+    !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
+
+
           return (
             <div
               key={layer.id}
@@ -125,38 +130,53 @@ const CanvasShell = () => {
               }}
             >
               <Wrapper
-                href={layer.link || undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  fontSize: layer.fontSize,
-                  color: layer.color,
-                  fontFamily: layer.fontFamily,
-                  fontWeight: layer.fontWeight,
-                  fontStyle: layer.fontStyle,
-                  textDecoration: layer.textDecoration,
-                  textAlign: layer.textAlign,
-                  outline: "none",
-                  cursor: layer.link ? "pointer" : "text",
-                }}
-                contentEditable={!layer.link}
-                suppressContentEditableWarning
-                onBlur={(e) =>
-                  updateTextLayer(layer.id, {
-                    text: e.target.innerText,
-                  })
-                }
-                onClick={(e) => {
-                  if (!layer.link) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                {layer.text}
-              </Wrapper>
+  href={layer.link || undefined}
+  target="_blank"
+  rel="noopener noreferrer"
+  contentEditable={!layer.link}
+  suppressContentEditableWarning
+
+  onFocus={(e) => {
+    // Remove placeholder visually on focus (not stored)
+    if (isPlaceholderVisible) {
+      e.target.innerText = "";
+    }
+  }}
+
+  onBlur={(e) => {
+    const value = e.target.innerText.trim();
+
+    updateTextLayer(layer.id, {
+      text: value,
+      hasBeenEdited: true,
+    });
+  }}
+
+  onClick={(e) => {
+    if (!layer.link) e.preventDefault();
+  }}
+
+  style={{
+    display: "block",
+    width: "100%",
+    height: "100%",
+    fontSize: layer.fontSize,
+    color: isPlaceholderVisible ? "#000000" : layer.color,
+    fontFamily: layer.fontFamily,
+    fontWeight: layer.fontWeight,
+    fontStyle: layer.fontStyle,
+    textDecoration: layer.textDecoration,
+    textAlign: layer.textAlign,
+    outline: "none",
+    cursor: layer.link ? "pointer" : "text",
+    userSelect: "text",
+  }}
+>
+  {isPlaceholderVisible
+    ? layer.placeholder
+    : layer.text}
+       </Wrapper>
+
 
               {selected && (
                 <div

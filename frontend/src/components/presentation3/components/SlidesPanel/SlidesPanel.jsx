@@ -7,7 +7,8 @@ const SlidesPanel = () => {
     activeSlideId,
     setActiveSlide,
     addSlide,
-    deleteSlide
+    deleteSlide,
+    duplicateSlide,
   } = usePresentationStore();
 
   // Ensure one slide is selected on first load
@@ -104,47 +105,61 @@ const SlidesPanel = () => {
                   overflow: "hidden"
                 }}
               />
+                <div style={{ display: "flex", gap: "6px" }}>
+                  
+                  {/* DUPLICATE */}
+                  <span style={{ color: "#666" }}>{index + 1}</span>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "12px",
-                  fontWeight: "500"
-                }}
-              >
-                <span style={{ color: "#666" }}>{index + 1}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSlide(slide.id);
-                  }}
-                  style={{
-                    width: "20px",
-                    height: "20px",
-                    border: "none",
-                    background: "rgba(220, 53, 69, 0.1)",
-                    color: "#dc3545",
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.2s ease"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = "rgba(220, 53, 69, 0.2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = "rgba(220, 53, 69, 0.1)";
-                  }}
-                >
-                  ×
-                </button>
-              </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      duplicateSlide(slide.id);
+                    }}
+                    title="Duplicate slide"
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      border: "none",
+                      background: "rgba(26, 115, 232, 0.1)",
+                      color: "#1a73e8",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    ⧉
+                  </button>
+
+                  {/* DELETE */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSlide(slide.id);
+                    }}
+                    title="Delete slide"
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      border: "none",
+                      background: "rgba(220, 53, 69, 0.1)",
+                      color: "#dc3545",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
             </div>
           );
         })}
