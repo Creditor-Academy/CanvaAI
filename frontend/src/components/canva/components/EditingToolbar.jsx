@@ -118,17 +118,13 @@ const EditingToolbar = ({
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                             <span className="text-gray-800 font-medium text-lg leading-none">Untitled Image</span>
-                            <FiStar className="text-gray-400 cursor-pointer hover:text-amber-400 transition-colors" size={16} />
-                            <FiFolder className="text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" size={16} />
                         </div>
                     </div>
                 </div>
 
 
-                {/* 3. DYNAMIC EDITING TOOLBAR */}
-                <div className="max-w-[1600px] w-full mx-auto px-4 h-12 flex items-center gap-3 overflow-x-auto no-scrollbar">
+                <div className="max-w-[1600px] w-full mx-auto px-4 h-12 flex items-center gap-3 overflow-x-visible overflow-y-visible no-scrollbar">
 
-                    {/* History & Clipboard */}
                     <div className={toolGroup}>
                         <button onClick={onUndo} disabled={!canUndo} className={btnGhost} title="Undo"><FiRotateCcw size={15} /></button>
                         <button onClick={onRedo} disabled={!canRedo} className={btnGhost} title="Redo"><FiRotateCw size={15} /></button>
@@ -140,7 +136,7 @@ const EditingToolbar = ({
 
                     {verticalDivider}
 
-                    {/* Main Selection Tool */}
+
                     <button
                         onClick={() => handleToolSelect('select')}
                         className={selectedTool === 'select' ? btnActive : btnOutline}
@@ -149,11 +145,9 @@ const EditingToolbar = ({
                         <span className="text-xs">Select</span>
                     </button>
 
-                    {/* Text Context */}
                     {isTextLayer && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                             {verticalDivider}
-                            {/* Font Family */}
                             <div className="relative" ref={fontDropdownRef}>
                                 <button onClick={() => setShowFontDropdown(!showFontDropdown)} className={`${btnOutline} min-w-[120px] justify-between h-8`}>
                                     <span className="truncate text-xs">{layer.fontFamily || 'Arial'}</span>
@@ -168,14 +162,14 @@ const EditingToolbar = ({
                                 )}
                             </div>
 
-                            {/* Font Size */}
+
                             <div className={toolGroup}>
                                 <button onClick={() => onTextSettingsChange('fontSize', Math.max(8, (layer.fontSize || 16) - 1))} className="p-1 hover:text-blue-600"><FiMinus size={12} /></button>
                                 <input type="number" value={layer.fontSize || 16} readOnly className="w-8 bg-transparent text-center text-xs font-bold" />
                                 <button onClick={() => onTextSettingsChange('fontSize', Math.min(200, (layer.fontSize || 16) + 1))} className="p-1 hover:text-blue-600"><FiPlus size={12} /></button>
                             </div>
 
-                            {/* Styles */}
+
                             <div className={toolGroup}>
                                 <button onClick={onToggleBold} className={layer.fontWeight === 'bold' ? 'text-blue-600 p-1' : 'p-1'}><FiBold size={15} /></button>
                                 <button onClick={onToggleItalic} className={layer.fontStyle === 'italic' ? 'text-blue-600 p-1' : 'p-1'}><FiItalic size={15} /></button>
@@ -188,10 +182,10 @@ const EditingToolbar = ({
                                 <button onClick={() => onTextAlignChange('center')} className={layer.textAlign === 'center' ? 'text-blue-600 p-1' : 'p-1'}><FiAlignCenter size={15} /></button>
                                 <button onClick={() => onTextAlignChange('right')} className={layer.textAlign === 'right' ? 'text-blue-600 p-1' : 'p-1'}><FiAlignRight size={15} /></button>
                             </div>
+                            
                         </div>
                     )}
 
-                    {/* Image Context */}
                     {isImageLayer && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                             {verticalDivider}

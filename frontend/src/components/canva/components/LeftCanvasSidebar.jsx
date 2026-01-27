@@ -42,8 +42,8 @@ const LeftCanvasSidebar = ({
 
   // Refined Styles
   const styles = {
-    sidebarContainer: "w-[70px] flex-[0_0_100px] border-r border-slate-800 flex flex-col items-center py-6 gap-2 z-[10] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-full",
-    parentButton: (isActive) => `relative group flex flex-col items-center justify-center gap-1.5 w-16 h-16 rounded-2xl transition-all duration-300 cursor-pointer ${isActive
+    sidebarContainer: "pb-10 flex-[0_0_100px] border-r border-slate-800 flex flex-col items-center py-6 gap-2 z-[10] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-full",
+    parentButton: (isActive) => `relative group flex flex-col items-center justify-center gap-0 w-12 h-12 rounded-2xl transition-all duration-300 mx-1 ${isActive
       ? 'bg-blue-600/20 text-blue-500 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
       : 'hover:bg-slate-800/50 text-slate-700 border border-transparent hover:border-slate-400 hover:text-slate-900'
       }`,
@@ -219,7 +219,7 @@ const LeftCanvasSidebar = ({
           onClick={(e) => handleSectionToggle(sectionKey, e.currentTarget)}
         >
           <span className="text-slate-700 group-hover:text-slate-900">{icon}</span>
-          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-600 group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
+          <span className="text-[8px] font-medium uppercase tracking-wider text-slate-600 group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
           {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-500 rounded-full" />}
         </button>
         <Tooltip text={sectionKey} />
@@ -257,13 +257,13 @@ const LeftCanvasSidebar = ({
     <div className="flex flex-col items-center w-full">
       <div className={styles.sidebarContainer}>
 
-        <ParentButton sectionKey="background" icon={<FiGrid size={20} />} label="Canvas" />
-        <ParentButton sectionKey="text" icon={<FiType size={20} />} label="Text" />
-        <ParentButton sectionKey="shapes" icon={<FiSquare size={20} />} label="Shapes" />
-        <ParentButton sectionKey="drawing" icon={<FiEdit3 size={20} />} label="Draw" />
-        <ParentButton sectionKey="media" icon={<FiImage size={20} />} label="Media" />
-        <ParentButton sectionKey="stockImages" icon={<FiLayers size={20} />} label="Stock" />
-        <ParentButton sectionKey="templates" icon={<FiStar size={20} />} label="Magic" />
+        <ParentButton sectionKey="background" icon={<FiGrid size={16} />} label="Canvas" />
+        <ParentButton sectionKey="text" icon={<FiType size={16} />} label="Text" />
+        <ParentButton sectionKey="shapes" icon={<FiSquare size={16} />} label="Shapes" />
+        <ParentButton sectionKey="drawing" icon={<FiEdit3 size={16} />} label="Draw" />
+        <ParentButton sectionKey="media" icon={<FiImage size={16} />} label="Media" />
+        <ParentButton sectionKey="stockImages" icon={<FiLayers size={16} />} label="Stock" />
+        <ParentButton sectionKey="templates" icon={<FiStar size={16} />} label="Magic" />
 
         {/* Portals */}
         <ExpandedSectionPortal sectionKey="background" title="Background Settings">

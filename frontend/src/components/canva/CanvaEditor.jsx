@@ -37,6 +37,7 @@ import {
   SCROLLER_THICKNESS,
   SCROLLER_MARGIN
 } from './state/initialState';
+import { GRADIENTS } from './components/BackgroundColor';
 
 const CanvaEditor = () => {
   const { id: projectId } = useParams();
@@ -54,8 +55,8 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState('#22c55e'); // Default green
-  const [canvasBgImage, setCanvasBgImage] = useState(null); // Background image URL
+  const [canvasBgColor, setCanvasBgColor] = useState(GRADIENTS[0].value);
+  const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
   const [isHeading, setIsHeading] = useState(false);
@@ -125,7 +126,7 @@ const CanvaEditor = () => {
     handleZoomOut,
     handleZoomReset,
     handleFitToScreen
-  } = useCanvasTransforms(100, { x: 0, y: 0 });
+  } = useCanvasTransforms(80, { x: 0, y: 0 });
 
   const {
     selectedLayer,
@@ -1176,6 +1177,8 @@ const CanvaEditor = () => {
           setHoveredOption={setHoveredOption}
           selectedTool={selectedTool}
           handleToolSelect={handleToolSelect}
+          drawingSettings={drawingSettings}
+          handleDrawingSettingsChange={handleDrawingSettingsChange}
         />
 
         {/* Canvas Area - scrollable container with all pages */}

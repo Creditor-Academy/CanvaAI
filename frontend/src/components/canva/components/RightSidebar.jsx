@@ -296,25 +296,25 @@ const RightSidebar = ({
                   <span className="text-sm font-medium text-gray-700">Align</span>
                   <div className="flex gap-1">
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'left' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'left' ? 'bg-blue-600 ' : 'bg-transparent text-gray-600'
                         } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'left')}
                     >
-                      <FiAlignLeft size={14} />
+                      <FiAlignLeft color={textSettings.textAlign === 'left' ? '#fff' : '#666'} size={14} />
                     </button>
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'center' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'center' ? 'bg-blue-600 ' : 'bg-transparent text-gray-600'
                         } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'center')}
                     >
-                      <FiAlignCenter size={14} />
+                      <FiAlignCenter color={textSettings.textAlign === 'center' ? '#fff' : '#666'} size={14} />
                     </button>
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'right' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
+                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'right' ? 'bg-blue-600 ' : 'bg-transparent text-gray-600'
                         } hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'right')}
                     >
-                      <FiAlignRight size={14} />
+                      <FiAlignRight color={textSettings.textAlign === 'right' ? '#fff' : '#666'} size={14} />
                     </button>
                   </div>
                 </div>
@@ -571,4 +571,4 @@ const RightSidebar = ({
   )
 }
 
-export default RightSidebar
+export default RightSidebar;

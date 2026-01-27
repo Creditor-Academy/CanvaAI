@@ -92,4 +92,3 @@ const FloatingToolbar = ({
 };
 
 export default FloatingToolbar;
-
