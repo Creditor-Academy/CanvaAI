@@ -136,7 +136,7 @@ export const TemplateSidebar = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-80 bg-background border-l border-border z-50 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-80 bg-white border-l border-border z-50 flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -146,7 +146,7 @@ export const TemplateSidebar = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground"
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-muted-foreground"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -169,7 +169,7 @@ export const TemplateSidebar = ({
                             onSelectTemplate(template);
                             onClose();
                           }}
-                          className={`flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-secondary transition-colors text-left w-full`}
+                          className={`flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-gray-100 transition-colors text-left w-full`}
                         >
                           <template.icon className="w-5 h-5 text-muted-foreground mt-0.5" />
                           <div>

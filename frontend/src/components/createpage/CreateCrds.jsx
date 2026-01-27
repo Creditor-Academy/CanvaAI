@@ -7,6 +7,7 @@ import {
   FiCode,
   FiVideo,
   FiFeather,
+  FiType,
 } from "react-icons/fi";
 
 const cards = [
@@ -82,6 +83,19 @@ const cards = [
     image:
       "https://images.unsplash.com/photo-1489710437720-ebb67ec84dd2?auto=format&fit=crop&w=900&q=80",
   },
+  {
+    icon: <FiType size={30} color="#f8fafc" />,
+    title: "Text Editor",
+    desc: "Professional document editing with rich formatting.",
+    badge: "New",
+    badgeColor: "#22c55e",
+    route: "/editor",
+    meta: "127 projects created",
+    efficiency: "96% efficiency",
+    lastUsed: "Recently",
+    image:
+      "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=900&q=80",
+  },
 ];
 
 const badgeStyle = (badgeColor) => ({
@@ -129,7 +143,14 @@ export const CreateCrds = () => {
             card={card}
             onStart={() => {
               if (card.route) {
-                navigate(card.route);
+                // Open Text Editor in new tab
+                if (card.title === "Text Editor") {
+                  const editorUrl = `${window.location.origin}/editor`;
+                  window.open(editorUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                  // Navigate normally for other cards
+                  navigate(card.route);
+                }
               }
             }}
           />

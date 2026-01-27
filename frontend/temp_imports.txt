@@ -1,0 +1,1 @@
+import { Bold, Italic, Strike } from '@tiptap/extension-bold';

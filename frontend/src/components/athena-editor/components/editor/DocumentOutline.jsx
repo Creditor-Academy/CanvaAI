@@ -7,6 +7,8 @@ export const DocumentOutline = ({
   headings,
   onHeadingClick,
   documentTitle,
+  collapsedSections,
+  onToggleCollapse,
 }) => {
   return (
     <AnimatePresence>
@@ -47,17 +49,59 @@ export const DocumentOutline = ({
               </div>
             ) : (
               <nav className="space-y-0.5">
-                {headings.map((heading, index) => (
-                  <button
-                    key={`${heading.id}-${index}`}
-                    onClick={() => onHeadingClick(heading.id)}
-                    className={`w-full flex items-center gap-2 px-4 py-1.5 text-left text-sm hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground`}
-                    style={{ paddingLeft: `${(heading.level - 1) * 12 + 16}px` }}
-                  >
-                    <ChevronRight className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{heading.text}</span>
-                  </button>
-                ))}
+                {headings.map((heading, index) => {
+                  const isCollapsed = collapsedSections?.has(heading.id);
+                  const hasChildren = headings.some(h => 
+                    h.pos > heading.pos && 
+                    h.level > heading.level && 
+                    !headings.some(between => 
+                      between.pos > heading.pos && 
+                      between.pos < h.pos && 
+                      between.level <= heading.level
+                    )
+                  );
+                  
+                  return (
+                    <div key={`${heading.id}-${index}`}>
+                      <button
+                        onClick={() => onHeadingClick(heading.id)}
+                        className={`w-full flex items-center gap-2 px-4 py-1.5 text-left text-sm hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground group`}
+                        style={{ paddingLeft: `${(heading.level - 1) * 12 + 16}px` }}
+                      >
+                        {hasChildren && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleCollapse && onToggleCollapse(heading.id);
+                            }}
+                            className="p-0.5 rounded hover:bg-gray-200"
+                          >
+                            <ChevronRight 
+                              className={`w-3 h-3 flex-shrink-0 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} 
+                            />
+                          </button>
+                        )}
+                        {!hasChildren && (
+                          <div className="w-3 h-3 flex-shrink-0" />
+                        )}
+                        <span className="truncate font-medium">{heading.text}</span>
+                        <span className="ml-auto text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                          H{heading.level}
+                        </span>
+                      </button>
+                      
+                      {/* Collapsible indicator */}
+                      {isCollapsed && hasChildren && (
+                        <div 
+                          className="text-xs text-gray-400 px-4 py-1 italic"
+                          style={{ paddingLeft: `${(heading.level) * 12 + 16}px` }}
+                        >
+                          Section collapsed
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </nav>
             )}
           </div>

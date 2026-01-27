@@ -128,7 +128,7 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
           <ChevronDown className="w-3 h-3 ml-1" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-popover border shadow-lg min-w-[160px]">
+      <DropdownMenuContent align="end" className="bg-white border shadow-lg min-w-[160px]">
         <DropdownMenuItem onClick={exportAsPDF} className="cursor-pointer">
           <FileText className="w-4 h-4 mr-2" />
           PDF (Print)

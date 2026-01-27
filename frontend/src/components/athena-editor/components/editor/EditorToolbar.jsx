@@ -15,8 +15,8 @@ import {
   AlignRight,
   AlignJustify,
   Link,
-  Image,
-  Table,
+  Image as ImageIcon,
+  Table as TableIcon,
   Highlighter,
   Undo,
   Redo,
@@ -91,7 +91,23 @@ import {
   FolderMinus,
   MoreVertical,
   Menu,
-  ChevronRight
+  ChevronRight,
+  ArrowRightToLine,
+  ArrowLeftToLine,
+  Link as LinkIcon,
+  FilePlus,
+  Trash2,
+  EyeOff,
+  PaintBucket,
+  Crop,
+  Maximize,
+  Minimize,
+  RotateCw,
+  RotateCcw,
+  Filter,
+  Layers,
+  Grid3x3,
+  RulerIcon
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import {
@@ -115,11 +131,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuShortcut,
   DropdownMenuPortal,
-  DropdownMenuCheckboxItem
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel
 } from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { cn } from '../utils';
 import { toast } from 'sonner';
 
@@ -148,17 +166,6 @@ const HIGHLIGHT_COLORS = [
   "#fce5cd", "#fff2cc", "#d9ead3", "#d0e0e3", "#cfe2f3", "#d9d2e9"
 ];
 
-const STYLES = [
-  { label: "Normal text", level: 0 },
-  { label: "Title", level: 1 },
-  { label: "Heading 1", level: 1 },
-  { label: "Heading 2", level: 2 },
-  { label: "Heading 3", level: 3 },
-  { label: "Heading 4", level: 4 },
-  { label: "Heading 5", level: 5 },
-  { label: "Heading 6", level: 6 }
-];
-
 // ToolbarButton Component
 const ToolbarButton = ({
   onClick,
@@ -176,7 +183,7 @@ const ToolbarButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          "h-8 w-8 p-0 hover:bg-gray-100",
+          "h-9 w-9 p-0 hover:bg-gray-100 rounded-lg",
           isActive && "bg-blue-100 text-blue-600 hover:bg-blue-100",
           disabled && "opacity-50 cursor-not-allowed",
           className
@@ -191,9 +198,28 @@ const ToolbarButton = ({
   </Tooltip>
 );
 
-export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
+export const EditorToolbar = ({ 
+  editor, 
+  zoom, 
+  onZoomChange, 
+  onSave, 
+  handleInsertImage, 
+  setShowReferencesPanel, 
+  setIsAISidebarOpen,
+  isAISidebarOpen,
+  onExportPDF,
+  onPrint,
+  showFormatMenu,
+  setShowFormatMenu,
+  showInsertMenu,
+  setShowInsertMenu,
+  addNewPage,  // Added page functions
+  addPageBreak,
+  insertPageNumber,
+  handleHeadingChange,  // Added heading function
+  activeHeadingLevel  // Added active heading level
+}) => {
   const [linkUrl, setLinkUrl] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [currentFontSize, setCurrentFontSizeState] = useState(11);
@@ -205,6 +231,11 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
   const [showRuler, setShowRuler] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+  const [showImageDialog, setShowImageDialog] = useState(false);
 
   // Helper function to set font size
   const setCurrentFontSize = (size) => {
@@ -212,7 +243,7 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
       editor
         .chain()
         .focus()
-        .setMark("textStyle", { fontSize: `${size}px` })
+        .setMark('fontSize', { fontSize: `${size}px` })
         .run();
     }
     setCurrentFontSizeState(size);
@@ -222,7 +253,7 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
     if (editor && currentFontSize) {
       editor
         .chain()
-        .setMark("textStyle", { fontSize: `${currentFontSize}px` })
+        .setMark('fontSize', { fontSize: `${currentFontSize}px` })
         .run();
     }
   }, [editor, currentFontSize]);
@@ -290,7 +321,8 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
   };
 
   const addLink = () => {
-    const url = prompt('Enter URL:');
+    const previousUrl = editor?.getAttributes('link').href;
+    const url = prompt('Enter URL:', previousUrl || '');
     if (url && editor) {
       editor
         .chain()
@@ -302,14 +334,20 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
   };
 
   const addImage = () => {
-    const url = prompt('Enter image URL:');
-    if (url && editor) {
-      editor
-        .chain()
-        .focus()
-        .setImage({ src: url })
-        .run();
-      toast.success('Image added');
+    // Call the image insertion handler from TextEditor
+    if (handleInsertImage) {
+      handleInsertImage();
+    } else {
+      // Fallback to simple prompt if handler not provided
+      const url = prompt('Enter image URL:');
+      if (url && editor) {
+        editor
+          .chain()
+          .focus()
+          .setImage({ src: url })
+          .run();
+        toast.success('Image added');
+      }
     }
   };
 
@@ -324,8 +362,33 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
     }
   };
 
+  const addSectionBreak = (type = 'page') => {
+    if (editor) {
+      // Insert a horizontal rule to simulate section break
+      editor
+        .chain()
+        .focus()
+        .setHorizontalRule()
+        .run();
+      
+      toast.success(`Section break (${type}) inserted`);
+    }
+  };
+
   const handlePrint = () => {
-    window.print();
+    if (onPrint) {
+      onPrint();
+    } else {
+      window.print();
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (onExportPDF) {
+      onExportPDF();
+    } else {
+      toast.info('PDF export functionality would be implemented here');
+    }
   };
 
   const handleLocalImageUpload = (e) => {
@@ -347,45 +410,292 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
           .setImage({ src: imageDataUrl })
           .run();
         toast.success("Image uploaded");
+        setShowImageDialog(false);
       }
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
 
-  const setPageMargins = (margins) => {
-    const editorContainer = document.querySelector(".ProseMirror");
-    if (editorContainer) {
-      editorContainer.style.padding = margins;
-      toast.success(`Page margins set to ${margins}`);
-    }
-  };
-
-  const setColumnLayout = (columns) => {
-    const editorContainer = document.querySelector(".ProseMirror");
-    if (editorContainer) {
-      editorContainer.style.columnCount = String(columns);
-      editorContainer.style.columnGap = "2rem";
-      toast.success(`${columns} column layout applied`);
-    }
-  };
-
-  const clearLayout = () => {
-    const editorContainer = document.querySelector(".ProseMirror");
-    if (editorContainer) {
-      editorContainer.removeAttribute("style");
-      toast.success("Layout cleared");
-    }
-  };
-
   const setLineSpacingValue = (spacing) => {
-    const editorContainer = document.querySelector(".ProseMirror");
-    if (editorContainer) {
-      editorContainer.style.lineHeight = String(spacing);
+    if (editor) {
+      // Apply to current selection or paragraph
+      const { from, to } = editor.state.selection;
+      editor
+        .chain()
+        .focus()
+        .updateAttributes('paragraph', { lineHeight: spacing })
+        .run();
       setLineSpacing(spacing);
       toast.success(`Line spacing set to ${spacing}`);
     }
   };
+
+  // Document Structure Functions
+  const toggleBulletList = () => {
+    if (editor) {
+      editor.chain().focus().toggleBulletList().run();
+    }
+  };
+
+  const toggleOrderedList = () => {
+    if (editor) {
+      editor.chain().focus().toggleOrderedList().run();
+    }
+  };
+
+  const setTextAlign = (alignment) => {
+    if (editor) {
+      editor.chain().focus().setTextAlign(alignment).run();
+    }
+  };
+
+  const indent = () => {
+    if (editor) {
+      editor.chain().focus().indent().run();
+    }
+  };
+
+  const outdent = () => {
+    if (editor) {
+      editor.chain().focus().outdent().run();
+    }
+  };
+
+  const toggleBlockquote = () => {
+    if (editor) {
+      editor.chain().focus().toggleBlockquote().run();
+    }
+  };
+
+  const toggleCodeBlock = () => {
+    if (editor) {
+      editor.chain().focus().toggleCodeBlock().run();
+    }
+  };
+
+  const clearAllFormatting = () => {
+    if (editor) {
+      editor.chain().focus().unsetAllMarks().clearNodes().setParagraph().run();
+      toast.success('Formatting cleared');
+    }
+  };
+
+  const openImageCropper = () => {
+    // Find the closest image in the editor
+    const { from, to } = editor.view.state.selection;
+    let foundImage = false;
+    
+    // Look for image in the current selection
+    editor.state.doc.nodesBetween(from, to, (node) => {
+      if (node.type.name === 'image') {
+        const imgSrc = node.attrs.src;
+        setSelectedImage(imgSrc);
+        setIsCropDialogOpen(true);
+        
+        // Load image to get dimensions
+        const img = new Image();
+        img.onload = () => {
+          setImageDimensions({ width: img.width, height: img.height });
+          // Set default crop area to center 50% of the image
+          setCropArea({
+            x: img.width * 0.25,
+            y: img.height * 0.25,
+            width: img.width * 0.5,
+            height: img.height * 0.5
+          });
+        };
+        img.src = imgSrc;
+        foundImage = true;
+        return false; // Stop iteration
+      }
+      return true;
+    });
+    
+    // If no image in selection, try to find any image in the document
+    if (!foundImage) {
+      editor.state.doc.descendants(node => {
+        if (node.type.name === 'image') {
+          const imgSrc = node.attrs.src;
+          setSelectedImage(imgSrc);
+          setIsCropDialogOpen(true);
+          
+          // Load image to get dimensions
+          const img = new Image();
+          img.onload = () => {
+            setImageDimensions({ width: img.width, height: img.height });
+            // Set default crop area to center 50% of the image
+            setCropArea({
+              x: img.width * 0.25,
+              y: img.height * 0.25,
+              width: img.width * 0.5,
+              height: img.height * 0.5
+            });
+          };
+          img.src = imgSrc;
+          foundImage = true;
+          return false; // Stop iteration
+        }
+        return true;
+      });
+    }
+    
+    if (!foundImage) {
+      toast.error('Please insert an image to crop');
+    }
+  };
+
+  const applyCrop = () => {
+    if (!selectedImage) return;
+    
+    // Create a canvas to perform the crop
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      // Set canvas dimensions to the cropped area
+      canvas.width = cropArea.width;
+      canvas.height = cropArea.height;
+      
+      // Draw the cropped portion
+      ctx.drawImage(
+        img,
+        cropArea.x, // sx
+        cropArea.y, // sy
+        cropArea.width, // sWidth
+        cropArea.height, // sHeight
+        0, // dx
+        0, // dy
+        cropArea.width, // dWidth
+        cropArea.height // dHeight
+      );
+      
+      // Convert to data URL and update the image in the editor
+      const croppedImageDataUrl = canvas.toDataURL('image/png');
+      
+      // Find and replace the image in the editor
+      // First, find the position of the original image
+      let imagePos = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'image' && node.attrs.src === selectedImage) {
+          imagePos = pos;
+          return false; // Stop iteration
+        }
+        return true;
+      });
+      
+      if (imagePos !== null) {
+        // Replace the image at the found position
+        editor.commands.deleteRange({ from: imagePos, to: imagePos + 1 });
+        editor.commands.insertContentAt(imagePos, {
+          type: 'image',
+          attrs: { src: croppedImageDataUrl }
+        });
+      } else {
+        // If we couldn't find the original image, just insert the new one
+        editor.commands.insertContent({
+          type: 'image',
+          attrs: { src: croppedImageDataUrl }
+        });
+      }
+      
+      toast.success('Image cropped successfully');
+      setIsCropDialogOpen(false);
+      setSelectedImage(null);
+    };
+    
+    img.src = selectedImage;
+  };
+
+  const cancelCrop = () => {
+    setIsCropDialogOpen(false);
+    setSelectedImage(null);
+  };
+
+  // Formatting action handlers
+  const handleFormatAction = (action) => {
+    if (!editor) return;
+    
+    switch(action) {
+      case 'bold':
+        editor.chain().focus().toggleBold().run();
+        break;
+      case 'italic':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'underline':
+        editor.chain().focus().toggleUnderline().run();
+        break;
+      case 'strike':
+        editor.chain().focus().toggleStrike().run();
+        break;
+      case 'superscript':
+        editor.chain().focus().toggleSuperscript().run();
+        break;
+      case 'subscript':
+        editor.chain().focus().toggleSubscript().run();
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleInsertAction = (action) => {
+    if (!editor) return;
+    
+    switch(action) {
+      case 'image':
+        if (handleInsertImage) {
+          handleInsertImage();
+        } else {
+          const url = prompt('Enter image URL:');
+          if (url) {
+            editor.chain().focus().setImage({ src: url }).run();
+          }
+        }
+        break;
+      case 'table':
+        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        break;
+      case 'link':
+        const linkUrl = prompt('Enter URL:');
+        if (linkUrl) {
+          editor.chain().focus().setLink({ href: linkUrl }).run();
+        }
+        break;
+      case 'page_break':
+        editor.chain().focus().setHorizontalRule().run();
+        break;
+      case 'date':
+        const date = new Date().toLocaleDateString();
+        editor.chain().focus().insertContent(date).run();
+        break;
+      case 'time':
+        const time = new Date().toLocaleTimeString();
+        editor.chain().focus().insertContent(time).run();
+        break;
+      case 'symbol':
+        const symbol = prompt('Enter symbol (e.g., ©, ®, ™):', '©');
+        if (symbol) {
+          editor.chain().focus().insertContent(symbol).run();
+        }
+        break;
+      case 'equation':
+        editor.chain().focus().insertContent('\\[E = mc^2\\]').run();
+        break;
+      case 'code_block':
+        editor.chain().focus().toggleCodeBlock().run();
+        break;
+      case 'quote':
+        editor.chain().focus().toggleBlockquote().run();
+        break;
+      default:
+        break;
+    }
+  };
+
+
 
   // Menu items
   const menuItems = [
@@ -399,18 +709,20 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
           }
         } },
         { label: "Open...", icon: FolderOpen, shortcut: "Ctrl+O", action: () => toast.info('Open file dialog would appear here') },
-        { label: "Save", icon: Save, shortcut: "Ctrl+S", action: onSave },
+        { label: "Save", icon: Save, shortcut: "Ctrl+S", action: () => {
+          if (onSave) onSave();
+        } },
         { label: "Save As...", icon: Save, shortcut: "Ctrl+Shift+S", action: () => toast.info('Save As dialog would appear here') },
         { type: "separator" },
         { label: "Print", icon: Printer, shortcut: "Ctrl+P", action: handlePrint },
-        { label: "Share", icon: Share2, action: () => toast.info('Share dialog would appear here') },
         { type: "separator" },
         { 
           label: "Export", 
           icon: Download,
           submenu: [
-            { label: "Export as PDF", icon: FileText, action: () => toast.info('Exporting to PDF...') },
+            { label: "Export as PDF", icon: FileText, action: handleExportPDF },
             { label: "Export as DOCX", icon: FileText, action: () => toast.info('Exporting to DOCX...') },
+            { label: "Export as HTML", icon: FileCode2, action: () => toast.info('Exporting to HTML...') },
             { label: "Export as Markdown", icon: FileCode2, action: () => toast.info('Exporting to Markdown...') },
           ]
         },
@@ -496,50 +808,28 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
     { 
       label: "Insert", 
       items: [
-        { label: "Image", icon: Image, action: addImage },
-        { label: "Table", icon: Table, action: addTable },
-        { label: "Link", icon: Link, shortcut: "Ctrl+K", action: addLink },
-        { label: "Page Break", icon: Minus, action: () => {
-          if (editor) {
-            editor.chain().focus().setHorizontalRule().run();
-            toast.success("Page break added");
+        { label: "Image", icon: ImageIcon, action: () => handleInsertAction('image') },
+        { label: "Crop Image", icon: Crop, action: openImageCropper },
+        { label: "Table", icon: TableIcon, action: () => handleInsertAction('table') },
+        { label: "Link", icon: LinkIcon, shortcut: "Ctrl+K", action: () => handleInsertAction('link') },
+        { label: "References", icon: BookOpen, action: () => {
+          if (setShowReferencesPanel) {
+            setShowReferencesPanel(true);
           }
         } },
+        { label: "Page Break", icon: Minus, action: () => handleInsertAction('page_break') },
         { type: "separator" },
-        { label: "Date", icon: Calendar, action: () => {
-          const date = new Date().toLocaleDateString();
-          editor?.chain().focus().insertContent(date).run();
-          toast.success("Date inserted");
-        } },
-        { label: "Time", icon: Clock, action: () => {
-          const time = new Date().toLocaleTimeString();
-          editor?.chain().focus().insertContent(time).run();
-          toast.success("Time inserted");
-        } },
-        { label: "Symbol", icon: Sigma, action: () => {
-          const symbol = prompt('Enter symbol (e.g., ©, ®, ™):', '©');
-          if (symbol && editor) {
-            editor.chain().focus().insertContent(symbol).run();
-            toast.success("Symbol inserted");
-          }
-        } },
-        { label: "Equation", icon: Calculator, action: () => {
-          editor?.chain().focus().insertContent('E = mc²').run();
-          toast.success("Equation inserted");
-        } },
+        { label: "Date", icon: Calendar, action: () => handleInsertAction('date') },
+        { label: "Time", icon: Clock, action: () => handleInsertAction('time') },
+        { label: "Symbol", icon: Sigma, action: () => handleInsertAction('symbol') },
+        { label: "Equation", icon: Calculator, action: () => handleInsertAction('equation') },
         { type: "separator" },
         { 
           label: "Blocks", 
           icon: Square,
           submenu: [
-            { label: "Code Block", icon: Code, action: () => {
-              editor?.chain().focus().toggleCodeBlock().run();
-              toast.success("Code block inserted");
-            } },
-            { label: "Quote", icon: Quote, action: () => {
-              editor?.chain().focus().toggleBlockquote().run();
-              toast.success("Quote block inserted");
-            } },
+            { label: "Code Block", icon: Code, action: () => handleInsertAction('code_block') },
+            { label: "Quote", icon: Quote, action: () => handleInsertAction('quote') },
             { label: "Horizontal Line", icon: Minus, action: () => {
               editor?.chain().focus().setHorizontalRule().run();
               toast.success("Horizontal line inserted");
@@ -555,35 +845,38 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
           label: "Font", 
           icon: Type,
           submenu: [
-            { label: "Bold", icon: Bold, shortcut: "Ctrl+B", action: () => editor?.chain().focus().toggleBold().run() },
-            { label: "Italic", icon: Italic, shortcut: "Ctrl+I", action: () => editor?.chain().focus().toggleItalic().run() },
-            { label: "Underline", icon: Underline, shortcut: "Ctrl+U", action: () => editor?.chain().focus().toggleUnderline().run() },
-            { label: "Strikethrough", icon: Strikethrough, action: () => editor?.chain().focus().toggleStrike().run() },
+            { label: "Bold", icon: Bold, shortcut: "Ctrl+B", action: () => handleFormatAction('bold') },
+            { label: "Italic", icon: Italic, shortcut: "Ctrl+I", action: () => handleFormatAction('italic') },
+            { label: "Underline", icon: Underline, shortcut: "Ctrl+U", action: () => handleFormatAction('underline') },
+            { label: "Strikethrough", icon: Strikethrough, action: () => handleFormatAction('strike') },
             { type: "separator" },
-            { label: "Superscript", icon: Superscript, shortcut: "Ctrl+Shift++", action: () => editor?.chain().focus().toggleSuperscript().run() },
-            { label: "Subscript", icon: Subscript, shortcut: "Ctrl+=", action: () => editor?.chain().focus().toggleSubscript().run() },
+            { label: "Superscript", icon: Superscript, shortcut: "Ctrl+Shift++", action: () => handleFormatAction('superscript') },
+            { label: "Subscript", icon: Subscript, shortcut: "Ctrl+=", action: () => handleFormatAction('subscript') },
           ]
         },
         { 
           label: "Paragraph", 
           icon: Text,
           submenu: [
-            { label: "Heading 1", icon: Heading, shortcut: "Ctrl+Alt+1", action: () => editor?.chain().focus().toggleHeading({ level: 1 }).run() },
-            { label: "Heading 2", icon: Heading, shortcut: "Ctrl+Alt+2", action: () => editor?.chain().focus().toggleHeading({ level: 2 }).run() },
-            { label: "Heading 3", icon: Heading, shortcut: "Ctrl+Alt+3", action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run() },
-            { label: "Normal Text", icon: Text, action: () => editor?.chain().focus().setParagraph().run() },
+            { label: "Heading 1", icon: Heading, shortcut: "Ctrl+Alt+1", action: () => handleHeadingChange(1) },
+            { label: "Heading 2", icon: Heading, shortcut: "Ctrl+Alt+2", action: () => handleHeadingChange(2) },
+            { label: "Heading 3", icon: Heading, shortcut: "Ctrl+Alt+3", action: () => handleHeadingChange(3) },
+            { label: "Heading 4", icon: Heading, action: () => handleHeadingChange(4) },
+            { label: "Heading 5", icon: Heading, action: () => handleHeadingChange(5) },
+            { label: "Heading 6", icon: Heading, action: () => handleHeadingChange(6) },
+            { label: "Normal Text", icon: Text, action: () => handleHeadingChange(0) },
             { type: "separator" },
-            { label: "Bullet List", icon: List, action: () => editor?.chain().focus().toggleBulletList().run() },
-            { label: "Numbered List", icon: ListOrdered, action: () => editor?.chain().focus().toggleOrderedList().run() },
+            { label: "Bullet List", icon: List, action: () => toggleBulletList() },
+            { label: "Numbered List", icon: ListOrdered, action: () => toggleOrderedList() },
             { type: "separator" },
-            { label: "Align Left", icon: AlignLeft, action: () => editor?.chain().focus().setTextAlign('left').run() },
-            { label: "Align Center", icon: AlignCenter, action: () => editor?.chain().focus().setTextAlign('center').run() },
-            { label: "Align Right", icon: AlignRight, action: () => editor?.chain().focus().setTextAlign('right').run() },
-            { label: "Justify", icon: AlignJustify, action: () => editor?.chain().focus().setTextAlign('justify').run() },
+            { label: "Align Left", icon: AlignLeft, action: () => setTextAlign('left') },
+            { label: "Align Center", icon: AlignCenter, action: () => setTextAlign('center') },
+            { label: "Align Right", icon: AlignRight, action: () => setTextAlign('right') },
+            { label: "Justify", icon: AlignJustify, action: () => setTextAlign('justify') },
           ]
         },
         { type: "separator" },
-        { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearFormatting },
+        { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearAllFormatting },
       ]
     },
     { 
@@ -599,11 +892,9 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
           const chars = text.length;
           toast.info(`Words: ${words}, Characters: ${chars}`);
         } },
-        { label: "AI Assistant", icon: Sparkles, action: () => toast.info('AI Assistant activated') },
         { type: "separator" },
         { label: "Table of Contents", icon: ListChecks, action: () => toast.info('Generating table of contents...') },
         { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel toggled') },
-        { label: "Version History", icon: History, action: () => toast.info('Version history opened') },
       ]
     },
     { 
@@ -615,14 +906,6 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
       ]
     }
   ];
-
-  const handleMenuAction = (menuLabel, action) => {
-    if (typeof action === 'function') {
-      action();
-    } else {
-      console.log(`Menu action: ${menuLabel} -> ${action}`);
-    }
-  };
 
   const renderMenu = () => {
     return (
@@ -732,36 +1015,24 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="sticky top-0 z-40 bg-white border-b border-gray-200"
+      className="sticky top-0 z-40 bg-white border-b border-gray-300 shadow-sm"
     >
       {/* Header with Menu */}
-      <div className="flex items-center justify-between px-4 py-2">
+      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100">
         {/* Left section */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Menu className="w-4 h-4" />
-          </Button>
-          
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
-              <FileText className="w-3 h-3 text-white" />
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent font-bold text-lg">
+              ATHENA-AI EDITOR
             </div>
-            <span className="text-sm font-medium text-gray-600">Docs</span>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Input
-              value="Untitled document"
-              className="border-0 bg-transparent font-medium text-base h-7 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 w-[200px] text-gray-800"
-              placeholder="Untitled document"
-            />
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              All changes saved
+            <span className="text-xs flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${onSave ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <span className={onSave ? 'text-green-600' : 'text-gray-600'}>
+                {onSave ? 'Editor ready' : 'Loading...'}
+              </span>
             </span>
           </div>
-        </div>
+         </div>
 
         {/* Center menu */}
         {renderMenu()}
@@ -769,348 +1040,369 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
         {/* Right section */}
         <div className="flex items-center gap-2">
           <ToolbarButton
-            onClick={() => onZoomChange(Math.max(50, zoom - 10))}
+            onClick={() => onZoomChange && onZoomChange(Math.max(50, zoom - 10))}
             tooltip="Zoom Out"
+            className="rounded-lg bg-gray-100 hover:bg-gray-200 h-7 w-7 p-0"
           >
-            <Minus className="w-3 h-3" />
+            <Minus className="w-3 h-3 text-gray-600" />
           </ToolbarButton>
-          <span className="text-xs text-gray-600 min-w-[40px] text-center">{zoom}%</span>
+          <div className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 min-w-[40px] text-center">
+            {zoom}%
+          </div>
           <ToolbarButton
-            onClick={() => onZoomChange(Math.min(200, zoom + 10))}
+            onClick={() => onZoomChange && onZoomChange(Math.min(200, zoom + 10))}
             tooltip="Zoom In"
+            className="rounded-lg bg-gray-100 hover:bg-gray-200 h-7 w-7 p-0"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3 h-3 text-gray-600" />
           </ToolbarButton>
 
-          <Separator orientation="vertical" className="h-4 mx-1" />
+          <Separator orientation="vertical" className="h-6 mx-2" />
 
           <ToolbarButton
             onClick={() => setShowSearch(!showSearch)}
             tooltip="Search (Ctrl+F)"
+            className="rounded-lg bg-gray-100 hover:bg-gray-200"
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-4 h-4 text-gray-600" />
           </ToolbarButton>
 
-          <ToolbarButton onClick={handlePrint} tooltip="Print (Ctrl+P)">
-            <Printer className="w-4 h-4" />
+          <ToolbarButton 
+            onClick={handlePrint} 
+            tooltip="Print (Ctrl+P)"
+            className="rounded-lg bg-gray-100 hover:bg-gray-200"
+          >
+            <Printer className="w-4 h-4 text-gray-600" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => {
+              if (typeof setIsAISidebarOpen === 'function') {
+                setIsAISidebarOpen(true);
+              } else {
+                toast.info('AI sidebar not available');
+              }
+            }}
+            tooltip="AI Assistance"
+            className="rounded-lg bg-gradient-to-r from-purple-100 to-blue-100 hover:from-purple-200 hover:to-blue-200"
+          >
+            <Sparkles className="w-4 h-4 text-purple-600" />
           </ToolbarButton>
 
           <Button
-            className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={onSave}
+            size="sm"
+            variant="default"
+            className="h-7 bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
+            <Save className="w-3 h-3 mr-1" />
+            Save
           </Button>
-
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-            U
-          </div>
         </div>
       </div>
 
-      {/* Formatting Toolbar */}
-      <div className="flex items-center px-4 py-2 gap-1.5 border-t border-gray-200 bg-gray-50">
-        {/* Group 1: History */}
-        <div className="flex items-center gap-1 pr-2">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            tooltip="Undo (Ctrl+Z)"
-          >
-            <Undo className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            tooltip="Redo (Ctrl+Y)"
-          >
-            <Redo className="w-4 h-4" />
-          </ToolbarButton>
-        </div>
+      {/* Compact Single-Row Toolbar */}
+      <div className="flex items-center px-4 py-2 gap-1 border-t border-gray-200 bg-white overflow-x-auto">
+        {/* History Controls */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
+          tooltip="Undo (Ctrl+Z)"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Undo className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
+          tooltip="Redo (Ctrl+Y)"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Redo className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
 
-        {/* Group 2: Font Family & Size */}
-        <div className="flex items-center gap-1 pr-2">
-          <select 
-            value={currentFont}
-            onChange={(e) => setFontFamily(e.target.value)}
-            className="text-xs bg-white rounded px-2 py-1 h-7 min-w-[120px] hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            {FONTS.map(font => (
-              <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                {font.label}
-              </option>
-            ))}
-          </select>
+        {/* Font Controls */}
+        <select 
+          value={currentFont}
+          onChange={(e) => setFontFamily(e.target.value)}
+          className="text-sm bg-white rounded-lg px-3 py-1.5 h-9 min-w-[120px] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm border border-gray-300"
+        >
+          {FONTS.map(font => (
+            <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+        
+        <select 
+          value={currentFontSize}
+          onChange={(e) => setCurrentFontSize(parseInt(e.target.value))}
+          className="text-sm bg-white rounded-lg px-3 py-1.5 h-9 w-16 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm border border-gray-300"
+        >
+          {FONT_SIZES.map(size => (
+            <option key={size} value={size}>{size}</option>
+          ))}
+        </select>
+        
+        <select 
+          value={activeHeadingLevel || 0}
+          onChange={(e) => handleHeadingChange(parseInt(e.target.value))}
+          className="text-sm bg-white rounded-lg px-3 py-1.5 h-9 w-20 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm border border-gray-300"
+        >
+          <option value={0}>Normal</option>
+          <option value={1}>H1</option>
+          <option value={2}>H2</option>
+          <option value={3}>H3</option>
+          <option value={4}>H4</option>
+          <option value={5}>H5</option>
+          <option value={6}>H6</option>
+        </select>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
 
-          <select 
-            value={currentFontSize}
-            onChange={(e) => setCurrentFontSize(parseInt(e.target.value))}
-            className="text-xs bg-white rounded px-2 py-1 h-7 w-16 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            {FONT_SIZES.map(size => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
-        </div>
+        {/* Basic Formatting */}
+        <ToolbarButton
+          onClick={() => handleFormatAction('bold')}
+          isActive={editor.isActive("bold")}
+          tooltip="Bold (Ctrl+B)"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Bold className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => handleFormatAction('italic')}
+          isActive={editor.isActive("italic")}
+          tooltip="Italic (Ctrl+I)"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Italic className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => handleFormatAction('underline')}
+          isActive={editor.isActive("underline")}
+          tooltip="Underline (Ctrl+U)"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Underline className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => handleFormatAction('strike')}
+          isActive={editor.isActive("strike")}
+          tooltip="Strikethrough"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Strikethrough className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
 
-        {/* Group 3: Basic Formatting */}
-        <div className="flex items-center gap-0.5 pr-2">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={editor.isActive("bold")}
-            tooltip="Bold (Ctrl+B)"
-          >
-            <Bold className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={editor.isActive("italic")}
-            tooltip="Italic (Ctrl+I)"
-          >
-            <Italic className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            isActive={editor.isActive("underline")}
-            tooltip="Underline (Ctrl+U)"
-          >
-            <Underline className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            isActive={editor.isActive("strike")}
-            tooltip="Strikethrough"
-          >
-            <Strikethrough className="w-4 h-4" />
-          </ToolbarButton>
-        </div>
-
-        {/* Group 4: Colors */}
-        <div className="flex items-center gap-1 pr-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Type className="w-4 h-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-3">
-              <div className="grid grid-cols-6 gap-1">
-                {TEXT_COLORS.slice(0, 18).map(color => (
-                  <button
-                    key={color}
-                    className={cn(
-                      "w-6 h-6 rounded border hover:scale-110 transition-transform",
-                      currentTextColor === color && "ring-2 ring-blue-500"
-                    )}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setTextColor(color)}
-                  />
-                ))}
+        {/* Colors */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded bg-gray-100 hover:bg-gray-200">
+              <Palette className="w-5 h-5 text-gray-700" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-3 rounded-xl shadow-lg border border-gray-200">
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-xs font-medium mb-2">Text Color</h4>
+                <div className="grid grid-cols-6 gap-1">
+                  {TEXT_COLORS.slice(0, 12).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-6 h-6 rounded border hover:scale-110 transition-transform shadow-sm",
+                        currentTextColor === color && "ring-2 ring-blue-500"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                    />
+                  ))}
+                </div>
               </div>
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Highlighter className="w-4 h-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-3">
-              <div className="grid grid-cols-6 gap-1">
-                {HIGHLIGHT_COLORS.slice(0, 18).map(color => (
-                  <button
-                    key={color}
-                    className={cn(
-                      "w-6 h-6 rounded border hover:scale-110 transition-transform",
-                      currentHighlight === color && "ring-2 ring-blue-500"
-                    )}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setHighlightColor(color)}
-                  />
-                ))}
+              <div>
+                <h4 className="text-xs font-medium mb-2">Highlight</h4>
+                <div className="grid grid-cols-6 gap-1">
+                  {HIGHLIGHT_COLORS.slice(0, 12).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-6 h-6 rounded border hover:scale-110 transition-transform shadow-sm",
+                        currentHighlight === color && "ring-2 ring-blue-500"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setHighlightColor(color)}
+                    />
+                  ))}
+                </div>
               </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+        
+        <ToolbarButton
+          onClick={() => setHighlightColor(currentHighlight)}
+          tooltip="Highlight"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <Highlighter className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
 
-        {/* Group 5: Alignment */}
-        <div className="flex items-center gap-0.5 pr-2">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('left').run()}
-            isActive={editor.isActive({ textAlign: 'left' })}
-            tooltip="Align Left"
-          >
-            <AlignLeft className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('center').run()}
-            isActive={editor.isActive({ textAlign: 'center' })}
-            tooltip="Align Center"
-          >
-            <AlignCenter className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('right').run()}
-            isActive={editor.isActive({ textAlign: 'right' })}
-            tooltip="Align Right"
-          >
-            <AlignRight className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-            isActive={editor.isActive({ textAlign: 'justify' })}
-            tooltip="Justify"
-          >
-            <AlignJustify className="w-4 h-4" />
-          </ToolbarButton>
-        </div>
-
-        {/* Group 6: Lists */}
-        <div className="flex items-center gap-0.5 pr-2">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            isActive={editor.isActive("bulletList")}
-            tooltip="Bullet List"
-          >
-            <List className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            isActive={editor.isActive("orderedList")}
-            tooltip="Numbered List"
-          >
-            <ListOrdered className="w-4 h-4" />
-          </ToolbarButton>
-        </div>
-
-        {/* Group 7: Insert */}
-        <div className="flex items-center gap-0.5 pr-2">
-          <ToolbarButton
-            onClick={addLink}
-            isActive={editor.isActive("link")}
-            tooltip="Insert Link (Ctrl+K)"
-          >
-            <Link className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={addImage}
-            tooltip="Insert Image"
-          >
-            <Image className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={addTable}
-            tooltip="Insert Table"
-          >
-            <Table className="w-4 h-4" />
-          </ToolbarButton>
-        </div>
-
-        {/* Group 8: More Formatting */}
-        <div className="flex items-center gap-0.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              <DropdownMenuItem 
-                onClick={() => editor.chain().focus().toggleSuperscript().run()}
-              >
-                <Superscript className="w-4 h-4 mr-2" /> Superscript
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => editor.chain().focus().toggleSubscript().run()}
-              >
-                <Subscript className="w-4 h-4 mr-2" /> Subscript
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              >
-                <Quote className="w-4 h-4 mr-2" /> Block Quote
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              >
-                <Code className="w-4 h-4 mr-2" /> Code Block
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={clearFormatting}
-              >
-                <RemoveFormatting className="w-4 h-4 mr-2" /> Clear Formatting
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Ruler className="w-4 h-4 mr-2" />
-                  Page Settings
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  <DropdownMenuItem onClick={() => setPageMargins("1in")}>
-                    Standard Margins (1in)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setPageMargins("0.5in")}>
-                    Narrow Margins (0.5in)
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setColumnLayout(2)}>
-                    Two Columns
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setColumnLayout(3)}>
-                    Three Columns
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={clearLayout}>
-                    Clear Layout
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <AlignJustify className="w-4 h-4 mr-2" />
-                  Line Spacing
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="p-4 w-64">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-medium">Line Height</span>
-                    <span className="text-sm text-muted-foreground font-mono">
-                      {lineSpacing.toFixed(2)}
-                    </span>
-                  </div>
-                  <Slider
-                    defaultValue={[lineSpacing]}
-                    max={3}
-                    min={1}
-                    step={0.1}
-                    onValueChange={([value]) => setLineSpacingValue(value)}
-                    className="w-full mb-4"
-                  />
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: "Single", value: 1 },
-                      { label: "1.5", value: 1.5 },
-                      { label: "Double", value: 2 }
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        className={cn(
-                          "p-2 rounded-md text-xs font-medium transition-all duration-200 bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                          lineSpacing === preset.value && "active"
-                        )}
-                        onClick={() => setLineSpacingValue(preset.value)}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Lists */}
+        <ToolbarButton
+          onClick={toggleBulletList}
+          isActive={editor.isActive("bulletList")}
+          tooltip="Bullet List"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <List className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={toggleOrderedList}
+          isActive={editor.isActive("orderedList")}
+          tooltip="Numbered List"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <ListOrdered className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
+        
+        {/* Text Alignment */}
+        <ToolbarButton
+          onClick={() => setTextAlign('left')}
+          isActive={editor.isActive({ textAlign: 'left' })}
+          tooltip="Align Left"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <AlignLeft className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => setTextAlign('center')}
+          isActive={editor.isActive({ textAlign: 'center' })}
+          tooltip="Align Center"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <AlignCenter className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => setTextAlign('right')}
+          isActive={editor.isActive({ textAlign: 'right' })}
+          tooltip="Align Right"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <AlignRight className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => setTextAlign('justify')}
+          isActive={editor.isActive({ textAlign: 'justify' })}
+          tooltip="Justify"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <AlignJustify className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
+        
+        {/* Indentation */}
+        <ToolbarButton
+          onClick={indent}
+          tooltip="Increase Indent"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <ArrowRightToLine className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={outdent}
+          tooltip="Decrease Indent"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <ArrowLeftToLine className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
+        
+        {/* Quick Insert */}
+        <ToolbarButton
+          onClick={() => {
+            if (handleInsertImage) {
+              handleInsertImage();
+            } else {
+              setShowImageDialog(true);
+            }
+          }}
+          tooltip="Insert Image"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <ImageIcon className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <ToolbarButton
+          onClick={() => handleInsertAction('link')}
+          tooltip="Insert Link"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <LinkIcon className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <ToolbarButton
+          onClick={() => handleInsertAction('table')}
+          tooltip="Insert Table"
+          className="rounded bg-gray-100 hover:bg-gray-200"
+        >
+          <TableIcon className="w-5 h-5 text-gray-700" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
+        
+        {/* More Options */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded bg-gray-100 hover:bg-gray-200">
+              <MoreHorizontal className="w-5 h-5 text-gray-700" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuLabel>Additional Options</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => handleFormatAction('superscript')}>
+              <Superscript className="w-4 h-4 mr-2" /> Superscript
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFormatAction('subscript')}>
+              <Subscript className="w-4 h-4 mr-2" /> Subscript
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={toggleBlockquote}>
+              <Quote className="w-4 h-4 mr-2" /> Block Quote
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={toggleCodeBlock}>
+              <Code className="w-4 h-4 mr-2" /> Code Block
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={clearAllFormatting}>
+              <RemoveFormatting className="w-4 h-4 mr-2" /> Clear Formatting
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleInsertAction('page_break')}>
+              <Minus className="w-4 h-4 mr-2" /> Page Break
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openImageCropper}>
+              <Crop className="w-4 h-4 mr-2" /> Crop Image
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={addNewPage}>
+              <FilePlus className="w-4 h-4 mr-2" /> Add New Page
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={addPageBreak}>
+              <MoreHorizontal className="w-4 h-4 mr-2" /> Insert Page Break
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={insertPageNumber}>
+              <Hash className="w-4 h-4 mr-2" /> Insert Page Number
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Search Bar */}
@@ -1152,6 +1444,165 @@ export const EditorToolbar = ({ editor, zoom, onZoomChange, onSave }) => {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Image Cropping Dialog */}
+      <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Crop Image</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {selectedImage && (
+              <div className="relative">
+                <img 
+                  src={selectedImage} 
+                  alt="Image to crop" 
+                  className="max-w-full max-h-[50vh] block mx-auto"
+                  style={{ maxWidth: '100%', maxHeight: '50vh' }}
+                />
+                
+                {/* Crop overlay - simplified visualization */}
+                <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-blue-500"
+                  style={{
+                    left: `${(cropArea.x / imageDimensions.width) * 100}%`,
+                    top: `${(cropArea.y / imageDimensions.height) * 100}%`,
+                    width: `${(cropArea.width / imageDimensions.width) * 100}%`,
+                    height: `${(cropArea.height / imageDimensions.height) * 100}%`,
+                  }}>
+                  <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">X Position</label>
+                <Input
+                  type="range"
+                  min="0"
+                  max={imageDimensions.width}
+                  value={cropArea.x}
+                  onChange={(e) => setCropArea({...cropArea, x: parseInt(e.target.value)})}
+                  className="w-full"
+                />
+                <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.x)}px</div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Y Position</label>
+                <Input
+                  type="range"
+                  min="0"
+                  max={imageDimensions.height}
+                  value={cropArea.y}
+                  onChange={(e) => setCropArea({...cropArea, y: parseInt(e.target.value)})}
+                  className="w-full"
+                />
+                <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.y)}px</div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Width</label>
+                <Input
+                  type="range"
+                  min="50"
+                  max={imageDimensions.width - cropArea.x}
+                  value={cropArea.width}
+                  onChange={(e) => setCropArea({...cropArea, width: parseInt(e.target.value)})}
+                  className="w-full"
+                />
+                <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.width)}px</div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Height</label>
+                <Input
+                  type="range"
+                  min="50"
+                  max={imageDimensions.height - cropArea.y}
+                  value={cropArea.height}
+                  onChange={(e) => setCropArea({...cropArea, height: parseInt(e.target.value)})}
+                  className="w-full"
+                />
+                <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.height)}px</div>
+              </div>
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              Selected area: {Math.round(cropArea.width)} × {Math.round(cropArea.height)} pixels
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelCrop}>Cancel</Button>
+            <Button onClick={applyCrop}>Apply Crop</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Image Insert Dialog */}
+      <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Insert Image</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Insert from Web</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter image URL..."
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={() => {
+                    if (linkUrl && editor) {
+                      editor
+                        .chain()
+                        .focus()
+                        .setImage({ src: linkUrl })
+                        .run();
+                      toast.success('Image added from URL');
+                      setShowImageDialog(false);
+                      setLinkUrl('');
+                    }
+                  }}
+                  disabled={!linkUrl}
+                >
+                  Insert
+                </Button>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <label className="block text-sm font-medium mb-2">Upload from Local Storage</label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleLocalImageUpload}
+                className="cursor-pointer"
+              />
+            </div>
+            
+            <div className="text-xs text-gray-500 mt-2">
+              Supported formats: JPG, PNG, GIF, WEBP
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowImageDialog(false);
+              setLinkUrl('');
+            }}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
