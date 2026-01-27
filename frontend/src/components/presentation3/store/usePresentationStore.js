@@ -163,8 +163,7 @@ const usePresentationStore = create((set, get) => {
               layer.id === layerId
                 ? {
                     ...layer,
-                    ...updates,
-                    hasBeenEdited: true,
+                    ...updates, // ✅ Respect caller intent
                   }
                 : layer
             ),
@@ -173,6 +172,7 @@ const usePresentationStore = create((set, get) => {
     ),
   });
 },
+
 
 
     toggleBold: (layerId) => {

@@ -137,20 +137,27 @@ const CanvasShell = () => {
   suppressContentEditableWarning
 
   onFocus={(e) => {
-    // Remove placeholder visually on focus (not stored)
-    if (isPlaceholderVisible) {
-      e.target.innerText = "";
-    }
-  }}
+  // Remove placeholder visually on focus (not stored)
+  if (isPlaceholderVisible) {
+    e.target.innerText = "";
+  }
+}}
 
-  onBlur={(e) => {
-    const value = e.target.innerText.trim();
 
-    updateTextLayer(layer.id, {
-      text: value,
-      hasBeenEdited: true,
-    });
-  }}
+     onBlur={(e) => {
+  const value = e.target.innerText.trim();
+
+  // 👇 IMPORTANT: restore placeholder in DOM
+  if (value.length === 0) {
+    e.target.innerText = layer.placeholder;
+  }
+
+  updateTextLayer(layer.id, {
+    text: value,
+    hasBeenEdited: value.length > 0,
+  });
+}}
+
 
   onClick={(e) => {
     if (!layer.link) e.preventDefault();
