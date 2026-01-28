@@ -9,19 +9,22 @@ const PropertiesPanel = () => {
     getSelectedLayer,
     updateSlideBackground,
     updateTextLayer,
+    updateShapeLayer,
     setTextAlignment,
     toggleBold,
     toggleItalic,
     toggleUnderline,
+    setSlideBackgroundImage,
+    reorderLayer,
   } = usePresentationStore();
   const FONTS = [
-  "Arial",
-  "Helvetica",
-  "Times New Roman",
-  "Georgia",
-  "Courier New",
-  "Verdana",
-];
+    "Arial",
+    "Helvetica",
+    "Times New Roman",
+    "Georgia",
+    "Courier New",
+    "Verdana",
+  ];
 
 
   const activeSlide = slides.find(
@@ -54,10 +57,103 @@ const PropertiesPanel = () => {
               }
             />
           </div>
+
+          <div style={styles.control}>
+            <label style={styles.label}>Background Image</label>
+            <div style={styles.row}>
+              <button
+                style={{ ...styles.btn, flex: 1 }}
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "image/*";
+                  input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setSlideBackgroundImage(activeSlideId, reader.result);
+                      e.target.value = ""; // Reset input
+                    };
+                    reader.readAsDataURL(file);
+                  };
+                  input.click();
+                }}
+              >
+                Insert Image
+              </button>
+              {activeSlide.backgroundImage && (
+                <button
+                  style={{ ...styles.btn, color: "#dc3545", borderColor: "#dc3545" }}
+                  onClick={() => setSlideBackgroundImage(activeSlideId, null)}
+                  title="Remove background image"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
         </>
       )}
 
-      
+
+      {/* ========================= */}
+      {/* COMMON LAYER PROPERTIES */}
+      {/* ========================= */}
+      {selectedLayer && (
+        <div style={{ marginBottom: "20px", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
+          <h3 style={styles.heading}>Arrange</h3>
+          <div style={styles.row}>
+            <button
+              style={styles.btn}
+              onClick={() => reorderLayer(selectedLayer.id, "forward")}
+              title="Bring Forward"
+            >
+              Bring Forward
+            </button>
+            <button
+              style={styles.btn}
+              onClick={() => reorderLayer(selectedLayer.id, "backward")}
+              title="Send Backward"
+            >
+              Send Backward
+            </button>
+          </div>
+        </div>
+      )}
+
+
+      {/* ========================= */}
+      {/* SHAPE PROPERTIES */}
+      {/* ========================= */}
+      {selectedLayer?.type === "shape" && (
+        <>
+          <h3 style={styles.heading}>Shape</h3>
+          <div style={styles.control}>
+            <label style={styles.label}>Shape Color</label>
+            <input
+              type="color"
+              value={
+                selectedLayer.shapeType === "line" ||
+                  selectedLayer.shapeType === "arrow"
+                  ? selectedLayer.stroke
+                  : selectedLayer.fill
+              }
+              onChange={(e) => {
+                const color = e.target.value;
+                const isLineOrArrow =
+                  selectedLayer.shapeType === "line" ||
+                  selectedLayer.shapeType === "arrow";
+
+                updateShapeLayer(selectedLayer.id, {
+                  [isLineOrArrow ? "stroke" : "fill"]: color,
+                });
+              }}
+            />
+          </div>
+        </>
+      )}
+
 
       {/* ========================= */}
       {/* TEXT PROPERTIES */}
@@ -95,40 +191,47 @@ const PropertiesPanel = () => {
               }
             />
           </div>
-        {/* Font Family */}
-        <div style={styles.control}>
-        <label style={styles.label}>Font</label>
-        <select
-          value={selectedLayer.fontFamily}
-          onChange={(e) =>
-            updateTextLayer(selectedLayer.id, {
-              fontFamily: e.target.value,
-            })
-          }
-        >
-          {FONTS.map((font) => (
-            <option key={font} value={font}>
-              {font}
-            </option>
-          ))}
-        </select>
-      </div>
+          {/* Font Family */}
+          <div style={styles.control}>
+            <label style={styles.label}>Font</label>
+            <select
+              value={selectedLayer.fontFamily}
+              onChange={(e) =>
+                updateTextLayer(selectedLayer.id, {
+                  fontFamily: e.target.value,
+                })
+              }
+            >
+              {FONTS.map((font) => (
+                <option key={font} value={font}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          </div>
 
 
           {/* Link */}
-            <div style={styles.control}>
-             <label style={styles.label}>Link</label>
-              <input
-                type="text"
-                placeholder="https://example.com"
-                value={selectedLayer.link || ""}
-                onChange={(e) =>
-                  updateTextLayer(selectedLayer.id, {
-                    link: e.target.value,
-                  })
+          <div style={styles.control}>
+            <label style={styles.label}>Link</label>
+            <input
+              type="text"
+              placeholder="https://example.com"
+              value={selectedLayer.link || ""}
+              onChange={(e) => {
+                const url = e.target.value;
+                const updates = { link: url };
+
+                // Auto-style if adding a link
+                if (url && !selectedLayer.link) {
+                  updates.color = "#2563eb";
+                  updates.textDecoration = "underline";
                 }
-              />
-            </div>
+
+                updateTextLayer(selectedLayer.id, updates);
+              }}
+            />
+          </div>
 
 
           {/* Bold / Italic / Underline */}

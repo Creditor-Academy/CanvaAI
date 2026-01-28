@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
+import SlideThumbnail from "./SlideThumbnail";
 
 const SlidesPanel = () => {
   const {
@@ -72,100 +73,98 @@ const SlidesPanel = () => {
         }}
       >
         {slides.map((slide, index) => {
-          const isActive = slide.id === activeSlideId;
+  const isActive = slide.id === activeSlideId;
 
-          return (
-            <div
-              key={slide.id}
-              style={{
-                borderRadius: "6px",
-                padding: "4px",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                border: isActive
-                  ? "2px solid #1a73e8"
-                  : "1px solid #ddd",
-                background: isActive ? "#e3f2fd" : "white",
-                boxShadow: isActive
-                  ? "0 2px 8px rgba(26, 115, 232, 0.15)"
-                  : "0 1px 3px rgba(0,0,0,0.1)"
-              }}
-              onClick={() => setActiveSlide(slide.id)}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: "120px",
-                  borderRadius: "4px",
-                  marginBottom: "6px",
-                  background: slide.background || "#f0f0f0",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  position: "relative",
-                  overflow: "hidden"
-                }}
-              />
-                <div style={{ display: "flex", gap: "6px" }}>
-                  
-                  {/* DUPLICATE */}
-                  <span style={{ color: "#666" }}>{index + 1}</span>
+  return (
+    <div
+      key={slide.id}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "6px",
+        marginBottom: "12px",
+        position: "relative",
+      }}
+    >
+      {/* Slide Number (LEFT SIDE) */}
+      <div
+        style={{
+          width: "20px",
+          textAlign: "right",
+          fontSize: "12px",
+          color: "#6b7280",
+          userSelect: "none",
+          paddingTop: "6px",
+        }}
+      >
+        {index + 1}
+      </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      duplicateSlide(slide.id);
-                    }}
-                    title="Duplicate slide"
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      border: "none",
-                      background: "rgba(26, 115, 232, 0.1)",
-                      color: "#1a73e8",
-                      borderRadius: "50%",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    ⧉
-                  </button>
+      {/* Thumbnail + Controls */}
+      <div style={{ position: "relative" }}>
+        <SlideThumbnail
+          slide={slide}
+          isActive={isActive}
+          onClick={() => setActiveSlide(slide.id)}
+        />
 
-                  {/* DELETE */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSlide(slide.id);
-                    }}
-                    title="Delete slide"
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      border: "none",
-                      background: "rgba(220, 53, 69, 0.1)",
-                      color: "#dc3545",
-                      borderRadius: "50%",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
+        {/* Overlay buttons */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "6px",
+            right: "6px",
+            display: "flex",
+            gap: "6px",
+            opacity: isActive ? 1 : 0.7,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              duplicateSlide(slide.id);
+            }}
+            title="Duplicate slide"
+            style={iconBtn("#1a73e8")}
+          >
+            ⧉
+          </button>
 
-            </div>
-          );
-        })}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteSlide(slide.id);
+            }}
+            title="Delete slide"
+            style={iconBtn("#dc3545")}
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+})}
+
       </div>
     </div>
   );
 };
 
 export default SlidesPanel;
+
+const iconBtn = (color) => ({
+  width: "20px",
+  height: "20px",
+  border: "none",
+  background: "rgba(255,255,255,0.9)",
+  color,
+  borderRadius: "50%",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: "bold",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+});

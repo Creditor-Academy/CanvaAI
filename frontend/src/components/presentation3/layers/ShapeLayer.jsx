@@ -1,6 +1,6 @@
 import ShapeRenderer from "../components/shapes/ShapeRenderer";
 
-const ShapeLayer = ({ layer, selected, onMouseDown }) => {
+const ShapeLayer = ({ layer, selected, onMouseDown, children }) => {
   return (
     <div
       onMouseDown={onMouseDown}
@@ -15,6 +15,7 @@ const ShapeLayer = ({ layer, selected, onMouseDown }) => {
       }}
     >
       <ShapeRenderer layer={layer} />
+      {children}
     </div>
   );
 };

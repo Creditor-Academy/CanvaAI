@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import { createShapeLayer } from "../models/presentationModel";
+import { createShapeLayer, createImageLayer } from "../models/presentationModel";
 
 /* =========================
    DEFAULT LAYOUT
@@ -124,54 +124,56 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: [
-                  ...slide.layers,
-                  {
-                    id: nanoid(),
-                    type: "text",
-                    x: 120,
-                    y: 120,
-                    width: 260,
-                    height: 80,
-                    text: "Double click to edit",
-                    fontSize: 24,
-                    color: "#000000",
-                    fontFamily: "Arial",
-                    fontWeight: "normal",
-                    fontStyle: "normal",
-                    textDecoration: "none",
-                    textAlign: "left",
-                    link: "",
-                  },
-                ],
-              }
+              ...slide,
+              layers: [
+                ...slide.layers,
+                {
+                  id: nanoid(),
+                  type: "text",
+                  x: 120,
+                  y: 120,
+                  width: 260,
+                  height: 80,
+                  text: "",
+                  placeholder: "Click to add text",
+                  hasBeenEdited: false,
+                  fontSize: 24,
+                  color: "#000000",
+                  fontFamily: "Arial",
+                  fontWeight: "normal",
+                  fontStyle: "normal",
+                  textDecoration: "none",
+                  textAlign: "left",
+                  link: "",
+                },
+              ],
+            }
             : slide
         ),
       });
     },
 
     updateTextLayer: (layerId, updates) => {
-  const { slides, activeSlideId } = get();
+      const { slides, activeSlideId } = get();
 
-  set({
-    slides: slides.map((slide) =>
-      slide.id === activeSlideId
-        ? {
-            ...slide,
-            layers: slide.layers.map((layer) =>
-              layer.id === layerId
-                ? {
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
                     ...layer,
                     ...updates, // ✅ Respect caller intent
                   }
-                : layer
-            ),
-          }
-        : slide
-    ),
-  });
-},
+                  : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    },
 
 
 
@@ -182,19 +184,19 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? {
-                        ...layer,
-                        fontWeight:
-                          layer.fontWeight === "bold"
-                            ? "normal"
-                            : "bold",
-                      }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    fontWeight:
+                      layer.fontWeight === "bold"
+                        ? "normal"
+                        : "bold",
+                  }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -207,19 +209,19 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? {
-                        ...layer,
-                        fontStyle:
-                          layer.fontStyle === "italic"
-                            ? "normal"
-                            : "italic",
-                      }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    fontStyle:
+                      layer.fontStyle === "italic"
+                        ? "normal"
+                        : "italic",
+                  }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -232,19 +234,19 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? {
-                        ...layer,
-                        textDecoration:
-                          layer.textDecoration === "underline"
-                            ? "none"
-                            : "underline",
-                      }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    textDecoration:
+                      layer.textDecoration === "underline"
+                        ? "none"
+                        : "underline",
+                  }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -257,21 +259,21 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? {
-                        ...layer,
-                        link,
-                        color: link ? "#2563eb" : layer.color,
-                        fontStyle: link ? "italic" : layer.fontStyle,
-                        textDecoration: link
-                          ? "underline"
-                          : layer.textDecoration,
-                      }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    link,
+                    color: link ? "#9aa3b6" : layer.color,
+                    fontStyle: link ? "italic" : layer.fontStyle,
+                    textDecoration: link
+                      ? "underline"
+                      : layer.textDecoration,
+                  }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -284,17 +286,17 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? {
-                        ...layer,
-                        width: Math.max(40, width),
-                        height: Math.max(30, height),
-                      }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    width: Math.max(40, width),
+                    height: Math.max(30, height),
+                  }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -307,13 +309,13 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? { ...layer, textAlign: align }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, textAlign: align }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -326,13 +328,13 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.map((layer) =>
-                  layer.id === layerId
-                    ? { ...layer, x, y }
-                    : layer
-                ),
-              }
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, x, y }
+                  : layer
+              ),
+            }
             : slide
         ),
       });
@@ -371,19 +373,19 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
-                ...slide,
-                layers: slide.layers.filter(
-                  (l) => l.id !== selectedLayerId
-                ),
-              }
+              ...slide,
+              layers: slide.layers.filter(
+                (l) => l.id !== selectedLayerId
+              ),
+            }
             : slide
         ),
         selectedLayerId: null,
       });
     },
 
-      // Duplicate Slide
-          duplicateSlide: (slideId) => {
+    // Duplicate Slide
+    duplicateSlide: (slideId) => {
       const { slides } = get();
 
       const slideIndex = slides.findIndex(
@@ -418,26 +420,124 @@ const usePresentationStore = create((set, get) => {
     },
 
 
-          // ADD SHAPE 
-          addShapeLayer: (shapeType) => {
-        const { slides, activeSlideId } = get();
+    // ADD SHAPE 
+    addShapeLayer: (shapeType) => {
+      const { slides, activeSlideId } = get();
 
-        set({
-          slides: slides.map(slide =>
-            slide.id === activeSlideId
-              ? {
-                  ...slide,
-                  layers: [
-                    ...slide.layers,
-                    createShapeLayer(shapeType)
-                  ]
-                }
-              : slide
-          )
-        });
-      }
+      set({
+        slides: slides.map(slide =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: [
+                ...slide.layers,
+                createShapeLayer(shapeType)
+              ]
+            }
+            : slide
+        )
+      });
+    },
+
+    updateShapeLayer: (layerId, updates) => {
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    ...updates,
+                  }
+                  : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    }
 
 
+    ,
+
+    /* =========================
+       IMAGE LAYERS
+    ========================= */
+    addImageLayer: (src) => {
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: [
+                ...slide.layers,
+                createImageLayer(src),
+              ],
+            }
+            : slide
+        ),
+      });
+    },
+
+    setSlideBackgroundImage: (slideId, imageSrc) => {
+      const { slides } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === slideId
+            ? {
+              ...slide,
+              backgroundImage: imageSrc,
+            }
+            : slide
+        ),
+      });
+    },
+
+    /* =========================
+       LAYER ORDERING
+    ========================= */
+    reorderLayer: (layerId, direction) => {
+      // direction: 'forward' | 'backward'
+      const { slides, activeSlideId } = get();
+      const slide = slides.find((s) => s.id === activeSlideId);
+      if (!slide) return;
+
+      const layerIndex = slide.layers.findIndex(
+        (l) => l.id === layerId
+      );
+      if (layerIndex === -1) return;
+
+      // Check bounds
+      if (direction === "backward" && layerIndex === 0) return;
+      if (
+        direction === "forward" &&
+        layerIndex === slide.layers.length - 1
+      )
+        return;
+
+      const newLayers = [...slide.layers];
+      const targetIndex =
+        direction === "forward" ? layerIndex + 1 : layerIndex - 1;
+
+      // Swap
+      [newLayers[layerIndex], newLayers[targetIndex]] = [
+        newLayers[targetIndex],
+        newLayers[layerIndex],
+      ];
+
+      set({
+        slides: slides.map((s) =>
+          s.id === activeSlideId ? { ...s, layers: newLayers } : s
+        ),
+      });
+    },
   };
 });
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 import ShapeLayer from "../../layers/ShapeLayer";
 import TextLayer from "../../layers/TextLayer";
+import ImageLayer from "../../layers/ImageLayer";
 
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
@@ -79,7 +80,13 @@ const CanvasShell = () => {
       <div
         style={{
           ...styles.slide,
-          background: activeSlide.background,
+          backgroundColor: activeSlide.background,
+          backgroundImage: activeSlide.backgroundImage
+            ? `url(${activeSlide.backgroundImage})`
+            : "none",
+          backgroundSize: "100% 100%",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
         }}
         onMouseMove={handleMouseMove}
         onMouseUp={stopAll}
@@ -91,12 +98,102 @@ const CanvasShell = () => {
         }}
       >
         {activeSlide.layers.map((layer) => {
-          if (layer.type !== "text") return null;
           const selected = selectedLayerId === layer.id;
+
+          if (layer.type === "shape") {
+            return (
+              <ShapeLayer
+                key={layer.id}
+                layer={layer}
+                selected={selected}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setSelectedLayer(layer.id);
+                  setDraggingId(layer.id);
+
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setOffset({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                  });
+                }}
+              >
+                {selected && (
+                  <div
+                    style={styles.resizeHandle}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setResizingId(layer.id);
+                      setStartSize({
+                        w: layer.width,
+                        h: layer.height,
+                      });
+                      setStartPos({
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                  />
+                )}
+              </ShapeLayer>
+            );
+          }
+
+          if (layer.type === "image") {
+            return (
+              <div
+                key={layer.id}
+                style={{
+                  position: "absolute",
+                  left: layer.x,
+                  top: layer.y,
+                  width: layer.width,
+                  height: layer.height,
+                  border: selected
+                    ? "1.5px solid #2563eb"
+                    : "none",
+                  cursor: "move",
+                  userSelect: "none",
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setSelectedLayer(layer.id);
+                  setDraggingId(layer.id);
+
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setOffset({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                  });
+                }}
+              >
+                <ImageLayer layer={layer} />
+                {selected && (
+                  <div
+                    style={styles.resizeHandle}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setResizingId(layer.id);
+                      setStartSize({
+                        w: layer.width,
+                        h: layer.height
+                      });
+                      setStartPos({
+                        x: e.clientX,
+                        y: e.clientY
+                      });
+                    }}
+                  />
+                )}
+              </div>
+            );
+          }
+
+          if (layer.type !== "text") return null;
           const Wrapper = layer.link ? "a" : "div";
 
-            const isPlaceholderVisible =
-    !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
+          const isPlaceholderVisible =
+            !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
 
 
           return (
@@ -130,59 +227,59 @@ const CanvasShell = () => {
               }}
             >
               <Wrapper
-  href={layer.link || undefined}
-  target="_blank"
-  rel="noopener noreferrer"
-  contentEditable={!layer.link}
-  suppressContentEditableWarning
+                href={layer.link || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                contentEditable={!layer.link}
+                suppressContentEditableWarning
 
-  onFocus={(e) => {
-  // Remove placeholder visually on focus (not stored)
-  if (isPlaceholderVisible) {
-    e.target.innerText = "";
-  }
-}}
-
-
-     onBlur={(e) => {
-  const value = e.target.innerText.trim();
-
-  // 👇 IMPORTANT: restore placeholder in DOM
-  if (value.length === 0) {
-    e.target.innerText = layer.placeholder;
-  }
-
-  updateTextLayer(layer.id, {
-    text: value,
-    hasBeenEdited: value.length > 0,
-  });
-}}
+                onFocus={(e) => {
+                  // Remove placeholder visually on focus (not stored)
+                  if (isPlaceholderVisible) {
+                    e.target.innerText = "";
+                  }
+                }}
 
 
-  onClick={(e) => {
-    if (!layer.link) e.preventDefault();
-  }}
+                onBlur={(e) => {
+                  const value = e.target.innerText.trim();
 
-  style={{
-    display: "block",
-    width: "100%",
-    height: "100%",
-    fontSize: layer.fontSize,
-    color: isPlaceholderVisible ? "#000000" : layer.color,
-    fontFamily: layer.fontFamily,
-    fontWeight: layer.fontWeight,
-    fontStyle: layer.fontStyle,
-    textDecoration: layer.textDecoration,
-    textAlign: layer.textAlign,
-    outline: "none",
-    cursor: layer.link ? "pointer" : "text",
-    userSelect: "text",
-  }}
->
-  {isPlaceholderVisible
-    ? layer.placeholder
-    : layer.text}
-       </Wrapper>
+                  // 👇 IMPORTANT: restore placeholder in DOM
+                  if (value.length === 0) {
+                    e.target.innerText = layer.placeholder;
+                  }
+
+                  updateTextLayer(layer.id, {
+                    text: value,
+                    hasBeenEdited: value.length > 0,
+                  });
+                }}
+
+
+                onClick={(e) => {
+                  if (!layer.link) e.preventDefault();
+                }}
+
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  fontSize: layer.fontSize,
+                  color: isPlaceholderVisible ? "#000000" : layer.color,
+                  fontFamily: layer.fontFamily,
+                  fontWeight: layer.fontWeight,
+                  fontStyle: layer.fontStyle,
+                  textDecoration: layer.textDecoration,
+                  textAlign: layer.textAlign,
+                  outline: "none",
+                  cursor: layer.link ? "pointer" : "text",
+                  userSelect: "text",
+                }}
+              >
+                {isPlaceholderVisible
+                  ? layer.placeholder
+                  : layer.text}
+              </Wrapper>
 
 
               {selected && (

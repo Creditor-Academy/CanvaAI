@@ -2,7 +2,7 @@ import React from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 
 const TopBar = () => {
-  const { addTextLayer, addShapeLayer } = usePresentationStore();
+  const { addTextLayer, addShapeLayer, addImageLayer } = usePresentationStore();
 
   return (
     <div style={styles.bar}>
@@ -42,12 +42,48 @@ const TopBar = () => {
           ／
         </button>
 
-        <button
+        {/* <button
           style={styles.shapeButton}
           onClick={() => addShapeLayer("arrow")}
           title="Arrow"
         >
           ➜
+        </button> */}
+      </div>
+
+      {/* Image */}
+      <div style={styles.shapesGroup}>
+        <input
+          type="file"
+          accept="image/*"
+          id="image-upload"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = () => {
+              addImageLayer(reader.result);
+              e.target.value = ""; // Reset input
+            };
+            reader.readAsDataURL(file);
+          }}
+        />
+        <button
+          onClick={() => document.getElementById("image-upload").click()}
+          style={styles.button}
+        >
+          Add Image
+        </button>
+        <button
+          onClick={() => {
+            const url = prompt("Enter image URL");
+            if (url) addImageLayer(url);
+          }}
+          style={styles.button}
+        >
+          URL
         </button>
       </div>
     </div>
