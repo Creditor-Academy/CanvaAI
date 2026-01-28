@@ -10,13 +10,13 @@ export const createShapeLayer = (shapeType) => ({
   y: 200,
 
   // size defaults
-  width: shapeType === "line" || shapeType === "arrow" ? 200 : 120,
-  height: shapeType === "line" || shapeType === "arrow" ? 20 : 80, // Increased hit area
+  width: shapeType === "line" || shapeType === "arrow" ? 400 : 120, // Bigger default size
+  height: shapeType === "line" || shapeType === "arrow" ? 40 : 80, // Increased hit area
 
   // style
   fill: shapeType === "line" || shapeType === "arrow" ? "transparent" : "#3b82f6",
   stroke: "#1e40af",
-  strokeWidth: shapeType === "line" || shapeType === "arrow" ? 4 : 2, // Thicker default
+  strokeWidth: shapeType === "line" || shapeType === "arrow" ? 8 : 2, // Thicker default
 
   // transforms
   rotation: 0,

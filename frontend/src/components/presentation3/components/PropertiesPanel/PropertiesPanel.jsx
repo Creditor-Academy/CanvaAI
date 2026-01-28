@@ -16,6 +16,8 @@ const PropertiesPanel = () => {
     toggleUnderline,
     setSlideBackgroundImage,
     reorderLayer,
+    updateLayerRotation,
+    alignLayer,
   } = usePresentationStore();
   const FONTS = [
     "Arial",
@@ -118,6 +120,89 @@ const PropertiesPanel = () => {
             >
               Send Backward
             </button>
+          </div>
+
+          <div style={styles.control}>
+            <label style={styles.label}>Rotation</label>
+            <button
+              style={{ ...styles.btn, width: "100%" }}
+              onClick={() => {
+                const currentRotation = selectedLayer.rotation || 0;
+                updateLayerRotation(selectedLayer.id, (currentRotation + 90) % 360);
+              }}
+              title="Rotate 90° clockwise"
+            >
+              Rotate 90°
+            </button>
+          </div>
+
+          <div style={styles.control}>
+            <label style={styles.label}>Alignment</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'top-left')}
+                title="Align to top-left"
+              >
+                ↖
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'top')}
+                title="Align to top center"
+              >
+                ↑
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'top-right')}
+                title="Align to top-right"
+              >
+                ↗
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'left')}
+                title="Align to left center"
+              >
+                ←
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'center')}
+                title="Align to center"
+              >
+                ⊙
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'right')}
+                title="Align to right center"
+              >
+                →
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'bottom-left')}
+                title="Align to bottom-left"
+              >
+                ↙
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'bottom')}
+                title="Align to bottom center"
+              >
+                ↓
+              </button>
+              <button
+                style={{ ...styles.btn, padding: '8px' }}
+                onClick={() => alignLayer(selectedLayer.id, 'bottom-right')}
+                title="Align to bottom-right"
+              >
+                ↘
+              </button>
+            </div>
           </div>
         </div>
       )}

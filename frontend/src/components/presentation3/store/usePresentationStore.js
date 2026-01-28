@@ -321,6 +321,25 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
+    updateLayerRotation: (layerId, rotation) => {
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, rotation }
+                  : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
     updateLayerPosition: (layerId, x, y) => {
       const { slides, activeSlideId } = get();
 
@@ -336,6 +355,76 @@ const usePresentationStore = create((set, get) => {
               ),
             }
             : slide
+        ),
+      });
+    },
+
+    alignLayer: (layerId, alignment) => {
+      const { slides, activeSlideId } = get();
+      const slide = slides.find((s) => s.id === activeSlideId);
+      if (!slide) return;
+
+      const layer = slide.layers.find((l) => l.id === layerId);
+      if (!layer) return;
+
+      const SLIDE_WIDTH = 960;
+      const SLIDE_HEIGHT = 540;
+      const PADDING = 20;
+
+      let newX = layer.x;
+      let newY = layer.y;
+
+      switch (alignment) {
+        case 'center':
+          newX = (SLIDE_WIDTH - layer.width) / 2;
+          newY = (SLIDE_HEIGHT - layer.height) / 2;
+          break;
+        case 'top':
+          newX = (SLIDE_WIDTH - layer.width) / 2;
+          newY = PADDING;
+          break;
+        case 'bottom':
+          newX = (SLIDE_WIDTH - layer.width) / 2;
+          newY = SLIDE_HEIGHT - layer.height - PADDING;
+          break;
+        case 'left':
+          newX = PADDING;
+          newY = (SLIDE_HEIGHT - layer.height) / 2;
+          break;
+        case 'right':
+          newX = SLIDE_WIDTH - layer.width - PADDING;
+          newY = (SLIDE_HEIGHT - layer.height) / 2;
+          break;
+        case 'top-left':
+          newX = PADDING;
+          newY = PADDING;
+          break;
+        case 'top-right':
+          newX = SLIDE_WIDTH - layer.width - PADDING;
+          newY = PADDING;
+          break;
+        case 'bottom-left':
+          newX = PADDING;
+          newY = SLIDE_HEIGHT - layer.height - PADDING;
+          break;
+        case 'bottom-right':
+          newX = SLIDE_WIDTH - layer.width - PADDING;
+          newY = SLIDE_HEIGHT - layer.height - PADDING;
+          break;
+        default:
+          return;
+      }
+
+      set({
+        slides: slides.map((s) =>
+          s.id === activeSlideId
+            ? {
+              ...s,
+              layers: s.layers.map((l) =>
+                l.id === layerId ? { ...l, x: newX, y: newY } : l
+              ),
+            }
+            : s
         ),
       });
     },

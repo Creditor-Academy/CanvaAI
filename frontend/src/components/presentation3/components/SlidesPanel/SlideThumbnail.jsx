@@ -59,6 +59,8 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                                     textAlign: layer.textAlign,
                                     overflow: "hidden",
                                     whiteSpace: "pre-wrap",
+                                    transform: `rotate(${layer.rotation || 0}deg)`,
+                                    transformOrigin: "center center",
                                 }}
                             >
                                 {layer.text || layer.placeholder}
@@ -78,7 +80,9 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                                     top: layer.y,
                                     width: layer.width,
                                     height: layer.height,
-                                    objectFit: "fill", // Fixed to match ImageLayer
+                                    objectFit: "fill",
+                                    transform: `rotate(${layer.rotation || 0}deg)`,
+                                    transformOrigin: "center center",
                                 }}
                             />
                         );
@@ -110,7 +114,9 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                                         : "none", // Simple fallback for lines
                                     height: (layer.shapeType === "line" || layer.shapeType === "arrow")
                                         ? Math.max(2, layer.strokeWidth || 2) // Ensure lines are visible
-                                        : layer.height
+                                        : layer.height,
+                                    transform: `rotate(${layer.rotation || 0}deg)`,
+                                    transformOrigin: "center center",
                                 }}
                             />
                         );

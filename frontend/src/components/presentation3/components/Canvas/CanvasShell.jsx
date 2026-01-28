@@ -19,6 +19,7 @@ const CanvasShell = () => {
     setSelectedLayer,
     clearSelection,
     deleteSelectedLayer,
+    updateLayerRotation,
   } = usePresentationStore();
 
   const activeSlide = slides.find(
@@ -27,6 +28,7 @@ const CanvasShell = () => {
 
   const [draggingId, setDraggingId] = useState(null);
   const [resizingId, setResizingId] = useState(null);
+  const [rotatingId, setRotatingId] = useState(null);
   const [startSize, setStartSize] = useState({ w: 0, h: 0 });
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -68,11 +70,30 @@ const CanvasShell = () => {
         startSize.h + (e.clientY - startPos.y)
       );
     }
+
+    if (rotatingId) {
+      const layer = activeSlide.layers.find((l) => l.id === rotatingId);
+      if (layer) {
+        // Calculate center of layer
+        const layerCenterX = (slideRect.left + layer.x) + layer.width / 2;
+        const layerCenterY = (slideRect.top + layer.y) + layer.height / 2;
+
+        const angle = Math.atan2(
+          e.clientY - layerCenterY,
+          e.clientX - layerCenterX
+        ) * (180 / Math.PI);
+
+        const rotation = angle + 90; // Adjust so handle at top is 0 (approx)
+
+        updateLayerRotation(rotatingId, rotation);
+      }
+    }
   };
 
   const stopAll = () => {
     setDraggingId(null);
     setResizingId(null);
+    setRotatingId(null);
   };
 
   return (
@@ -117,23 +138,36 @@ const CanvasShell = () => {
                     y: e.clientY - rect.top,
                   });
                 }}
+                style={{
+                  transform: `rotate(${layer.rotation || 0}deg)`,
+                  transformOrigin: "center center",
+                }}
               >
                 {selected && (
-                  <div
-                    style={styles.resizeHandle}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      setResizingId(layer.id);
-                      setStartSize({
-                        w: layer.width,
-                        h: layer.height,
-                      });
-                      setStartPos({
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }}
-                  />
+                  <>
+                    <div
+                      style={styles.resizeHandle}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setResizingId(layer.id);
+                        setStartSize({
+                          w: layer.width,
+                          h: layer.height,
+                        });
+                        setStartPos({
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
+                    />
+                    <div
+                      style={styles.rotateHandle}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setRotatingId(layer.id);
+                      }}
+                    />
+                  </>
                 )}
               </ShapeLayer>
             );
@@ -154,6 +188,8 @@ const CanvasShell = () => {
                     : "none",
                   cursor: "move",
                   userSelect: "none",
+                  transform: `rotate(${layer.rotation || 0}deg)`,
+                  transformOrigin: "center center",
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
@@ -167,23 +203,39 @@ const CanvasShell = () => {
                   });
                 }}
               >
-                <ImageLayer layer={layer} />
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'relative',
+                  pointerEvents: 'none',
+                }}>
+                  <ImageLayer layer={layer} />
+                </div>
                 {selected && (
-                  <div
-                    style={styles.resizeHandle}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      setResizingId(layer.id);
-                      setStartSize({
-                        w: layer.width,
-                        h: layer.height
-                      });
-                      setStartPos({
-                        x: e.clientX,
-                        y: e.clientY
-                      });
-                    }}
-                  />
+                  <>
+                    <div
+                      style={styles.resizeHandle}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setResizingId(layer.id);
+                        setStartSize({
+                          w: layer.width,
+                          h: layer.height
+                        });
+                        setStartPos({
+                          x: e.clientX,
+                          y: e.clientY
+                        });
+                      }}
+                    />
+                    <div
+                      style={styles.rotateHandle}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setRotatingId(layer.id);
+                      }}
+                    />
+                  </>
                 )}
               </div>
             );
@@ -212,6 +264,8 @@ const CanvasShell = () => {
                 cursor: "move",
                 userSelect: "none",
                 boxSizing: "border-box",
+                transform: `rotate(${layer.rotation || 0}deg)`,
+                transformOrigin: "center center",
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
@@ -257,7 +311,13 @@ const CanvasShell = () => {
 
 
                 onClick={(e) => {
-                  if (!layer.link) e.preventDefault();
+                  if (layer.link) {
+                    // Force open in new window as requested
+                    e.preventDefault();
+                    window.open(layer.link, "_blank", "noopener,noreferrer");
+                  } else {
+                    e.preventDefault();
+                  }
                 }}
 
                 style={{
@@ -283,21 +343,30 @@ const CanvasShell = () => {
 
 
               {selected && (
-                <div
-                  style={styles.resizeHandle}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setResizingId(layer.id);
-                    setStartSize({
-                      w: layer.width,
-                      h: layer.height,
-                    });
-                    setStartPos({
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }}
-                />
+                <>
+                  <div
+                    style={styles.resizeHandle}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setResizingId(layer.id);
+                      setStartSize({
+                        w: layer.width,
+                        h: layer.height,
+                      });
+                      setStartPos({
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                  />
+                  <div
+                    style={styles.rotateHandle}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setRotatingId(layer.id);
+                    }}
+                  />
+                </>
               )}
             </div>
           );
@@ -335,5 +404,18 @@ const styles = {
     height: HANDLE_SIZE,
     background: "#2563eb",
     cursor: "nwse-resize",
+  },
+  rotateHandle: {
+    position: "absolute",
+    left: "50%",
+    top: -24, // Place above the element
+    width: 10,
+    height: 10,
+    marginLeft: -5,
+    borderRadius: "50%",
+    background: "#fff",
+    border: "1px solid #2563eb",
+    cursor: "grab",
+    zIndex: 100,
   },
 };
