@@ -13,7 +13,8 @@ import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
-import Indent from '../extensions/Indent';
+import { Blockquote } from '@tiptap/extension-blockquote';
+import Indent from '../extensions/Indent.js';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
@@ -131,8 +132,12 @@ import { Input } from './ui/input';
 import { EditorToolbar } from './editor/EditorToolbar';
 import { AISidebar } from './editor/AISidebar';
 import { DocumentOutline } from './editor/DocumentOutline';
-import { ExportMenu } from './editor/ExportMenu';
-import { TemplateSidebar } from './editor/TemplateSidebar';
+
+import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
+import { DocumentExporter } from '../../../utils/documentExporter.js';
+import { Label } from './ui/label.jsx';
+import { Textarea } from './ui/textarea.jsx';
+import { Switch } from './ui/switch.jsx';
 import { toast } from 'sonner';
 import {
   Tooltip,
@@ -158,6 +163,9 @@ import {
 } from './ui/dropdown-menu';
 import { Separator } from './ui/separator';
 import { Slider } from './ui/slider';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
   Popover,
   PopoverContent,
@@ -736,6 +744,17 @@ export const TextEditor = () => {
   const [selectedImageAlt, setSelectedImageAlt] = useState('');
   const [isImageUploading, setIsImageUploading] = useState(false);
 
+  // Export states
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportFormat, setExportFormat] = useState('pdf');
+  const [exportOptions, setExportOptions] = useState({
+    includePageNumbers: true,
+    includeHeader: true,
+    includeFooter: true,
+    exportComments: false,
+    exportTrackChanges: false
+  });
+
   // References & Links states
   const [bookmarks, setBookmarks] = useState([]);
   const [footnotes, setFootnotes] = useState([]);
@@ -751,13 +770,14 @@ export const TextEditor = () => {
         heading: {
           levels: [1, 2, 3, 4, 5, 6],
         },
-        codeBlock: false,
-        code: false,
-        link: false,
-        underline: false,
+        codeBlock: true,
+        code: true,
+        link: true,
+        underline: true,
         listItem: true,
         bulletList: true,
         orderedList: true,
+        blockquote: true,
       }),
       Placeholder.configure({
         placeholder: ({ node }) => {
@@ -767,6 +787,7 @@ export const TextEditor = () => {
           return 'Start typing or type "/" for commands...';
         },
       }),
+      Blockquote,
       Underline,
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -793,9 +814,16 @@ export const TextEditor = () => {
         resizable: true,
         lastColumnResizable: true,
         cellMinWidth: 100,
+        HTMLAttributes: {
+          class: 'table-border-black',
+        },
       }),
       TableRow,
-      TableCell,
+      TableCell.configure({
+        HTMLAttributes: {
+          class: 'cell-border-black',
+        },
+      }),
       TableHeader,
       TextStyle,
       Color,
@@ -904,9 +932,39 @@ export const TextEditor = () => {
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-[600px]',
+        class: 'prose prose-lg max-w-none focus:outline-none min-h-[600px] table-border-black',
         spellcheck: 'true',
       },
+      
+      // Add custom styles for tables
+      contentAttributes: {
+        style: `
+          table.table-border-black { 
+            border-collapse: collapse; 
+            border: 2px solid #000000; 
+            width: 100%; 
+            background-color: #ffffff; 
+            box-shadow: 0 0 0 1px #000000; 
+          }
+          table.table-border-black td, 
+          table.table-border-black th { 
+            border: 1px solid #000000; 
+            padding: 8px; 
+            background-color: #ffffff; 
+            vertical-align: top; 
+          }
+          .cell-border-black { 
+            border: 1px solid #000000 !important; 
+            padding: 8px; 
+            background-color: #ffffff; 
+          }
+          table.table-border-black th {
+            background-color: #f8f9fa !important;
+            font-weight: bold;
+          }
+        `,
+      },
+      
       handleKeyDown: (view, event) => {
         // Handle slash commands
         if (event.key === '/' && (event.ctrlKey || event.metaKey)) {
@@ -1004,160 +1062,159 @@ export const TextEditor = () => {
   };
 
 
-  // Function to handle multiple image uploads with enhanced state management
+  // Function to handle multiple image uploads with enhanced state management and error handling
   const handleMultipleImageUpload = async (event) => {
-    const files = Array.from(event.target.files);
-    
-    if (!files || files.length === 0) {
-      toast.error('No files selected');
-      return;
-    }
-    
-    const validFiles = files.filter(file => {
-      const isValidType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(file.type);
-      const isValidSize = file.size <= 10 * 1024 * 1024;
+    try {
+      const files = Array.from(event.target.files);
       
-      if (!isValidType) {
-        toast.error(`Skipped ${file.name}: Invalid file type`);
-      }
-      if (!isValidSize) {
-        toast.error(`Skipped ${file.name}: File too large`);
+      if (!files || files.length === 0) {
+        toast.error('❌ No files selected');
+        return;
       }
       
-      return isValidType && isValidSize;
-    });
-    
-    if (validFiles.length === 0) {
-      toast.error('No valid images to upload');
-      return;
-    }
-    
-    // Set loading state for multiple uploads
-    setIsImageUploading(true);
-    toast.loading(`Uploading ${validFiles.length} image(s)...`);
-    
-    let successfulUploads = 0;
-    
-    for (const file of validFiles) {
-      try {
-        const imageUrl = URL.createObjectURL(file);
-        const img = new Image();
+      // Show processing message
+      toast.loading(`🔍 Processing ${files.length} file(s)...`);
+      
+      const validFiles = files.filter(file => {
+        const isValidType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(file.type);
+        const isValidSize = file.size <= 10 * 1024 * 1024;
         
-        img.onload = () => {
-          insertImage(imageUrl, file.name, img.width, img.height, {
-            fileName: file.name,
-            fileSize: file.size,
-            originalWidth: img.width,
-            originalHeight: img.height
-          });
-          
-          successfulUploads++;
-          
-          // Update progress
-          if (successfulUploads === validFiles.length) {
-            toast.dismiss(); // Clear the loading toast
-            toast.success(`${successfulUploads} image(s) uploaded successfully`);
-            setIsImageUploading(false);
-          }
-          
-          // Clean up
-          setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
-        };
-        img.onerror = () => {
-          insertImage(imageUrl, file.name, 400, 300, {
-            fileName: file.name,
-            fileSize: file.size
-          });
-          
-          successfulUploads++;
-          
-          // Update progress
-          if (successfulUploads === validFiles.length) {
-            toast.dismiss(); // Clear the loading toast
-            toast.success(`${successfulUploads} image(s) uploaded successfully`);
-            setIsImageUploading(false);
-          }
-          
-          // Clean up
-          setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
-        };
-        img.src = imageUrl;
+        if (!isValidType) {
+          toast.error(`❌ Skipped ${file.name}: Invalid file type. Supported: JPG, PNG, GIF, WebP, SVG, BMP`);
+        }
+        if (!isValidSize) {
+          toast.error(`❌ Skipped ${file.name}: File too large. Maximum size: 10MB`);
+        }
         
-        // Small delay between inserts
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error(`Error processing ${file.name}:`, error);
-        toast.error(`Failed to upload ${file.name}`);
+        return isValidType && isValidSize;
+      });
+      
+      if (validFiles.length === 0) {
+        toast.dismiss();
+        toast.error('⚠️ No valid images to upload. Please check file types and sizes.');
+        return;
       }
+      
+      toast.dismiss();
+      toast.success(`✅ ${validFiles.length} valid image(s) ready for upload`);
+      
+      // Set selected files
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+      
+      // Create preview for the first newly added image if no preview exists
+      if (validFiles[0] && !imagePreview) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagePreview(e.target.result);
+        };
+        reader.readAsDataURL(validFiles[0]);
+      }
+      
+    } catch (error) {
+      console.error('Multiple image upload error:', error);
+      toast.dismiss();
+      toast.error('❌ Failed to process selected files. Please try again.');
     }
   };
 
-  // Function to handle image URL insertion
+  // Function to handle image URL insertion with enhanced validation and feedback
   const handleImageUrlSubmit = () => {
-    if (!imageUrl.trim()) {
-      toast.error('Please enter an image URL');
-      return;
-    }
-    
-    // Basic URL validation
     try {
-      const url = new URL(imageUrl);
-      insertImage(imageUrl, selectedImageAlt || 'Image from URL');
-      setImageUrl('');
-      setSelectedImageAlt('');
-    } catch (error) {
-      // If URL parsing fails, try adding http:// prefix
+      if (!imageUrl.trim()) {
+        toast.error('❌ Please enter an image URL');
+        return;
+      }
+      
+      // Basic URL validation
+      let validUrl = '';
       try {
-        const urlWithProtocol = imageUrl.startsWith('http') ? imageUrl : `https://${imageUrl}`;
-        new URL(urlWithProtocol);
-        insertImage(urlWithProtocol, selectedImageAlt || 'Image from URL');
+        const url = new URL(imageUrl);
+        validUrl = imageUrl;
+      } catch (error) {
+        // If URL parsing fails, try adding https:// prefix
+        try {
+          const urlWithProtocol = imageUrl.startsWith('http') ? imageUrl : `https://${imageUrl}`;
+          new URL(urlWithProtocol);
+          validUrl = urlWithProtocol;
+        } catch (innerError) {
+          toast.error('❌ Please enter a valid URL (e.g., https://example.com/image.jpg)');
+          return;
+        }
+      }
+      
+      // Show loading state
+      toast.loading('📥 Inserting image from URL...');
+      
+      // Test if the URL is accessible
+      const img = new Image();
+      img.onload = () => {
+        toast.dismiss();
+        insertImage(validUrl, selectedImageAlt || 'Image from URL');
         setImageUrl('');
         setSelectedImageAlt('');
-      } catch (innerError) {
-        toast.error('Please enter a valid URL');
-      }
+        toast.success('✅ Image inserted successfully!');
+      };
+      
+      img.onerror = () => {
+        toast.dismiss();
+        toast.error('❌ Could not load image from URL. Please check if the URL is correct and accessible.');
+      };
+      
+      img.src = validUrl;
+      
+    } catch (error) {
+      console.error('URL image insertion error:', error);
+      toast.dismiss();
+      toast.error('❌ Failed to insert image. Please try again.');
     }
   };
 
-  // Enhanced image upload functions with improved state management
+  // Enhanced image upload functions with improved state management and error handling
   const handleImageUpload = async (event) => {
-    const files = Array.from(event.target.files);
-    
-    if (!files || files.length === 0) {
-      toast.error('No file selected');
-      return;
-    }
-    
-    // Validate all files
-    const validFiles = files.filter(file => {
-      const isValidType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(file.type);
-      const isValidSize = file.size <= 10 * 1024 * 1024;
+    try {
+      const files = Array.from(event.target.files);
       
-      if (!isValidType) {
-        toast.error(`Skipped ${file.name}: Invalid file type`);
-      }
-      if (!isValidSize) {
-        toast.error(`Skipped ${file.name}: File too large`);
+      if (!files || files.length === 0) {
+        toast.error('No file selected');
+        return;
       }
       
-      return isValidType && isValidSize;
-    });
-    
-    if (validFiles.length === 0) {
-      toast.error('No valid images to upload');
-      return;
-    }
-    
-    // Set selected files and show preview
-    setSelectedFiles(validFiles);
-    
-    // Create preview for the first image
-    if (validFiles[0]) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target.result);
-      };
-      reader.readAsDataURL(validFiles[0]);
+      // Validate all files
+      const validFiles = files.filter(file => {
+        const isValidType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(file.type);
+        const isValidSize = file.size <= 10 * 1024 * 1024;
+        
+        if (!isValidType) {
+          toast.error(`❌ Skipped ${file.name}: Invalid file type. Supported: JPG, PNG, GIF, WebP, SVG, BMP`);
+        }
+        if (!isValidSize) {
+          toast.error(`❌ Skipped ${file.name}: File too large. Maximum size: 10MB`);
+        }
+        
+        return isValidType && isValidSize;
+      });
+      
+      if (validFiles.length === 0) {
+        toast.error('⚠️ No valid images to upload. Please check file types and sizes.');
+        return;
+      }
+      
+      // Set selected files and show preview
+      setSelectedFiles(validFiles);
+      
+      // Create preview for the first image
+      if (validFiles[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagePreview(e.target.result);
+        };
+        reader.readAsDataURL(validFiles[0]);
+      }
+      
+      toast.success(`✅ ${validFiles.length} valid image(s) selected. Click "Insert Image" to upload.`);
+    } catch (error) {
+      console.error('Image upload error:', error);
+      toast.error('❌ Failed to process selected files. Please try again.');
     }
   };
 
@@ -1276,16 +1333,18 @@ export const TextEditor = () => {
     handleImageUrlSubmit();
   };
 
-  // Function to test image insertion (for debugging)
+  // Function to test image insertion (for debugging) with enhanced feedback
   const testImageInsertion = () => {
-    if (!editor) {
-      toast.error('Editor not ready');
-      return;
-    }
-    
-    const testImageUrl = 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop';
-    
     try {
+      if (!editor) {
+        toast.error('❌ Editor not ready. Please wait for the editor to load.');
+        return;
+      }
+      
+      const testImageUrl = 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop';
+      
+      toast.loading('🧪 Testing image insertion...');
+      
       // Test with ResizableImage
       editor.chain().focus().setResizableImage({ 
         src: testImageUrl, 
@@ -1294,9 +1353,16 @@ export const TextEditor = () => {
         height: 300,
         align: 'left'
       }).run();
-      toast.success('Test image inserted successfully with ResizableImage');
+      
+      toast.dismiss();
+      toast.success('✅ Test image inserted successfully with ResizableImage extension!');
+      
+      // Close modal after successful test
+      setTimeout(() => setShowImageModal(false), 1500);
+      
     } catch (error) {
       console.error('ResizableImage test failed:', error);
+      toast.dismiss();
       
       try {
         // Fallback to regular Image
@@ -1304,10 +1370,15 @@ export const TextEditor = () => {
           src: testImageUrl, 
           alt: 'Test image' 
         }).run();
-        toast.success('Test image inserted successfully with regular Image');
+        
+        toast.success('✅ Test image inserted successfully with regular Image extension!');
+        
+        // Close modal after successful test
+        setTimeout(() => setShowImageModal(false), 1500);
+        
       } catch (fallbackError) {
         console.error('Regular Image test failed:', fallbackError);
-        toast.error('Test insertion failed. Check console for details.');
+        toast.error('❌ Test insertion failed. Please check console for technical details.');
       }
     }
   };
@@ -1549,110 +1620,49 @@ export const TextEditor = () => {
     printWindow.document.close();
   };
 
-  const handleExportPDF = async () => {
+  const handleExport = async () => {
     if (!editor) return;
     
-    toast.info('Preparing PDF export...');
-    
     try {
-      // Dynamically import jsPDF and html2canvas to avoid bundling issues
-      const [{ jsPDF }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ]);
-      
-      // Create a temporary container with the editor content
-      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-      
-      if (!printWindow) {
-        toast.error('Could not open export window. Please check your popup blocker.');
-        return;
-      }
-      
-      const editorContent = editor.getHTML();
-      
-      const printContent = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${documentTitle || 'Document'}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              font-size: 12pt;
-              line-height: 1.5;
-              color: #000;
-              max-width: 210mm;
-              margin: 0 auto;
-              padding: 15mm;
-              background: white;
-            }
-            .ProseMirror {
-              min-height: auto;
-            }
-            img {
-              max-width: 100%;
-              height: auto;
-            }
-            h1 { font-size: 16pt; font-weight: bold; margin: 20px 0 10px 0; }
-            h2 { font-size: 14pt; font-weight: bold; margin: 18px 0 8px 0; }
-            h3 { font-size: 13pt; font-weight: bold; margin: 16px 0 6px 0; }
-            p { margin: 8px 0; }
-            ul, ol { margin: 8px 0 8px 20px; }
-            li { margin: 4px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="ProseMirror">${editorContent}</div>
-        </body>
-        </html>
-      `;
-      
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      
-      printWindow.onload = () => {
-        setTimeout(async () => {
-          const element = printWindow.document.querySelector('.ProseMirror');
-          if (element) {
-            const canvas = await html2canvas(element, { scale: 2 }); // Higher quality
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgWidth = 190; // A4 width minus margins
-            const pageHeight = 280; // A4 height minus margins
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 10;
-            
-            pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-            
-            // Add additional pages if needed
-            while (heightLeft >= 0) {
-              position = heightLeft - imgHeight;
-              pdf.addPage();
-              pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
-              heightLeft -= pageHeight;
-            }
-            
-            pdf.save(`${documentTitle || 'document'}.pdf`);
-            toast.success('PDF exported successfully!');
-          }
-          printWindow.close();
-        }, 2000); // Wait for images to load
+      const options = {
+        filename: `${documentTitle || 'document'}.${exportFormat}`,
+        includePageNumbers: exportOptions.includePageNumbers,
+        includeHeader: exportOptions.includeHeader,
+        includeFooter: exportOptions.includeFooter,
+        title: documentTitle || 'My Document'
       };
-    } catch (error) {
-      console.error('PDF export failed:', error);
-      toast.error('PDF export failed. Please try again.');
-      
-      // Fallback: suggest user prints the page instead
-      if (confirm('PDF export failed. Would you like to use the print function instead?')) {
-        handlePrint();
+
+      switch (exportFormat) {
+        case 'pdf':
+          await DocumentExporter.exportToPDF(editor, options);
+          toast.info('PDF file downloaded. Open it and use Ctrl+P → "Save as PDF"');
+          break;
+        case 'docx':
+          await DocumentExporter.exportToDOCX(editor, options);
+          break;
+        case 'md':
+          DocumentExporter.exportToMarkdown(editor, options);
+          break;
+        case 'txt':
+          DocumentExporter.exportToPlainText(editor, options);
+          break;
+        case 'html':
+          // HTML export
+          const htmlContent = DocumentExporter.getHTMLContent(editor);
+          const fullHTML = DocumentExporter.wrapHTMLForPDF(htmlContent, options);
+          const blob = new Blob([fullHTML], { type: 'text/html' });
+          DocumentExporter.downloadBlob(blob, 'document.html');
+          toast.success('HTML document exported');
+          break;
+        default:
+          toast.info(`Exporting as ${exportFormat.toUpperCase()}...`);
       }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Export failed');
     }
+    
+    setShowExportDialog(false);
   };
 
   const handleAIGenerate = async (content) => {
@@ -1818,6 +1828,21 @@ export const TextEditor = () => {
     
     setActiveHeadingLevel(level);
     toast.success(`Heading level ${level === 0 ? 'Normal' : level} applied`);
+  };
+
+  const toggleBulletList = () => {
+    if (!editor) return;
+    editor.chain().focus().toggleBulletList().run();
+  };
+
+  const toggleOrderedList = () => {
+    if (!editor) return;
+    editor.chain().focus().toggleOrderedList().run();
+  };
+
+  const toggleTaskList = () => {
+    if (!editor) return;
+    editor.chain().focus().toggleTaskList().run();
   };
 
   const saveCustomHeadingStyle = (level, styles) => {
@@ -2104,12 +2129,20 @@ export const TextEditor = () => {
           
           <Button
             onClick={handleSave}
-            variant="ghost"
             size="sm"
-            className="h-8"
+            className="h-8 bg-gradient-to-r from-amber-400 to-amber-500 text-black hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
           >
             <Save className="w-4 h-4 mr-1" />
             Save
+          </Button>
+
+          <Button
+            onClick={() => setShowExportDialog(true)}
+            size="sm"
+            className="h-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Export
           </Button>
 
           <Button
@@ -2122,7 +2155,7 @@ export const TextEditor = () => {
             Delete
           </Button>
 
-          <ExportMenu getHTML={getHTML} documentTitle={documentTitle} />
+
         </div>
       </header>
 
@@ -2136,11 +2169,16 @@ export const TextEditor = () => {
         setShowReferencesPanel={setShowReferencesPanel}
         setIsAISidebarOpen={setIsAISidebarOpen}
         isAISidebarOpen={isAISidebarOpen}
+        documentTitle={documentTitle}
         addNewPage={addNewPage}
         addPageBreak={addPageBreak}
         insertPageNumber={insertPageNumber}
         handleHeadingChange={handleHeadingChange}
         activeHeadingLevel={activeHeadingLevel}
+        toggleBulletList={toggleBulletList}
+        toggleOrderedList={toggleOrderedList}
+        toggleTaskList={toggleTaskList}
+        setIsTemplateSidebarOpen={setIsTemplateSidebarOpen}
       />
 
       {/* Main Content Area */}
@@ -2240,6 +2278,147 @@ export const TextEditor = () => {
         onClose={() => setIsTemplateSidebarOpen(false)}
         onSelectTemplate={handleTemplateSelect}
       />
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Export Document</DialogTitle>
+            <DialogDescription>
+              Choose format and options for exporting your document. PDF exports as printable HTML that you can save as PDF using your browser's print function.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Format</Label>
+              <Select value={exportFormat} onValueChange={setExportFormat}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select format" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="pdf">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      PDF
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="docx">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      DOCX
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="md">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Markdown
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="txt">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Plain Text
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="html">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      HTML
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-3">
+              <Label>Export Options</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="pageNumbers"
+                    checked={exportOptions.includePageNumbers}
+                    onCheckedChange={(checked) => 
+                      setExportOptions({...exportOptions, includePageNumbers: checked})
+                    }
+                  />
+                  <Label htmlFor="pageNumbers">Include Page Numbers</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="header"
+                    checked={exportOptions.includeHeader}
+                    onCheckedChange={(checked) => 
+                      setExportOptions({...exportOptions, includeHeader: checked})
+                    }
+                  />
+                  <Label htmlFor="header">Include Header</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="footer"
+                    checked={exportOptions.includeFooter}
+                    onCheckedChange={(checked) => 
+                      setExportOptions({...exportOptions, includeFooter: checked})
+                    }
+                  />
+                  <Label htmlFor="footer">Include Footer</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="comments"
+                    checked={exportOptions.exportComments}
+                    onCheckedChange={(checked) => 
+                      setExportOptions({...exportOptions, exportComments: checked})
+                    }
+                  />
+                  <Label htmlFor="comments">Export Comments</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="trackChanges"
+                    checked={exportOptions.exportTrackChanges}
+                    onCheckedChange={(checked) => 
+                      setExportOptions({...exportOptions, exportTrackChanges: checked})
+                    }
+                  />
+                  <Label htmlFor="trackChanges">Export Track Changes</Label>
+                </div>
+              </div>
+            </div>
+            
+            {exportFormat === 'pdf' && (
+              <div className="space-y-2">
+                <Label>PDF Quality</Label>
+                <Select defaultValue="high">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select quality" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="low">Low (Smaller file)</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High (Print quality)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleExport} className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Version History Modal */}
       <AnimatePresence>
@@ -2957,46 +3136,58 @@ export const TextEditor = () => {
                 
                 {/* Modal Content */}
                 <div className="p-6 overflow-y-auto max-h-[60vh]">
-                  {/* From URL Method */}
-                  {imageInsertMethod === 'url' && (
-                    <div className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Image URL
-                        </label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="url"
-                            value={imageUrl}
-                            onChange={(e) => setImageUrl(e.target.value)}
-                            placeholder="https://example.com/image.jpg"
-                            className="flex-1"
-                            onKeyDown={(e) => e.key === 'Enter' && handleImageUrlSubmit()}
-                          />
-                          <Button onClick={handleImageUrlSubmit}>
-                            Insert
-                          </Button>
+                  <Tabs value={imageInsertMethod} onValueChange={setImageInsertMethod} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger value="url" className="flex items-center gap-2">
+                        <LinkIcon className="w-4 h-4" />
+                        From URL
+                      </TabsTrigger>
+                      <TabsTrigger value="upload" className="flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Upload
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="url" className="mt-0 space-y-6">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Image URL
+                          </label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="url"
+                              value={imageUrl}
+                              onChange={(e) => setImageUrl(e.target.value)}
+                              placeholder="https://example.com/image.jpg"
+                              className="flex-1"
+                              onKeyDown={(e) => e.key === 'Enter' && handleImageUrlSubmit()}
+                            />
+                            <Button onClick={handleImageUrlSubmit}>
+                              Insert
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Supported formats: JPG, PNG, GIF, WebP, SVG, BMP
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Supported formats: JPG, PNG, GIF, WebP, SVG, BMP
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Alternative Text (Optional)
-                        </label>
-                        <Input
-                          value={selectedImageAlt}
-                          onChange={(e) => setSelectedImageAlt(e.target.value)}
-                          placeholder="Describe the image for accessibility"
-                          className="w-full"
-                        />
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Alternative Text (Optional)
+                          </label>
+                          <Input
+                            value={selectedImageAlt}
+                            onChange={(e) => setSelectedImageAlt(e.target.value)}
+                            placeholder="Describe the image for accessibility"
+                            className="w-full"
+                          />
+                        </div>
                       </div>
                       
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-medium text-gray-700 mb-3">Quick Examples</h4>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 gap-3">
                           {[
                             { 
                               url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop', 
@@ -3028,78 +3219,116 @@ export const TextEditor = () => {
                                 />
                               </div>
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                              <div className="p-2 text-xs truncate bg-white">{img.label}</div>
+                              <div className="p-2 text-xs truncate bg-white font-medium">{img.label}</div>
                             </button>
                           ))}
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Upload Method */}
-                  {imageInsertMethod === 'upload' && (
-                    <div className="space-y-6">
-                      <div 
-                        className={`border-2 border-dashed ${(isImageUploading || false) ? 'border-gray-400 bg-gray-200/50 cursor-not-allowed' : 'border-gray-300 hover:border-blue-500'} rounded-xl p-8 text-center transition-colors bg-gray-50/50`}
-                        onClick={!(isImageUploading || false) ? () => document.getElementById('image-upload')?.click() : undefined}
-                      >
-                        <div className="flex flex-col items-center justify-center gap-4">
-                          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Upload className="w-8 h-8 text-blue-600" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">
-                              Click to upload images
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-4">
-                              or drag and drop
+                    </TabsContent>
+                    
+                    <TabsContent value="upload" className="mt-0 space-y-6">
+                      <div className="space-y-6">
+                        <div 
+                          className={`border-2 border-dashed ${(isImageUploading || false) ? 'border-gray-400 bg-gray-200/50 cursor-not-allowed' : 'border-gray-300 hover:border-blue-500'} rounded-xl p-8 text-center transition-colors bg-gray-50/50 cursor-pointer`}
+                          onClick={!(isImageUploading || false) ? () => document.getElementById('image-upload')?.click() : undefined}
+                        >
+                          <div className="flex flex-col items-center justify-center gap-4">
+                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Upload className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                Click to upload images
+                              </h3>
+                              <p className="text-sm text-gray-600 mb-4">
+                                or drag and drop
+                              </p>
+                              <Button 
+                                variant="outline" 
+                                className="gap-2"
+                                disabled={isImageUploading || false}
+                              >
+                                <FolderOpen className="w-4 h-4" />
+                                Browse Files
+                              </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              Supports JPG, PNG, GIF, WebP, SVG, BMP (Max 10MB each)
                             </p>
-                            <Button 
-                              variant="outline" 
-                              className="gap-2"
-                              disabled={isImageUploading || false}
-                            >
-                              <FolderOpen className="w-4 h-4" />
-                              Browse Files
-                            </Button>
                           </div>
-                          <p className="text-xs text-gray-500">
-                            Supports JPG, PNG, GIF, WebP, SVG, BMP (Max 10MB each)
-                          </p>
+                          <input
+                            id="image-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            disabled={isImageUploading || false}
+                          />
                         </div>
-                        <input
-                          id="image-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                          disabled={isImageUploading || false}
-                        />
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Multiple Images
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleMultipleImageUpload}
+                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
+                            disabled={isImageUploading || false}
+                          />
+                        </div>
+                        
+                        {selectedFiles.length > 0 && (
+                          <div className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className="font-medium text-gray-700">Selected Files ({selectedFiles.length})</h4>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={clearSelectedFiles}
+                              >
+                                Clear All
+                              </Button>
+                            </div>
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                              {selectedFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
+                                  <span className="text-sm truncate flex-1">{file.name}</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => removeSelectedFile(index)}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Multiple Images
-                        </label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleMultipleImageUpload}
-                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
-                          disabled={isImageUploading || false}
-                        />
-                      </div>
-                    </div>
-                  )}
+                    </TabsContent>
+                  </Tabs>
                 </div>
                 
                 {/* Modal Footer */}
                 <div className="p-6 border-t border-gray-200 bg-gray-50/50">
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-600">
-                      {imageInsertMethod === 'url' && 'Insert images from web URLs'}
-                      {imageInsertMethod === 'upload' && 'Upload images from your device'}
+                      {imageInsertMethod === 'url' && (
+                        <span className="flex items-center gap-2">
+                          <LinkIcon className="w-4 h-4" />
+                          Insert images from web URLs
+                        </span>
+                      )}
+                      {imageInsertMethod === 'upload' && (
+                        <span className="flex items-center gap-2">
+                          <Upload className="w-4 h-4" />
+                          Upload images from your device
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-3">
                       <Button
@@ -3118,14 +3347,18 @@ export const TextEditor = () => {
                           }
                         }}
                         disabled={isImageUploading || false}
+                        className="bg-blue-600 hover:bg-blue-700"
                       >
+                        <Plus className="w-4 h-4 mr-2" />
                         Insert Image
                       </Button>
                       <Button
                         onClick={testImageInsertion}
-                        variant="secondary"
+                        variant="outline"
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
                       >
-                        Test Insertion
+                        <Bug className="w-4 h-4 mr-2" />
+                        Test
                       </Button>
                     </div>
                   </div>

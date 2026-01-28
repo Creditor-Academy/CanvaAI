@@ -81,7 +81,9 @@ export default defineConfig({
       'react': 'react',
       'react-dom': 'react-dom',
       // Alias editor components to ensure consistent resolution
-      '@editor-components': path.resolve(__dirname, 'src/components/athena-editor/components')
+      '@editor-components': path.resolve(__dirname, 'src/components/athena-editor/components'),
+      // Shadcn/ui alias
+      '@': path.resolve(__dirname, './src')
     }
   }
 });

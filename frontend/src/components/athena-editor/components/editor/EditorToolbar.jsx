@@ -1,5 +1,6 @@
 // src/components/athena-editor/components/editor/EditorToolbar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bold,
@@ -24,7 +25,6 @@ import {
   Printer,
   Search,
   Type,
-  ChevronDown,
   Plus,
   RemoveFormatting,
   Subscript,
@@ -32,19 +32,15 @@ import {
   MoreHorizontal,
   Ruler,
   Columns,
-  Eraser,
   X,
   FileText,
   Edit3,
   Eye,
-  PlusCircle,
   Settings,
   HelpCircle,
   Sparkles,
   Save,
   FolderOpen,
-  Share2,
-  FilePlus2,
   Download,
   Scissors,
   Copy,
@@ -64,7 +60,6 @@ import {
   Calculator,
   Square,
   Circle,
-  Triangle,
   Palette,
   Paintbrush,
   Heading,
@@ -73,41 +68,32 @@ import {
   Languages,
   ListChecks,
   History,
-  Settings2,
   Keyboard,
   Info,
-  Star,
-  Bug,
-  LifeBuoy,
-  BookOpen,
-  Video,
-  FileCode2,
-  Grid,
-  FileDown,
-  FileUp,
-  FileInput,
-  FileOutput,
-  FolderPlus,
-  FolderMinus,
-  MoreVertical,
-  Menu,
-  ChevronRight,
+  FilePlus2,
+  LayoutTemplate,
+  Grid3x3,
+  IndentIncrease,
+  IndentDecrease,
+  Rows,
+  Wand2,
+  Table2,
+  Bookmark,
+  Mail,
+  Tag,
+  Terminal,
+  Droplet,
+  Maximize,
+  RotateCw,
+  Crop,
   ArrowRightToLine,
   ArrowLeftToLine,
-  Link as LinkIcon,
   FilePlus,
-  Trash2,
-  EyeOff,
-  PaintBucket,
-  Crop,
-  Maximize,
-  Minimize,
-  RotateCw,
-  RotateCcw,
-  Filter,
-  Layers,
-  Grid3x3,
-  RulerIcon
+  CornerDownLeft,
+  Split,
+  Code2,
+  Clipboard,
+  Brain
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import {
@@ -130,16 +116,26 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuShortcut,
-  DropdownMenuPortal,
   DropdownMenuCheckboxItem,
   DropdownMenuLabel
 } from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../ui/slider';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Switch } from '../ui/switch';
 import { cn } from '../utils';
 import { toast } from 'sonner';
+
+// AI Assistant Components
+import { AIInlineActions } from './AIInlineActions';
+import { CodeAssistant } from './CodeAssistant';
+
+// Import AI-related utilities
+import { generateDocument, rewriteText, expandText, summarizeText, changeTone, fixGrammar, bulletToParagraph, generateCode, explainCode, refactorCode, addComments } from '../../ai/aiUtils';
+
 
 // Constants
 const FONTS = [
@@ -150,7 +146,11 @@ const FONTS = [
   { label: "Verdana", value: "Verdana" },
   { label: "Trebuchet MS", value: "Trebuchet MS" },
   { label: "Comic Sans MS", value: "Comic Sans MS" },
-  { label: "Impact", value: "Impact" }
+  { label: "Impact", value: "Impact" },
+  { label: "Helvetica", value: "Helvetica" },
+  { label: "Tahoma", value: "Tahoma" },
+  { label: "Palatino", value: "Palatino Linotype" },
+  { label: "Garamond", value: "Garamond" }
 ];
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
@@ -158,12 +158,43 @@ const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
 const TEXT_COLORS = [
   "#000000", "#434343", "#666666", "#999999", "#b7b7b7", "#cccccc", "#d9d9d9",
   "#efefef", "#f3f3f3", "#ffffff", "#980000", "#ff0000", "#ff9900", "#ffff00",
-  "#00ff00", "#00ffff", "#4a86e8", "#0000ff", "#9900ff", "#ff00ff"
+  "#00ff00", "#00ffff", "#4a86e8", "#0000ff", "#9900ff", "#ff00ff",
+  "#e6b8af", "#f4cccc", "#fce5cd", "#fff2cc", "#d9ead3", "#d0e0e3",
+  "#cfe2f3", "#d9d2e9", "#ead1dc", "#ea9999", "#f9cb9c", "#ffe599",
+  "#b6d7a8", "#a2c4c9", "#9fc5e8", "#b4a7d6", "#d5a6bd", "#cc4125",
+  "#e69138", "#f1c232", "#6aa84f", "#45818e", "#3d85c6", "#674ea7",
+  "#a64d79"
 ];
 
 const HIGHLIGHT_COLORS = [
   "#ffff00", "#00ff00", "#00ffff", "#ff00ff", "#ff0000", "#0000ff",
-  "#fce5cd", "#fff2cc", "#d9ead3", "#d0e0e3", "#cfe2f3", "#d9d2e9"
+  "#fce5cd", "#fff2cc", "#d9ead3", "#d0e0e3", "#cfe2f3", "#d9d2e9",
+  "#ead1dc", "#ea9999", "#f9cb9c", "#ffe599", "#b6d7a8", "#a2c4c9",
+  "#9fc5e8", "#b4a7d6", "#d5a6bd", "#e6b8af", "#f4cccc", "#fce5cd",
+  "#fff2cc", "#d9ead3", "#d0e0e3", "#cfe2f3", "#d9d2e9", "#ead1dc"
+];
+
+const TONES = [
+  "Professional", "Casual", "Academic", "Creative", "Technical",
+  "Formal", "Friendly", "Persuasive", "Informative", "Narrative"
+];
+
+const EXPORT_FORMATS = [
+  { label: "PDF", value: "pdf", icon: FileText },
+  { label: "DOCX", value: "docx", icon: FileText },
+  { label: "Markdown", value: "md", icon: FileText },
+  { label: "HTML", value: "html", icon: FileText },
+  { label: "Plain Text", value: "txt", icon: FileText },
+  { label: "JSON", value: "json", icon: FileText },
+  { label: "XML", value: "xml", icon: FileText },
+  { label: "CSV", value: "csv", icon: FileText },
+  { label: "RTF", value: "rtf", icon: FileText }
+];
+
+const CODE_LANGUAGES = [
+  "javascript", "python", "java", "c", "cpp", "csharp", "php", "ruby",
+  "go", "swift", "kotlin", "typescript", "html", "css", "sql", "bash",
+  "rust", "scala", "r", "dart", "lua", "perl", "haskell", "elixir"
 ];
 
 // ToolbarButton Component
@@ -183,7 +214,7 @@ const ToolbarButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          "h-9 w-9 p-0 hover:bg-gray-100 rounded-lg",
+          "h-9 w-9 p-0 hover:bg-gray-100 rounded-full",
           isActive && "bg-blue-100 text-blue-600 hover:bg-blue-100",
           disabled && "opacity-50 cursor-not-allowed",
           className
@@ -207,17 +238,24 @@ export const EditorToolbar = ({
   setShowReferencesPanel, 
   setIsAISidebarOpen,
   isAISidebarOpen,
-  onExportPDF,
+  documentTitle,
   onPrint,
   showFormatMenu,
   setShowFormatMenu,
   showInsertMenu,
   setShowInsertMenu,
-  addNewPage,  // Added page functions
+  addNewPage,
   addPageBreak,
   insertPageNumber,
-  handleHeadingChange,  // Added heading function
-  activeHeadingLevel  // Added active heading level
+  handleHeadingChange,
+  activeHeadingLevel,
+  onGenerateDocument,
+  onAIInlineAction,
+  onCodeAssistant,
+  // Template Sidebar
+  setIsTemplateSidebarOpen,
+  // Routing
+  navigateTo
 }) => {
   const [linkUrl, setLinkUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -236,6 +274,23 @@ export const EditorToolbar = ({
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [showImageDialog, setShowImageDialog] = useState(false);
+  
+  // Routing
+  const navigate = useNavigate();
+  
+  // AI States
+  const [showAIDocumentGenerator, setShowAIDocumentGenerator] = useState(false);
+  const [showAIInlineActions, setShowAIInlineActions] = useState(false);
+  const [showCodeAssistant, setShowCodeAssistant] = useState(false);
+  
+  // Document Generation States
+  const [documentTopic, setDocumentTopic] = useState("");
+  const [documentPages, setDocumentPages] = useState(1);
+  const [documentTone, setDocumentTone] = useState("Professional");
+  const [documentType, setDocumentType] = useState("Technical Document");
+  
+  // File upload ref
+  const fileInputRef = useRef(null);
 
   // Helper function to set font size
   const setCurrentFontSize = (size) => {
@@ -260,7 +315,26 @@ export const EditorToolbar = ({
 
   if (!editor) return null;
 
-  // Formatting functions
+  // ========================
+  // ROUTING FUNCTIONS
+  // ========================
+  
+  const handleNavigation = (path) => {
+    if (navigateTo) {
+      navigateTo(path);
+    } else {
+      navigate(path);
+    }
+  };
+
+  const handleExternalLink = (url) => {
+    window.open(url, '_blank');
+  };
+
+  // ========================
+  // FORMATTING FUNCTIONS
+  // ========================
+
   const setFontFamily = (font) => {
     setCurrentFont(font);
     if (editor) {
@@ -306,6 +380,40 @@ export const EditorToolbar = ({
     }
   };
 
+  // List toggle functions
+  const toggleBulletList = () => {
+    if (editor) {
+      editor
+        .chain()
+        .focus()
+        .toggleBulletList()
+        .run();
+      toast.success('Bullet list toggled');
+    }
+  };
+
+  const toggleOrderedList = () => {
+    if (editor) {
+      editor
+        .chain()
+        .focus()
+        .toggleOrderedList()
+        .run();
+      toast.success('Numbered list toggled');
+    }
+  };
+
+  const toggleTaskList = () => {
+    if (editor) {
+      editor
+        .chain()
+        .focus()
+        .toggleTaskList()
+        .run();
+      toast.success('Task list toggled');
+    }
+  };
+
   const increaseFontSize = () => {
     const currentIndex = FONT_SIZES.indexOf(currentFontSize);
     if (currentIndex < FONT_SIZES.length - 1) {
@@ -334,11 +442,9 @@ export const EditorToolbar = ({
   };
 
   const addImage = () => {
-    // Call the image insertion handler from TextEditor
     if (handleInsertImage) {
       handleInsertImage();
     } else {
-      // Fallback to simple prompt if handler not provided
       const url = prompt('Enter image URL:');
       if (url && editor) {
         editor
@@ -364,7 +470,6 @@ export const EditorToolbar = ({
 
   const addSectionBreak = (type = 'page') => {
     if (editor) {
-      // Insert a horizontal rule to simulate section break
       editor
         .chain()
         .focus()
@@ -380,14 +485,6 @@ export const EditorToolbar = ({
       onPrint();
     } else {
       window.print();
-    }
-  };
-
-  const handleExportPDF = () => {
-    if (onExportPDF) {
-      onExportPDF();
-    } else {
-      toast.info('PDF export functionality would be implemented here');
     }
   };
 
@@ -418,8 +515,7 @@ export const EditorToolbar = ({
   };
 
   const setLineSpacingValue = (spacing) => {
-    if (editor) {
-      // Apply to current selection or paragraph
+    if (editor && editor.state && editor.state.selection) {
       const { from, to } = editor.state.selection;
       editor
         .chain()
@@ -432,18 +528,6 @@ export const EditorToolbar = ({
   };
 
   // Document Structure Functions
-  const toggleBulletList = () => {
-    if (editor) {
-      editor.chain().focus().toggleBulletList().run();
-    }
-  };
-
-  const toggleOrderedList = () => {
-    if (editor) {
-      editor.chain().focus().toggleOrderedList().run();
-    }
-  };
-
   const setTextAlign = (alignment) => {
     if (editor) {
       editor.chain().focus().setTextAlign(alignment).run();
@@ -482,22 +566,23 @@ export const EditorToolbar = ({
   };
 
   const openImageCropper = () => {
-    // Find the closest image in the editor
+    if (!editor || !editor.view || !editor.view.state || !editor.view.state.selection) {
+      toast.error('Editor is not ready');
+      return;
+    }
+    
     const { from, to } = editor.view.state.selection;
     let foundImage = false;
     
-    // Look for image in the current selection
     editor.state.doc.nodesBetween(from, to, (node) => {
       if (node.type.name === 'image') {
         const imgSrc = node.attrs.src;
         setSelectedImage(imgSrc);
         setIsCropDialogOpen(true);
         
-        // Load image to get dimensions
         const img = new Image();
         img.onload = () => {
           setImageDimensions({ width: img.width, height: img.height });
-          // Set default crop area to center 50% of the image
           setCropArea({
             x: img.width * 0.25,
             y: img.height * 0.25,
@@ -507,12 +592,11 @@ export const EditorToolbar = ({
         };
         img.src = imgSrc;
         foundImage = true;
-        return false; // Stop iteration
+        return false;
       }
       return true;
     });
     
-    // If no image in selection, try to find any image in the document
     if (!foundImage) {
       editor.state.doc.descendants(node => {
         if (node.type.name === 'image') {
@@ -520,11 +604,9 @@ export const EditorToolbar = ({
           setSelectedImage(imgSrc);
           setIsCropDialogOpen(true);
           
-          // Load image to get dimensions
           const img = new Image();
           img.onload = () => {
             setImageDimensions({ width: img.width, height: img.height });
-            // Set default crop area to center 50% of the image
             setCropArea({
               x: img.width * 0.25,
               y: img.height * 0.25,
@@ -534,7 +616,7 @@ export const EditorToolbar = ({
           };
           img.src = imgSrc;
           foundImage = true;
-          return false; // Stop iteration
+          return false;
         }
         return true;
       });
@@ -548,52 +630,44 @@ export const EditorToolbar = ({
   const applyCrop = () => {
     if (!selectedImage) return;
     
-    // Create a canvas to perform the crop
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
     
     img.onload = () => {
-      // Set canvas dimensions to the cropped area
       canvas.width = cropArea.width;
       canvas.height = cropArea.height;
       
-      // Draw the cropped portion
       ctx.drawImage(
         img,
-        cropArea.x, // sx
-        cropArea.y, // sy
-        cropArea.width, // sWidth
-        cropArea.height, // sHeight
-        0, // dx
-        0, // dy
-        cropArea.width, // dWidth
-        cropArea.height // dHeight
+        cropArea.x,
+        cropArea.y,
+        cropArea.width,
+        cropArea.height,
+        0,
+        0,
+        cropArea.width,
+        cropArea.height
       );
       
-      // Convert to data URL and update the image in the editor
       const croppedImageDataUrl = canvas.toDataURL('image/png');
       
-      // Find and replace the image in the editor
-      // First, find the position of the original image
       let imagePos = null;
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'image' && node.attrs.src === selectedImage) {
           imagePos = pos;
-          return false; // Stop iteration
+          return false;
         }
         return true;
       });
       
       if (imagePos !== null) {
-        // Replace the image at the found position
         editor.commands.deleteRange({ from: imagePos, to: imagePos + 1 });
         editor.commands.insertContentAt(imagePos, {
           type: 'image',
           attrs: { src: croppedImageDataUrl }
         });
       } else {
-        // If we couldn't find the original image, just insert the new one
         editor.commands.insertContent({
           type: 'image',
           attrs: { src: croppedImageDataUrl }
@@ -656,7 +730,52 @@ export const EditorToolbar = ({
         }
         break;
       case 'table':
-        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        try {
+          // Check if the table command is available
+          if (editor.can().insertTable({ rows: 3, cols: 3, withHeaderRow: true })) {
+            editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+            toast.success('Table inserted successfully');
+          } else {
+            // Alternative approach if insertTable command is not available
+            editor.chain().focus().insertContent({
+              type: 'doc',
+              content: [{
+                type: 'table',
+                attrs: { class: 'table-border-black' },
+                content: [
+                  {
+                    type: 'tableRow',
+                    content: [
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] }
+                    ]
+                  },
+                  {
+                    type: 'tableRow',
+                    content: [
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] }
+                    ]
+                  },
+                  {
+                    type: 'tableRow',
+                    content: [
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
+                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] }
+                    ]
+                  }
+                ]
+              }]
+            }).run();
+            toast.success('Table inserted successfully');
+          }
+        } catch (error) {
+          console.error('Error inserting table:', error);
+          toast.error('Failed to insert table. Please try again.');
+        }
         break;
       case 'link':
         const linkUrl = prompt('Enter URL:');
@@ -695,9 +814,163 @@ export const EditorToolbar = ({
     }
   };
 
+  // ========================
+  // AI FUNCTIONS
+  // ========================
 
+  const handleGenerateDocument = async () => {
+    if (!documentTopic.trim()) {
+      toast.error('Please enter a topic');
+      return;
+    }
 
-  // Menu items
+    if (onGenerateDocument) {
+      onGenerateDocument({
+        topic: documentTopic,
+        pages: documentPages,
+        tone: documentTone,
+        type: documentType
+      });
+    } else {
+      // Fallback to local generation
+      try {
+        const generatedContent = await generateDocument({
+          topic: documentTopic,
+          pages: documentPages,
+          tone: documentTone,
+          type: documentType
+        });
+        
+        editor.commands.clearContent();
+        editor.commands.insertContent(generatedContent);
+        toast.success('Document generated successfully');
+      } catch (error) {
+        toast.error('Failed to generate document');
+      }
+    }
+    
+    setShowAIDocumentGenerator(false);
+  };
+
+  const handleAIInlineAction = async (action, text) => {
+    if (!text) {
+      toast.error('Please select some text first');
+      return;
+    }
+
+    if (onAIInlineAction) {
+      onAIInlineAction(action, text);
+    } else {
+      try {
+        let result;
+        switch(action) {
+          case 'rewrite':
+            result = await rewriteText(text);
+            break;
+          case 'expand':
+            result = await expandText(text);
+            break;
+          case 'summarize':
+            result = await summarizeText(text);
+            break;
+          case 'change_tone':
+            result = await changeTone(text, 'professional');
+            break;
+          case 'fix_grammar':
+            result = await fixGrammar(text);
+            break;
+          case 'bullets_to_paragraph':
+            result = await bulletToParagraph(text);
+            break;
+          default:
+            return;
+        }
+        
+        // Replace selected text with result
+        if (!editor || !editor.state || !editor.state.selection) {
+          toast.error('Editor is not ready');
+          return;
+        }
+        const { from, to } = editor.state.selection;
+        editor.commands.deleteRange({ from, to });
+        editor.commands.insertContent(result);
+        
+        toast.success(`${action.replace('_', ' ')} completed`);
+      } catch (error) {
+        toast.error(`Failed to ${action.replace('_', ' ')} text`);
+      }
+    }
+  };
+
+  const handleCodeAssistant = async (action, code, language) => {
+    if (!code) {
+      toast.error('Please select some code first');
+      return;
+    }
+
+    if (onCodeAssistant) {
+      onCodeAssistant(action, code, language);
+    } else {
+      try {
+        let result;
+        switch(action) {
+          case 'generate':
+            result = await generateCode(code, language);
+            break;
+          case 'explain':
+            result = await explainCode(code, language);
+            break;
+          case 'refactor':
+            result = await refactorCode(code, language);
+            break;
+          case 'add_comments':
+            result = await addComments(code, language);
+            break;
+          default:
+            return;
+        }
+        
+        // Insert result
+        editor.commands.insertContent(result);
+        toast.success(`Code ${action} completed`);
+      } catch (error) {
+        toast.error(`Failed to ${action} code`);
+      }
+    }
+  };
+
+  // ========================
+  // LAYOUT FUNCTIONS
+  // ========================
+
+  const setPageMargins = (margins) => {
+    // This would update CSS variables or styles for page margins
+    document.documentElement.style.setProperty('--page-margin-top', `${margins.top}px`);
+    document.documentElement.style.setProperty('--page-margin-right', `${margins.right}px`);
+    document.documentElement.style.setProperty('--page-margin-bottom', `${margins.bottom}px`);
+    document.documentElement.style.setProperty('--page-margin-left', `${margins.left}px`);
+    toast.success(`Page margins set to ${margins.top}px (top), ${margins.right}px (right), ${margins.bottom}px (bottom), ${margins.left}px (left)`);
+  };
+
+  const setBorders = (type) => {
+    if (editor) {
+      // Implement border setting logic
+      toast.info(`${type} border applied`);
+    }
+  };
+
+  const insertSectionBreak = () => {
+    if (editor) {
+      editor.chain().focus().setHorizontalRule().run();
+      editor.chain().focus().insertContent('<section-break>').run();
+      toast.success('Section break inserted');
+    }
+  };
+
+  // ========================
+  // MENU DEFINITIONS
+  // ========================
+
   const menuItems = [
     { 
       label: "File", 
@@ -708,24 +981,27 @@ export const EditorToolbar = ({
             toast.success('New document created');
           }
         } },
-        { label: "Open...", icon: FolderOpen, shortcut: "Ctrl+O", action: () => toast.info('Open file dialog would appear here') },
-        { label: "Save", icon: Save, shortcut: "Ctrl+S", action: () => {
-          if (onSave) onSave();
+        { label: "Open...", icon: FolderOpen, shortcut: "Ctrl+O", action: () => {
+          fileInputRef.current?.click();
         } },
-        { label: "Save As...", icon: Save, shortcut: "Ctrl+Shift+S", action: () => toast.info('Save As dialog would appear here') },
-        { type: "separator" },
+
         { label: "Print", icon: Printer, shortcut: "Ctrl+P", action: handlePrint },
         { type: "separator" },
         { 
           label: "Export", 
           icon: Download,
-          submenu: [
-            { label: "Export as PDF", icon: FileText, action: handleExportPDF },
-            { label: "Export as DOCX", icon: FileText, action: () => toast.info('Exporting to DOCX...') },
-            { label: "Export as HTML", icon: FileCode2, action: () => toast.info('Exporting to HTML...') },
-            { label: "Export as Markdown", icon: FileCode2, action: () => toast.info('Exporting to Markdown...') },
-          ]
+          submenu: EXPORT_FORMATS.map(format => ({
+            label: `Export as ${format.label}`,
+            icon: format.icon,
+            action: () => {
+              setExportFormat(format.value);
+              setShowExportDialog(true);
+            }
+          }))
         },
+        { type: "separator" },
+        { label: "Document Templates", icon: FileText, action: () => toast.info('Template selection dialog') },
+        { label: "Document Settings", icon: Settings, action: () => toast.info('Document settings dialog') },
       ]
     },
     { 
@@ -740,10 +1016,12 @@ export const EditorToolbar = ({
           toast.success('Copied to clipboard');
         } },
         { label: "Paste", icon: Copy, shortcut: "Ctrl+V", action: () => document.execCommand('paste') },
+        { label: "Paste Special", icon: Clipboard, action: () => toast.info('Paste special dialog') },
         { type: "separator" },
         { label: "Select All", icon: CheckSquare, shortcut: "Ctrl+A", action: () => editor.chain().focus().selectAll().run() },
         { label: "Find", icon: Search, shortcut: "Ctrl+F", action: () => setShowSearch(true) },
         { label: "Replace", icon: Replace, shortcut: "Ctrl+H", action: () => toast.info('Replace dialog would appear here') },
+        { label: "Go To", icon: Hash, shortcut: "Ctrl+G", action: () => toast.info('Go to dialog') },
         { type: "separator" },
         { label: "Spell Check", icon: SpellCheck, action: () => toast.info('Spell check started') },
         { label: "Word Count", icon: Hash, action: () => {
@@ -789,12 +1067,13 @@ export const EditorToolbar = ({
               setShowRuler(!showRuler);
               toast.info(`Ruler ${showRuler ? 'hidden' : 'shown'}`);
             } },
-            { label: "Grid", icon: Grid, checked: showGrid, action: () => {
+            { label: "Grid", icon: Grid3x3, checked: showGrid, action: () => {
               setShowGrid(!showGrid);
               toast.info(`Grid ${showGrid ? 'hidden' : 'shown'}`);
             } },
             { label: "Navigation Pane", icon: PanelLeft, action: () => toast.info('Navigation panel toggled') },
             { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel toggled') },
+            { label: "Page Breaks", icon: Minus, action: () => toast.info('Page breaks visibility toggled') },
           ]
         },
         { type: "separator" },
@@ -803,26 +1082,34 @@ export const EditorToolbar = ({
           document.documentElement.classList.toggle('dark');
           toast.info(`Dark mode ${isDarkMode ? 'disabled' : 'enabled'}`);
         } },
+        { label: "Layout View", icon: LayoutTemplate, action: () => toast.info('Switched to layout view') },
       ]
     },
     { 
       label: "Insert", 
       items: [
+        { label: "Page Break", icon: Minus, action: () => handleInsertAction('page_break') },
+        { label: "Section Break", icon: Split, action: insertSectionBreak },
+        { label: "Page Number", icon: Hash, action: () => insertPageNumber() },
+        { type: "separator" },
         { label: "Image", icon: ImageIcon, action: () => handleInsertAction('image') },
         { label: "Crop Image", icon: Crop, action: openImageCropper },
         { label: "Table", icon: TableIcon, action: () => handleInsertAction('table') },
-        { label: "Link", icon: LinkIcon, shortcut: "Ctrl+K", action: () => handleInsertAction('link') },
-        { label: "References", icon: BookOpen, action: () => {
-          if (setShowReferencesPanel) {
-            setShowReferencesPanel(true);
-          }
-        } },
-        { label: "Page Break", icon: Minus, action: () => handleInsertAction('page_break') },
+        { label: "Advanced Table", icon: Table2, action: () => toast.info('Advanced table dialog') },
+        { label: "Link", icon: Link, shortcut: "Ctrl+K", action: () => handleInsertAction('link') },
+        { label: "Bookmark", icon: Bookmark, action: () => toast.info('Insert bookmark dialog') },
+        { label: "Cross Reference", icon: Link, action: () => toast.info('Cross reference dialog') },
+        { type: "separator" },
+        { label: "Header", icon: Heading, action: () => toast.info('Insert header') },
+        { label: "Footer", icon: Text, action: () => toast.info('Insert footer') },
+        { label: "Footnote", icon: FileText, action: () => toast.info('Insert footnote') },
+        { label: "Endnote", icon: FileText, action: () => toast.info('Insert endnote') },
         { type: "separator" },
         { label: "Date", icon: Calendar, action: () => handleInsertAction('date') },
         { label: "Time", icon: Clock, action: () => handleInsertAction('time') },
         { label: "Symbol", icon: Sigma, action: () => handleInsertAction('symbol') },
         { label: "Equation", icon: Calculator, action: () => handleInsertAction('equation') },
+        { label: "Field", icon: Hash, action: () => toast.info('Insert field dialog') },
         { type: "separator" },
         { 
           label: "Blocks", 
@@ -834,6 +1121,10 @@ export const EditorToolbar = ({
               editor?.chain().focus().setHorizontalRule().run();
               toast.success("Horizontal line inserted");
             } },
+            { label: "Text Box", icon: Circle, action: () => toast.info('Text box inserted') },
+            { label: "Shape", icon: Circle, action: () => toast.info('Shape gallery') },
+            { label: "Chart", icon: BarChart, action: () => toast.info('Chart dialog') },
+            { label: "Smart Art", icon: Brain, action: () => toast.info('Smart Art gallery') },
           ]
         },
       ]
@@ -852,6 +1143,10 @@ export const EditorToolbar = ({
             { type: "separator" },
             { label: "Superscript", icon: Superscript, shortcut: "Ctrl+Shift++", action: () => handleFormatAction('superscript') },
             { label: "Subscript", icon: Subscript, shortcut: "Ctrl+=", action: () => handleFormatAction('subscript') },
+            { type: "separator" },
+            { label: "Text Color", icon: Palette, action: () => setShowFormatMenu('color') },
+            { label: "Highlight Color", icon: Highlighter, action: () => setShowFormatMenu('highlight') },
+            { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearAllFormatting },
           ]
         },
         { 
@@ -868,21 +1163,56 @@ export const EditorToolbar = ({
             { type: "separator" },
             { label: "Bullet List", icon: List, action: () => toggleBulletList() },
             { label: "Numbered List", icon: ListOrdered, action: () => toggleOrderedList() },
+            { label: "Task List", icon: ListChecks, action: () => toggleTaskList() },
+            { label: "Multilevel List", icon: ListChecks, action: () => toast.info('Multilevel list applied') },
             { type: "separator" },
             { label: "Align Left", icon: AlignLeft, action: () => setTextAlign('left') },
             { label: "Align Center", icon: AlignCenter, action: () => setTextAlign('center') },
             { label: "Align Right", icon: AlignRight, action: () => setTextAlign('right') },
             { label: "Justify", icon: AlignJustify, action: () => setTextAlign('justify') },
+            { type: "separator" },
+            { label: "Increase Indent", icon: IndentIncrease, action: indent },
+            { label: "Decrease Indent", icon: IndentDecrease, action: outdent },
+            { type: "separator" },
+            { label: "Line Spacing", icon: Rows, action: () => setShowFormatMenu('lineSpacing') },
+            { label: "Paragraph Spacing", icon: Rows, action: () => toast.info('Paragraph spacing dialog') },
+            { label: "Keep Lines Together", icon: AlignCenter, action: () => toast.info('Keep lines together toggled') },
+            { label: "Page Break Before", icon: CornerDownLeft, action: () => toast.info('Page break before applied') },
+          ]
+        },
+        { 
+          label: "Styles", 
+          icon: Type,
+          submenu: [
+            { label: "Clear All Formatting", icon: RemoveFormatting, action: clearAllFormatting },
+            { label: "Apply Style", icon: Paintbrush, action: () => toast.info('Style gallery') },
+            { label: "Create New Style", icon: Plus, action: () => toast.info('Create style dialog') },
+            { label: "Style Inspector", icon: Eye, action: () => toast.info('Style inspector panel') },
+          ]
+        },
+        { 
+          label: "Page Layout", 
+          icon: LayoutTemplate,
+          submenu: [
+            { label: "Margins", icon: Columns, action: () => setShowFormatMenu('margins') },
+            { label: "Orientation", icon: RotateCw, action: () => toast.info('Page orientation dialog') },
+            { label: "Size", icon: Maximize, action: () => toast.info('Page size dialog') },
+            { label: "Columns", icon: Columns, action: () => toast.info('Columns dialog') },
+            { label: "Page Borders", icon: Circle, action: () => setBorders('page') },
+            { label: "Page Color", icon: Palette, action: () => toast.info('Page color picker') },
+            { label: "Watermark", icon: Droplet, action: () => toast.info('Watermark dialog') },
           ]
         },
         { type: "separator" },
-        { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearAllFormatting },
+        { label: "Bullets and Numbering", icon: List, action: () => toast.info('Bullets and numbering dialog') },
+        { label: "Borders and Shading", icon: Circle, action: () => toast.info('Borders and shading dialog') },
+        { label: "Change Case", icon: Type, action: () => toast.info('Change case dialog') },
       ]
     },
     { 
       label: "Tools", 
       items: [
-        { label: "Spell Check", icon: SpellCheck, checked: spellCheckEnabled, action: () => {
+        { label: "Spelling & Grammar", icon: SpellCheck, checked: spellCheckEnabled, action: () => {
           setSpellCheckEnabled(!spellCheckEnabled);
           toast.info(`Spell check ${spellCheckEnabled ? 'disabled' : 'enabled'}`);
         } },
@@ -892,9 +1222,51 @@ export const EditorToolbar = ({
           const chars = text.length;
           toast.info(`Words: ${words}, Characters: ${chars}`);
         } },
+        { label: "Language", icon: Languages, action: () => toast.info('Language settings') },
+        { label: "Thesaurus", icon: FileText, action: () => toast.info('Thesaurus panel') },
+        { label: "Dictionary", icon: FileText, action: () => toast.info('Dictionary panel') },
         { type: "separator" },
-        { label: "Table of Contents", icon: ListChecks, action: () => toast.info('Generating table of contents...') },
-        { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel toggled') },
+        { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel') },
+        { label: "Track Changes", icon: Edit3, action: () => toast.info('Track changes toggled') },
+        { label: "Compare Documents", icon: FileText, action: () => toast.info('Compare documents dialog') },
+        { type: "separator" },
+        { label: "Mail Merge", icon: Mail, action: () => toast.info('Mail merge wizard') },
+        { label: "Envelopes and Labels", icon: Tag, action: () => toast.info('Envelopes and labels dialog') },
+        { type: "separator" },
+        { label: "Macros", icon: Terminal, action: () => toast.info('Macro recorder') },
+        { label: "Templates and Add-ins", icon: FileText, action: () => toast.info('Templates and add-ins dialog') },
+        { label: "AutoCorrect Options", icon: Wand2, action: () => toast.info('AutoCorrect options') },
+      ]
+    },
+    { 
+      label: "AI Assistant", 
+      items: [
+        { 
+          label: "Generate Document", 
+          icon: Sparkles,
+          action: () => setShowAIDocumentGenerator(true)
+        },
+        { 
+          label: "Inline AI Actions", 
+          icon: Wand2,
+          action: () => setShowAIInlineActions(true)
+        },
+        { 
+          label: "Code Assistant", 
+          icon: Code,
+          action: () => setShowCodeAssistant(true)
+        },
+        { type: "separator" },
+        { 
+          label: "AI Settings", 
+          icon: Settings,
+          action: () => toast.info('AI Settings dialog')
+        },
+        { 
+          label: "AI History", 
+          icon: History,
+          action: () => toast.info('AI History panel')
+        },
       ]
     },
     { 
@@ -902,7 +1274,8 @@ export const EditorToolbar = ({
       items: [
         { label: "Help Center", icon: HelpCircle, action: () => window.open('https://help.example.com', '_blank') },
         { label: "Keyboard Shortcuts", icon: Keyboard, shortcut: "Ctrl+/", action: () => toast.info('Keyboard shortcuts dialog would appear here') },
-        { label: "About", icon: Info, action: () => toast.info('Athena Editor v1.0.0\n© 2024 Athena Software') },
+        { label: "Check for Updates", icon: Download, action: () => toast.info('Checking for updates...') },
+        { label: "About", icon: Info, action: () => toast.info('Athena Editor v2.0.0\n© 2024 Athena Software') },
       ]
     }
   ];
@@ -930,7 +1303,7 @@ export const EditorToolbar = ({
                 if (menuItem.submenu) {
                   return (
                     <DropdownMenuSub key={`sub-${index}`}>
-                      <DropdownMenuSubTrigger>
+                      <DropdownMenuSubTrigger className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200">
                         <menuItem.icon className="w-4 h-4 mr-2" />
                         {menuItem.label}
                       </DropdownMenuSubTrigger>
@@ -946,6 +1319,7 @@ export const EditorToolbar = ({
                                 key={`check-${subIndex}`}
                                 checked={subItem.checked}
                                 onCheckedChange={subItem.action}
+                                className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
                               >
                                 {subItem.icon && <subItem.icon className="w-4 h-4 mr-2" />}
                                 {subItem.label}
@@ -960,6 +1334,7 @@ export const EditorToolbar = ({
                             <DropdownMenuItem
                               key={`sub-${subIndex}`}
                               onClick={subItem.action}
+                              className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
                             >
                               {subItem.icon && <subItem.icon className="w-4 h-4 mr-2" />}
                               {subItem.label}
@@ -980,6 +1355,7 @@ export const EditorToolbar = ({
                       key={`check-${index}`}
                       checked={menuItem.checked}
                       onCheckedChange={menuItem.action}
+                      className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
                     >
                       <menuItem.icon className="w-4 h-4 mr-2" />
                       {menuItem.label}
@@ -994,6 +1370,7 @@ export const EditorToolbar = ({
                   <DropdownMenuItem
                     key={index}
                     onClick={menuItem.action}
+                    className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
                   >
                     <menuItem.icon className="w-4 h-4 mr-2" />
                     {menuItem.label}
@@ -1010,6 +1387,22 @@ export const EditorToolbar = ({
     )
   }
 
+  // Hidden file input
+  const hiddenFileInput = (
+    <input
+      type="file"
+      ref={fileInputRef}
+      style={{ display: 'none' }}
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          toast.info(`Opening ${file.name}`);
+          // Handle file opening logic here
+        }
+      }}
+    />
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -1022,7 +1415,7 @@ export const EditorToolbar = ({
         {/* Left section */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent font-bold text-lg">
+            <div className="text-blue-600 font-bold text-lg">
               ATHENA-AI EDITOR
             </div>
             <span className="text-xs flex items-center gap-1">
@@ -1032,7 +1425,7 @@ export const EditorToolbar = ({
               </span>
             </span>
           </div>
-         </div>
+        </div>
 
         {/* Center menu */}
         {renderMenu()}
@@ -1042,9 +1435,9 @@ export const EditorToolbar = ({
           <ToolbarButton
             onClick={() => onZoomChange && onZoomChange(Math.max(50, zoom - 10))}
             tooltip="Zoom Out"
-            className="rounded-lg bg-gray-100 hover:bg-gray-200 h-7 w-7 p-0"
+            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-0 w-7 h-7"
           >
-            <Minus className="w-3 h-3 text-gray-600" />
+            <Minus className="w-3 h-3 text-white" />
           </ToolbarButton>
           <div className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 min-w-[40px] text-center">
             {zoom}%
@@ -1052,9 +1445,9 @@ export const EditorToolbar = ({
           <ToolbarButton
             onClick={() => onZoomChange && onZoomChange(Math.min(200, zoom + 10))}
             tooltip="Zoom In"
-            className="rounded-lg bg-gray-100 hover:bg-gray-200 h-7 w-7 p-0"
+            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-0 w-7 h-7"
           >
-            <Plus className="w-3 h-3 text-gray-600" />
+            <Plus className="w-3 h-3 text-white" />
           </ToolbarButton>
 
           <Separator orientation="vertical" className="h-6 mx-2" />
@@ -1062,18 +1455,19 @@ export const EditorToolbar = ({
           <ToolbarButton
             onClick={() => setShowSearch(!showSearch)}
             tooltip="Search (Ctrl+F)"
-            className="rounded-lg bg-gray-100 hover:bg-gray-200"
+            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-1.5"
           >
-            <Search className="w-4 h-4 text-gray-600" />
+            <Search className="w-4 h-4 text-white" />
           </ToolbarButton>
 
           <ToolbarButton 
             onClick={handlePrint} 
             tooltip="Print (Ctrl+P)"
-            className="rounded-lg bg-gray-100 hover:bg-gray-200"
+            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-1.5"
           >
-            <Printer className="w-4 h-4 text-gray-600" />
+            <Printer className="w-4 h-4 text-white" />
           </ToolbarButton>
+
 
           <ToolbarButton
             onClick={() => {
@@ -1084,20 +1478,12 @@ export const EditorToolbar = ({
               }
             }}
             tooltip="AI Assistance"
-            className="rounded-lg bg-gradient-to-r from-purple-100 to-blue-100 hover:from-purple-200 hover:to-blue-200"
+            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-1.5"
           >
-            <Sparkles className="w-4 h-4 text-purple-600" />
+            <Sparkles className="w-4 h-4 text-white" />
           </ToolbarButton>
 
-          <Button
-            onClick={onSave}
-            size="sm"
-            variant="default"
-            className="h-7 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Save className="w-3 h-3 mr-1" />
-            Save
-          </Button>
+
         </div>
       </div>
 
@@ -1108,17 +1494,17 @@ export const EditorToolbar = ({
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
           tooltip="Undo (Ctrl+Z)"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Undo className="w-5 h-5 text-gray-700" />
+          <Undo className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
           tooltip="Redo (Ctrl+Y)"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Redo className="w-5 h-5 text-gray-700" />
+          <Redo className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1127,7 +1513,7 @@ export const EditorToolbar = ({
         <select 
           value={currentFont}
           onChange={(e) => setFontFamily(e.target.value)}
-          className="text-sm bg-white rounded-lg px-3 py-1.5 h-9 min-w-[120px] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm border border-gray-300"
+          className="text-sm bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg px-3 py-1.5 h-9 min-w-[120px] hover:from-yellow-100 hover:to-yellow-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-yellow shadow-sm border border-yellow-300"
         >
           {FONTS.map(font => (
             <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -1139,7 +1525,7 @@ export const EditorToolbar = ({
         <select 
           value={currentFontSize}
           onChange={(e) => setCurrentFontSize(parseInt(e.target.value))}
-          className="text-sm bg-white rounded-lg px-3 py-1.5 h-9 w-16 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm border border-gray-300"
+          className="text-sm bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg px-3 py-1.5 h-9 w-16 hover:from-amber-100 hover:to-amber-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-amber shadow-sm border border-amber-300"
         >
           {FONT_SIZES.map(size => (
             <option key={size} value={size}>{size}</option>
@@ -1149,7 +1535,7 @@ export const EditorToolbar = ({
         <select 
           value={activeHeadingLevel || 0}
           onChange={(e) => handleHeadingChange(parseInt(e.target.value))}
-          className="text-sm bg-white rounded-lg px-3 py-1.5 h-9 w-20 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm border border-gray-300"
+          className="text-sm bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg px-3 py-1.5 h-9 w-20 hover:from-amber-100 hover:to-amber-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-amber shadow-sm border border-amber-300"
         >
           <option value={0}>Normal</option>
           <option value={1}>H1</option>
@@ -1167,33 +1553,33 @@ export const EditorToolbar = ({
           onClick={() => handleFormatAction('bold')}
           isActive={editor.isActive("bold")}
           tooltip="Bold (Ctrl+B)"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Bold className="w-5 h-5 text-gray-700" />
+          <Bold className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleFormatAction('italic')}
           isActive={editor.isActive("italic")}
           tooltip="Italic (Ctrl+I)"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Italic className="w-5 h-5 text-gray-700" />
+          <Italic className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleFormatAction('underline')}
           isActive={editor.isActive("underline")}
           tooltip="Underline (Ctrl+U)"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Underline className="w-5 h-5 text-gray-700" />
+          <Underline className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleFormatAction('strike')}
           isActive={editor.isActive("strike")}
           tooltip="Strikethrough"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Strikethrough className="w-5 h-5 text-gray-700" />
+          <Strikethrough className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1246,9 +1632,9 @@ export const EditorToolbar = ({
         <ToolbarButton
           onClick={() => setHighlightColor(currentHighlight)}
           tooltip="Highlight"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <Highlighter className="w-5 h-5 text-gray-700" />
+          <Highlighter className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1258,17 +1644,26 @@ export const EditorToolbar = ({
           onClick={toggleBulletList}
           isActive={editor.isActive("bulletList")}
           tooltip="Bullet List"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <List className="w-5 h-5 text-gray-700" />
+          <List className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={toggleOrderedList}
           isActive={editor.isActive("orderedList")}
           tooltip="Numbered List"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <ListOrdered className="w-5 h-5 text-gray-700" />
+          <ListOrdered className="w-5 h-5 text-white" />
+        </ToolbarButton>
+        
+        <ToolbarButton
+          onClick={toggleTaskList}
+          isActive={editor.isActive("taskList")}
+          tooltip="Task List"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+        >
+          <ListChecks className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1278,33 +1673,33 @@ export const EditorToolbar = ({
           onClick={() => setTextAlign('left')}
           isActive={editor.isActive({ textAlign: 'left' })}
           tooltip="Align Left"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <AlignLeft className="w-5 h-5 text-gray-700" />
+          <AlignLeft className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => setTextAlign('center')}
           isActive={editor.isActive({ textAlign: 'center' })}
           tooltip="Align Center"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <AlignCenter className="w-5 h-5 text-gray-700" />
+          <AlignCenter className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => setTextAlign('right')}
           isActive={editor.isActive({ textAlign: 'right' })}
           tooltip="Align Right"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <AlignRight className="w-5 h-5 text-gray-700" />
+          <AlignRight className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => setTextAlign('justify')}
           isActive={editor.isActive({ textAlign: 'justify' })}
           tooltip="Justify"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <AlignJustify className="w-5 h-5 text-gray-700" />
+          <AlignJustify className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1313,16 +1708,16 @@ export const EditorToolbar = ({
         <ToolbarButton
           onClick={indent}
           tooltip="Increase Indent"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <ArrowRightToLine className="w-5 h-5 text-gray-700" />
+          <ArrowRightToLine className="w-5 h-5 text-white" />
         </ToolbarButton>
         <ToolbarButton
           onClick={outdent}
           tooltip="Decrease Indent"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <ArrowLeftToLine className="w-5 h-5 text-gray-700" />
+          <ArrowLeftToLine className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1330,32 +1725,137 @@ export const EditorToolbar = ({
         {/* Quick Insert */}
         <ToolbarButton
           onClick={() => {
-            if (handleInsertImage) {
-              handleInsertImage();
-            } else {
-              setShowImageDialog(true);
-            }
+            // Directly trigger the file input for image upload
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.multiple = true;
+            fileInput.onchange = async (e) => {
+              const files = Array.from(e.target.files || []);
+              if (files.length > 0 && editor) {
+                // Process each selected file
+                for (const file of files) {
+                  const reader = new FileReader();
+                  
+                  reader.onload = (readerEvent) => {
+                    const imageDataUrl = readerEvent.target?.result;
+                    if (imageDataUrl && typeof imageDataUrl === 'string') {
+                      // Insert the image into the editor using the setImage extension
+                      // First try with ResizableImage if available, otherwise use setImage
+                      if (editor.commands.setResizableImage) {
+                        editor
+                          .chain()
+                          .focus()
+                          .setResizableImage({ 
+                            src: imageDataUrl,
+                            alt: file.name,
+                            title: file.name
+                          })
+                          .run();
+                      } else {
+                        editor
+                          .chain()
+                          .focus()
+                          .setImage({ 
+                            src: imageDataUrl,
+                            alt: file.name,
+                            title: file.name
+                          })
+                          .run();
+                      }
+                      toast.success(`Image ${file.name} inserted successfully`);
+                    }
+                  };
+                  
+                  reader.onerror = () => {
+                    toast.error(`Failed to read image ${file.name}`);
+                  };
+                  
+                  reader.readAsDataURL(file);
+                }
+              }
+            };
+            fileInput.click();
           }}
           tooltip="Insert Image"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <ImageIcon className="w-5 h-5 text-gray-700" />
+          <ImageIcon className="w-5 h-5 text-white" />
+        </ToolbarButton>
+        
+        <ToolbarButton
+          onClick={() => {
+            if (setIsTemplateSidebarOpen) {
+              setIsTemplateSidebarOpen(true);
+            } else {
+              toast.info('Template sidebar is not available');
+            }
+          }}
+          tooltip="Templates"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+        >
+          <LayoutTemplate className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <ToolbarButton
           onClick={() => handleInsertAction('link')}
           tooltip="Insert Link"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <LinkIcon className="w-5 h-5 text-gray-700" />
+          <Link className="w-5 h-5 text-white" />
         </ToolbarButton>
         
         <ToolbarButton
           onClick={() => handleInsertAction('table')}
           tooltip="Insert Table"
-          className="rounded bg-gray-100 hover:bg-gray-200"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
         >
-          <TableIcon className="w-5 h-5 text-gray-700" />
+          <TableIcon className="w-5 h-5 text-white" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          onClick={toggleCodeBlock}
+          isActive={editor.isActive('codeBlock')}
+          tooltip="Insert Code Block"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+        >
+          <Code className="w-5 h-5 text-white" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          onClick={toggleBlockquote}
+          isActive={editor.isActive('blockquote')}
+          tooltip="Insert Block Quote"
+          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+        >
+          <Quote className="w-5 h-5 text-white" />
+        </ToolbarButton>
+        
+        <Separator orientation="vertical" className="mx-2 h-6" />
+        
+        {/* AI Tools */}
+        <ToolbarButton
+          onClick={() => setShowAIDocumentGenerator(true)}
+          tooltip="Generate Document with AI"
+          className="rounded-full bg-gradient-to-r from-purple-100 to-blue-100 hover:from-purple-200 hover:to-blue-200"
+        >
+          <Sparkles className="w-5 h-5 text-purple-600" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          onClick={() => setShowAIInlineActions(true)}
+          tooltip="AI Inline Actions"
+          className="rounded-full bg-gradient-to-r from-green-100 to-blue-100 hover:from-green-200 hover:to-blue-200"
+        >
+          <Wand2 className="w-5 h-5 text-green-600" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          onClick={() => setShowCodeAssistant(true)}
+          tooltip="Code Assistant"
+          className="rounded-full bg-gradient-to-r from-orange-100 to-red-100 hover:from-orange-200 hover:to-red-200"
+        >
+          <Code2 className="w-5 h-5 text-orange-600" />
         </ToolbarButton>
         
         <Separator orientation="vertical" className="mx-2 h-6" />
@@ -1401,6 +1901,13 @@ export const EditorToolbar = ({
             <DropdownMenuItem onClick={insertPageNumber}>
               <Hash className="w-4 h-4 mr-2" /> Insert Page Number
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setPageMargins({ top: 72, right: 72, bottom: 72, left: 72 })}>
+              <Ruler className="w-4 h-4 mr-2" /> Set Page Margins
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={insertSectionBreak}>
+              <Split className="w-4 h-4 mr-2" /> Insert Section Break
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -1445,7 +1952,119 @@ export const EditorToolbar = ({
         )}
       </AnimatePresence>
       
+      {/* Hidden file input */}
+      {hiddenFileInput}
+      
+      {/* AI Document Generator Dialog */}
+      <Dialog open={showAIDocumentGenerator} onOpenChange={setShowAIDocumentGenerator}>
+        <DialogContent className="max-w-2xl bg-white">
+          <DialogHeader>
+            <DialogTitle>Generate Document with AI</DialogTitle>
+            <DialogDescription>
+              Provide the details below and AI will generate a complete structured document.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="topic">Document Topic *</Label>
+              <Input
+                id="topic"
+                placeholder="e.g., Artificial Intelligence in Healthcare"
+                value={documentTopic}
+                onChange={(e) => setDocumentTopic(e.target.value)}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pages">Number of Pages</Label>
+                <Select value={documentPages.toString()} onValueChange={(value) => setDocumentPages(parseInt(value))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select pages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 5, 10].map(num => (
+                      <SelectItem key={num} value={num.toString()}>{num} page{num > 1 ? 's' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="tone">Tone</Label>
+                <Select value={documentTone} onValueChange={setDocumentTone}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select tone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TONES.map(tone => (
+                      <SelectItem key={tone} value={tone}>{tone}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="type">Document Type</Label>
+              <Select value={documentType} onValueChange={setDocumentType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select document type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Technical Document">Technical Document</SelectItem>
+                  <SelectItem value="Blog Post">Blog Post</SelectItem>
+                  <SelectItem value="Research Paper">Research Paper</SelectItem>
+                  <SelectItem value="Business Report">Business Report</SelectItem>
+                  <SelectItem value="Resume">Resume</SelectItem>
+                  <SelectItem value="Portfolio">Portfolio</SelectItem>
+                  <SelectItem value="Thesis">Thesis</SelectItem>
+                  <SelectItem value="Code Documentation">Code Documentation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="additionalInstructions">Additional Instructions (Optional)</Label>
+              <Textarea
+                id="additionalInstructions"
+                placeholder="Any specific requirements or structure..."
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAIDocumentGenerator(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleGenerateDocument} className="bg-gradient-to-r from-purple-600 to-blue-600">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Generate Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* AI Inline Actions */}
+      <AIInlineActions 
+        open={showAIInlineActions} 
+        onOpenChange={setShowAIInlineActions}
+        onAction={handleAIInlineAction}
+        selectedText={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
+      />
+      
+      {/* Code Assistant */}
+      <CodeAssistant 
+        open={showCodeAssistant} 
+        onOpenChange={setShowCodeAssistant}
+        onAction={handleCodeAssistant}
+        selectedCode={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
+      />
+      
       {/* Image Cropping Dialog */}
+      
       <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
           <DialogHeader>
@@ -1541,7 +2160,6 @@ export const EditorToolbar = ({
         </DialogContent>
       </Dialog>
       
-      {/* Image Insert Dialog */}
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
         <DialogContent className="max-w-md bg-white">
           <DialogHeader>
@@ -1606,5 +2224,6 @@ export const EditorToolbar = ({
     </motion.div>
   );
 };
+
 
 export default EditorToolbar;

@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Toaster } from "sonner";
 
 import SideBar from "./components/SideBar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
@@ -132,6 +133,7 @@ function App() {
     <AuthProvider>
       <SidebarProvider>
         <Router>
+          <Toaster position="top-right" richColors />
           <Routes>
             {/* PUBLIC ROUTES */}
             <Route path="/" element={<LandingPage />} />
