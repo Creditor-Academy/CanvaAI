@@ -20,6 +20,9 @@ const CanvasShell = () => {
     clearSelection,
     deleteSelectedLayer,
     updateLayerRotation,
+    saveToHistory,
+    undo,
+    redo,
   } = usePresentationStore();
 
   const activeSlide = slides.find(
@@ -35,22 +38,31 @@ const CanvasShell = () => {
 
 
   /* =========================
-     DELETE KEY HANDLING
+     KEYBOARD SHORTCUTS (Undo/Redo/Delete)
   ========================= */
   useEffect(() => {
-    const onKeyDown = (e) => {
-      if (
-        (e.key === "Delete") &&
-        selectedLayerId
-      ) {
+    const handler = (e) => {
+      // Delete key
+      if (e.key === "Delete" && selectedLayerId) {
         deleteSelectedLayer();
+      }
+
+      // Undo/Redo
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === "z") {
+          e.preventDefault();
+          undo();
+        }
+        if (e.key === "y" || (e.shiftKey && e.key === "Z")) {
+          e.preventDefault();
+          redo();
+        }
       }
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () =>
-      window.removeEventListener("keydown", onKeyDown);
-  }, [selectedLayerId, deleteSelectedLayer]);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedLayerId, deleteSelectedLayer, undo, redo]);
 
   const handleMouseMove = (e) => {
     const slideRect = e.currentTarget.getBoundingClientRect();
@@ -96,6 +108,8 @@ const CanvasShell = () => {
     setRotatingId(null);
   };
 
+  if (!activeSlide) return null;
+
   return (
     <div style={styles.wrapper}>
       <div
@@ -129,6 +143,7 @@ const CanvasShell = () => {
                 selected={selected}
                 onMouseDown={(e) => {
                   e.stopPropagation();
+                  saveToHistory();
                   setSelectedLayer(layer.id);
                   setDraggingId(layer.id);
 
@@ -149,6 +164,7 @@ const CanvasShell = () => {
                       style={styles.resizeHandle}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        saveToHistory();
                         setResizingId(layer.id);
                         setStartSize({
                           w: layer.width,
@@ -164,6 +180,7 @@ const CanvasShell = () => {
                       style={styles.rotateHandle}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        saveToHistory();
                         setRotatingId(layer.id);
                       }}
                     />
@@ -193,6 +210,7 @@ const CanvasShell = () => {
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
+                  saveToHistory();
                   setSelectedLayer(layer.id);
                   setDraggingId(layer.id);
 
@@ -217,6 +235,7 @@ const CanvasShell = () => {
                       style={styles.resizeHandle}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        saveToHistory();
                         setResizingId(layer.id);
                         setStartSize({
                           w: layer.width,
@@ -232,6 +251,7 @@ const CanvasShell = () => {
                       style={styles.rotateHandle}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        saveToHistory();
                         setRotatingId(layer.id);
                       }}
                     />
@@ -269,6 +289,7 @@ const CanvasShell = () => {
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
+                saveToHistory();
                 setSelectedLayer(layer.id);
                 setDraggingId(layer.id);
 
@@ -303,6 +324,8 @@ const CanvasShell = () => {
                     e.target.innerText = layer.placeholder;
                   }
 
+                  // Optional: call saveToHistory here if text change is discrete
+                  // Actually updateTextLayer in store will handle it if we put it there.
                   updateTextLayer(layer.id, {
                     text: value,
                     hasBeenEdited: value.length > 0,
@@ -348,6 +371,7 @@ const CanvasShell = () => {
                     style={styles.resizeHandle}
                     onMouseDown={(e) => {
                       e.stopPropagation();
+                      saveToHistory();
                       setResizingId(layer.id);
                       setStartSize({
                         w: layer.width,
@@ -363,6 +387,7 @@ const CanvasShell = () => {
                     style={styles.rotateHandle}
                     onMouseDown={(e) => {
                       e.stopPropagation();
+                      saveToHistory();
                       setRotatingId(layer.id);
                     }}
                   />

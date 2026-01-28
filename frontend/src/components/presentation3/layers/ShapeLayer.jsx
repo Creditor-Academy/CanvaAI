@@ -12,6 +12,8 @@ const ShapeLayer = ({ layer, selected, onMouseDown, children }) => {
         height: layer.height,
         border: selected ? "2px solid #2563eb" : "none",
         cursor: "move",
+        transform: `rotate(${layer.rotation || 0}deg)`,
+        transformOrigin: "center",
       }}
     >
       <ShapeRenderer layer={layer} />

@@ -2,11 +2,55 @@ import React from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 
 const TopBar = () => {
-  const { addTextLayer, addShapeLayer, addImageLayer } = usePresentationStore();
+  const {
+    addTextLayer,
+    addShapeLayer,
+    addImageLayer,
+    undo,
+    redo,
+    copySelectedLayer,
+    past,
+    future,
+  } = usePresentationStore();
 
   return (
     <div style={styles.bar}>
       <span style={{ marginRight: "16px" }}>Presentation Editor</span>
+
+      {/* Undo/Redo/Copy */}
+      <div style={styles.shapesGroup}>
+        <button
+          onClick={undo}
+          style={{
+            ...styles.button,
+            opacity: past.length > 0 ? 1 : 0.5,
+            cursor: past.length > 0 ? 'pointer' : 'not-allowed',
+          }}
+          disabled={past.length === 0}
+          title="Undo"
+        >
+          ↶ Undo
+        </button>
+        <button
+          onClick={redo}
+          style={{
+            ...styles.button,
+            opacity: future.length > 0 ? 1 : 0.5,
+            cursor: future.length > 0 ? 'pointer' : 'not-allowed',
+          }}
+          disabled={future.length === 0}
+          title="Redo"
+        >
+          ↷ Redo
+        </button>
+        <button
+          onClick={copySelectedLayer}
+          style={styles.button}
+          title="Copy selected layer"
+        >
+          📋 Copy
+        </button>
+      </div>
 
       {/* Text */}
       <button
