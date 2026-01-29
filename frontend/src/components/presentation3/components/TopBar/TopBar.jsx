@@ -1,12 +1,14 @@
 import React from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 
-const TopBar = () => {
+const TopBar = ({ onPresent }) => {
   const {
     addTextLayer,
     addShapeLayer,
     addImageLayer,
     addTableLayer,
+    canvasZoom,
+    setCanvasZoom,
     undo,
     redo,
     copySelectedLayer,
@@ -143,6 +145,49 @@ const TopBar = () => {
           style={styles.button}
         >
           URL
+        </button>
+      </div>
+
+      {/* Zoom Controls */}
+      <div style={styles.shapesGroup}>
+        <button
+          style={styles.button}
+          onClick={() => setCanvasZoom(Math.max(0.1, canvasZoom - 0.1))}
+          title="Zoom Out"
+        >
+          -
+        </button>
+        <span style={{ fontSize: '12px', minWidth: '40px', textAlign: 'center' }}>
+          {Math.round(canvasZoom * 100)}%
+        </span>
+        <button
+          style={styles.button}
+          onClick={() => setCanvasZoom(Math.min(5, canvasZoom + 0.1))}
+          title="Zoom In"
+        >
+          +
+        </button>
+        <button
+          style={styles.button}
+          onClick={() => setCanvasZoom(1.0)}
+          title="Reset Zoom"
+        >
+          Fit
+        </button>
+      </div>
+
+      <div style={{ marginLeft: "auto" }}>
+        <button
+          onClick={onPresent}
+          style={{
+            ...styles.button,
+            background: "#2563eb",
+            color: "#fff",
+            fontWeight: "bold",
+            padding: "6px 20px",
+          }}
+        >
+          ▶ Present
         </button>
       </div>
     </div>

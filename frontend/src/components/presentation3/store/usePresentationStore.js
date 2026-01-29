@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { createShapeLayer, createImageLayer } from "../models/presentationModel";
+import useHistoryStore from "./useHistoryStore";
 
 /* =========================
    DEFAULT LAYOUT
@@ -65,43 +66,36 @@ const usePresentationStore = create((set, get) => {
     ],
 
     activeSlideId: initialSlideId,
+    canvasZoom: 1.0,
+
+    setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
 
     // History for undo/redo
-    past: [],
-    future: [],
-
     saveToHistory: () => {
-      const { slides, past } = get();
-      set({
-        past: [...past, JSON.parse(JSON.stringify(slides))],
-        future: [], // clear redo stack
-      });
+      useHistoryStore.getState().saveToHistory(get().slides);
     },
 
     undo: () => {
-      const { past, slides, future } = get();
-      if (past.length === 0) return;
-
-      const previous = past[past.length - 1];
-
-      set({
-        past: past.slice(0, -1),
-        future: [JSON.parse(JSON.stringify(slides)), ...future],
-        slides: previous,
-      });
+      const newSlides = useHistoryStore.getState().undo(get().slides);
+      if (newSlides) {
+        set({ slides: newSlides });
+      }
     },
 
     redo: () => {
-      const { future, slides, past } = get();
-      if (future.length === 0) return;
+      const newSlides = useHistoryStore.getState().redo(get().slides);
+      if (newSlides) {
+        set({ slides: newSlides });
+      }
+    },
 
-      const next = future[0];
+    // The TopBar component needs access to past and future arrays to disable/enable buttons
+    get past() {
+      return useHistoryStore.getState().past;
+    },
 
-      set({
-        future: future.slice(1),
-        past: [...past, JSON.parse(JSON.stringify(slides))],
-        slides: next,
-      });
+    get future() {
+      return useHistoryStore.getState().future;
     },
 
     setActiveSlide: (slideId) => {

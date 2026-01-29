@@ -24,6 +24,7 @@ const CanvasShell = () => {
     saveToHistory,
     undo,
     redo,
+    canvasZoom,
   } = usePresentationStore();
 
   const activeSlide = slides.find(
@@ -36,6 +37,10 @@ const CanvasShell = () => {
   const [startSize, setStartSize] = useState({ w: 0, h: 0 });
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  // Position Readout & Smart Guides
+  const [dragCoords, setDragCoords] = useState(null);
+  const [activeGuides, setActiveGuides] = useState([]);
 
 
   /* =========================
@@ -69,36 +74,93 @@ const CanvasShell = () => {
     const slideRect = e.currentTarget.getBoundingClientRect();
 
     if (draggingId) {
-      updateLayerPosition(
-        draggingId,
-        e.clientX - slideRect.left - offset.x,
-        e.clientY - slideRect.top - offset.y
-      );
+      const scale = (slideRect.width / SLIDE_WIDTH); // This scale includes canvasZoom
+      // Actually, slideRect.width is the VISUAL width, which is SLIDE_WIDTH * autoScale * canvasZoom
+      // But we just need the ratio of screen pixels to slide pixels.
+      const totalScale = scale;
+
+      const mouseXRatio = (e.clientX - slideRect.left - offset.x) / totalScale;
+      const mouseYRatio = (e.clientY - slideRect.top - offset.y) / totalScale;
+
+      const layer = activeSlide.layers.find(l => l.id === draggingId);
+      if (!layer) return;
+
+      let newX = mouseXRatio;
+      let newY = mouseYRatio;
+
+      // Smart Guides & Snapping Logic
+      const guides = [];
+      const threshold = 5 / scale; // Snap within 5 display pixels
+
+      const snapX = (targetX, guidePos) => {
+        if (Math.abs(newX - targetX) < threshold) {
+          newX = targetX;
+          guides.push({ type: 'v', x: guidePos });
+          return true;
+        }
+        return false;
+      };
+
+      const snapY = (targetY, guidePos) => {
+        if (Math.abs(newY - targetY) < threshold) {
+          newY = targetY;
+          guides.push({ type: 'h', y: guidePos });
+          return true;
+        }
+        return false;
+      };
+
+      // 1. Snap to Slide Center
+      snapX(SLIDE_WIDTH / 2 - layer.width / 2, SLIDE_WIDTH / 2);
+      snapY(SLIDE_HEIGHT / 2 - layer.height / 2, SLIDE_HEIGHT / 2);
+
+      // 2. Snap to other layers
+      activeSlide.layers.forEach(other => {
+        if (other.id === draggingId) return;
+
+        // X alignments
+        snapX(other.x, other.x); // Left to Left
+        snapX(other.x + other.width, other.x + other.width); // Left to Right
+        snapX(other.x - layer.width, other.x); // Right to Left
+        snapX(other.x + other.width - layer.width, other.x + other.width); // Right to Right
+        snapX(other.x + other.width / 2 - layer.width / 2, other.x + other.width / 2); // Center X
+
+        // Y alignments
+        snapY(other.y, other.y); // Top to Top
+        snapY(other.y + other.height, other.y + other.height); // Top to Bottom
+        snapY(other.y - layer.height, other.y); // Bottom to Top
+        snapY(other.y + other.height - layer.height, other.y + other.height); // Bottom to Bottom
+        snapY(other.y + other.height / 2 - layer.height / 2, other.y + other.height / 2); // Center Y
+      });
+
+      updateLayerPosition(draggingId, newX, newY);
+      setDragCoords({ x: Math.round(newX), y: Math.round(newY) });
+      setActiveGuides(guides);
     }
 
     if (resizingId) {
+      const scale = slideRect.width / SLIDE_WIDTH;
       resizeTextBox(
         resizingId,
-        startSize.w + (e.clientX - startPos.x),
-        startSize.h + (e.clientY - startPos.y)
+        startSize.w + (e.clientX - startPos.x) / scale,
+        startSize.h + (e.clientY - startPos.y) / scale
       );
     }
 
     if (rotatingId) {
+      const scale = slideRect.width / SLIDE_WIDTH;
       const layer = activeSlide.layers.find((l) => l.id === rotatingId);
       if (layer) {
-        // Calculate center of layer
-        const layerCenterX = (slideRect.left + layer.x) + layer.width / 2;
-        const layerCenterY = (slideRect.top + layer.y) + layer.height / 2;
+        // Calculate center of layer in SCREEN pixels
+        const layerCenterX = slideRect.left + (layer.x + layer.width / 2) * scale;
+        const layerCenterY = slideRect.top + (layer.y + layer.height / 2) * scale;
 
         const angle = Math.atan2(
           e.clientY - layerCenterY,
           e.clientX - layerCenterX
         ) * (180 / Math.PI);
 
-        const rotation = angle + 90; // Adjust so handle at top is 0 (approx)
-
-        updateLayerRotation(rotatingId, rotation);
+        updateLayerRotation(rotatingId, angle + 90); // +90 because handle is at the top
       }
     }
   };
@@ -107,12 +169,14 @@ const CanvasShell = () => {
     setDraggingId(null);
     setResizingId(null);
     setRotatingId(null);
+    setDragCoords(null);
+    setActiveGuides([]);
   };
 
   if (!activeSlide) return null;
 
   return (
-    <div style={styles.wrapper}>
+    <div style={{ ...styles.wrapper, overflow: canvasZoom > 1 ? "auto" : "hidden" }}>
       <div
         style={{
           ...styles.slide,
@@ -123,6 +187,8 @@ const CanvasShell = () => {
           backgroundSize: "100% 100%",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
+          transform: `scale(${canvasZoom})`,
+          transformOrigin: "center center",
         }}
         onMouseMove={handleMouseMove}
         onMouseUp={stopAll}
@@ -458,6 +524,44 @@ const CanvasShell = () => {
             </div>
           );
         })}
+
+        {/* Smart Guides Rendering */}
+        {activeGuides.map((guide, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: guide.type === 'v' ? guide.x : 0,
+              top: guide.type === 'h' ? guide.y : 0,
+              width: guide.type === 'v' ? 1 : SLIDE_WIDTH,
+              height: guide.type === 'h' ? 1 : SLIDE_HEIGHT,
+              borderLeft: guide.type === 'v' ? '1px dashed #ff00ff' : 'none',
+              borderTop: guide.type === 'h' ? '1px dashed #ff00ff' : 'none',
+              pointerEvents: "none",
+              zIndex: 999,
+            }}
+          />
+        ))}
+
+        {/* Position Readout Tooltip */}
+        {dragCoords && (
+          <div style={{
+            position: 'absolute',
+            left: dragCoords.x,
+            top: dragCoords.y - 30,
+            background: 'rgba(37, 99, 235, 0.9)', // Using a more theme-consistent blue
+            color: '#fff',
+            padding: '2px 6px',
+            borderRadius: '2px',
+            fontSize: '11px',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}>
+            {dragCoords.x}, {dragCoords.y}
+          </div>
+        )}
       </div>
     </div>
   );

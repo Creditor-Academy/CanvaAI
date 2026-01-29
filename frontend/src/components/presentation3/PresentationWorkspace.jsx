@@ -1,14 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 
 import SlidesPanel from "./components/SlidesPanel/SlidesPanel";
 import PropertiesPanel from "./components/PropertiesPanel/PropertiesPanel";
 import TopBar from "./components/TopBar/TopBar";
 import CanvasShell from "./components/Canvas/CanvasShell";
+import PresentationMode from "./present/PresentationMode";
 
 const PresentationWorkspace = () => {
+  const [isPresenting, setIsPresenting] = useState(false);
+
+  if (isPresenting) {
+    return <PresentationMode onExit={() => setIsPresenting(false)} />;
+  }
+
   return (
     <div style={styles.root}>
-      <TopBar />
+      <TopBar onPresent={() => setIsPresenting(true)} />
 
       <div style={styles.body}>
         <SlidesPanel />
