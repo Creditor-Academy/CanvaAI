@@ -18,6 +18,8 @@ const PropertiesPanel = () => {
     reorderLayer,
     updateLayerRotation,
     alignLayer,
+    addTableRow,
+    addTableColumn,
   } = usePresentationStore();
   const FONTS = [
     "Arial",
@@ -82,18 +84,49 @@ const PropertiesPanel = () => {
                   input.click();
                 }}
               >
-                Insert Image
+                Insert Image (Local)
               </button>
-              {activeSlide.backgroundImage && (
-                <button
-                  style={{ ...styles.btn, color: "#dc3545", borderColor: "#dc3545" }}
-                  onClick={() => setSlideBackgroundImage(activeSlideId, null)}
-                  title="Remove background image"
-                >
-                  ✕
-                </button>
-              )}
             </div>
+            <div style={{ ...styles.row, marginTop: '8px' }}>
+              <input
+                type="text"
+                placeholder="Image URL"
+                style={{ ...styles.btn, flex: 1, textAlign: 'left', paddingLeft: '8px' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.currentTarget.value) {
+                    setSlideBackgroundImage(activeSlideId, e.currentTarget.value);
+                    e.currentTarget.value = ''; // Clear input
+                  }
+                }}
+              />
+              <button
+                style={{ ...styles.btn }}
+                onClick={() => {
+                  const urlInput = document.activeElement; // Get the currently focused element
+                  if (urlInput && urlInput.tagName === 'INPUT' && urlInput.type === 'text' && urlInput.value) {
+                    setSlideBackgroundImage(activeSlideId, urlInput.value);
+                    urlInput.value = ''; // Clear input
+                  } else {
+                    const url = prompt("Enter image URL:");
+                    if (url) {
+                      setSlideBackgroundImage(activeSlideId, url);
+                    }
+                  }
+                }}
+                title="Set background image from URL"
+              >
+                URL
+              </button>
+            </div>
+            {activeSlide.backgroundImage && (
+              <button
+                style={{ ...styles.btn, color: "#dc3545", borderColor: "#dc3545", marginTop: '8px', width: '100%' }}
+                onClick={() => setSlideBackgroundImage(activeSlideId, null)}
+                title="Remove background image"
+              >
+                Remove Image
+              </button>
+            )}
           </div>
         </>
       )}
@@ -401,6 +434,154 @@ const PropertiesPanel = () => {
                   {align}
                 </button>
               ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ========================= */}
+      {/* TABLE PROPERTIES */}
+      {/* ========================= */}
+      {selectedLayer?.type === "table" && (
+        <>
+          <h3 style={styles.heading}>Table</h3>
+
+          {/* Font Size */}
+          <div style={styles.control}>
+            <label style={styles.label}>Font Size</label>
+            <input
+              type="number"
+              value={selectedLayer.fontSize}
+              min={8}
+              max={100}
+              onChange={(e) =>
+                updateTextLayer(selectedLayer.id, {
+                  fontSize: Number(e.target.value),
+                })
+              }
+            />
+          </div>
+
+          {/* Border Color */}
+          <div style={styles.control}>
+            <label style={styles.label}>Border Color</label>
+            <input
+              type="color"
+              value={selectedLayer.borderColor || "#d1d5db"}
+              onChange={(e) =>
+                updateTextLayer(selectedLayer.id, {
+                  borderColor: e.target.value,
+                })
+              }
+            />
+          </div>
+
+          {/* Text Color */}
+          <div style={styles.control}>
+            <label style={styles.label}>Text Color</label>
+            <input
+              type="color"
+              value={selectedLayer.color || "#000000"}
+              onChange={(e) =>
+                updateTextLayer(selectedLayer.id, {
+                  color: e.target.value,
+                })
+              }
+            />
+          </div>
+
+          {/* Alignment */}
+          <div style={styles.control}>
+            <label style={styles.label}>Alignment</label>
+            <div style={styles.row}>
+              {["left", "center", "right"].map((align) => (
+                <button
+                  key={align}
+                  style={{
+                    ...styles.btn,
+                    background:
+                      selectedLayer.textAlign === align
+                        ? "#2563eb"
+                        : "#f3f4f6",
+                    color:
+                      selectedLayer.textAlign === align
+                        ? "#fff"
+                        : "#000",
+                  }}
+                  onClick={() =>
+                    setTextAlignment(selectedLayer.id, align)
+                  }
+                >
+                  {align}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Style Controls (Bold, Italic, Underline) - Reuse logic from text */}
+          <div style={styles.control}>
+            <label style={styles.label}>Style</label>
+            <div style={styles.row}>
+              <button
+                onClick={() => toggleBold(selectedLayer.id)}
+                style={{
+                  ...styles.btn,
+                  background: selectedLayer.fontWeight === "bold" ? "#2563eb" : "#f3f4f6",
+                  color: selectedLayer.fontWeight === "bold" ? "#fff" : "#000",
+                }}
+              >
+                B
+              </button>
+              <button
+                onClick={() => toggleItalic(selectedLayer.id)}
+                style={{
+                  ...styles.btn,
+                  background: selectedLayer.fontStyle === "italic" ? "#2563eb" : "#f3f4f6",
+                  color: selectedLayer.fontStyle === "italic" ? "#fff" : "#000",
+                }}
+              >
+                I
+              </button>
+              <button
+                onClick={() => toggleUnderline(selectedLayer.id)}
+                style={{
+                  ...styles.btn,
+                  background: selectedLayer.textDecoration === "underline" ? "#2563eb" : "#f3f4f6",
+                  color: selectedLayer.textDecoration === "underline" ? "#fff" : "#000",
+                }}
+              >
+                U
+              </button>
+            </div>
+          </div>
+
+          {/* Link support for Table (Simplified) */}
+          <div style={styles.control}>
+            <label style={styles.label}>Table Link (Future: per cell)</label>
+            <input
+              type="text"
+              placeholder="https://example.com"
+              value={selectedLayer.link || ""}
+              onChange={(e) => updateTextLayer(selectedLayer.id, { link: e.target.value })}
+            />
+          </div>
+
+          {/* Add Row / Column Buttons */}
+          <div style={styles.control}>
+            <label style={styles.label}>Table Structure</label>
+            <div style={styles.row}>
+              <button
+                style={{ ...styles.btn, flex: 1 }}
+                onClick={() => addTableRow(selectedLayer.id)}
+              >
+                + Row
+              </button>
+              <button
+                style={{ ...styles.btn, flex: 1 }}
+                onClick={() => addTableColumn(selectedLayer.id)}
+              >
+                + Column
+              </button>
             </div>
           </div>
         </>

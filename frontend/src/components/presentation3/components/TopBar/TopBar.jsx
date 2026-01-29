@@ -6,6 +6,7 @@ const TopBar = () => {
     addTextLayer,
     addShapeLayer,
     addImageLayer,
+    addTableLayer,
     undo,
     redo,
     copySelectedLayer,
@@ -58,6 +59,20 @@ const TopBar = () => {
         style={styles.button}
       >
         Add Text
+      </button>
+
+      {/* Table */}
+      <button
+        onClick={() => {
+          const rows = prompt("Enter number of rows:", "3");
+          const cols = prompt("Enter number of columns:", "3");
+          if (rows && cols) {
+            addTableLayer(parseInt(rows) || 3, parseInt(cols) || 3);
+          }
+        }}
+        style={styles.button}
+      >
+        Add Table
       </button>
 
       {/* Shapes */}

@@ -122,6 +122,37 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                         );
                     }
 
+                    if (layer.type === "table") {
+                        return (
+                            <div
+                                key={layer.id}
+                                style={{
+                                    position: "absolute",
+                                    left: layer.x,
+                                    top: layer.y,
+                                    width: layer.width,
+                                    height: layer.height,
+                                    display: "grid",
+                                    gridTemplateColumns: `repeat(${layer.cols}, 1fr)`,
+                                    gridTemplateRows: `repeat(${layer.rows}, 1fr)`,
+                                    border: `1px solid ${layer.borderColor || "#d1d5db"}`,
+                                    background: "#fff",
+                                    transform: `rotate(${layer.rotation || 0}deg)`,
+                                    transformOrigin: "center center",
+                                }}
+                            >
+                                {Array.from({ length: layer.rows * layer.cols }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        style={{
+                                            border: "1px solid #e5e7eb",
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        );
+                    }
+
                     return null;
                 })}
             </div>

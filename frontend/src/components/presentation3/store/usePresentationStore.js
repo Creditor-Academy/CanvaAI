@@ -239,7 +239,7 @@ const usePresentationStore = create((set, get) => {
       if (!layerToCopy) return;
 
       const copiedLayer = {
-        ...layerToCopy,
+        ...JSON.parse(JSON.stringify(layerToCopy)),
         id: crypto.randomUUID(),
         x: layerToCopy.x + 20,
         y: layerToCopy.y + 20,
@@ -618,6 +618,124 @@ const usePresentationStore = create((set, get) => {
       set({
         slides: slides.map((s) =>
           s.id === activeSlideId ? { ...s, layers: newLayers } : s
+        ),
+      });
+    },
+    /* =========================
+       TABLE LAYERS
+    ========================= */
+    addTableLayer: (rows = 3, cols = 3) => {
+      get().saveToHistory();
+      const { slides, activeSlideId } = get();
+
+      const cells = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => "")
+      );
+
+      const newLayer = {
+        id: crypto.randomUUID(),
+        type: "table",
+        x: 200,
+        y: 150,
+        width: 400,
+        height: 200,
+        rows,
+        cols,
+        cells,
+        borderColor: "#d1d5db",
+        fontSize: 14,
+        color: "#000000",
+        textAlign: "center",
+        rotation: 0,
+      };
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? { ...slide, layers: [...slide.layers, newLayer] }
+            : slide
+        ),
+        selectedLayerId: newLayer.id,
+      });
+    },
+
+    updateTableCell: (layerId, row, col, value) => {
+      // NOTE: We might want to call saveToHistory here if we want undo for every cell blur
+      // The user prompt didn't explicitly say where to call it, but usually onBlur is a good place.
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                    ...layer,
+                    cells: layer.cells.map((r, ri) =>
+                      r.map((c, ci) =>
+                        ri === row && ci === col ? value : c
+                      )
+                    ),
+                  }
+                  : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    addTableRow: (layerId) => {
+      get().saveToHistory();
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId && layer.type === "table"
+                  ? {
+                    ...layer,
+                    rows: layer.rows + 1,
+                    cells: [
+                      ...layer.cells,
+                      Array.from({ length: layer.cols }, () => ""),
+                    ],
+                    height: layer.height + (layer.height / layer.rows), // Heuristic: increase height proportionally
+                  }
+                  : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    addTableColumn: (layerId) => {
+      get().saveToHistory();
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId && layer.type === "table"
+                  ? {
+                    ...layer,
+                    cols: layer.cols + 1,
+                    cells: layer.cells.map((row) => [...row, ""]),
+                    width: layer.width + (layer.width / layer.cols), // Heuristic: increase width proportionally
+                  }
+                  : layer
+              ),
+            }
+            : slide
         ),
       });
     },

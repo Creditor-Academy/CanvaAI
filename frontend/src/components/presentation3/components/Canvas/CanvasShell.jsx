@@ -3,6 +3,7 @@ import usePresentationStore from "../../store/usePresentationStore";
 import ShapeLayer from "../../layers/ShapeLayer";
 import TextLayer from "../../layers/TextLayer";
 import ImageLayer from "../../layers/ImageLayer";
+import TableLayer from "../../layers/TableLayer";
 
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
@@ -244,6 +245,67 @@ const CanvasShell = () => {
                         setStartPos({
                           x: e.clientX,
                           y: e.clientY
+                        });
+                      }}
+                    />
+                    <div
+                      style={styles.rotateHandle}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        saveToHistory();
+                        setRotatingId(layer.id);
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+            );
+          }
+
+          if (layer.type === "table") {
+            return (
+              <div
+                key={layer.id}
+                style={{
+                  position: "absolute",
+                  left: layer.x,
+                  top: layer.y,
+                  width: layer.width,
+                  height: layer.height,
+                  border: selected ? "2px solid #2563eb" : "none",
+                  boxSizing: "border-box",
+                  transform: `rotate(${layer.rotation || 0}deg)`,
+                  transformOrigin: "center center",
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  saveToHistory();
+                  setSelectedLayer(layer.id);
+                  setDraggingId(layer.id);
+
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setOffset({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                  });
+                }}
+              >
+                <TableLayer layer={layer} selected={selected} />
+                {selected && (
+                  <>
+                    <div
+                      style={styles.resizeHandle}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        saveToHistory();
+                        setResizingId(layer.id);
+                        setStartSize({
+                          w: layer.width,
+                          h: layer.height,
+                        });
+                        setStartPos({
+                          x: e.clientX,
+                          y: e.clientY,
                         });
                       }}
                     />
