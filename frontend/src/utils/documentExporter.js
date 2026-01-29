@@ -25,24 +25,6 @@ export class DocumentExporter {
         includeFooter
       });
       
-      // Create a temporary container to render HTML
-      const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      container.style.width = '210mm'; // A4 width
-      container.innerHTML = fullHTML;
-      document.body.appendChild(container);
-      
-      // Convert HTML to canvas then to PDF
-      const canvas = await html2canvas(container, {
-        scale: 2, // Higher resolution
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-      
-      document.body.removeChild(container);
-      
       // Create PDF with proper dimensions (A4)
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -50,14 +32,60 @@ export class DocumentExporter {
         format: 'a4'
       });
       
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Create a temporary container to render HTML
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.width = '210mm'; // A4 width
+      container.style.backgroundColor = 'white';
+      container.innerHTML = fullHTML;
+      document.body.appendChild(container);
       
-      // Add image to PDF with margins
-      const marginX = 10; // 10mm margin on left and right
-      const marginY = 10; // 10mm margin on top and bottom
-      const adjustedImgWidth = imgWidth - (marginX * 2); // Account for both sides
-      pdf.addImage(canvas.toDataURL('image/jpeg', 1.0), 'JPEG', marginX, marginY, adjustedImgWidth, imgHeight);
+      // Get the total height of the content
+      const totalHeight = container.scrollHeight;
+      const pageHeight = 297; // A4 height in mm
+      const usablePageHeight = pageHeight - 50; // Account for margins (25mm top + 25mm bottom)
+      
+      // Calculate how many pages we need
+      const totalPages = Math.ceil(totalHeight / (usablePageHeight * 3.78)); // 3.78 pixels per mm at current scale
+      
+      // Create pages
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) {
+          pdf.addPage();
+        }
+        
+        // Create a cloned container for this specific page
+        const pageContainer = container.cloneNode(true);
+        pageContainer.style.position = 'absolute';
+        pageContainer.style.left = '-9999px';
+        pageContainer.style.top = `-${page * usablePageHeight * 3.78}px`;
+        pageContainer.style.height = `${usablePageHeight * 3.78}px`;
+        pageContainer.style.overflow = 'hidden';
+        document.body.appendChild(pageContainer);
+        
+        // Convert this page to canvas
+        const canvas = await html2canvas(pageContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          height: usablePageHeight * 3.78,
+          y: page * usablePageHeight * 3.78
+        });
+        
+        document.body.removeChild(pageContainer);
+        
+        // Add image to PDF with margins
+        const marginX = 12.5; // 25mm total padding / 2
+        const marginY = 12.5;
+        const imgWidth = 210 - 25; // A4 width minus padding
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        pdf.addImage(canvas.toDataURL('image/jpeg', 1.0), 'JPEG', marginX, marginY, imgWidth, imgHeight);
+      }
+      
+      document.body.removeChild(container);
       
       // Add page numbers if requested
       if (includePageNumbers) {
@@ -77,7 +105,7 @@ export class DocumentExporter {
       // Save the PDF as a proper binary file
       pdf.save(filename);
       
-      toast.success('PDF exported successfully!');
+      toast.success('PDF exported successfully with automatic page breaking!');
       
     } catch (error) {
       console.error('PDF export error:', error);
