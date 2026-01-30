@@ -411,7 +411,7 @@ const LeftCanvasSidebar = ({
         </ExpandedSectionPortal>
 
         <ExpandedSectionPortal sectionKey="templates" title="Design Templates">
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 pb-20">
             {templates.map(template => (
               <button
                 key={template.id}
@@ -434,4 +434,6 @@ const LeftCanvasSidebar = ({
   )
 }
 
-export default LeftCanvasSidebar
+export default LeftCanvasSidebar;
+
+

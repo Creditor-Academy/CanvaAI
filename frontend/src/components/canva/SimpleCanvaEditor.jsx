@@ -66,7 +66,7 @@ const SimpleCanvaEditor = () => {
       handleAddElement(x, y);
     }
   };
-
+  
   const styles = {
     container: {
       display: 'flex',

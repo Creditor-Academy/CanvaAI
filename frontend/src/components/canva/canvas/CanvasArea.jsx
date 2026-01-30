@@ -139,7 +139,8 @@ const LayerComponent = memo(({
         return (
           <div
             ref={textDivRef}
-            className="w-full h-full p-1 select-text overflow-hidden cursor-move"
+            className={`w-full h-full p-1 overflow-hidden cursor-move ${isEditing ? 'select-text' : 'select-none'
+              }`}
             style={{
               ...textStyle,
               padding: '0.25rem',
@@ -153,7 +154,7 @@ const LayerComponent = memo(({
                   ? 'Add a heading'
                   : layer.name === 'Subheading'
                     ? 'Add a subheading'
-                    : 'Add some body text'}
+                    : 'Add Text'}
               </span>
             )}
           </div>
@@ -188,15 +189,15 @@ const LayerComponent = memo(({
               transform: layer.flipped ? 'scaleX(-1)' : 'none'
             }}
           >
-            <img src={layer.src} alt={layer.name} className="w-full h-full object-contain block" draggable={false} />
+            <img src={layer.src} alt={layer.name} className="w-full h-full object-contain block bg-no-repeat " draggable={false} />
           </div>
         );
-
+   
       case 'drawing':
         return (
           <svg width={layer.width} height={layer.height} className="absolute top-0 left-0 pointer-events-none" style={commonStyle}>
             <path
-              d={layer.path.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
+              d={layer.path.map((p, i) => (i === 0 || p.forceMove) ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
               stroke={layer.mode === 'eraser' ? '#ffffff' : layer.color}
               strokeWidth={layer.brushSize}
               fill="none"
@@ -215,7 +216,10 @@ const LayerComponent = memo(({
   }, [layer.id, isEditing, onLayerSelect]);
 
   const handleLayerMouseDown = useCallback((e) => {
-    if (!isEditing) onMouseDown(e, layer.id);
+    if (!isEditing) {
+      e.preventDefault(); // 🔑 stops text selection
+      onMouseDown(e, layer.id);
+    }
   }, [isEditing, onMouseDown, layer.id]);
 
   return (
@@ -239,18 +243,74 @@ const LayerComponent = memo(({
       {renderContent}
       {isSelected && (
         <>
-          <FloatingToolbar layer={layer} onColorChange={onQuickColorChange} onDuplicate={onDuplicate} onDelete={onDelete} onEnhance={onEnhanceText} isEnhancing={isEnhancingText} getLayerPrimaryColor={getLayerPrimaryColor} />
-          <div onMouseDown={(e) => onResizeMouseDown(e, layer)} className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 cursor-nwse-resize border-2 border-white z-[1001]" />
+          <FloatingToolbar
+            layer={layer}
+            onColorChange={onQuickColorChange}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+            onEnhance={onEnhanceText}
+            isEnhancing={isEnhancingText}
+            getLayerPrimaryColor={getLayerPrimaryColor}
+          />
+
+          {/* 🔵 Corner Resize Handles */}
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-left')}
+            className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+          />
+
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-right')}
+            className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+          />
+
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-left')}
+            className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+          />
+
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-right')}
+            className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+          />
+
+          {/* 🔵 Edge Center Resize Handles */}
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-center')}
+            className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+          />
+
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-center')}
+            className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+          />
+
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'left-center')}
+            className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+          />
+
+          <div
+            onMouseDown={(e) => onResizeMouseDown(e, layer, 'right-center')}
+            className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+          />
+
+          {/* 🔄 Rotate Handle */}
           <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
-          <div onMouseDown={(e) => onRotateMouseDown(e, layer)} className="absolute -top-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]">
+
+          <div
+            onMouseDown={(e) => onRotateMouseDown(e, layer)}
+            className="absolute -top-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
+          >
             <FiRotateCw size={12} color="#3182ce" />
           </div>
         </>
       )}
+
+
     </div>
   );
 });
-
 const CanvasArea = ({
   canvasAreaRef, contentWrapperRef, canvasRef, canvasSize, zoom, showGrid, pan,
   handleCanvasClick, handleDrawingMouseDown, handleCanvasMouseMove, handleCanvasMouseLeave,
@@ -266,7 +326,6 @@ const CanvasArea = ({
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger undo/redo if user is currently typing in our textarea
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return;
       if ((e.ctrlKey || e.metaKey)) {
         if (e.key.toLowerCase() === 'z') {
@@ -323,10 +382,13 @@ const CanvasArea = ({
               showGrid ? 'radial-gradient(circle, #ddd 1px, transparent 1px)' : null,
               canvasBgImage ? `url(${canvasBgImage})` : null
             ].filter(Boolean).join(', '),
-            backgroundSize: showGrid && !canvasBgImage ? '20px 20px' : 'cover',
+
+            /* ✅ ONLY FIX */
+            backgroundSize: canvasBgImage ? '100% 100%' : '20px 20px',
+            backgroundRepeat: canvasBgImage ? 'no-repeat' : 'repeat',
             backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            cursor: selectedTool === 'select' ? 'default' : 'crosshair',
+
+            cursor: selectedTool === 'select' ? 'default' : (selectedTool === 'eraser' ? 'none' : 'crosshair'),
           }}
           onClick={handleCanvasClick}
           onMouseDown={handleDrawingMouseDown}
@@ -355,9 +417,37 @@ const CanvasArea = ({
             />
           ))}
 
+
+          {/* 🔴 Current Drawing Path Rendering */}
+          {currentPath.length > 1 && (
+            <svg
+              className="absolute top-0 left-0 pointer-events-none"
+              style={{
+                width: `${canvasSize.width}px`,
+                height: `${canvasSize.height}px`,
+                zIndex: 1500, // Ensure it's above other layers
+                filter: getFilterCSS({
+                  brightness: 100,
+                  contrast: 100,
+                  blur: 0
+                }),
+                opacity: (drawingSettings.opacity ?? 100) / 100,
+              }}
+            >
+              <path
+                d={currentPath.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
+                stroke={drawingSettings.drawingMode === 'eraser' ? '#ffffff' : drawingSettings.brushColor}
+                strokeWidth={drawingSettings.brushSize}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+
           {selectedTool === 'eraser' && isMouseOverCanvas && (
             <div
-              className="absolute rounded-full border border-black/20 bg-white/30 pointer-events-none z-[2000]"
+              className="absolute rounded-full border-2 border-slate-400 bg-white/50 pointer-events-none z-[2000] shadow-sm"
               style={{
                 left: mousePosition.x,
                 top: mousePosition.y,
@@ -370,7 +460,7 @@ const CanvasArea = ({
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default memo(CanvasArea);

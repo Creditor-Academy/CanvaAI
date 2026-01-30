@@ -46,15 +46,20 @@ const RightSidebar = ({
   strokeColorInputRef,
   textColorInputRef
 }) => {
+
+  const selectedTextLayer = layers.find(
+    (l) => l.id === selectedLayer && l.type === 'text'
+  );
+
   return (
     <div>
       {/* Right Sidebar */}
-      <div className={`fixed right-5 top-20 bg-white overflow-y-auto h-[calc(100vh-100px)] z-10 transition-all duration-300 border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] custom-scrollbar ${isRightSidebarCollapsed ? 'w-[60px] py-20 px-2' : 'w-[320px] py-20 px-5'
+      <div className={`fixed right-5 top-20 bg-white overflow-y-auto h-[calc(100vh-100px)] z-10 transition-all duration-300   custom-scrollbar ${isRightSidebarCollapsed ? 'w-[60px] pt-10 pb-20 px-2' : 'w-[320px] pt-10 pb-20 px-5'
         }`}>
         {/* Toggle Button */}
         <div className="flex justify-between items-center mb-5 pb-2.5 border-b border-gray-200">
           {!isRightSidebarCollapsed && (
-            <h3 className="m-0 text-base">Layers</h3>
+            <h3 className="m-0 text-base">Properties</h3>
           )}
           <button
             onClick={(e) => {
@@ -294,56 +299,37 @@ const RightSidebar = ({
                 </div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">Align</span>
+
                   <div className="flex gap-1">
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'left' ? 'bg-blue-600 ' : 'bg-transparent text-gray-600'
-                        } hover:bg-gray-100`}
+                      className={`p-1 rounded flex items-center justify-center
+        ${selectedTextLayer?.textAlign === 'left' ? 'bg-blue-600' : 'bg-transparent'}
+        text-black hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'left')}
                     >
-                      <FiAlignLeft color={textSettings.textAlign === 'left' ? '#fff' : '#666'} size={14} />
+                      <FiAlignLeft size={14} />
                     </button>
+
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'center' ? 'bg-blue-600 ' : 'bg-transparent text-gray-600'
-                        } hover:bg-gray-100`}
+                      className={`p-1 rounded flex items-center justify-center
+        ${selectedTextLayer?.textAlign === 'center' ? 'bg-blue-600' : 'bg-transparent'}
+        text-black hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'center')}
                     >
-                      <FiAlignCenter color={textSettings.textAlign === 'center' ? '#fff' : '#666'} size={14} />
+                      <FiAlignCenter size={14} />
                     </button>
+
                     <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textAlign === 'right' ? 'bg-blue-600 ' : 'bg-transparent text-gray-600'
-                        } hover:bg-gray-100`}
+                      className={`p-1 rounded flex items-center justify-center
+        ${selectedTextLayer?.textAlign === 'right' ? 'bg-blue-600' : 'bg-transparent'}
+        text-black hover:bg-gray-100`}
                       onClick={() => handleTextSettingsChange('textAlign', 'right')}
                     >
-                      <FiAlignRight color={textSettings.textAlign === 'right' ? '#fff' : '#666'} size={14} />
+                      <FiAlignRight size={14} />
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Text Style</span>
-                  <div className="flex gap-1">
-                    <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                        } hover:bg-gray-100`}
-                      onClick={() => handleTextSettingsChange('fontWeight', textSettings.fontWeight === 'bold' ? 'normal' : 'bold')}
-                    >
-                      <FiBold size={14} />
-                    </button>
-                    <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.fontStyle === 'italic' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                        } hover:bg-gray-100`}
-                      onClick={() => handleTextSettingsChange('fontStyle', textSettings.fontStyle === 'italic' ? 'normal' : 'italic')}
-                    >
-                      <FiItalic size={14} />
-                    </button>
-                    <button
-                      className={`p-1 border-none bg-transparent cursor-pointer rounded flex items-center justify-center transition-opacity duration-200 ${textSettings.textDecoration === 'underline' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-600'
-                        } hover:bg-gray-100`}
-                      onClick={() => handleTextSettingsChange('textDecoration', textSettings.textDecoration === 'underline' ? 'none' : 'underline')}
-                    >
-                      <FiUnderline size={14} />
-                    </button>
-                  </div>
-                </div>
+
               </>
             )}
 

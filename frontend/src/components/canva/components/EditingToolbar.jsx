@@ -107,7 +107,6 @@ const EditingToolbar = ({
                 ))}
             </div>
 
-            {/* 1. TOP HEADER (As seen in image) */}
             <div className="h-14 px-4 flex items-center justify-between border-b border-gray-100">
                 <div className="flex items-center gap-3">
                     {/* App Icon */}
@@ -115,13 +114,8 @@ const EditingToolbar = ({
                         <FiFile className="text-white" size={18} />
                     </div>
                     {/* Title & Icons */}
-                    <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                            <span className="text-gray-800 font-medium text-lg leading-none">Untitled Image</span>
-                        </div>
-                    </div>
+                    <div>Untitled Image</div>
                 </div>
-
 
                 <div className="max-w-[1600px] w-full mx-auto px-4 h-12 flex items-center gap-3 overflow-x-visible overflow-y-visible no-scrollbar">
 
@@ -132,17 +126,6 @@ const EditingToolbar = ({
 
                     <button onClick={onDuplicate} disabled={!hasSelection} className={btnGhost}>
                         <FiCopy size={15} /> <span className="hidden lg:inline text-xs">Duplicate</span>
-                    </button>
-
-                    {verticalDivider}
-
-
-                    <button
-                        onClick={() => handleToolSelect('select')}
-                        className={selectedTool === 'select' ? btnActive : btnOutline}
-                    >
-                        <FiMove size={15} />
-                        <span className="text-xs">Select</span>
                     </button>
 
                     {isTextLayer && (
@@ -202,39 +185,31 @@ const EditingToolbar = ({
                     {selectedLayer && (
                         <div className="flex items-center gap-2">
                             <button onClick={onEffects} className={btnOutline}><FiZap size={15} className="text-amber-500" /><span className="text-xs">Effects</span></button>
-                            <button onClick={onPosition} className={btnOutline}><FiLayers size={15} /><span className="text-xs">Position</span></button>
                         </div>
                     )}
                 </div>
 
+                <div className='flex gap-4'>
+
+
                 <div className="flex items-center gap-4">
                     {/* Saving Status */}
-                    <div className="flex items-center gap-2 text-gray-500 text-sm mr-2">
+                    <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
+                        <span>Download</span>
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {/* Saving Status */}
+                    <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
                         <FiSave className="animate-pulse text-gray-400" />
-                        <span>Saving...</span>
-                    </div>
-                    {/* Action Buttons */}
-                    <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-all">
-                        <FiMessageSquare size={20} />
+                        <span>Save</span>
                     </button>
-                    <button className={btnPrimary}>
-                        <FiShare2 size={16} /> Share
-                    </button>
-                    <div className="flex items-center ml-2 border-l border-gray-200 pl-4 gap-2">
-                        <button className="flex items-center gap-2 px-3 py-1.5 text-gray-700 font-medium text-sm hover:bg-gray-100 rounded-md transition-all">
-                            <FiPlay size={16} /> Present
-                        </button>
-                        <div className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white shadow-sm flex items-center justify-center text-blue-700 font-bold text-xs">
-                            JD
-                        </div>
-                    </div>
+                </div>
                 </div>
 
 
             </div>
-
-
-
 
         </div>
     );

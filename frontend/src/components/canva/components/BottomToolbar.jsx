@@ -197,18 +197,6 @@ const BottomToolbar = ({
         </span>
       </div>
 
-      {/* Canvas Size and Tool Info */}
-      {canvasSize && (
-        <span className="text-xs text-gray-600 mr-2">
-          {canvasSize.width} × {canvasSize.height}
-        </span>
-      )}
-      {selectedTool && (
-        <span className="text-xs text-gray-600 mr-2">
-          {selectedTool.charAt(0).toUpperCase() + selectedTool.slice(1)}
-        </span>
-      )}
-
       {/* Page Info */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-gray-700">

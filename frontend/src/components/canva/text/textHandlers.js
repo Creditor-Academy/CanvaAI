@@ -9,7 +9,7 @@ export const createTextContentHandler = (
   layers,
   setLayers,
   saveToHistory,
-  shouldAutoResize = false
+  shouldAutoResize = true
 ) => {
   return (value) => {
     if (!selectedLayer) return;

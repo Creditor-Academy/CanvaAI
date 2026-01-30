@@ -7,6 +7,7 @@ import TextStyleButton from './TextStyleButton';
  * FloatingToolbar - Floating action bar that appears above selected elements
  * Contains color picker, duplicate, delete, and enhance (for text) buttons
  */
+
 const FloatingToolbar = ({
   layer,
   onColorChange,
@@ -22,7 +23,7 @@ const FloatingToolbar = ({
 
   return (
     <div 
-      className="absolute -top-11 left-0 flex items-center gap-2 bg-white/95 border border-gray-200 rounded-[18px] px-2.5 py-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm z-20" 
+      className="absolute -top-11 left-0 flex items-center gap-2 bg-white/95 border border-gray-500 px-2.5 py-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm z-20" 
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Color Picker */}

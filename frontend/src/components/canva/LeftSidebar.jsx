@@ -65,10 +65,10 @@ const LeftSidebar = ({
 
   return (
     <div style={customStyles.sidebar} className="custom-scrollbar">
-      <div style={{ 
-        padding: "0 0 20px 0", 
-        display: "flex", 
-        alignItems: "center", 
+      <div style={{
+        padding: "0 0 20px 0",
+        display: "flex",
+        alignItems: "center",
         gap: 10,
         borderBottom: "1px solid #334155",
         marginBottom: "20px"
@@ -474,7 +474,7 @@ const LeftSidebar = ({
                 marginTop: '6px'
               }}
             >
-              <button 
+              <button
                 style={{ ...styles.toolButton, border: hoveredOption === 'upload' ? '1px solid #ffffff' : '1px solid #374151', backgroundColor: hoveredOption === 'upload' ? '#334155' : 'transparent' }}
                 onMouseEnter={() => setHoveredOption('upload')}
                 onMouseLeave={() => setHoveredOption(null)}
@@ -575,9 +575,9 @@ const LeftSidebar = ({
                     <span style={{ fontSize: '9px', color: '#666' }}>
                       {template.width}×{template.height}
                     </span>
-                    <span style={{ 
-                      fontSize: '8px', 
-                      color: '#3182ce', 
+                    <span style={{
+                      fontSize: '8px',
+                      color: '#3182ce',
                       backgroundColor: '#e3f2fd',
                       padding: '1px 4px',
                       borderRadius: '2px'

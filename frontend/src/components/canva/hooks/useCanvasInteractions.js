@@ -12,127 +12,245 @@ export const useCanvasInteractions = (
   getCanvasPoint,
   saveToHistory
 ) => {
+  /* ===================== STATE ===================== */
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0, layerId: null });
+  const [resizeStart, setResizeStart] = useState({
+    startX: 0,
+    startY: 0,
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    direction: null,
+    layerId: null,
+  });
+
   const [isRotating, setIsRotating] = useState(false);
-  const [rotateStart, setRotateStart] = useState({ cx: 0, cy: 0, startAngleDeg: 0, startRotation: 0, layerId: null });
+  const [rotateStart, setRotateStart] = useState({
+    cx: 0,
+    cy: 0,
+    startAngleDeg: 0,
+    startRotation: 0,
+    layerId: null,
+  });
+
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMouseOverCanvas, setIsMouseOverCanvas] = useState(false);
 
-  const handleMouseDown = useCallback((e, layerId) => {
-    if (selectedTool === 'select' && layerId) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
-      setSelectedLayer(layerId);
-    }
-  }, [selectedTool, setSelectedLayer]);
+  /* ===================== DRAG ===================== */
 
-  const handleResizeMouseDown = useCallback((e, layer) => {
+  const handleMouseDown = useCallback((e, layerId) => {
+    if (selectedTool !== 'select' || !layerId) return;
+
+    const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+
+    setIsDragging(true);
+    setDragStart({ x, y });
+    setSelectedLayer(layerId);
+  }, [selectedTool, getCanvasPoint, setSelectedLayer]);
+
+  /* ===================== RESIZE ===================== */
+
+  const handleResizeMouseDown = useCallback((e, layer, direction) => {
     e.stopPropagation();
     if (selectedTool !== 'select') return;
+
+    const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+
     setIsResizing(true);
-    setResizeStart({ 
-      x: e.clientX, 
-      y: e.clientY, 
-      width: layer.width, 
-      height: layer.height, 
-      layerId: layer.id 
+    setResizeStart({
+      startX: x,
+      startY: y,
+      x: layer.x,
+      y: layer.y,
+      width: layer.width,
+      height: layer.height,
+      direction,
+      layerId: layer.id,
     });
+
     setSelectedLayer(layer.id);
-  }, [selectedTool, setSelectedLayer]);
+  }, [selectedTool, getCanvasPoint, setSelectedLayer]);
+
+  /* ===================== ROTATE ===================== */
 
   const handleRotateMouseDown = useCallback((e, layer) => {
     e.stopPropagation();
     if (selectedTool !== 'select') return;
-    const centerX = layer.x + layer.width / 2;
-    const centerY = layer.y + layer.height / 2;
-    const { x: mouseX, y: mouseY } = getCanvasPoint(e.clientX, e.clientY);
-    const startAngleDeg = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
+
+    const cx = layer.x + layer.width / 2;
+    const cy = layer.y + layer.height / 2;
+    const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+
+    const startAngleDeg =
+      Math.atan2(y - cy, x - cx) * (180 / Math.PI);
+
     setIsRotating(true);
-    setRotateStart({ 
-      cx: centerX, 
-      cy: centerY, 
-      startAngleDeg, 
-      startRotation: layer.rotation || 0, 
-      layerId: layer.id 
+    setRotateStart({
+      cx,
+      cy,
+      startAngleDeg,
+      startRotation: layer.rotation || 0,
+      layerId: layer.id,
     });
+
     setSelectedLayer(layer.id);
   }, [selectedTool, getCanvasPoint, setSelectedLayer]);
 
+  /* ===================== MOUSE MOVE ===================== */
+
   const handleMouseMove = useCallback((e) => {
+    /* ----- ROTATE ----- */
     if (isRotating && rotateStart.layerId) {
-      const { x: mouseX, y: mouseY } = getCanvasPoint(e.clientX, e.clientY);
-      const dx = mouseX - rotateStart.cx;
-      const dy = mouseY - rotateStart.cy;
-      const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
-      let newRotation = rotateStart.startRotation + (angleDeg - rotateStart.startAngleDeg);
+      const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+      const dx = x - rotateStart.cx;
+      const dy = y - rotateStart.cy;
+
+      let angle =
+        rotateStart.startRotation +
+        (Math.atan2(dy, dx) * (180 / Math.PI) - rotateStart.startAngleDeg);
+
       if (e.shiftKey) {
-        newRotation = Math.round(newRotation / 15) * 15;
+        angle = Math.round(angle / 15) * 15;
       }
-      if (newRotation >= 180) newRotation -= 360;
-      if (newRotation < -180) newRotation += 360;
-      setLayers(prevLayers => prevLayers.map(layer =>
-        layer.id === rotateStart.layerId
-          ? { ...layer, rotation: newRotation }
-          : layer
-      ));
+
+      setLayers(prev =>
+        prev.map(l =>
+          l.id === rotateStart.layerId
+            ? { ...l, rotation: angle }
+            : l
+        )
+      );
       return;
     }
 
+    /* ----- RESIZE ----- */
     if (isResizing && resizeStart.layerId) {
-      const deltaX = e.clientX - resizeStart.x;
-      const deltaY = e.clientY - resizeStart.y;
-      setLayers(prevLayers => prevLayers.map(layer => {
-        if (layer.id !== resizeStart.layerId) return layer;
-        const rawWidth = Math.max(10, resizeStart.width + deltaX);
-        const rawHeight = Math.max(10, resizeStart.height + deltaY);
-        const newWidth = Math.max(10, rawWidth);
-        const newHeight = Math.max(10, rawHeight);
-        return { ...layer, width: newWidth, height: newHeight };
-      }));
+      const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+      const dx = x - resizeStart.startX;
+      const dy = y - resizeStart.startY;
+      const MIN = 20;
+
+      setLayers(prev =>
+        prev.map(layer => {
+          if (layer.id !== resizeStart.layerId) return layer;
+
+          let { x: lx, y: ly, width, height } = resizeStart;
+
+          switch (resizeStart.direction) {
+            case 'top-left':
+              lx += dx;
+              ly += dy;
+              width -= dx;
+              height -= dy;
+              break;
+            case 'top-center':
+              ly += dy;
+              height -= dy;
+              break;
+            case 'top-right':
+              ly += dy;
+              width += dx;
+              height -= dy;
+              break;
+            case 'right-center':
+              width += dx;
+              break;
+            case 'bottom-right':
+              width += dx;
+              height += dy;
+              break;
+            case 'bottom-center':
+              height += dy;
+              break;
+            case 'bottom-left':
+              lx += dx;
+              width -= dx;
+              height += dy;
+              break;
+            case 'left-center':
+              lx += dx;
+              width -= dx;
+              break;
+            default:
+              break;
+          }
+
+          if (width < MIN || height < MIN) return layer;
+
+          return { ...layer, x: lx, y: ly, width, height };
+        })
+      );
       return;
     }
 
+    /* ----- DRAG ----- */
     if (isDragging && selectedLayer) {
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-      setLayers(prevLayers => prevLayers.map(layer => {
-        if (layer.id !== selectedLayer) return layer;
-        const nextX = layer.x + deltaX;
-        const nextY = layer.y + deltaY;
-        return { ...layer, x: nextX, y: nextY };
-      }));
-      setDragStart({ x: e.clientX, y: e.clientY });
+      const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+      const dx = x - dragStart.x;
+      const dy = y - dragStart.y;
+
+      setLayers(prev =>
+        prev.map(l =>
+          l.id === selectedLayer
+            ? { ...l, x: l.x + dx, y: l.y + dy }
+            : l
+        )
+      );
+
+      setDragStart({ x, y });
     }
-  }, [isDragging, isResizing, isRotating, selectedLayer, dragStart, resizeStart, rotateStart, getCanvasPoint, setLayers]);
+  }, [
+    isDragging,
+    isResizing,
+    isRotating,
+    selectedLayer,
+    dragStart,
+    resizeStart,
+    rotateStart,
+    getCanvasPoint,
+    setLayers
+  ]);
+
+  /* ===================== MOUSE UP ===================== */
 
   const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false);
-      setLayers(currentLayers => {
-        saveToHistory(currentLayers);
-        return currentLayers;
-      });
-    }
-    if (isRotating) {
-      setIsRotating(false);
-      setRotateStart({ cx: 0, cy: 0, startAngleDeg: 0, startRotation: 0, layerId: null });
-      setLayers(currentLayers => {
-        saveToHistory(currentLayers);
-        return currentLayers;
-      });
-    }
-    if (isResizing) {
-      setIsResizing(false);
-      setResizeStart({ x: 0, y: 0, width: 0, height: 0, layerId: null });
-      setLayers(currentLayers => {
-        saveToHistory(currentLayers);
-        return currentLayers;
-      });
-    }
+    if (!isDragging && !isResizing && !isRotating) return;
+
+    setIsDragging(false);
+    setIsResizing(false);
+    setIsRotating(false);
+
+    setResizeStart({
+      startX: 0,
+      startY: 0,
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      direction: null,
+      layerId: null,
+    });
+
+    setRotateStart({
+      cx: 0,
+      cy: 0,
+      startAngleDeg: 0,
+      startRotation: 0,
+      layerId: null,
+    });
+
+    setLayers(curr => {
+      saveToHistory(curr);
+      return curr;
+    });
   }, [isDragging, isResizing, isRotating, setLayers, saveToHistory]);
+
+  /* ===================== GLOBAL LISTENERS ===================== */
 
   useEffect(() => {
     if (isDragging || isResizing || isRotating) {
@@ -145,11 +263,14 @@ export const useCanvasInteractions = (
     }
   }, [isDragging, isResizing, isRotating, handleMouseMove, handleMouseUp]);
 
+  /* ===================== CANVAS HELPERS ===================== */
+
   const handleCanvasMouseMove = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setMousePosition({ x, y });
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
     setIsMouseOverCanvas(true);
   }, []);
 
@@ -161,9 +282,10 @@ export const useCanvasInteractions = (
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    if (selectedTool !== 'select' && !['brush', 'pen', 'eraser'].includes(selectedTool)) {
-      handleAddElement(x, y);
-    } else if (selectedTool === 'select') {
+
+    if (selectedTool !== 'select') {
+      handleAddElement?.(x, y);
+    } else {
       setSelectedLayer(null);
     }
   }, [selectedTool, setSelectedLayer]);
@@ -179,6 +301,6 @@ export const useCanvasInteractions = (
     handleRotateMouseDown,
     handleCanvasMouseMove,
     handleCanvasMouseLeave,
-    handleCanvasClick
+    handleCanvasClick,
   };
 };

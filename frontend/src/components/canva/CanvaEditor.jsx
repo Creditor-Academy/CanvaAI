@@ -185,7 +185,7 @@ const CanvaEditor = () => {
     handleMouseDown,
     handleResizeMouseDown,
     handleRotateMouseDown,
-    handleCanvasMouseMove,
+    handleCanvasMouseMove: handleCanvasMouseMoveBase,
     handleCanvasMouseLeave,
     handleCanvasClick: handleCanvasClickBase
   } = useCanvasInteractions(
@@ -197,6 +197,33 @@ const CanvaEditor = () => {
     getCanvasPoint,
     saveToHistory
   );
+
+  // 🔴 Wrapper for handleCanvasMouseMove to handle drawing
+  const handleCanvasMouseMoveWrapper = useCallback((e) => {
+    handleCanvasMouseMoveBase(e);
+
+    // Handle Drawing
+    if (drawingSettings.isDrawing) {
+      const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+
+      if (selectedTool === 'eraser') {
+        handleEraserAction(x, y);
+      } else {
+        addPointToPath({ x, y });
+      }
+    }
+  }, [handleCanvasMouseMoveBase, drawingSettings.isDrawing, selectedTool, getCanvasPoint, handleEraserAction, addPointToPath]);
+
+  // 🔴 Finish drawing on global mouse up
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (drawingSettings.isDrawing) {
+        finishDrawing();
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [drawingSettings.isDrawing, finishDrawing]);
 
   const { handleAddElement } = useElementCreation(
     layers,
@@ -301,7 +328,12 @@ const CanvaEditor = () => {
     setSelectedLayer(null);
     // Set drawing mode when selecting drawing tools
     if (['brush', 'pen', 'eraser'].includes(toolId)) {
-      setDrawingSettings(prev => ({ ...prev, drawingMode: toolId }));
+      setDrawingSettings(prev => ({
+        ...prev,
+        drawingMode: toolId,
+        // Set default sizes based on tool
+        brushSize: toolId === 'brush' ? 12 : (toolId === 'pen' ? 4 : prev.brushSize)
+      }));
     }
   };
 
@@ -1022,12 +1054,20 @@ const CanvaEditor = () => {
 
   // Template selection handler
   const handleTemplateSelect = (template) => {
+    if (template.name === 'Default Canvas') {
+      resetEditorToInitialState();
+      return;
+    }
+
+    // Normal template behavior
     setCanvasSize({ width: template.width, height: template.height });
     setLayers([]);
     setSelectedLayer(null);
-    saveToHistory([]);
     setHasChosenTemplate(true);
+    hasInitializedRef.current = false;
+    saveToHistory([]);
   };
+
 
   // Fit to screen wrapper
   const handleFitToScreenWrapper = useCallback(() => {
@@ -1061,11 +1101,56 @@ const CanvaEditor = () => {
   };
 
   // Canvas click handler
+  // Canvas click handler
   const handleCanvasClick = (e) => {
+    e.stopPropagation(); // 🔴 Prevent deselecting tool when clicking canvas
     if (e.target === canvasRef.current) {
       setSelectedLayer(null);
     }
   };
+
+  // 🔴 Handle clicking outside canvas to deselect drawing tools
+  const handleOutsideClick = (e) => {
+    if (['brush', 'pen', 'eraser'].includes(selectedTool)) {
+      setSelectedTool('select');
+      setDrawingSettings(prev => ({ ...prev, isDrawing: false }));
+    }
+  };
+
+
+  const resetEditorToInitialState = useCallback(() => {
+    // Reset canvas
+    setCanvasSize(initialCanvasSize);
+    setZoom(80);
+    setPan({ x: 0, y: 0 });
+
+    // Reset layers & pages
+    setLayers([]);
+    setPages([{ id: Date.now(), layers: [] }]);
+    setCurrentPageIndex(0);
+
+    // Reset selections & tools
+    setSelectedLayer(null);
+    setSelectedTool('select');
+
+    // Reset UI state
+    setHasChosenTemplate(false);
+    setIsRightSidebarCollapsed(false);
+    setIsRightSidebarOpen(false);
+    setIsLeftSidebarOpen(false);
+
+    // Reset background
+    setCanvasBgColor(GRADIENTS[0].value);
+    setCanvasBgImage(null);
+
+    // 🔑 THIS IS VERY IMPORTANT
+    hasInitializedRef.current = false;
+
+    // Reset history
+    saveToHistory([]);
+
+  }, [setZoom, setPan, saveToHistory]);
+
 
   // Drawing mouse handlers are provided by useDrawing hook
   // No need to redeclare handleDrawingMouseDown
@@ -1182,7 +1267,10 @@ const CanvaEditor = () => {
         />
 
         {/* Canvas Area - scrollable container with all pages */}
-        <div className="flex-1 flex flex-col justify-start py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden">
+        <div
+          onClick={handleOutsideClick}
+          className="flex-1 flex flex-col justify-start py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
+        >
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
             const pageRefs = getOrCreateRefs(page.id);
@@ -1201,7 +1289,7 @@ const CanvaEditor = () => {
                     pan={pan}
                     handleCanvasClick={isActivePage ? handleCanvasClick : () => { }}
                     handleDrawingMouseDown={isActivePage ? handleDrawingMouseDown : () => { }}
-                    handleCanvasMouseMove={isActivePage ? handleCanvasMouseMove : () => { }}
+                    handleCanvasMouseMove={isActivePage ? handleCanvasMouseMoveWrapper : () => { }}
                     handleCanvasMouseLeave={isActivePage ? handleCanvasMouseLeave : () => { }}
                     layers={pageLayers}
                     hasChosenTemplate={hasChosenTemplate}
