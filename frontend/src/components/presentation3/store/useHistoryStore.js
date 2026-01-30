@@ -5,8 +5,17 @@ const useHistoryStore = create((set, get) => ({
   future: [],
 
   saveToHistory: (currentState) => {
+    const { past } = get();
+    const lastState = past.length > 0 ? past[past.length - 1] : null;
+
+    // Deep comparison to avoid saving duplicate states (e.g., when clicking/selecting without changes)
+    const serializedState = JSON.stringify(currentState);
+    if (lastState && JSON.stringify(lastState) === serializedState) {
+      return;
+    }
+
     set((state) => ({
-      past: [...state.past, JSON.parse(JSON.stringify(currentState))],
+      past: [...state.past, JSON.parse(serializedState)],
       future: [],
     }));
   },
@@ -18,10 +27,10 @@ const useHistoryStore = create((set, get) => ({
     const previous = past[past.length - 1];
     const newPast = past.slice(0, past.length - 1);
 
-    set({
+    set((state) => ({
       past: newPast,
-      future: [JSON.parse(JSON.stringify(currentState)), ...get().future],
-    });
+      future: [JSON.parse(JSON.stringify(currentState)), ...state.future],
+    }));
 
     return previous;
   },
@@ -33,10 +42,10 @@ const useHistoryStore = create((set, get) => ({
     const next = future[0];
     const newFuture = future.slice(1);
 
-    set({
-      past: [...get().past, JSON.parse(JSON.stringify(currentState))],
+    set((state) => ({
+      past: [...state.past, JSON.parse(JSON.stringify(currentState))],
       future: newFuture,
-    });
+    }));
 
     return next;
   },

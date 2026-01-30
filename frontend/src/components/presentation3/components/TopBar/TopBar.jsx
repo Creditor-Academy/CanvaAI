@@ -12,8 +12,8 @@ const TopBar = ({ onPresent }) => {
     undo,
     redo,
     copySelectedLayer,
-    past,
-    future,
+    pastCount,
+    futureCount,
   } = usePresentationStore();
 
   return (
@@ -26,10 +26,10 @@ const TopBar = ({ onPresent }) => {
           onClick={undo}
           style={{
             ...styles.button,
-            opacity: past.length > 0 ? 1 : 0.5,
-            cursor: past.length > 0 ? 'pointer' : 'not-allowed',
+            opacity: pastCount > 0 ? 1 : 0.5,
+            cursor: pastCount > 0 ? 'pointer' : 'not-allowed',
           }}
-          disabled={past.length === 0}
+          disabled={pastCount === 0}
           title="Undo"
         >
           ↶ Undo
@@ -38,10 +38,10 @@ const TopBar = ({ onPresent }) => {
           onClick={redo}
           style={{
             ...styles.button,
-            opacity: future.length > 0 ? 1 : 0.5,
-            cursor: future.length > 0 ? 'pointer' : 'not-allowed',
+            opacity: futureCount > 0 ? 1 : 0.5,
+            cursor: futureCount > 0 ? 'pointer' : 'not-allowed',
           }}
-          disabled={future.length === 0}
+          disabled={futureCount === 0}
           title="Redo"
         >
           ↷ Redo

@@ -53,7 +53,19 @@ const createDefaultTextLayers = () => [
 const usePresentationStore = create((set, get) => {
   const initialSlideId = nanoid();
 
+  // Listen to history changes to ensure reactivity in UI components
+  // that only subscribe to usePresentationStore.
+  useHistoryStore.subscribe((historyState) => {
+    set({
+      pastCount: historyState.past.length,
+      futureCount: historyState.future.length,
+    });
+  });
+
   return {
+    pastCount: 0,
+    futureCount: 0,
+
     /* =========================
        SLIDES
     ========================= */
@@ -89,7 +101,7 @@ const usePresentationStore = create((set, get) => {
       }
     },
 
-    // The TopBar component needs access to past and future arrays to disable/enable buttons
+    // Simplified access for TopBar
     get past() {
       return useHistoryStore.getState().past;
     },
