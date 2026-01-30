@@ -7,6 +7,7 @@ import {
   FiImage,
   FiUpload,
   FiTriangle,
+  FiEdit3,
   FiChevronDown,
   FiChevronRight,
   FiStar,
@@ -63,8 +64,31 @@ const LeftSidebar = ({
   });
 
   return (
-    <div style={customStyles.sidebar}>
-      {/* Selection section (optional, from original code) */}
+    <div style={customStyles.sidebar} className="custom-scrollbar">
+      <div style={{
+        padding: "0 0 20px 0",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        borderBottom: "1px solid #334155",
+        marginBottom: "20px"
+      }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "12px",
+            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span style={{ color: "#ffffff", fontWeight: 700, fontSize: "1.35rem" }}>🎨</span>
+        </div>
+        <span style={{ fontWeight: 700, fontSize: "1.12rem", color: "#ffffff" }}>Design Tools</span>
+      </div>
+
       <div style={{ marginTop: 0 }}>
         <button
           style={{ ...styles.toolButton, justifyContent: 'space-between' }}
@@ -85,7 +109,7 @@ const LeftSidebar = ({
                 onClick={() => handleToolSelect('select')}
               >
                 <FiMove size={16} />
-                Select / Move
+                Select & Move
               </button>
             </div>
           </div>
@@ -93,6 +117,7 @@ const LeftSidebar = ({
       </div>
 
       {/* Text Tools – this is what actually inserts headings */}
+      {/* Text Tools */}
       <div style={{ marginTop: 12 }}>
         <button
           style={{ ...styles.toolButton, justifyContent: 'space-between' }}
@@ -150,7 +175,540 @@ const LeftSidebar = ({
         )}
       </div>
 
-      {/* You can copy Shapes / Media / Canvas sections from the original code if needed */}
+      <div style={{ marginTop: '12px' }}>
+        <button
+          style={{
+            ...styles.toolButton,
+            justifyContent: 'space-between'
+          }}
+          onClick={() => toggleSection('shapes')}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FiSquare size={16} />
+            Shapes
+          </span>
+          {openSections.shapes ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+        </button>
+        {openSections.shapes && (
+          <div style={{ paddingLeft: 8 }}>
+            <div
+              style={{
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                backgroundColor: '#334155',
+                padding: '8px',
+                marginTop: '6px'
+              }}
+            >
+              <button
+                style={getButtonStyle('rectangle')}
+                onMouseEnter={() => setHoveredOption('rectangle')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(120, 120, 'rectangle'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Rectangle
+              </button>
+              <button
+                style={getButtonStyle('roundedRectangle')}
+                onMouseEnter={() => setHoveredOption('roundedRectangle')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(140, 140, 'roundedRectangle'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Rounded Rectangle
+              </button>
+              <button
+                style={getButtonStyle('circle')}
+                onMouseEnter={() => setHoveredOption('circle')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(160, 160, 'circle'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Circle
+              </button>
+              <button
+                style={getButtonStyle('ellipse')}
+                onMouseEnter={() => setHoveredOption('ellipse')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(180, 180, 'ellipse'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Ellipse
+              </button>
+              <button
+                style={getButtonStyle('triangle')}
+                onMouseEnter={() => setHoveredOption('triangle')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(200, 200, 'triangle'); setSelectedTool('select'); }}
+              >
+                <FiTriangle size={16} />
+                Triangle
+              </button>
+              <button
+                style={getButtonStyle('rightTriangle')}
+                onMouseEnter={() => setHoveredOption('rightTriangle')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(220, 220, 'rightTriangle'); setSelectedTool('select'); }}
+              >
+                <FiTriangle size={16} />
+                Right Triangle
+              </button>
+              <button
+                style={getButtonStyle('star')}
+                onMouseEnter={() => setHoveredOption('star')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(240, 240, 'star'); setSelectedTool('select'); }}
+              >
+                <FiStar size={16} />
+                Star
+              </button>
+              <button
+                style={getButtonStyle('star6')}
+                onMouseEnter={() => setHoveredOption('star6')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(260, 260, 'star6'); setSelectedTool('select'); }}
+              >
+                <FiStar size={16} />
+                6-Point Star
+              </button>
+              <button
+                style={getButtonStyle('heart')}
+                onMouseEnter={() => setHoveredOption('heart')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(280, 280, 'heart'); setSelectedTool('select'); }}
+              >
+                <FiHeart size={16} />
+                Heart
+              </button>
+              <button
+                style={getButtonStyle('diamond')}
+                onMouseEnter={() => setHoveredOption('diamond')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(300, 300, 'diamond'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Diamond
+              </button>
+              <button
+                style={getButtonStyle('pentagon')}
+                onMouseEnter={() => setHoveredOption('pentagon')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(320, 320, 'pentagon'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Pentagon
+              </button>
+              <button
+                style={getButtonStyle('hexagon')}
+                onMouseEnter={() => setHoveredOption('hexagon')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(340, 340, 'hexagon'); setSelectedTool('select'); }}
+              >
+                <FiSquare size={16} />
+                Hexagon
+              </button>
+              <button
+                style={getButtonStyle('arrow')}
+                onMouseEnter={() => setHoveredOption('arrow')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(360, 360, 'arrow'); setSelectedTool('select'); }}
+              >
+                <FiArrowRight size={16} />
+                Arrow
+              </button>
+              <button
+                style={getButtonStyle('arrowLeft')}
+                onMouseEnter={() => setHoveredOption('arrowLeft')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(380, 380, 'arrowLeft'); setSelectedTool('select'); }}
+              >
+                <FiArrowLeft size={16} />
+                Arrow Left
+              </button>
+              <button
+                style={getButtonStyle('arrowUp')}
+                onMouseEnter={() => setHoveredOption('arrowUp')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(400, 400, 'arrowUp'); setSelectedTool('select'); }}
+              >
+                <FiArrowUp size={16} />
+                Arrow Up
+              </button>
+              <button
+                style={getButtonStyle('arrowDown')}
+                onMouseEnter={() => setHoveredOption('arrowDown')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(420, 420, 'arrowDown'); setSelectedTool('select'); }}
+              >
+                <FiArrowDown size={16} />
+                Arrow Down
+              </button>
+              <button
+                style={getButtonStyle('cloud')}
+                onMouseEnter={() => setHoveredOption('cloud')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => { handleAddElement(440, 440, 'cloud'); setSelectedTool('select'); }}
+              >
+                <FiCloud size={16} />
+                Cloud
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '12px' }}>
+        <button
+          style={{
+            ...styles.toolButton,
+            justifyContent: 'space-between'
+          }}
+          onClick={() => toggleSection('drawing')}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FiEdit3 size={16} />
+            Drawing
+          </span>
+          {openSections.drawing ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+        </button>
+        {openSections.drawing && (
+          <div style={{ paddingLeft: 8 }}>
+            <div
+              style={{
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                backgroundColor: '#334155',
+                padding: '8px',
+                marginTop: '6px'
+              }}
+            >
+              <button
+                style={getButtonStyle('brush')}
+                onMouseEnter={() => setHoveredOption('brush')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => handleToolSelect('brush')}
+              >
+                <FiEdit3 size={16} />
+                Brush
+              </button>
+              <button
+                style={getButtonStyle('pen')}
+                onMouseEnter={() => setHoveredOption('pen')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => handleToolSelect('pen')}
+              >
+                <FiEdit3 size={16} />
+                Pen
+              </button>
+              <button
+                style={getButtonStyle('eraser')}
+                onMouseEnter={() => setHoveredOption('eraser')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => handleToolSelect('eraser')}
+              >
+                <FiX size={16} />
+                Eraser
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '20px' }}>
+        <h4 style={{ fontSize: '14px', margin: '0 0 10px 0' }}>Effects</h4>
+        <button
+          style={{
+            ...styles.toolButton,
+            ...(selectedTool === 'blur' ? styles.activeTool : {})
+          }}
+          onClick={() => handleToolSelect('blur')}
+        >
+          <FiFilter size={16} />
+          Blur
+        </button>
+        <button
+          style={{
+            ...styles.toolButton,
+            ...(selectedTool === 'sharpen' ? styles.activeTool : {})
+          }}
+          onClick={() => handleToolSelect('sharpen')}
+        >
+          <FiZap size={16} />
+          Sharpen
+        </button>
+        <button
+          style={{
+            ...styles.toolButton,
+            ...(selectedTool === 'crop' ? styles.activeTool : {})
+          }}
+          onClick={() => handleToolSelect('crop')}
+        >
+          <FiCrop size={16} />
+          Crop
+        </button>
+      </div>
+
+      <div style={{ marginTop: '12px' }}>
+        <button
+          style={{
+            ...styles.toolButton,
+            justifyContent: 'space-between'
+          }}
+          onClick={() => toggleSection('media')}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FiImage size={16} />
+            Media
+          </span>
+          {openSections.media ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+        </button>
+        {openSections.media && (
+          <div style={{ paddingLeft: 8 }}>
+            <div
+              style={{
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                backgroundColor: '#334155',
+                padding: '8px',
+                marginTop: '6px'
+              }}
+            >
+              <button
+                style={{ ...styles.toolButton, border: hoveredOption === 'upload' ? '1px solid #ffffff' : '1px solid #374151', backgroundColor: hoveredOption === 'upload' ? '#334155' : 'transparent' }}
+                onMouseEnter={() => setHoveredOption('upload')}
+                onMouseLeave={() => setHoveredOption(null)}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FiUpload size={16} />
+                Upload Image
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+              />
+              {uploadedImages.length > 0 && (
+                <div style={{
+                  marginTop: '10px',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '8px',
+                  maxHeight: '180px',
+                  overflowY: 'auto'
+                }}>
+                  {uploadedImages.map(img => (
+                    <button
+                      key={img.id}
+                      onClick={() => handleLayerDuplicate(img.id)}
+                      style={{
+                        padding: 0,
+                        border: hoveredOption === `uploaded-${img.id}` ? '2px solid #3182ce' : '1px solid #e1e5e9',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        background: '#fff'
+                      }}
+                      onMouseEnter={() => setHoveredOption(`uploaded-${img.id}`)}
+                      onMouseLeave={() => setHoveredOption(null)}
+                      title={`Add ${img.name} to canvas`}
+                    >
+                      <img src={img.src} alt={img.name} style={{ width: '100%', height: 70, objectFit: 'contain' }} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '12px' }}>
+        <button
+          style={{
+            ...styles.toolButton,
+            justifyContent: 'space-between'
+          }}
+          onClick={() => toggleSection('templates')}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FiGrid size={16} />
+            Templates
+          </span>
+          {openSections.templates ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+        </button>
+        {openSections.templates && (
+          <div style={{ paddingLeft: 8 }}>
+            <div
+              style={{
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                backgroundColor: '#334155',
+                padding: '8px',
+                marginTop: '6px'
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                {templates.map(template => (
+                  <button
+                    key={template.id}
+                    style={{
+                      ...styles.toolButton,
+                      padding: '6px',
+                      fontSize: '11px',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '2px',
+                      minHeight: '60px',
+                      border: hoveredOption === `tpl-${template.id}` ? '1px solid #ffffff' : '1px solid #e1e5e9',
+                      backgroundColor: hoveredOption === `tpl-${template.id}` ? '#334155' : 'white'
+                    }}
+                    onMouseEnter={() => setHoveredOption(`tpl-${template.id}`)}
+                    onMouseLeave={() => setHoveredOption(null)}
+                    onClick={() => handleTemplateSelect(template)}
+                    title={`${template.name} - ${template.width}×${template.height}`}
+                  >
+                    <span style={{ fontSize: '16px' }}>{template.thumbnail}</span>
+                    <span style={{ fontSize: '10px', fontWeight: '500' }}>{template.name}</span>
+                    <span style={{ fontSize: '9px', color: '#666' }}>
+                      {template.width}×{template.height}
+                    </span>
+                    <span style={{
+                      fontSize: '8px',
+                      color: '#3182ce',
+                      backgroundColor: '#e3f2fd',
+                      padding: '1px 4px',
+                      borderRadius: '2px'
+                    }}>
+                      {template.category}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {['brush', 'pen', 'eraser'].includes(selectedTool) && (
+        <div style={{ marginTop: '12px' }}>
+          <div
+            style={{
+              border: '1px solid #e1e5e9',
+              borderRadius: '8px',
+              backgroundColor: '#f8f9fa',
+              padding: '12px',
+              marginTop: '6px'
+            }}
+          >
+            <h4 style={{ fontSize: '14px', margin: '0 0 12px 0', color: '#374151' }}>
+              {selectedTool === 'eraser' ? 'Eraser Settings' : 'Drawing Settings'}
+            </h4>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                {selectedTool === 'eraser' ? 'Eraser Size' : 'Brush Size'}: {drawingSettings.brushSize}px
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="50"
+                value={drawingSettings.brushSize}
+                onChange={(e) => handleDrawingSettingsChange('brushSize', parseInt(e.target.value))}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                {selectedTool === 'eraser' ? 'Eraser Color' : 'Color'}
+              </label>
+              <input
+                type="color"
+                value={drawingSettings.brushColor}
+                onChange={(e) => handleDrawingSettingsChange('brushColor', e.target.value)}
+                style={{ width: '100%', height: '32px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                Opacity: {drawingSettings.opacity}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={drawingSettings.opacity}
+                onChange={(e) => handleDrawingSettingsChange('opacity', parseInt(e.target.value))}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                Tool Mode
+              </label>
+              <select
+                value={drawingSettings.drawingMode}
+                onChange={(e) => {
+                  handleDrawingSettingsChange('drawingMode', e.target.value);
+                  setSelectedTool(e.target.value);
+                }}
+                style={{ width: '100%', padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+              >
+                <option value="brush">Brush</option>
+                <option value="pen">Pen</option>
+                <option value="eraser">Eraser</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: '12px' }}>
+        <button
+          style={{
+            ...styles.toolButton,
+            justifyContent: 'space-between'
+          }}
+          onClick={() => toggleSection('canvas')}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FiGrid size={16} />
+            Canvas Size
+          </span>
+          {openSections.canvas ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+        </button>
+        {openSections.canvas && (
+          <div style={{ paddingLeft: 8 }}>
+            <div
+              style={{
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                backgroundColor: '#334155',
+                padding: '8px',
+                marginTop: '6px'
+              }}
+            >
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="number"
+                  placeholder="Width"
+                  value={canvasSize.width}
+                  onChange={(e) => setCanvasSize(prev => ({ ...prev, width: parseInt(e.target.value) || 800 }))}
+                  style={styles.propertyInput}
+                />
+                <input
+                  type="number"
+                  placeholder="Height"
+                  value={canvasSize.height}
+                  onChange={(e) => setCanvasSize(prev => ({ ...prev, height: parseInt(e.target.value) || 600 }))}
+                  style={styles.propertyInput}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

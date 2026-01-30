@@ -2,27 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import { Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 const AuthPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isSignup, setIsSignup] = useState(false);
-  const [formData, setFormData] = useState({ 
-    firstName: '', 
-    lastName: '', 
-    email: '', 
-    password: '' 
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    username: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const processedTokenRef = useRef(null);
 
   // Handle token-based authentication from LMS
   useEffect(() => {
     const token = searchParams.get('token');
-    
+
     // Skip if no token or if we've already processed this token
     if (!token || processedTokenRef.current === token) {
       return;
@@ -34,18 +37,18 @@ const AuthPage = () => {
     const handleTokenAuth = async () => {
       // Clear any existing token first to prevent AuthContext from using an old one
       localStorage.removeItem('token');
-      
+
       setIsLoading(true);
       setError(null);
 
       try {
         // Verify the token with the backend
         const response = await api.verifyToken(token);
-        
+
         if (response.success && response.token) {
           // Store the token in localStorage and wait for profile fetch
           await login(response.token);
-          
+
           if (response.created) {
             // New user - show welcome message before redirecting
             setMessage('Account created and authenticated! Redirecting...');
@@ -66,7 +69,7 @@ const AuthPage = () => {
       } catch (err) {
         console.error('Token verification failed:', err);
         setError(err.message || 'Invalid or expired session');
-        
+
         // Redirect to home after showing error
         setTimeout(() => {
           navigate('/', { replace: true });
@@ -98,7 +101,7 @@ const AuthPage = () => {
       } else {
         response = await api.login(formData);
       }
-      
+
       await login(response.token);
       navigate('/home');
     } catch (err) {
@@ -115,180 +118,69 @@ const AuthPage = () => {
   // Show loading or message state when verifying token
   if (searchParams.get('token')) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '20px'
-      }}>
-        <div style={{
-          background: 'white',
-          padding: '40px',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-          width: '100%',
-          maxWidth: '400px',
-          textAlign: 'center'
-        }}>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-5">
+        <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
           {isLoading && (
             <>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                border: '4px solid #f3f4f6',
-                borderTop: '4px solid #667eea',
-                borderRadius: '50%',
-                margin: '0 auto 20px',
-                animation: 'spin 1s linear infinite'
-              }} />
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '600',
-                color: '#2d3748',
-                marginBottom: '12px'
-              }}>
+              <div className="w-16 h-16 border-4 border-gray-100 border-t-indigo-500 rounded-full mx-auto mb-5 animate-spin" />
+              <h2 className="text-2xl font-semibold text-gray-800 mb-3">
                 Verifying your session...
               </h2>
-              <p style={{
-                fontSize: '14px',
-                color: '#718096'
-              }}>
+              <p className="text-sm text-gray-500">
                 Please wait while we authenticate you
               </p>
             </>
           )}
-          
+
           {message && !isLoading && (
             <>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: '#10b981',
-                margin: '0 auto 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '30px',
-                color: 'white'
-              }}>
-                ✓
+              <div className="w-16 h-16 bg-green-500 rounded-full mx-auto mb-5 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-white" />
               </div>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '600',
-                color: '#10b981',
-                marginBottom: '12px'
-              }}>
+              <h2 className="text-2xl font-semibold text-green-500 mb-3">
                 {message}
               </h2>
             </>
           )}
-          
+
           {error && !isLoading && (
             <>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: '#ef4444',
-                margin: '0 auto 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '30px',
-                color: 'white'
-              }}>
-                ✕
+              <div className="w-16 h-16 bg-red-500 rounded-full mx-auto mb-5 flex items-center justify-center">
+                <XCircle className="w-8 h-8 text-white" />
               </div>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '600',
-                color: '#ef4444',
-                marginBottom: '12px'
-              }}>
+              <h2 className="text-2xl font-semibold text-red-500 mb-3">
                 Authentication Failed
               </h2>
-              <p style={{
-                fontSize: '14px',
-                color: '#718096',
-                marginBottom: '20px'
-              }}>
+              <p className="text-sm text-gray-500 mb-5">
                 {error}
               </p>
-              <p style={{
-                fontSize: '12px',
-                color: '#9ca3af'
-              }}>
+              <p className="text-xs text-gray-400">
                 Redirecting to login page...
               </p>
             </>
           )}
         </div>
-        
-        <style>
-          {`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}
-        </style>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '20px'
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '40px',
-        borderRadius: '16px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-        width: '100%',
-        maxWidth: '400px',
-        transition: 'all 0.3s ease'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h2 style={{
-            fontSize: '28px',
-            fontWeight: '700',
-            color: '#2d3748',
-            margin: '0 0 8px 0'
-          }}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-5">
+      <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md transition-all duration-300">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
             {isSignup ? 'Create Account' : 'Welcome Back'}
           </h2>
-          <p style={{
-            fontSize: '14px',
-            color: '#718096',
-            margin: '0'
-          }}>
+          <p className="text-sm text-gray-500">
             {isSignup ? 'Sign up to get started' : 'Sign in to your account'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '24px'
-        }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {isSignup && (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#4a5568'
-                }}>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">
                   First Name
                 </label>
                 <input
@@ -298,33 +190,11 @@ const AuthPage = () => {
                   value={formData.firstName}
                   onChange={handleChange}
                   required={isSignup}
-                  style={{
-                    padding: '12px 16px',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease',
-                    backgroundColor: '#f7fafc'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.outline = 'none';
-                    e.target.style.borderColor = '#667eea';
-                    e.target.style.backgroundColor = 'white';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#e2e8f0';
-                    e.target.style.backgroundColor = '#f7fafc';
-                    e.target.style.boxShadow = 'none';
-                  }}
+                  className="px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#4a5568'
-                }}>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">
                   Last Name
                 </label>
                 <input
@@ -334,36 +204,14 @@ const AuthPage = () => {
                   value={formData.lastName}
                   onChange={handleChange}
                   required={isSignup}
-                  style={{
-                    padding: '12px 16px',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease',
-                    backgroundColor: '#f7fafc'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.outline = 'none';
-                    e.target.style.borderColor = '#667eea';
-                    e.target.style.backgroundColor = 'white';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#e2e8f0';
-                    e.target.style.backgroundColor = '#f7fafc';
-                    e.target.style.boxShadow = 'none';
-                  }}
+                  className="px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
                 />
               </div>
             </>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4a5568'
-            }}>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">
               Email
             </label>
             <input
@@ -373,164 +221,70 @@ const AuthPage = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              style={{
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '16px',
-                transition: 'all 0.2s ease',
-                backgroundColor: '#f7fafc'
-              }}
-              onFocus={(e) => {
-                e.target.style.outline = 'none';
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e2e8f0';
-                e.target.style.backgroundColor = '#f7fafc';
-                e.target.style.boxShadow = 'none';
-              }}
+              className="px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4a5568'
-            }}>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">
               Password
             </label>
-            <input
-              name="password"
-              type="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              style={{
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '16px',
-                transition: 'all 0.2s ease',
-                backgroundColor: '#f7fafc'
-              }}
-              onFocus={(e) => {
-                e.target.style.outline = 'none';
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e2e8f0';
-                e.target.style.backgroundColor = '#f7fafc';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
+            <div className="relative">
+              <input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className=" cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:text-indigo-500"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isLoading}
-            style={{
-              padding: '14px 20px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s ease',
-              position: 'relative',
-              height: '48px',
-              opacity: isLoading ? 0.8 : 1
-            }}
-            onMouseOver={(e) => {
-              if (!isLoading) {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!isLoading) {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
-              }
-            }}
+            className="relative h-12 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-none rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-80 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
           >
             {isLoading ? (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '20px',
-                height: '20px',
-                border: '2px solid transparent',
-                borderTop: '2px solid white',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
+              </div>
             ) : (
-              isSignup ? 'Create Account' : 'Sign In'
+              <span>{isSignup ? 'Create Account' : 'Sign In'}</span>
             )}
           </button>
         </form>
 
-        <div style={{
-          textAlign: 'center',
-          marginTop: '32px',
-          paddingTop: '24px',
-          borderTop: '1px solid #e2e8f0'
-        }}>
-          <p style={{
-            fontSize: '14px',
-            color: '#718096',
-            margin: '0 0 12px 0'
-          }}>
+        <div className="text-center mt-8 pt-6 border-t border-gray-200">
+          <p className="text-sm text-gray-500 mb-3">
             {isSignup ? 'Already have an account?' : "Don't have an account?"}
           </p>
           <button
             onClick={toggleForm}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#667eea',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.backgroundColor = '#f7fafc';
-              e.target.style.color = '#5a67d8';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = '#667eea';
-            }}
+            className="bg-transparent border-none text-indigo-500 text-sm font-semibold cursor-pointer px-4 py-2 rounded-md transition-all duration-200 hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
           >
             {isSignup ? 'Sign In' : 'Create Account'}
           </button>
         </div>
       </div>
-
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-          }
-        `}
-      </style>
     </div>
   );
 };
 
 export default AuthPage;
+
+

@@ -18,3 +18,4 @@ const CanvaClone = () => {
 };
 
 export default CanvaClone;
+

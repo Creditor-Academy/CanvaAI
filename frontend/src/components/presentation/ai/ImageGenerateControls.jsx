@@ -27,7 +27,18 @@ const ImageGenerateControls = ({ onImageReady }) => {
       setPrompt('');
       setStatus({ type: 'success', message: 'Image added to canvas' });
     } catch (error) {
-      setStatus({ type: 'error', message: error.message || 'Failed to generate image' });
+      let errorMessage = error.message || 'Failed to generate image';
+
+      // Provide user-friendly messages for specific error types
+      if (errorMessage.toLowerCase().includes('billing') || errorMessage.toLowerCase().includes('limit')) {
+        errorMessage = 'AI image generation is currently unavailable due to billing limits. Please contact the administrator or try again later.';
+      } else if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('rate limit')) {
+        errorMessage = 'AI image generation quota has been reached. Please try again later.';
+      } else if (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('authentication')) {
+        errorMessage = 'AI service authentication failed. Please contact support.';
+      }
+
+      setStatus({ type: 'error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +86,7 @@ const ImageGenerateControls = ({ onImageReady }) => {
         disabled={isLoading}
       />
 
-       <button
+      <button
         onClick={handleGenerate}
         disabled={isLoading}
         style={{
@@ -90,7 +101,7 @@ const ImageGenerateControls = ({ onImageReady }) => {
           opacity: isLoading ? 0.7 : 1,
         }}
       >
-        {isLoading ? 'Generating image...' : 'Generate with AI'}
+        {isLoading ? 'Generating image...' : 'Generate Image'}
       </button>
 
       {status.message && (

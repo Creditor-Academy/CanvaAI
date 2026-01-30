@@ -51,6 +51,7 @@
 .member-badge.admin{ background:#e0f2fe; color:#0369a1; }
 .member-badge.member{ background:#e5f9f2; color:#0f766e; }
 .member-role { color:#6b7280; font-size:0.9rem; }
+.icon-btn { background:none; border:none; color:#9ca3af; font-size:1.25rem; cursor:pointer; }
 .icon-btn { background:none; border:none; color:#9ca3af; font-size:1.25rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0.5rem; border-radius:8px; transition:background 0.15s ease; }
 .icon-btn:hover { background:#f3f4f6; }
 
@@ -95,6 +96,7 @@
 .menu-item.danger:hover {
   background: #fee2e2;
 }
+
 
 .member-meta { margin-top:0.75rem; }
 .meta-row { display:flex; align-items:center; gap:0.5rem; color:#6b7280; font-size:0.9rem; }
@@ -361,5 +363,7 @@
   .invite-item { flex-direction: column; align-items: flex-start; gap: 1rem; }
   .invite-actions { width: 100%; justify-content: flex-end; }
 }
+
+
 
 
