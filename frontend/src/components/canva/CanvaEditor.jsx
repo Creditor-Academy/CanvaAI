@@ -790,7 +790,17 @@ const CanvaEditor = () => {
   }, [pages, currentPageIndex, layers]);
 
   const handleMaximize = useCallback(() => {
-    setIsMaximized(prev => !prev);
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+      setIsMaximized(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsMaximized(false);
+      }
+    }
   }, []);
 
   // Add styled image to canvas
