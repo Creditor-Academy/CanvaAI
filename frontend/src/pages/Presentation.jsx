@@ -15,6 +15,11 @@ const Presentation = () => {
     window.open('/presentation-editor', '_blank');
   };
 
+  // Open presentation editor v3 in new tab
+  const openPresentationEditorV3 = () => {
+    window.open('/presentation-editor-v3', '_blank');
+  };
+
   // Filter layouts to only show 16:9 and 4:3
   const availableLayouts = PRESENTATION_LAYOUTS.filter(layout => 
     layout.id === '16-9' || layout.id === '4-3'
@@ -119,6 +124,27 @@ const Presentation = () => {
             }}
           >
             🚀 Open New Editor (Full Screen)
+          </button>
+          {/* Presentation Editor V3 Button */}
+          <button
+            onClick={openPresentationEditorV3}
+            style={{
+              marginTop: '20px',
+              marginLeft: '12px',
+              padding: '12px 24px',
+              background: '#10b981',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            🎨 Open Presentation Editor V3
           </button>
         </div>
 
