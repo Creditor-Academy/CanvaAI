@@ -144,7 +144,7 @@ const Presentation = () => {
               gap: '8px',
             }}
           >
-            🎨 Open Presentation Editor V3
+            🎨 Open Presenation v3
           </button>
         </div>
 
