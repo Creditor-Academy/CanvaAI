@@ -231,7 +231,6 @@ const LayerComponent = memo(({
         top: layer.y,
         width: layer.width,
         height: layer.height,
-        // 🔴 Only show border in UI mode
         border: (isSelected && renderLayerUIOnly) ? '2px dashed #3182ce' : 'none',
         zIndex: isSelected ? 1000 : layer.zIndex,
         display: layer.visible ? 'block' : 'none',

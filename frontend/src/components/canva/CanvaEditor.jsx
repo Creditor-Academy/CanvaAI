@@ -1113,14 +1113,16 @@ const CanvaEditor = () => {
   // Canvas click handler
   // Canvas click handler
   const handleCanvasClick = (e) => {
-    e.stopPropagation(); // 🔴 Prevent deselecting tool when clicking canvas
-    if (e.target === canvasRef.current) {
-      setSelectedLayer(null);
-    }
+    e.stopPropagation();
+    // If the click reached here, it wasn't swallowed by a layer, so it's a background click.
+    setSelectedLayer(null);
   };
 
-  // 🔴 Handle clicking outside canvas to deselect drawing tools
+  // 🔴 Handle clicking outside canvas to deselect drawing tools and layers
   const handleOutsideClick = (e) => {
+    // Deselect layer when clicking outside
+    setSelectedLayer(null);
+
     if (['brush', 'pen', 'eraser'].includes(selectedTool)) {
       setSelectedTool('select');
       setDrawingSettings(prev => ({ ...prev, isDrawing: false }));
@@ -1183,7 +1185,7 @@ const CanvaEditor = () => {
       {/* Mobile Left Sidebar Overlay */}
       {isLeftSidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[15]"
+          className="lg:hidden fixed inset-0 z-[15]"
           onClick={() => setIsLeftSidebarOpen(false)}
         />
       )}
@@ -1390,7 +1392,7 @@ const CanvaEditor = () => {
         onSaveWorksheet={handleSaveWorksheetToLocation}
       />
       {/* Mobile Right Sidebar Toggle Button */}
-      {layers.length > 0 && (
+      {/* {layers.length > 0 && (
         <button
           onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
           className="lg:hidden fixed top-20 right-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
@@ -1400,7 +1402,7 @@ const CanvaEditor = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
         </button>
-      )}
+      )} */}
 
       {/* Mobile Right Sidebar Overlay */}
       {isRightSidebarOpen && layers.length > 0 && (
