@@ -38,7 +38,23 @@ const EditingToolbar = ({
     const fontDropdownRef = useRef(null);
     const menuRef = useRef(null);
 
-    const fonts = ['Arial', 'Helvetica', 'Roboto', 'Montserrat', 'Poppins', 'Inter'];
+    const fonts = [
+        'Arial',
+        'Helvetica',
+        'Roboto',
+        'Open Sans',
+        'Lato',
+        'Montserrat',
+        'Poppins',
+        'Inter',
+        'Oswald',
+        'Roboto Mono',
+        'Raleway',
+        'Ubuntu',
+        'Merriweather',
+        'Playfair Display',
+        'Dancing Script'
+    ];
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -132,14 +148,24 @@ const EditingToolbar = ({
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                             {verticalDivider}
                             <div className="relative" ref={fontDropdownRef}>
-                                <button onClick={() => setShowFontDropdown(!showFontDropdown)} className={`${btnOutline} min-w-[120px] justify-between h-8`}>
-                                    <span className="truncate text-xs">{layer.fontFamily || 'Arial'}</span>
+                                <button onClick={() => setShowFontDropdown(!showFontDropdown)} className={`${btnOutline} min-w-[140px] justify-between h-8`}>
+                                    <span className="truncate text-xs" style={{ fontFamily: layer.fontFamily || 'Arial' }}>
+                                        {layer.fontFamily || 'Arial'}
+                                    </span>
                                     <FiChevronDown size={12} />
                                 </button>
                                 {showFontDropdown && (
-                                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[110] py-1 min-w-[160px] max-h-48 overflow-y-auto">
+                                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[110] py-1 min-w-[200px] max-h-64 overflow-y-auto">
                                         {fonts.map(f => (
-                                            <button key={f} onClick={() => { onTextSettingsChange('fontFamily', f); setShowFontDropdown(false); }} className="w-full px-3 py-1.5 text-left text-xs hover:bg-gray-100">{f}</button>
+                                            <button
+                                                key={f}
+                                                onClick={() => { onTextSettingsChange('fontFamily', f); setShowFontDropdown(false); }}
+                                                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                                            >
+                                                <span style={{ fontFamily: f }} className="text-sm text-gray-700">
+                                                    {f}
+                                                </span>
+                                            </button>
                                         ))}
                                     </div>
                                 )}
@@ -165,7 +191,7 @@ const EditingToolbar = ({
                                 <button onClick={() => onTextAlignChange('center')} className={layer.textAlign === 'center' ? 'text-blue-600 p-1' : 'p-1'}><FiAlignCenter size={15} /></button>
                                 <button onClick={() => onTextAlignChange('right')} className={layer.textAlign === 'right' ? 'text-blue-600 p-1' : 'p-1'}><FiAlignRight size={15} /></button>
                             </div>
-                            
+
                         </div>
                     )}
 
@@ -192,20 +218,20 @@ const EditingToolbar = ({
                 <div className='flex gap-4'>
 
 
-                <div className="flex items-center gap-4">
-                    {/* Saving Status */}
-                    <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
-                        <span>Download</span>
-                    </button>
-                </div>
+                    <div className="flex items-center gap-4">
+                        {/* Saving Status */}
+                        <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
+                            <span>Download</span>
+                        </button>
+                    </div>
 
-                <div className="flex items-center gap-4">
-                    {/* Saving Status */}
-                    <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
-                        <FiSave className="animate-pulse text-gray-400" />
-                        <span>Save</span>
-                    </button>
-                </div>
+                    <div className="flex items-center gap-4">
+                        {/* Saving Status */}
+                        <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
+                            <FiSave className="animate-pulse text-gray-400" />
+                            <span>Save</span>
+                        </button>
+                    </div>
                 </div>
 
 
