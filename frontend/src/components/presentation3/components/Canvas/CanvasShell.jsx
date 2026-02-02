@@ -176,88 +176,227 @@ const CanvasShell = () => {
   if (!activeSlide) return null;
 
   return (
-    <div style={{ ...styles.wrapper, overflow: canvasZoom > 1 ? "auto" : "hidden" }}>
-      <div
-        style={{
-          ...styles.slide,
-          backgroundColor: activeSlide.background,
-          backgroundImage: activeSlide.backgroundImage
-            ? `url(${activeSlide.backgroundImage})`
-            : "none",
-          backgroundSize: "100% 100%",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          transform: `scale(${canvasZoom})`,
-          transformOrigin: "center center",
-        }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={stopAll}
-        onMouseLeave={stopAll}
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget) {
-            clearSelection();
-          }
-        }}
-      >
-        {activeSlide.layers.map((layer) => {
-          const selected = selectedLayerId === layer.id;
+    <div style={styles.canvasWrapper}>
+      <div style={styles.editorCenter}>
+        <div
+          style={{
+            ...styles.slide,
+            backgroundColor: activeSlide.background,
+            backgroundImage: activeSlide.backgroundImage
+              ? `url(${activeSlide.backgroundImage})`
+              : "none",
+            backgroundSize: "100% 100%",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center",
+            transform: `scale(${canvasZoom})`,
+            transformOrigin: "center center",
+          }}
+          onMouseMove={handleMouseMove}
+          onMouseUp={stopAll}
+          onMouseLeave={stopAll}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              clearSelection();
+            }
+          }}
+        >
+          {activeSlide.layers.map((layer) => {
+            const selected = selectedLayerId === layer.id;
 
-          if (layer.type === "shape") {
-            return (
-              <ShapeLayer
-                key={layer.id}
-                layer={layer}
-                selected={selected}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  saveToHistory();
-                  setSelectedLayer(layer.id);
-                  setDraggingId(layer.id);
+            if (layer.type === "shape") {
+              return (
+                <ShapeLayer
+                  key={layer.id}
+                  layer={layer}
+                  selected={selected}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    saveToHistory();
+                    setSelectedLayer(layer.id);
+                    setDraggingId(layer.id);
 
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setOffset({
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
-                  });
-                }}
-                style={{
-                  transform: `rotate(${layer.rotation || 0}deg)`,
-                  transformOrigin: "center center",
-                }}
-              >
-                {selected && (
-                  <>
-                    <div
-                      style={styles.resizeHandle}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        saveToHistory();
-                        setResizingId(layer.id);
-                        setStartSize({
-                          w: layer.width,
-                          h: layer.height,
-                        });
-                        setStartPos({
-                          x: e.clientX,
-                          y: e.clientY,
-                        });
-                      }}
-                    />
-                    <div
-                      style={styles.rotateHandle}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        saveToHistory();
-                        setRotatingId(layer.id);
-                      }}
-                    />
-                  </>
-                )}
-              </ShapeLayer>
-            );
-          }
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setOffset({
+                      x: e.clientX - rect.left,
+                      y: e.clientY - rect.top,
+                    });
+                  }}
+                  style={{
+                    transform: `rotate(${layer.rotation || 0}deg)`,
+                    transformOrigin: "center center",
+                  }}
+                >
+                  {selected && (
+                    <>
+                      <div
+                        style={styles.resizeHandle}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setResizingId(layer.id);
+                          setStartSize({
+                            w: layer.width,
+                            h: layer.height,
+                          });
+                          setStartPos({
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
+                      />
+                      <div
+                        style={styles.rotateHandle}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setRotatingId(layer.id);
+                        }}
+                      />
+                    </>
+                  )}
+                </ShapeLayer>
+              );
+            }
 
-          if (layer.type === "image") {
+            if (layer.type === "image") {
+              return (
+                <div
+                  key={layer.id}
+                  style={{
+                    position: "absolute",
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    border: selected
+                      ? "1.5px solid #2563eb"
+                      : "none",
+                    cursor: "move",
+                    userSelect: "none",
+                    transform: `rotate(${layer.rotation || 0}deg)`,
+                    transformOrigin: "center center",
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    saveToHistory();
+                    setSelectedLayer(layer.id);
+                    setDraggingId(layer.id);
+
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setOffset({
+                      x: e.clientX - rect.left,
+                      y: e.clientY - rect.top,
+                    });
+                  }}
+                >
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    position: 'relative',
+                    pointerEvents: 'none',
+                  }}>
+                    <ImageLayer layer={layer} />
+                  </div>
+                  {selected && (
+                    <>
+                      <div
+                        style={styles.resizeHandle}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setResizingId(layer.id);
+                          setStartSize({
+                            w: layer.width,
+                            h: layer.height
+                          });
+                          setStartPos({
+                            x: e.clientX,
+                            y: e.clientY
+                          });
+                        }}
+                      />
+                      <div
+                        style={styles.rotateHandle}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setRotatingId(layer.id);
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            }
+
+            if (layer.type === "table") {
+              return (
+                <div
+                  key={layer.id}
+                  style={{
+                    position: "absolute",
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    border: selected ? "2px solid #2563eb" : "none",
+                    boxSizing: "border-box",
+                    transform: `rotate(${layer.rotation || 0}deg)`,
+                    transformOrigin: "center center",
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    saveToHistory();
+                    setSelectedLayer(layer.id);
+                    setDraggingId(layer.id);
+
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setOffset({
+                      x: e.clientX - rect.left,
+                      y: e.clientY - rect.top,
+                    });
+                  }}
+                >
+                  <TableLayer layer={layer} selected={selected} />
+                  {selected && (
+                    <>
+                      <div
+                        style={styles.resizeHandle}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setResizingId(layer.id);
+                          setStartSize({
+                            w: layer.width,
+                            h: layer.height,
+                          });
+                          setStartPos({
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
+                      />
+                      <div
+                        style={styles.rotateHandle}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setRotatingId(layer.id);
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            }
+
+            if (layer.type !== "text") return null;
+            const Wrapper = layer.link ? "a" : "div";
+
+            const isPlaceholderVisible =
+              !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
+
+
             return (
               <div
                 key={layer.id}
@@ -267,78 +406,12 @@ const CanvasShell = () => {
                   top: layer.y,
                   width: layer.width,
                   height: layer.height,
+                  padding: "6px",
                   border: selected
                     ? "1.5px solid #2563eb"
-                    : "none",
+                    : "1px solid transparent",
                   cursor: "move",
                   userSelect: "none",
-                  transform: `rotate(${layer.rotation || 0}deg)`,
-                  transformOrigin: "center center",
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  saveToHistory();
-                  setSelectedLayer(layer.id);
-                  setDraggingId(layer.id);
-
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setOffset({
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
-                  });
-                }}
-              >
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  position: 'relative',
-                  pointerEvents: 'none',
-                }}>
-                  <ImageLayer layer={layer} />
-                </div>
-                {selected && (
-                  <>
-                    <div
-                      style={styles.resizeHandle}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        saveToHistory();
-                        setResizingId(layer.id);
-                        setStartSize({
-                          w: layer.width,
-                          h: layer.height
-                        });
-                        setStartPos({
-                          x: e.clientX,
-                          y: e.clientY
-                        });
-                      }}
-                    />
-                    <div
-                      style={styles.rotateHandle}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        saveToHistory();
-                        setRotatingId(layer.id);
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-            );
-          }
-
-          if (layer.type === "table") {
-            return (
-              <div
-                key={layer.id}
-                style={{
-                  position: "absolute",
-                  left: layer.x,
-                  top: layer.y,
-                  width: layer.width,
-                  height: layer.height,
-                  border: selected ? "2px solid #2563eb" : "none",
                   boxSizing: "border-box",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
@@ -349,14 +422,78 @@ const CanvasShell = () => {
                   setSelectedLayer(layer.id);
                   setDraggingId(layer.id);
 
-                  const rect = e.currentTarget.getBoundingClientRect();
+                  const rect =
+                    e.currentTarget.getBoundingClientRect();
                   setOffset({
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top,
                   });
                 }}
               >
-                <TableLayer layer={layer} selected={selected} />
+                <Wrapper
+                  href={layer.link || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  contentEditable={!layer.link}
+                  suppressContentEditableWarning
+
+                  onFocus={(e) => {
+                    // Remove placeholder visually on focus (not stored)
+                    if (isPlaceholderVisible) {
+                      e.target.innerText = "";
+                    }
+                  }}
+
+
+                  onBlur={(e) => {
+                    const value = e.target.innerText.trim();
+
+                    // 👇 IMPORTANT: restore placeholder in DOM
+                    if (value.length === 0) {
+                      e.target.innerText = layer.placeholder;
+                    }
+
+                    // Optional: call saveToHistory here if text change is discrete
+                    // Actually updateTextLayer in store will handle it if we put it there.
+                    updateTextLayer(layer.id, {
+                      text: value,
+                      hasBeenEdited: value.length > 0,
+                    });
+                  }}
+
+
+                  onClick={(e) => {
+                    if (layer.link) {
+                      // Force open in new window as requested
+                      e.preventDefault();
+                      window.open(layer.link, "_blank", "noopener,noreferrer");
+                    } else {
+                      e.preventDefault();
+                    }
+                  }}
+
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    height: "100%",
+                    fontSize: layer.fontSize,
+                    color: isPlaceholderVisible ? "#000000" : layer.color,
+                    fontFamily: layer.fontFamily,
+                    fontWeight: layer.fontWeight,
+                    fontStyle: layer.fontStyle,
+                    textDecoration: layer.textDecoration,
+                    textAlign: layer.textAlign,
+                    outline: "none",
+                    cursor: layer.link ? "pointer" : "text",
+                    userSelect: "text",
+                  }}
+                >
+                  {isPlaceholderVisible
+                    ? layer.placeholder
+                    : layer.text}
+                </Wrapper>
+
+
                 {selected && (
                   <>
                     <div
@@ -387,181 +524,46 @@ const CanvasShell = () => {
                 )}
               </div>
             );
-          }
+          })}
 
-          if (layer.type !== "text") return null;
-          const Wrapper = layer.link ? "a" : "div";
-
-          const isPlaceholderVisible =
-            !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
-
-
-          return (
+          {/* Smart Guides Rendering */}
+          {activeGuides.map((guide, i) => (
             <div
-              key={layer.id}
+              key={i}
               style={{
                 position: "absolute",
-                left: layer.x,
-                top: layer.y,
-                width: layer.width,
-                height: layer.height,
-                padding: "6px",
-                border: selected
-                  ? "1.5px solid #2563eb"
-                  : "1px solid transparent",
-                cursor: "move",
-                userSelect: "none",
-                boxSizing: "border-box",
-                transform: `rotate(${layer.rotation || 0}deg)`,
-                transformOrigin: "center center",
+                left: guide.type === 'v' ? guide.x : 0,
+                top: guide.type === 'h' ? guide.y : 0,
+                width: guide.type === 'v' ? 1 : SLIDE_WIDTH,
+                height: guide.type === 'h' ? 1 : SLIDE_HEIGHT,
+                borderLeft: guide.type === 'v' ? '1px dashed #ff00ff' : 'none',
+                borderTop: guide.type === 'h' ? '1px dashed #ff00ff' : 'none',
+                pointerEvents: "none",
+                zIndex: 999,
               }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                saveToHistory();
-                setSelectedLayer(layer.id);
-                setDraggingId(layer.id);
+            />
+          ))}
 
-                const rect =
-                  e.currentTarget.getBoundingClientRect();
-                setOffset({
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top,
-                });
-              }}
-            >
-              <Wrapper
-                href={layer.link || undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                contentEditable={!layer.link}
-                suppressContentEditableWarning
-
-                onFocus={(e) => {
-                  // Remove placeholder visually on focus (not stored)
-                  if (isPlaceholderVisible) {
-                    e.target.innerText = "";
-                  }
-                }}
-
-
-                onBlur={(e) => {
-                  const value = e.target.innerText.trim();
-
-                  // 👇 IMPORTANT: restore placeholder in DOM
-                  if (value.length === 0) {
-                    e.target.innerText = layer.placeholder;
-                  }
-
-                  // Optional: call saveToHistory here if text change is discrete
-                  // Actually updateTextLayer in store will handle it if we put it there.
-                  updateTextLayer(layer.id, {
-                    text: value,
-                    hasBeenEdited: value.length > 0,
-                  });
-                }}
-
-
-                onClick={(e) => {
-                  if (layer.link) {
-                    // Force open in new window as requested
-                    e.preventDefault();
-                    window.open(layer.link, "_blank", "noopener,noreferrer");
-                  } else {
-                    e.preventDefault();
-                  }
-                }}
-
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  fontSize: layer.fontSize,
-                  color: isPlaceholderVisible ? "#000000" : layer.color,
-                  fontFamily: layer.fontFamily,
-                  fontWeight: layer.fontWeight,
-                  fontStyle: layer.fontStyle,
-                  textDecoration: layer.textDecoration,
-                  textAlign: layer.textAlign,
-                  outline: "none",
-                  cursor: layer.link ? "pointer" : "text",
-                  userSelect: "text",
-                }}
-              >
-                {isPlaceholderVisible
-                  ? layer.placeholder
-                  : layer.text}
-              </Wrapper>
-
-
-              {selected && (
-                <>
-                  <div
-                    style={styles.resizeHandle}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      saveToHistory();
-                      setResizingId(layer.id);
-                      setStartSize({
-                        w: layer.width,
-                        h: layer.height,
-                      });
-                      setStartPos({
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }}
-                  />
-                  <div
-                    style={styles.rotateHandle}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      saveToHistory();
-                      setRotatingId(layer.id);
-                    }}
-                  />
-                </>
-              )}
+          {/* Position Readout Tooltip */}
+          {dragCoords && (
+            <div style={{
+              position: 'absolute',
+              left: dragCoords.x,
+              top: dragCoords.y - 30,
+              background: 'rgba(37, 99, 235, 0.9)', // Using a more theme-consistent blue
+              color: '#fff',
+              padding: '2px 6px',
+              borderRadius: '2px',
+              fontSize: '11px',
+              pointerEvents: 'none',
+              zIndex: 1000,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            }}>
+              {dragCoords.x}, {dragCoords.y}
             </div>
-          );
-        })}
-
-        {/* Smart Guides Rendering */}
-        {activeGuides.map((guide, i) => (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: guide.type === 'v' ? guide.x : 0,
-              top: guide.type === 'h' ? guide.y : 0,
-              width: guide.type === 'v' ? 1 : SLIDE_WIDTH,
-              height: guide.type === 'h' ? 1 : SLIDE_HEIGHT,
-              borderLeft: guide.type === 'v' ? '1px dashed #ff00ff' : 'none',
-              borderTop: guide.type === 'h' ? '1px dashed #ff00ff' : 'none',
-              pointerEvents: "none",
-              zIndex: 999,
-            }}
-          />
-        ))}
-
-        {/* Position Readout Tooltip */}
-        {dragCoords && (
-          <div style={{
-            position: 'absolute',
-            left: dragCoords.x,
-            top: dragCoords.y - 30,
-            background: 'rgba(37, 99, 235, 0.9)', // Using a more theme-consistent blue
-            color: '#fff',
-            padding: '2px 6px',
-            borderRadius: '2px',
-            fontSize: '11px',
-            pointerEvents: 'none',
-            zIndex: 1000,
-            whiteSpace: 'nowrap',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-          }}>
-            {dragCoords.x}, {dragCoords.y}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -574,18 +576,29 @@ export default CanvasShell;
 ========================= */
 
 const styles = {
-  wrapper: {
+  canvasWrapper: {
     flex: 1,
-    background: "#e5e7eb",
+    background: "#f3f4f6", // Subtle grey, as requested
+    padding: "32px 48px",  // Intentional padding
+    overflow: "auto",      // Handle scrolling if needed
+    display: "flex",       // To allow centering the editor-center
+    flexDirection: "column",
+  },
+  editorCenter: {
+    maxWidth: 1400,        // Design max width
+    width: "100%",         // Take up available space up to max
+    margin: "0 auto",      // Center horizontally
     display: "flex",
     justifyContent: "center",
-    alignItems: "center",
+    // alignItems: "center", // Optional: if we want vertical centering when zoomed out highly
+    minHeight: "min-content", // Ensure it can grow
   },
   slide: {
     width: SLIDE_WIDTH,
     height: SLIDE_HEIGHT,
     position: "relative",
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+    flexShrink: 0, // Prevent slide from shrinking
   },
   resizeHandle: {
     position: "absolute",
