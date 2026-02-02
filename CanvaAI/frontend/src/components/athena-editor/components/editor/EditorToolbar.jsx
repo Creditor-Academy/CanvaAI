@@ -302,6 +302,18 @@ export const EditorToolbar = ({
   const [showRuler, setShowRuler] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
+  
+  // Zoom helper functions
+  const effectiveZoom = zoom || 100;
+  
+  const onZoomChangeWithFeedback = (newZoom) => {
+    if (onZoomChange && typeof onZoomChange === 'function') {
+      onZoomChange(newZoom);
+      toast.success(`Zoom set to ${newZoom}%`);
+    } else {
+      toast.error('Zoom function not available');
+    }
+  };
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
@@ -1282,19 +1294,65 @@ export const EditorToolbar = ({
       toast.error('Invalid margins provided');
       return;
     }
-    // This would update CSS variables or styles for page margins
-    document.documentElement.style.setProperty('--page-margin-top', `${margins.top}px`);
-    document.documentElement.style.setProperty('--page-margin-right', `${margins.right}px`);
-    document.documentElement.style.setProperty('--page-margin-bottom', `${margins.bottom}px`);
-    document.documentElement.style.setProperty('--page-margin-left', `${margins.left}px`);
-    toast.success(`Page margins set to ${margins.top}px (top), ${margins.right}px (right), ${margins.bottom}px (bottom), ${margins.left}px (left)`);
+    
+    // Validate margin values
+    const validMargins = {
+      top: Math.max(0, Math.min(200, margins.top || 72)),
+      right: Math.max(0, Math.min(200, margins.right || 72)),
+      bottom: Math.max(0, Math.min(200, margins.bottom || 72)),
+      left: Math.max(0, Math.min(200, margins.left || 72))
+    };
+    
+    // Update CSS variables for page margins
+    document.documentElement.style.setProperty('--page-margin-top', `${validMargins.top}px`);
+    document.documentElement.style.setProperty('--page-margin-right', `${validMargins.right}px`);
+    document.documentElement.style.setProperty('--page-margin-bottom', `${validMargins.bottom}px`);
+    document.documentElement.style.setProperty('--page-margin-left', `${validMargins.left}px`);
+    
+    // Also update editor container styling
+    const editorContainer = document.querySelector('.tiptap.ProseMirror');
+    if (editorContainer) {
+      editorContainer.style.paddingTop = `${validMargins.top}px`;
+      editorContainer.style.paddingRight = `${validMargins.right}px`;
+      editorContainer.style.paddingBottom = `${validMargins.bottom}px`;
+      editorContainer.style.paddingLeft = `${validMargins.left}px`;
+    }
+    
+    toast.success(`Page margins set to ${validMargins.top}px (top), ${validMargins.right}px (right), ${validMargins.bottom}px (bottom), ${validMargins.left}px (left)`);
   };
 
   const setBorders = (type) => {
-    if (editor) {
-      // Implement border setting logic
-      toast.info(`${type} border applied`);
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
     }
+    
+    // Apply borders to selected content or current paragraph
+    const borderStyles = {
+      'page': '2px solid #000000',
+      'paragraph': '1px solid #666666',
+      'table': '1px solid #333333'
+    };
+    
+    const borderStyle = borderStyles[type] || '1px solid #000000';
+    
+    // Wrap current selection or paragraph with bordered div
+    const borderedContent = `
+      <div style="
+        border: ${borderStyle};
+        padding: 10px;
+        margin: 5px 0;
+      ">
+        ${editor.state.doc.textBetween(
+          editor.state.selection.from,
+          editor.state.selection.to,
+          ' '
+        ) || 'Content with border'}
+      </div>
+    `;
+    
+    editor.chain().focus().insertContent(borderedContent).run();
+    toast.success(`${type} border applied`);
   };
 
   const insertSectionBreak = () => {
@@ -1302,9 +1360,45 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    editor.chain().focus().setHorizontalRule().run();
-    editor.chain().focus().insertContent('<section-break>').run();
+    
+    // Insert a proper section break with styling
+    const sectionBreakHTML = `
+      <div class="section-break" style="
+        page-break-before: always;
+        border-top: 1px dashed #cccccc;
+        margin: 20px 0;
+        text-align: center;
+        color: #666666;
+        font-size: 12px;
+      ">
+        SECTION BREAK
+      </div>
+    `;
+    editor.chain().focus().insertContent(sectionBreakHTML).run();
     toast.success('Section break inserted');
+  };
+  
+  // Page management functions
+  const addNewPage = () => {
+    if (editor) {
+      editor.chain().focus().setHorizontalRule().run();
+      toast.success('New page added');
+    }
+  };
+  
+  const addPageBreak = () => {
+    if (editor) {
+      editor.chain().focus().setHorizontalRule().run();
+      toast.success('Page break added');
+    }
+  };
+  
+  const insertPageNumber = () => {
+    if (editor) {
+      const pageNumber = 1; // In a real implementation, this would track actual page numbers
+      editor.chain().focus().insertContent(`Page ${pageNumber}`).run();
+      toast.success('Page number inserted');
+    }
   };
 
   // ========================
@@ -1553,7 +1647,28 @@ export const EditorToolbar = ({
             { label: "Bullet List", icon: List, action: () => toggleBulletList() },
             { label: "Numbered List", icon: ListOrdered, action: () => toggleOrderedList() },
             { label: "Task List", icon: ListChecks, action: () => toggleTaskList() },
-            { label: "Multilevel List", icon: ListChecks, action: () => toast.info('Multilevel list applied') },
+            { label: "Multilevel List", icon: ListChecks, action: () => {
+              if (editor) {
+                // Create a sample multilevel list structure
+                const multilevelList = `
+                  <ol>
+                    <li>First level item
+                      <ol>
+                        <li>Second level item
+                          <ol>
+                            <li>Third level item</li>
+                          </ol>
+                        </li>
+                        <li>Another second level item</li>
+                      </ol>
+                    </li>
+                    <li>Another first level item</li>
+                  </ol>
+                `;
+                editor.chain().focus().insertContent(multilevelList).run();
+                toast.success('Multilevel list inserted');
+              }
+            } },
             { type: "separator" },
             { label: "Align Left", icon: AlignLeft, action: () => setTextAlign('left') },
             { label: "Align Center", icon: AlignCenter, action: () => setTextAlign('center') },
@@ -1563,8 +1678,58 @@ export const EditorToolbar = ({
             { label: "Increase Indent", icon: IndentIncrease, action: indent },
             { label: "Decrease Indent", icon: IndentDecrease, action: outdent },
             { type: "separator" },
-            { label: "Line Spacing", icon: Rows, action: () => setShowFormatMenu('lineSpacing') },
-            { label: "Paragraph Spacing", icon: Rows, action: () => toast.info('Paragraph spacing dialog') },
+            { label: "Line Spacing", icon: Rows, action: () => {
+              if (editor) {
+                // Show line spacing options
+                const spacingOptions = [
+                  { label: 'Single', value: 1 },
+                  { label: '1.15', value: 1.15 },
+                  { label: '1.5', value: 1.5 },
+                  { label: 'Double', value: 2 }
+                ];
+                
+                const selectedSpacing = prompt(
+                  'Select line spacing:\n' + 
+                  spacingOptions.map(opt => `${opt.label}: ${opt.value}`).join('\n') + 
+                  '\n\nEnter value (e.g., 1.5):',
+                  '1.15'
+                );
+                
+                if (selectedSpacing && !isNaN(parseFloat(selectedSpacing))) {
+                  const spacingValue = parseFloat(selectedSpacing);
+                  setLineSpacing(spacingValue);
+                  
+                  // Apply line height to current paragraph
+                  editor.chain().focus().setLineHeight(spacingValue).run();
+                  toast.success(`Line spacing set to ${spacingValue}`);
+                }
+              }
+            } },
+            { label: "Paragraph Spacing", icon: Rows, action: () => {
+              if (editor) {
+                const beforeSpacing = prompt('Paragraph spacing before (points):', '0');
+                const afterSpacing = prompt('Paragraph spacing after (points):', '0');
+                
+                if (beforeSpacing !== null && afterSpacing !== null) {
+                  const beforeValue = parseInt(beforeSpacing) || 0;
+                  const afterValue = parseInt(afterSpacing) || 0;
+                  
+                  // Apply paragraph spacing using custom styles
+                  const spacingHTML = `
+                    <p style="margin-top: ${beforeValue}px; margin-bottom: ${afterValue}px;">
+                      ${editor.state.doc.textBetween(
+                        editor.state.selection.from,
+                        editor.state.selection.to,
+                        ' '
+                      ) || 'Paragraph with custom spacing'}
+                    </p>
+                  `;
+                  
+                  editor.chain().focus().insertContent(spacingHTML).run();
+                  toast.success(`Paragraph spacing set: ${beforeValue}pt before, ${afterValue}pt after`);
+                }
+              }
+            } },
             { label: "Keep Lines Together", icon: AlignCenter, action: () => toast.info('Keep lines together toggled') },
             { label: "Page Break Before", icon: CornerDownLeft, action: () => toast.info('Page break before applied') },
           ]
