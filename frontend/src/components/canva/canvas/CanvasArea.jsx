@@ -8,7 +8,7 @@ const LayerComponent = memo(({
   layer, isSelected, selectedTool, getShapeDisplayProps, onLayerSelect,
   onMouseDown, onResizeMouseDown, onRotateMouseDown, onTextContentChange,
   setSelectedLayer, getLayerPrimaryColor, onQuickColorChange, onDuplicate,
-  onDelete, onEnhanceText, isEnhancingText
+  onDelete, onEnhanceText, isEnhancingText, renderLayerUIOnly = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localText, setLocalText] = useState(layer.text || '');
@@ -66,6 +66,8 @@ const LayerComponent = memo(({
     , [layer.type, layer.shape, getShapeDisplayProps]);
 
   const renderContent = useMemo(() => {
+    if (renderLayerUIOnly) return null; // 🔴 Skip content in UI mode
+
     const commonStyle = {
       filter: getFilterCSS({
         brightness: layer.brightness ?? 100,
@@ -158,7 +160,6 @@ const LayerComponent = memo(({
               </span>
             )}
           </div>
-
         );
 
       case 'shape':
@@ -192,7 +193,7 @@ const LayerComponent = memo(({
             <img src={layer.src} alt={layer.name} className="w-full h-full object-contain block bg-no-repeat " draggable={false} />
           </div>
         );
-   
+
       case 'drawing':
         return (
           <svg width={layer.width} height={layer.height} className="absolute top-0 left-0 pointer-events-none" style={commonStyle}>
@@ -208,7 +209,7 @@ const LayerComponent = memo(({
         );
       default: return null;
     }
-  }, [layer, displayProps, isEditing, localText, handleDoubleClick, handleTextBlur, handleKeyDown]);
+  }, [layer, displayProps, isEditing, localText, handleDoubleClick, handleTextBlur, handleKeyDown, renderLayerUIOnly]);
 
   const handleLayerClick = useCallback((e) => {
     e.stopPropagation();
@@ -230,79 +231,88 @@ const LayerComponent = memo(({
         top: layer.y,
         width: layer.width,
         height: layer.height,
-        border: (isSelected) ? '2px dashed #3182ce' : 'none',
+        border: (isSelected && renderLayerUIOnly) ? '2px dashed #3182ce' : 'none',
         zIndex: isSelected ? 1000 : layer.zIndex,
         display: layer.visible ? 'block' : 'none',
         transform: `rotate(${layer.rotation || 0}deg)`,
         transformOrigin: 'center center',
         cursor: isEditing ? 'text' : (selectedTool === 'select' ? 'move' : 'default'),
+        // 🔴 UI Mode: pointer-events-none parent, children auto. Content Mode: auto (unless drawing)
+        pointerEvents: renderLayerUIOnly
+          ? 'none'
+          : (['brush', 'pen', 'eraser'].includes(selectedTool) ? 'none' : 'auto'),
       }}
       onClick={handleLayerClick}
-      onMouseDown={handleLayerMouseDown}
+      onMouseDown={renderLayerUIOnly ? undefined : handleLayerMouseDown} // Only handle drag in content mode
     >
-      {renderContent}
-      {isSelected && (
+      {!renderLayerUIOnly && renderContent}
+
+      {/* 🔴 Handles only appear in UI Mode */}
+      {isSelected && renderLayerUIOnly && (
         <>
-          <FloatingToolbar
-            layer={layer}
-            onColorChange={onQuickColorChange}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onEnhance={onEnhanceText}
-            isEnhancing={isEnhancingText}
-            getLayerPrimaryColor={getLayerPrimaryColor}
-          />
+          {/* Enable pointer events for handles so they can be clicked */}
+          <div style={{ pointerEvents: 'auto' }}>
+            <FloatingToolbar
+              layer={layer}
+              onColorChange={onQuickColorChange}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onEnhance={onEnhanceText}
+              isEnhancing={isEnhancingText}
+              getLayerPrimaryColor={getLayerPrimaryColor}
+            />
 
-          {/* 🔵 Corner Resize Handles */}
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-left')}
-            className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
-          />
+            {/* 🔵 Corner Resize Handles */}
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-left')}
+              className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+            />
 
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-right')}
-            className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
-          />
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-right')}
+              className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+            />
 
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-left')}
-            className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
-          />
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-left')}
+              className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+            />
 
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-right')}
-            className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
-          />
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-right')}
+              className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+            />
 
-          {/* 🔵 Edge Center Resize Handles */}
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-center')}
-            className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
-          />
+            {/* 🔵 Edge Center Resize Handles */}
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-center')}
+              className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+            />
 
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-center')}
-            className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
-          />
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-center')}
+              className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+            />
 
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'left-center')}
-            className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
-          />
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'left-center')}
+              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+            />
 
-          <div
-            onMouseDown={(e) => onResizeMouseDown(e, layer, 'right-center')}
-            className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
-          />
+            <div
+              onMouseDown={(e) => onResizeMouseDown(e, layer, 'right-center')}
+              className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+            />
 
-          {/* 🔄 Rotate Handle */}
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
+            {/* 🔄 Rotate Handle */}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
 
-          <div
-            onMouseDown={(e) => onRotateMouseDown(e, layer)}
-            className="absolute -top-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
-          >
-            <FiRotateCw size={12} color="#3182ce" />
+            <div
+              onMouseDown={(e) => onRotateMouseDown(e, layer)}
+              className="absolute -top-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
+            >
+              <FiRotateCw size={12} color="#3182ce" />
+            </div>
           </div>
         </>
       )}
@@ -344,7 +354,7 @@ const CanvasArea = ({
   return (
     <div
       ref={canvasAreaRef}
-      className="flex-1 relative overflow-hidden bg-[#f0f2f5] flex items-center justify-center"
+      className="flex-1 relative overflow-visible bg-[#f0f2f5] flex items-center justify-center"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -389,61 +399,108 @@ const CanvasArea = ({
             backgroundPosition: 'center',
 
             cursor: selectedTool === 'select' ? 'default' : (selectedTool === 'eraser' ? 'none' : 'crosshair'),
+            // 🔴 Content gets clipped, UI gets separate layer
+            overflow: 'visible', // Kept visible here, but handled by internal structures? 
+            // WAIT - Strategy changed. 
+            // To get clipping on content but not on UI, we need TWO containers.
+            // But canvasRef provides the BACKGROUND.
+            // If canvasRef is 'visible', background is visible? Background matches size, so it's fine.
+            // Content layers need to be in an overflow-hidden box.
           }}
           onClick={handleCanvasClick}
           onMouseDown={handleDrawingMouseDown}
           onMouseMove={handleCanvasMouseMove}
           onMouseLeave={handleCanvasMouseLeave}
         >
-          {layers.map(layer => (
-            <LayerComponent
-              key={layer.id}
-              layer={layer}
-              isSelected={selectedLayer === layer.id}
-              selectedTool={selectedTool}
-              getShapeDisplayProps={getShapeDisplayProps}
-              onLayerSelect={handleLayerSelect}
-              onMouseDown={handleMouseDown}
-              onResizeMouseDown={handleResizeMouseDown}
-              onRotateMouseDown={handleRotateMouseDown}
-              onTextContentChange={handleTextContentChange}
-              setSelectedLayer={setSelectedLayer}
-              getLayerPrimaryColor={getLayerPrimaryColor}
-              onQuickColorChange={handleQuickColorChange}
-              onDuplicate={handleLayerDuplicate}
-              onDelete={handleLayerDelete}
-              onEnhanceText={handleEnhanceText}
-              isEnhancingText={isEnhancingText}
-            />
-          ))}
+          {/* 1. Content Layer (Clipped) */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Pointer events none on wrapper? No, users need to click content. 
+                  But overflow-hidden might clip interactions? 
+                  If interactions are strictly inside, it's fine.
+              */}
+            <div className="w-full h-full pointer-events-auto">
+              {layers.map(layer => (
+                <LayerComponent
+                  key={layer.id}
+                  layer={layer}
+                  isSelected={false} // 🔴 Don't render UI here
+                  selectedTool={selectedTool}
+                  getShapeDisplayProps={getShapeDisplayProps}
+                  onLayerSelect={handleLayerSelect}
+                  onMouseDown={handleMouseDown}
+                  onResizeMouseDown={handleResizeMouseDown}
+                  onRotateMouseDown={handleRotateMouseDown}
+                  onTextContentChange={handleTextContentChange}
+                  setSelectedLayer={setSelectedLayer}
+                  getLayerPrimaryColor={getLayerPrimaryColor}
+                  onQuickColorChange={handleQuickColorChange}
+                  onDuplicate={handleLayerDuplicate}
+                  onDelete={handleLayerDelete}
+                  onEnhanceText={handleEnhanceText}
+                  isEnhancingText={isEnhancingText}
+                  renderLayerUIOnly={false} // 🔴 Content Mode
+                />
+              ))}
+            </div>
+          </div>
 
 
-          {/* 🔴 Current Drawing Path Rendering */}
+          {/* 🔴 Current Drawing Path Rendering (Inside Content Layer? Or on top?) 
+              On top is fine, clipped? Drawing usually stays on canvas.
+          */}
           {currentPath.length > 1 && (
-            <svg
-              className="absolute top-0 left-0 pointer-events-none"
-              style={{
-                width: `${canvasSize.width}px`,
-                height: `${canvasSize.height}px`,
-                zIndex: 1500, // Ensure it's above other layers
-                filter: getFilterCSS({
-                  brightness: 100,
-                  contrast: 100,
-                  blur: 0
-                }),
-                opacity: (drawingSettings.opacity ?? 100) / 100,
-              }}
-            >
-              <path
-                d={currentPath.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
-                stroke={drawingSettings.drawingMode === 'eraser' ? '#ffffff' : drawingSettings.brushColor}
-                strokeWidth={drawingSettings.brushSize}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <svg
+                className="absolute top-0 left-0"
+                style={{
+                  width: `${canvasSize.width}px`,
+                  height: `${canvasSize.height}px`,
+                  zIndex: 1500, // Ensure it's above other layers
+                  filter: getFilterCSS({
+                    brightness: 100,
+                    contrast: 100,
+                    blur: 0
+                  }),
+                  opacity: (drawingSettings.opacity ?? 100) / 100,
+                }}
+              >
+                <path
+                  d={currentPath.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
+                  stroke={drawingSettings.drawingMode === 'eraser' ? '#ffffff' : drawingSettings.brushColor}
+                  strokeWidth={drawingSettings.brushSize}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
           )}
+
+          {/* 2. UI Layer (Visible Overflow, Top Level) */}
+          <div className="absolute inset-0 overflow-visible pointer-events-none">
+            {layers.filter(l => l.id === selectedLayer).map(layer => (
+              <LayerComponent
+                key={`ui-${layer.id}`}
+                layer={layer}
+                isSelected={true} // 🔴 Render UI here
+                selectedTool={selectedTool}
+                getShapeDisplayProps={getShapeDisplayProps}
+                onLayerSelect={handleLayerSelect}
+                onMouseDown={handleMouseDown}
+                onResizeMouseDown={handleResizeMouseDown}
+                onRotateMouseDown={handleRotateMouseDown}
+                onTextContentChange={handleTextContentChange}
+                setSelectedLayer={setSelectedLayer}
+                getLayerPrimaryColor={getLayerPrimaryColor}
+                onQuickColorChange={handleQuickColorChange}
+                onDuplicate={handleLayerDuplicate}
+                onDelete={handleLayerDelete}
+                onEnhanceText={handleEnhanceText}
+                isEnhancingText={isEnhancingText}
+                renderLayerUIOnly={true} // 🔴 UI Mode
+              />
+            ))}
+          </div>
 
           {selectedTool === 'eraser' && isMouseOverCanvas && (
             <div
