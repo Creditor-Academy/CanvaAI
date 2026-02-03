@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { Toaster } from "sonner";
 
 import SideBar from "./components/SideBar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
@@ -47,7 +48,7 @@ import PresentationStudio from "./components/presentationstudio/PresentationStud
 import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
-import EditorPage from './pages/EditorPage';
+import EditorTabPage from './pages/EditorTabPage';
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 
 
@@ -115,9 +116,11 @@ const AppContent = () => {
           <Route path="/brand-kit-result" element={<BrandKitResult />} />
           <Route path="/brand-kit-detail" element={<BrandKitDetail />} />
           <Route path="/docGenerator" element={<DocumentGenerator />} />
-          <Route path="/editor" element={<EditorPage />} />
+          {/* <Route path="/editor" element={<EditorPage />} /> */}
 
           <Route path="/docGenerator" element={<DocumentGenerator />} />
+          <Route path="/editor" element={<EditorTabPage />} />
+
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
 
@@ -142,6 +145,7 @@ function App() {
     <AuthProvider>
       <SidebarProvider>
         <Router>
+          <Toaster position="top-right" richColors />
           <Routes>
             {/* PUBLIC ROUTES */}
             <Route path="/" element={<LandingPage />} />

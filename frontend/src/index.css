@@ -86,3 +86,59 @@ body {
 .custom-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
 }
+/* Resizable Image Styles */
+.resizable-image-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 8px 0;
+  transition: all 0.2s ease;
+}
+
+.resizable-image-wrapper.selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.resizable-image-wrapper .empty-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  min-width: 200px;
+  min-height: 150px;
+}
+
+.resizable-image {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Ensure images in editor are properly displayed */
+.ProseMirror img.resizable-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.ProseMirror .resizable-image-wrapper[data-align='left'] {
+  float: left;
+  margin-right: 16px;
+  margin-bottom: 8px;
+}
+
+.ProseMirror .resizable-image-wrapper[data-align='center'] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  float: none;
+}
+
+.ProseMirror .resizable-image-wrapper[data-align='right'] {
+  float: right;
+  margin-left: 16px;
+  margin-bottom: 8px;
+}
