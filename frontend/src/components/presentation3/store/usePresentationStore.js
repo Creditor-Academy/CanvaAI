@@ -178,8 +178,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateSlideBackground: (slideId, color) => {
-      get().saveToHistory();
+    updateSlideBackground: (slideId, color, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
           slide.id === slideId ? { ...slide, background: color } : slide
@@ -187,8 +187,8 @@ const usePresentationStore = create((set, get) => {
       }));
     },
 
-    setSlideBackgroundImage: (slideId, imageSrc) => {
-      get().saveToHistory();
+    setSlideBackgroundImage: (slideId, imageSrc, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
           slide.id === slideId ? { ...slide, backgroundImage: imageSrc } : slide
@@ -363,8 +363,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTextLayer: (layerId, updates) => {
-      get().saveToHistory();
+    updateTextLayer: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
 
       set({
@@ -492,8 +492,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateShapeLayer: (layerId, updates) => {
-      get().saveToHistory();
+    updateShapeLayer: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
       set({
         slides: slides.map((slide) =>
@@ -665,9 +665,9 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTableCell: (layerId, row, col, value) => {
-      // NOTE: We might want to call saveToHistory here if we want undo for every cell blur
-      // The user prompt didn't explicitly say where to call it, but usually onBlur is a good place.
+    updateTableCell: (layerId, row, col, value, saveHistory = true) => {
+      // Modified to support optional history save
+      if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
 
       set({

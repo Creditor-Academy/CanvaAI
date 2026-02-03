@@ -1,5 +1,37 @@
 import React from "react";
 import usePresentationStore from "../../store/usePresentationStore";
+import { debounce } from "lodash";
+
+const ColorPicker = ({ value, onChange, onHistorySave }) => {
+  const isInteracting = React.useRef(false);
+
+  // Debounced reset to clear the interaction flag after user stops dragging
+  const resetInteraction = React.useCallback(
+    debounce(() => {
+      isInteracting.current = false;
+    }, 500),
+    []
+  );
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+
+    // Only save history at the START of a continuous interaction (drag/hover)
+    if (!isInteracting.current) {
+      onHistorySave();
+      isInteracting.current = true;
+    }
+
+    // Update state without saving history (live preview)
+    onChange(newValue, false);
+
+    // Reset flag if no updates for 500ms
+    resetInteraction();
+  };
+
+  return <input type="color" value={value} onChange={handleChange} />;
+};
+
 
 
 const PropertiesPanel = () => {
@@ -20,6 +52,7 @@ const PropertiesPanel = () => {
     alignLayer,
     addTableRow,
     addTableColumn,
+    saveToHistory,
   } = usePresentationStore();
   const FONTS = [
     "Arial",
@@ -50,14 +83,11 @@ const PropertiesPanel = () => {
 
           <div style={styles.control}>
             <label style={styles.label}>Background</label>
-            <input
-              type="color"
+            <ColorPicker
               value={activeSlide.background}
-              onChange={(e) =>
-                updateSlideBackground(
-                  activeSlideId,
-                  e.target.value
-                )
+              onHistorySave={saveToHistory}
+              onChange={(val, saveHistory) =>
+                updateSlideBackground(activeSlideId, val, saveHistory)
               }
             />
           </div>
@@ -249,23 +279,22 @@ const PropertiesPanel = () => {
           <h3 style={styles.heading}>Shape</h3>
           <div style={styles.control}>
             <label style={styles.label}>Shape Color</label>
-            <input
-              type="color"
+            <ColorPicker
               value={
                 selectedLayer.shapeType === "line" ||
                   selectedLayer.shapeType === "arrow"
                   ? selectedLayer.stroke
                   : selectedLayer.fill
               }
-              onChange={(e) => {
-                const color = e.target.value;
+              onHistorySave={saveToHistory}
+              onChange={(val, saveHistory) => {
                 const isLineOrArrow =
                   selectedLayer.shapeType === "line" ||
                   selectedLayer.shapeType === "arrow";
 
                 updateShapeLayer(selectedLayer.id, {
-                  [isLineOrArrow ? "stroke" : "fill"]: color,
-                });
+                  [isLineOrArrow ? "stroke" : "fill"]: val,
+                }, saveHistory);
               }}
             />
           </div>
@@ -299,13 +328,13 @@ const PropertiesPanel = () => {
           {/* Text Color */}
           <div style={styles.control}>
             <label style={styles.label}>Text Color</label>
-            <input
-              type="color"
+            <ColorPicker
               value={selectedLayer.color}
-              onChange={(e) =>
+              onHistorySave={saveToHistory}
+              onChange={(val, saveHistory) =>
                 updateTextLayer(selectedLayer.id, {
-                  color: e.target.value,
-                })
+                  color: val,
+                }, saveHistory)
               }
             />
           </div>
@@ -465,13 +494,13 @@ const PropertiesPanel = () => {
           {/* Border Color */}
           <div style={styles.control}>
             <label style={styles.label}>Border Color</label>
-            <input
-              type="color"
+            <ColorPicker
               value={selectedLayer.borderColor || "#d1d5db"}
-              onChange={(e) =>
+              onHistorySave={saveToHistory}
+              onChange={(val, saveHistory) =>
                 updateTextLayer(selectedLayer.id, {
-                  borderColor: e.target.value,
-                })
+                  borderColor: val,
+                }, saveHistory)
               }
             />
           </div>
@@ -479,13 +508,13 @@ const PropertiesPanel = () => {
           {/* Text Color */}
           <div style={styles.control}>
             <label style={styles.label}>Text Color</label>
-            <input
-              type="color"
+            <ColorPicker
               value={selectedLayer.color || "#000000"}
-              onChange={(e) =>
+              onHistorySave={saveToHistory}
+              onChange={(val, saveHistory) =>
                 updateTextLayer(selectedLayer.id, {
-                  color: e.target.value,
-                })
+                  color: val,
+                }, saveHistory)
               }
             />
           </div>
