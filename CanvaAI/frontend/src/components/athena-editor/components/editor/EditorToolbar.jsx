@@ -1378,28 +1378,8 @@ export const EditorToolbar = ({
     toast.success('Section break inserted');
   };
   
-  // Page management functions
-  const addNewPage = () => {
-    if (editor) {
-      editor.chain().focus().setHorizontalRule().run();
-      toast.success('New page added');
-    }
-  };
-  
-  const addPageBreak = () => {
-    if (editor) {
-      editor.chain().focus().setHorizontalRule().run();
-      toast.success('Page break added');
-    }
-  };
-  
-  const insertPageNumber = () => {
-    if (editor) {
-      const pageNumber = 1; // In a real implementation, this would track actual page numbers
-      editor.chain().focus().insertContent(`Page ${pageNumber}`).run();
-      toast.success('Page number inserted');
-    }
-  };
+  // Page management functions are passed as props
+  // addNewPage, addPageBreak, and insertPageNumber are received as props
 
   // ========================
   // MENU DEFINITIONS

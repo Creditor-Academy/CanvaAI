@@ -1,6 +1,6 @@
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, Drawing, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, DrawingUxDimensions, ShadingType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, Drawing, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, ShadingType } from 'docx';
 import { toast } from 'sonner';
 
 export class DocumentExporter {
@@ -650,8 +650,8 @@ export class DocumentExporter {
                               wrappingStyle: TextWrappingType.SQUARE,
                               horizontalPosition: HorizontalPositionRelativeFrom.COLUMN,
                               verticalPosition: VerticalPositionRelativeFrom.PARAGRAPH,
-                              horizontalPositionOffset: DrawingUxDimensions.fromEMU(0),
-                              verticalPositionOffset: DrawingUxDimensions.fromEMU(0),
+                              horizontalPositionOffset: 0,
+                              verticalPositionOffset: 0,
                               allowOverlap: true,
                               behindDocument: false,
                               locked: false,
