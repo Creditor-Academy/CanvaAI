@@ -22,6 +22,7 @@ const EditingToolbar = ({
     canRedo,
     onSave,
     onExport,
+    onDownload,
     onDuplicate,
     hasSelection,
     selectedTool,
@@ -112,7 +113,9 @@ const EditingToolbar = ({
                                 <div className="border-t border-gray-100"></div>
                                 <div className="px-1 py-1">
                                     {['New', 'Open', 'Download', 'History'].map(opt => (
-                                        <div key={opt} className="px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded cursor-pointer transition-colors">
+                                        <div key={opt}
+                                            onClick={() => opt === 'Download' && onDownload()}
+                                            className="px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded cursor-pointer transition-colors">
                                             {opt}...
                                         </div>
                                     ))}
@@ -220,7 +223,9 @@ const EditingToolbar = ({
 
                     <div className="flex items-center gap-4">
                         {/* Saving Status */}
-                        <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
+                        <button
+                            onClick={onDownload}
+                            className="flex items-center cursor-pointer gap-2 text-sm mr-2">
                             <span>Download</span>
                         </button>
                     </div>

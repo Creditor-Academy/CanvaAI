@@ -457,7 +457,7 @@ const CanvaEditor = () => {
 
   // Export function wrapper
   const exportCanvasAsImageWrapper = async (format = 'png', quality = 0.92) => {
-    return await exportCanvasAsImage(layers, canvasSize, format, quality);
+    return await exportCanvasAsImage(layers, canvasSize, format, quality, canvasBgColor, canvasBgImage);
   };
 
   const handleDownloadExport = async () => {
@@ -1266,6 +1266,7 @@ const CanvaEditor = () => {
           canRedo={canRedo}
           onSave={handleSave}
           onExport={handleExport}
+          onDownload={handleDownloadExport}
           onDuplicate={handleDuplicateSelected}
           hasSelection={!!selectedLayer}
           toggleSection={toggleSection}

@@ -2,9 +2,65 @@ import { getFilterCSS, hexToRgba } from '../../../utils/styleUtils';
 import { drawRoundedRect, drawShapePath, drawTextLayer } from './exportHelpers';
 
 /**
+ * Helper to parse linear-gradient string
+ */
+const parseGradient = (gradientStr, width, height, ctx) => {
+  if (!gradientStr || !gradientStr.includes('linear-gradient')) return null;
+
+  try {
+    // Extract content between parentheses
+    const contentMatch = gradientStr.match(/linear-gradient\((.*)\)/);
+    if (!contentMatch) return null;
+
+    // Split by comma, but not commas inside parentheses (like rgba)
+    const parts = contentMatch[1].split(/,(?![^(]*\))/).map(p => p.trim());
+    if (parts.length < 2) return null;
+
+    // Default coordinates for 135deg (Top-Left to Bottom-Right)
+    let x0 = 0, y0 = 0, x1 = width, y1 = height;
+
+    // Check if first part is an angle or direction
+    let stopsStart = 0;
+    const firstPart = parts[0].toLowerCase();
+    if (firstPart.includes('deg') || firstPart.includes('to ')) {
+      stopsStart = 1;
+      if (firstPart.includes('135deg') || firstPart.includes('to bottom right')) {
+        x0 = 0; y0 = 0; x1 = width; y1 = height;
+      } else if (firstPart.includes('45deg') || firstPart.includes('to top right')) {
+        x0 = 0; y0 = height; x1 = width; y1 = 0;
+      } else if (firstPart.includes('90deg') || firstPart.includes('to right')) {
+        x0 = 0; y0 = 0; x1 = width; y1 = 0;
+      } else if (firstPart.includes('180deg') || firstPart.includes('to bottom')) {
+        x0 = 0; y0 = 0; x1 = 0; y1 = height;
+      }
+    }
+
+    const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+    const stops = parts.slice(stopsStart);
+
+    stops.forEach((stop, index) => {
+      // Improved regex to capture colors (hex, rgb, rgba, name) and optional percentage
+      const stopMatches = stop.match(/(#[a-fA-F0-9]+|rgba?\(.*?\)|[a-zA-Z]+)\s*(\d+)?%?/);
+      if (stopMatches) {
+        const color = stopMatches[1];
+        // If percentage is missing, distribute evenly
+        const percentRaw = stopMatches[2];
+        const percent = percentRaw ? parseInt(percentRaw) / 100 : index / (stops.length - 1);
+        grad.addColorStop(Math.max(0, Math.min(1, percent)), color);
+      }
+    });
+
+    return grad;
+  } catch (err) {
+    console.error('Error parsing gradient:', err);
+    return null;
+  }
+};
+
+/**
  * Export canvas as image (PNG/JPEG)
  */
-export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', quality = 0.92) => {
+export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', quality = 0.92, bgColor = '#ffffff', bgImage = null) => {
   const width = canvasSize.width;
   const height = canvasSize.height;
   const canvas = document.createElement('canvas');
@@ -15,9 +71,32 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
 
   // Background
   ctx.save();
-  ctx.fillStyle = '#ffffff';
+  if (bgColor && bgColor.includes('linear-gradient')) {
+    const gradient = parseGradient(bgColor, width, height, ctx);
+    if (gradient) {
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillStyle = '#ffffff';
+    }
+  } else {
+    ctx.fillStyle = bgColor || '#ffffff';
+  }
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
+
+  // Background Image
+  if (bgImage) {
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = bgImage;
+    });
+  }
 
   // Draw shape
   const drawShape = (layer) => {
@@ -130,7 +209,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
           contrast: layer.contrast ?? 100,
           blur: layer.blur ?? 0
         });
-        
+
         if (layer.shadows?.enabled) {
           ctx.shadowColor = hexToRgba(layer.shadows.color, (layer.shadows.opacity ?? 50) / 100);
           ctx.shadowBlur = layer.shadows.blur ?? 0;
@@ -202,7 +281,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
           contrast: layer.contrast ?? 100,
           blur: layer.blur ?? 0
         });
-        
+
         if (layer.shadows?.enabled) {
           ctx.shadowColor = hexToRgba(layer.shadows.color, (layer.shadows.opacity ?? 50) / 100);
           ctx.shadowBlur = layer.shadows.blur ?? 0;
@@ -279,7 +358,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
       contrast: layer.contrast ?? 100,
       blur: layer.blur ?? 0
     });
-    
+
     if (layer.shadows?.enabled) {
       ctx.shadowColor = hexToRgba(layer.shadows.color, (layer.shadows.opacity ?? 50) / 100);
       ctx.shadowBlur = layer.shadows.blur ?? 0;
@@ -291,7 +370,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
     }
-    
+
     ctx.lineWidth = layer.brushSize || 5;
     ctx.strokeStyle = layer.color || '#000000';
     ctx.lineCap = 'round';
@@ -325,7 +404,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
       drawDrawingLayer(layer);
     }
   }
-  
+
   if (imageDrawPromises.length) {
     await Promise.all(imageDrawPromises);
   }
