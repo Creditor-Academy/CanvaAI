@@ -1,6 +1,22 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 import "./topbar.css";
+import {
+  Undo2,
+  Redo2,
+  Copy,
+  Type,
+  Table,
+  Square,
+  Circle,
+  Minus,
+  Image as ImageIcon,
+  Play,
+  ChevronDown,
+  Upload,
+  Link,
+  Trash2
+} from "lucide-react";
 
 const TopBar = ({ onPresent }) => {
   const {
@@ -13,166 +29,233 @@ const TopBar = ({ onPresent }) => {
     undo,
     redo,
     copySelectedLayer,
+    deleteSelectedLayer,
+    selectedLayerId,
     pastCount,
     futureCount,
   } = usePresentationStore();
 
+  const [showShapes, setShowShapes] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
+  const [showImageOptions, setShowImageOptions] = useState(false);
+
+  const shapesRef = useRef(null);
+  const themeRef = useRef(null);
+  const imageOptionsRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shapesRef.current && !shapesRef.current.contains(event.target)) {
+        setShowShapes(false);
+      }
+      if (themeRef.current && !themeRef.current.contains(event.target)) {
+        setShowTheme(false);
+      }
+      if (imageOptionsRef.current && !imageOptionsRef.current.contains(event.target)) {
+        setShowImageOptions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="topbar">
-      <span className="editor-title">Presentation Editor</span>
+    <div className="topbar-wrapper">
 
-      {/* Undo / Redo / Copy */}
-      <div className="toolbar-group">
-        <button
-          onClick={undo}
-          className="toolbar-btn"
-          disabled={pastCount === 0}
-          style={{ opacity: pastCount > 0 ? 1 : 0.5 }}
-          title="Undo"
-        >
-          ↶ Undo
+      {/* ================= ROW 1 ================= */}
+      <div className="topbar-row topbar-row-1">
+
+        <div className="topbar-left">
+          <input
+            type="text"
+            placeholder="Untitled Project"
+            className="project-input"
+          />
+
+          <div className="dropdown" ref={themeRef}>
+            <button
+              className="nav-btn"
+              onClick={() => setShowTheme(!showTheme)}
+            >
+              Theme <ChevronDown size={14} />
+            </button>
+
+            {showTheme && (
+              <div className="dropdown-menu">
+                <button>Blue Professional</button>
+                <button>Dark Slate</button>
+                <button>Light Minimal</button>
+              </div>
+            )}
+          </div>
+
+          <button className="nav-btn">Share</button>
+          <button className="nav-btn">Agent</button>
+        </div>
+
+        <button onClick={onPresent} className="present-btn">
+          ▶ Present
         </button>
 
-        <button
-          onClick={redo}
-          className="toolbar-btn"
-          disabled={futureCount === 0}
-          style={{ opacity: futureCount > 0 ? 1 : 0.5 }}
-          title="Redo"
-        >
-          ↷ Redo
-        </button>
-
-        <button
-          onClick={copySelectedLayer}
-          className="toolbar-btn"
-          title="Copy selected layer"
-        >
-          📋 Copy
-        </button>
       </div>
 
-      {/* Add Text */}
-      <button onClick={addTextLayer} className="toolbar-btn">
-        Add Text
-      </button>
+      {/* ================= ROW 2 ================= */}
+      <div className="topbar-row topbar-row-2">
 
-      {/* Add Table */}
-      <button
-        onClick={() => {
-          const rows = prompt("Enter number of rows:", "3");
-          const cols = prompt("Enter number of columns:", "3");
-          if (rows && cols) {
-            addTableLayer(parseInt(rows) || 3, parseInt(cols) || 3);
-          }
-        }}
-        className="toolbar-btn"
-      >
-        Add Table
-      </button>
+        <div className="toolbar-center">
 
-      {/* Shapes */}
-      <div className="toolbar-group">
-        <button
-          className="shape-btn"
-          onClick={() => addShapeLayer("rect")}
-          title="Rectangle"
-        >
-          ⬛
-        </button>
+          {/* Undo / Redo */}
+          <button onClick={undo} className="icon-btn" disabled={pastCount === 0} data-tooltip="Undo">
+            <Undo2 size={18} />
+          </button>
 
-        <button
-          className="shape-btn"
-          onClick={() => addShapeLayer("circle")}
-          title="Circle"
-        >
-          ⚪
-        </button>
+          <button onClick={redo} className="icon-btn" disabled={futureCount === 0} data-tooltip="Redo">
+            <Redo2 size={18} />
+          </button>
 
-        <button
-          className="shape-btn"
-          onClick={() => addShapeLayer("line")}
-          title="Line"
-        >
-          ／
-        </button>
+          <button onClick={copySelectedLayer} className="icon-btn" data-tooltip="Copy">
+            <Copy size={18} />
+          </button>
+
+          {/* Delete */}
+          <button
+            onClick={deleteSelectedLayer}
+            className="icon-btn icon-btn-danger"
+            disabled={!selectedLayerId}
+            data-tooltip="Delete"
+          >
+            <Trash2 size={18} />
+          </button>
+
+          {/* Text */}
+          <button onClick={addTextLayer} className="icon-btn" data-tooltip="Add Text">
+            <Type size={18} />
+          </button>
+
+          {/* Table */}
+          <button
+            onClick={() => {
+              const rows = prompt("Enter rows:", "3");
+              const cols = prompt("Enter columns:", "3");
+              if (rows && cols) {
+                addTableLayer(parseInt(rows) || 3, parseInt(cols) || 3);
+              }
+            }}
+            className="icon-btn"
+            data-tooltip="Add Table"
+          >
+            <Table size={18} />
+          </button>
+
+          {/* Shapes */}
+          <div className="dropdown" ref={shapesRef}>
+            <button
+              className="icon-btn"
+              onClick={() => setShowShapes(!showShapes)}
+              data-tooltip="Shapes"
+            >
+              <Square size={18} />
+              <ChevronDown size={14} />
+            </button>
+
+            {showShapes && (
+              <div className="dropdown-menu">
+                <button onClick={() => addShapeLayer("rect")}>
+                  <Square size={16} /> Rectangle
+                </button>
+
+                <button onClick={() => addShapeLayer("circle")}>
+                  <Circle size={16} /> Circle
+                </button>
+
+                <button onClick={() => addShapeLayer("line")}>
+                  <Minus size={16} /> Line
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Image Upload */}
+          <input
+            type="file"
+            accept="image/*"
+            id="image-upload"
+            className="hidden-input"
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+              reader.onload = () => {
+                addImageLayer(reader.result);
+                e.target.value = "";
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+
+          <div className="dropdown" ref={imageOptionsRef}>
+            <button
+              className="icon-btn"
+              onClick={() => setShowImageOptions(!showImageOptions)}
+              data-tooltip="Image Options"
+            >
+              <ImageIcon size={18} />
+              <ChevronDown size={14} />
+            </button>
+
+            {showImageOptions && (
+              <div className="dropdown-menu">
+                <button onClick={() => {
+                  document.getElementById("image-upload").click();
+                  setShowImageOptions(false);
+                }}>
+                  <Upload size={16} /> Upload from Computer
+                </button>
+
+                <button onClick={() => {
+                  const url = prompt("Enter Image URL:");
+                  if (url) {
+                    addImageLayer(url);
+                  }
+                  setShowImageOptions(false);
+                }}>
+                  <Link size={16} /> Add from URL
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Zoom */}
+          <div className="zoom-control">
+            <button
+              className="icon-btn"
+              onClick={() => setCanvasZoom(Math.max(0.1, canvasZoom - 0.1))}
+              data-tooltip="Zoom Out"
+            >
+              -
+            </button>
+
+            <span>{Math.round(canvasZoom * 100)}%</span>
+
+            <button
+              className="icon-btn"
+              onClick={() => setCanvasZoom(Math.min(5, canvasZoom + 0.1))}
+              data-tooltip="Zoom In"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
       </div>
 
-      {/* Image */}
-      <div className="toolbar-group">
-        <input
-          type="file"
-          accept="image/*"
-          id="image-upload"
-          className="hidden-input"
-          onChange={(e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = () => {
-              addImageLayer(reader.result);
-              e.target.value = "";
-            };
-            reader.readAsDataURL(file);
-          }}
-        />
-
-        <button
-          onClick={() => document.getElementById("image-upload").click()}
-          className="toolbar-btn"
-        >
-          Add Image
-        </button>
-
-        <button
-          onClick={() => {
-            const url = prompt("Enter image URL");
-            if (url) addImageLayer(url);
-          }}
-          className="toolbar-btn"
-        >
-          URL
-        </button>
-      </div>
-
-      {/* Zoom */}
-      <div className="toolbar-group">
-        <button
-          className="toolbar-btn"
-          onClick={() => setCanvasZoom(Math.max(0.1, canvasZoom - 0.1))}
-          title="Zoom Out"
-        >
-          -
-        </button>
-
-        <span className="zoom-display">
-          {Math.round(canvasZoom * 100)}%
-        </span>
-
-        <button
-          className="toolbar-btn"
-          onClick={() => setCanvasZoom(Math.min(5, canvasZoom + 0.1))}
-          title="Zoom In"
-        >
-          +
-        </button>
-
-        <button
-          className="toolbar-btn"
-          onClick={() => setCanvasZoom(1.0)}
-          title="Reset Zoom"
-        >
-          Fit
-        </button>
-      </div>
-
-      {/* Present Button */}
-      <button onClick={onPresent} className="present-btn">
-        ▶ Present
-      </button>
     </div>
   );
+
 };
 
 export default TopBar;

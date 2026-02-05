@@ -12,8 +12,8 @@ const TableLayer = ({ layer }) => {
                 display: "grid",
                 gridTemplateColumns: `repeat(${layer.cols}, 1fr)`,
                 gridTemplateRows: `repeat(${layer.rows}, 1fr)`,
-                border: `1px solid ${layer.borderColor || "#d1d5db"}`,
-                background: "#fff",
+                border: `${layer.borderWidth || 0}px solid ${layer.borderColor || "#e5e7eb"}`,
+                backgroundColor: layer.tableBgColor || "transparent",
                 boxSizing: "border-box",
             }}
         >
@@ -24,7 +24,7 @@ const TableLayer = ({ layer }) => {
                         contentEditable
                         suppressContentEditableWarning
                         style={{
-                            border: "1px solid #e5e7eb",
+                            border: `${layer.borderWidth || 0}px solid ${layer.borderColor || "#e5e7eb"}`,
                             padding: "6px",
                             fontSize: layer.fontSize || 14,
                             color: layer.color || "#000000",

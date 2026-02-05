@@ -1,0 +1,249 @@
+/* =========================
+   Slides Panel - Athena UI (Full Implementation)
+========================= */
+
+.slides-panel {
+  position: relative;
+  width: 260px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);
+  border-right: 1px solid #e2e8f0;
+  padding: 16px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100vh;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.04);
+  z-index: 5;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 116, 139, 0.5) transparent;
+}
+
+/* Enhanced hover state */
+.slides-panel:hover {
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.08);
+  transform: translateX(2px);
+}
+
+/* Collapsed State */
+.slides-panel.collapsed {
+  width: 60px;
+  padding: 16px 6px;
+}
+
+.slides-panel.collapsed .slides-title,
+.slides-panel.collapsed .slides-list {
+  display: none;
+}
+
+.slides-panel.collapsed:hover {
+  transform: none;
+}
+
+/* Custom Scrollbar - Webkit (Chrome/Safari) */
+.slides-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.slides-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slides-panel::-webkit-scrollbar-thumb {
+  background: rgba(99, 116, 139, 0.5);
+  border-radius: 3px;
+}
+
+.slides-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 116, 139, 0.8);
+}
+
+/* Collapse Button */
+.collapse-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  background: #ead202;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  color: #475569;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-btn:hover {
+  background: #f1f5f9;
+  transform: translateY(-50%) scale(1.05);
+}
+
+/* Header */
+.slides-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.slides-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0c4a6e;
+  margin: 0;
+}
+
+/* Add Slide Button */
+.add-slide-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-slide-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* Slide Rows */
+.slide-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.slide-row:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(2px);
+}
+
+/* Slide Number */
+.slide-number {
+  width: 20px;
+  font-size: 13px;
+  color: #64748b;
+  padding-top: 8px;
+  user-select: none;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* Thumbnail wrapper */
+.slide-thumbnail-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+/* Thumbnail style */
+.thumbnail {
+  width: 160px;
+  height: 90px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.thumbnail:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+/* Active slide */
+.thumbnail.active {
+  border: 2px solid #1e40af;
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.2);
+}
+
+/* Slide action buttons */
+.slide-actions {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.slide-row:hover .slide-actions,
+.slide-actions.visible {
+  opacity: 1;
+}
+
+/* Action buttons */
+.slide-actions button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.duplicate-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.duplicate-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: black;
+}
+
+.delete-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(251, 191, 36, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .slides-panel {
+    width: 220px;
+  }
+  
+  .slides-panel.collapsed {
+    width: 50px;
+  }
+  
+  .thumbnail {
+    width: 120px;
+    height: 68px;
+  }
+}

@@ -528,6 +528,27 @@ const usePresentationStore = create((set, get) => {
     },
 
     /* =========================
+       STYLE UPDATES (GENERIC)
+    ========================= */
+    updateLayerStyle: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId ? { ...layer, ...updates } : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    /* =========================
        ALIGNMENT & ORDERING
     ========================= */
     alignLayer: (layerId, alignment) => {
@@ -648,7 +669,9 @@ const usePresentationStore = create((set, get) => {
         rows,
         cols,
         cells,
-        borderColor: "#d1d5db",
+        tableBgColor: "transparent",
+        borderColor: "#e5e7eb",
+        borderWidth: 1,
         fontSize: 14,
         color: "#000000",
         textAlign: "center",

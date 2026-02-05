@@ -35,4 +35,7 @@ export const createImageLayer = (src) => ({
   width: 240,
   height: 160,
   rotation: 0,
+  borderRadius: 0,
+  borderWidth: 0,
+  borderColor: "#000000",
 });

@@ -1,0 +1,112 @@
+/* ===============================
+   Properties Panel – Athena UI
+================================ */
+
+.properties-panel {
+  position: relative;
+  width: 300px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.04);
+  transition: width 0.3s ease;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Collapsed state */
+.properties-panel.collapsed {
+  width: 60px;
+}
+
+/* Hide content when collapsed */
+.properties-panel.collapsed .properties-content {
+  display: none;
+}
+
+/* Scrollable content */
+.properties-content {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 64px);
+}
+
+/* Collapse button */
+.properties-collapse-btn {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  color: #000;
+  box-shadow: 0 6px 16px rgba(251, 191, 36, 0.4);
+  transition: all 0.2s ease;
+}
+
+.properties-collapse-btn:hover {
+  transform: translateY(-50%) scale(1.05);
+}
+
+/* Section headers */
+.properties-panel h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0c4a6e;
+  margin-bottom: 12px;
+}
+
+/* Labels */
+.properties-panel label {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Inputs */
+.properties-panel input,
+.properties-panel select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.properties-panel input:focus,
+.properties-panel select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Buttons */
+.properties-panel button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+/* Primary action */
+.properties-panel .primary-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+}
+
+.properties-panel .primary-btn:hover {
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}

@@ -275,6 +275,7 @@ const CanvasShell = () => {
                     userSelect: "none",
                     transform: `rotate(${layer.rotation || 0}deg)`,
                     transformOrigin: "center center",
+                    borderRadius: layer.borderRadius || 0,
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -294,6 +295,10 @@ const CanvasShell = () => {
                     height: '100%',
                     position: 'relative',
                     pointerEvents: 'none',
+                    overflow: 'hidden',
+                    borderRadius: layer.borderRadius || 0,
+                    border: `${layer.borderWidth || 0}px solid ${layer.borderColor || '#000'}`,
+                    boxSizing: 'border-box',
                   }}>
                     <ImageLayer layer={layer} />
                   </div>
