@@ -18,7 +18,7 @@ import {
   Trash2
 } from "lucide-react";
 
-const TopBar = ({ onPresent }) => {
+const TopBar = ({ onPresent, onAgentClick }) => {
   const {
     addTextLayer,
     addShapeLayer,
@@ -98,7 +98,7 @@ const TopBar = ({ onPresent }) => {
             </div>
 
             <button className="nav-btn">Share</button>
-            <button className="nav-btn">Agent</button>
+            <button className="nav-btn" onClick={onAgentClick}>Agent</button>
           </div>
 
           <button onClick={onPresent} className="present-btn">

@@ -1,0 +1,256 @@
+/* ===============================
+   Agent Panel — Athena Floating UI
+================================ */
+
+.agent-panel {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  width: 360px;
+  max-height: calc(100vh - 140px);
+
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+
+  display: flex;
+  flex-direction: column;
+
+  z-index: 35;
+  overflow: hidden;
+
+  transform: translateX(400px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease,
+    pointer-events 0s 0.3s;
+}
+
+.agent-panel.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease,
+    pointer-events 0s;
+}
+
+/* Close Button */
+.agent-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(241, 245, 249, 0.8);
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.agent-close-btn:hover {
+  background: rgba(226, 232, 240, 0.9);
+  color: #334155;
+  transform: scale(1.05);
+}
+
+/* Content */
+.agent-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+/* Header */
+.agent-header {
+  margin-bottom: 24px;
+}
+
+.agent-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.agent-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.agent-title svg {
+  color: #3b82f6;
+}
+
+.agent-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Prompt Section */
+.agent-prompt-section {
+  margin-bottom: 20px;
+}
+
+.agent-prompt-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  font-size: 14px;
+  font-family: inherit;
+  color: #334155;
+  background: #ffffff;
+  resize: vertical;
+  transition: all 0.2s ease;
+}
+
+.agent-prompt-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.agent-prompt-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Actions */
+.agent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.agent-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.agent-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
+}
+
+.agent-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-action-btn-secondary {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.agent-action-btn-secondary:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35);
+}
+
+/* Loading State */
+.agent-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.agent-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.agent-loading p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Quick Actions */
+.agent-quick-actions {
+  margin-top: 8px;
+}
+
+.agent-quick-actions h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.quick-action-btn {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-action-btn:hover {
+  background: #f8fafc;
+  border-color: #3b82f6;
+  color: #2563eb;
+  transform: translateY(-1px);
+}
+
+/* Scrollbar */
+.agent-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.agent-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 3px;
+}
+
+.agent-content::-webkit-scrollbar-track {
+  background: transparent;
+}

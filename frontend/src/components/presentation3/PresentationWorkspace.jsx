@@ -2,12 +2,14 @@ import React, { useState } from "react";
 
 import SlidesPanel from "./components/SlidesPanel/SlidesPanel";
 import PropertiesPanel from "./components/PropertiesPanel/PropertiesPanel";
+import AgentPanel from "./components/AgentPanel/AgentPanel";
 import TopBar from "./components/TopBar/TopBar";
 import CanvasShell from "./components/Canvas/CanvasShell";
 import PresentationMode from "./present/PresentationMode";
 
 const PresentationWorkspace = () => {
   const [isPresenting, setIsPresenting] = useState(false);
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
 
   if (isPresenting) {
     return <PresentationMode onExit={() => setIsPresenting(false)} />;
@@ -15,7 +17,10 @@ const PresentationWorkspace = () => {
 
   return (
     <div style={styles.root}>
-      <TopBar onPresent={() => setIsPresenting(true)} />
+      <TopBar 
+        onPresent={() => setIsPresenting(true)} 
+        onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
+      />
 
       <div style={styles.body}>
         <SlidesPanel />
@@ -23,6 +28,11 @@ const PresentationWorkspace = () => {
         <CanvasShell />
 
         <PropertiesPanel />
+        
+        <AgentPanel 
+          isOpen={isAgentPanelOpen} 
+          onClose={() => setIsAgentPanelOpen(false)} 
+        />
       </div>
     </div>
   );
