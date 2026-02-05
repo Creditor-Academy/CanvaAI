@@ -266,13 +266,11 @@ export const useCanvasInteractions = (
   /* ===================== CANVAS HELPERS ===================== */
 
   const handleCanvasMouseMove = useCallback((e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    // Convert to canvas coordinates for proper cursor positioning
+    const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+    setMousePosition({ x, y });
     setIsMouseOverCanvas(true);
-  }, []);
+  }, [getCanvasPoint]);
 
   const handleCanvasMouseLeave = useCallback(() => {
     setIsMouseOverCanvas(false);

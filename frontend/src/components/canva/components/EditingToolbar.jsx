@@ -36,8 +36,10 @@ const EditingToolbar = ({
     const [showFontDropdown, setShowFontDropdown] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [activeMenu, setActiveMenu] = useState(null);
+    const [showExportDropdown, setShowExportDropdown] = useState(false);
     const fontDropdownRef = useRef(null);
     const menuRef = useRef(null);
+    const exportDropdownRef = useRef(null);
 
     const fonts = [
         'Arial',
@@ -64,6 +66,9 @@ const EditingToolbar = ({
             }
             if (menuRef.current && !menuRef.current.contains(e.target)) {
                 setActiveMenu(null);
+            }
+            if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target)) {
+                setShowExportDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -220,12 +225,61 @@ const EditingToolbar = ({
 
                 <div className='flex gap-4'>
                     <div className="flex items-center gap-4">
-                        {/* Saving Status */}
-                        <button
-                            onClick={onDownload}
-                            className="flex items-center cursor-pointer gap-2 text-sm mr-2">
-                            <span>Export</span>
-                        </button>
+                        {/* Export Dropdown */}
+                        <div
+                            className="relative"
+                            ref={exportDropdownRef}
+
+                        >
+                            <button
+                                onClick={() => setShowExportDropdown(!showExportDropdown)}
+                                className="flex items-center cursor-pointer gap-2 text-sm mr-2"
+                            >
+                                <span>Export</span>
+                                <FiChevronDown size={14} />
+                            </button>
+
+                            {showExportDropdown && (
+                                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px] z-50">
+                                    <button
+                                        onClick={() => {
+                                            onDownload('jpg');
+                                            setShowExportDropdown(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-colors"
+                                    >
+                                        .jpg
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            onDownload('png');
+                                            setShowExportDropdown(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-colors"
+                                    >
+                                        .png
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            onDownload('pdf');
+                                            setShowExportDropdown(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-colors"
+                                    >
+                                        .pdf
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            onDownload('svg');
+                                            setShowExportDropdown(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-colors"
+                                    >
+                                        .svg
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-4">

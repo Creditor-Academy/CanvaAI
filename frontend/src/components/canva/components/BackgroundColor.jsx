@@ -185,7 +185,7 @@ const BackgroundColor = memo(({ onColorChange }) => {
           <button
             key={g.name}
             aria-label={`Select ${g.name} background`}
-            className='group relative aspect-square rounded-xl overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-offset-2 hover:ring-offset-slate-900 hover:ring-blue-500 shadow-lg'
+            className='group relative aspect-square rounded-xl overflow-hidden transition-all duration-300'
             style={{ background: g.value }}
             onClick={() => onColorChange?.(g.value)}
           >
@@ -202,5 +202,3 @@ const BackgroundColor = memo(({ onColorChange }) => {
 });
 
 export default BackgroundColor;
-
-

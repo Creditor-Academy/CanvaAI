@@ -437,7 +437,7 @@ const LeftCanvasSidebar = memo(({
               </div>
             )}
 
-            
+
           </div>
         </ExpandedSectionPortal>
 
@@ -527,9 +527,6 @@ const LeftCanvasSidebar = memo(({
                 className="flex items-center gap-4 p-3 rounded-xl bg-slate-800/40 border border-slate-700 hover:border-blue-500 transition-all text-left group"
                 onClick={() => handleTemplateSelect(template)}
               >
-                <div className="text-2xl bg-slate-800 w-12 h-12 flex items-center justify-center rounded-lg group-hover:scale-110 transition-transform">
-                  {template.thumbnail}
-                </div>
                 <div>
                   <p className="text-sm font-bold text-white">{template.name}</p>
                   <p className="text-[10px] text-slate-400 uppercase tracking-tight">{template.width} × {template.height}</p>
