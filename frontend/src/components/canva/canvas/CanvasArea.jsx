@@ -382,7 +382,7 @@ const CanvasArea = ({
       >
         <div
           ref={canvasRef}
-          className="absolute top-0 left-0 origin-top-left shadow-2xl"
+          className="absolute top-0 left-0 origin-top-left border border-gray-300"
           style={{
             width: `${canvasSize.width}px`,
             height: `${canvasSize.height}px`,

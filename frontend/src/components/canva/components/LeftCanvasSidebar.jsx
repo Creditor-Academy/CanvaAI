@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
 import {
   FiType, FiImage, FiSquare, FiCircle, FiTriangle, FiEdit3,
@@ -10,7 +10,80 @@ import AIImageGenerator from '../AIImageGenerator'
 import BackgroundColor from './BackgroundColor'
 import { MdDisabledVisible } from 'react-icons/md'
 
-const LeftCanvasSidebar = ({
+// --- Sub-components moved outside to prevent unmounting on parent re-renders ---
+
+const Tooltip = memo(({ text, hoveredButtonTooltip, tooltipPosition, tooltipTexts }) => {
+  if (!hoveredButtonTooltip || hoveredButtonTooltip !== text) return null;
+  return createPortal(
+    <div
+      className="fixed z-[10000] bg-white text-slate-900 px-3 py-1.5 rounded-lg shadow-xl text-xs font-bold whitespace-nowrap pointer-events-none transition-opacity"
+      style={{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px`, transform: 'translateY(-50%)' }}
+    >
+      {tooltipTexts[text] || text}
+      <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-white"></div>
+    </div>,
+    document.body
+  );
+});
+
+const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, onMouseLeave, onClick, buttonRef, tooltipTexts, hoveredButtonTooltip, tooltipPosition }) => {
+  const buttonStyle = (isActive) => `relative group flex flex-col items-center justify-center gap-0 w-12 h-12 rounded-2xl transition-all duration-300 mx-1 ${isActive
+    ? 'bg-blue-600/20 text-blue-500 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+    : 'hover:bg-slate-800/50 text-slate-700 border border-transparent hover:border-slate-400 hover:text-slate-900'
+    }`;
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        className={`${buttonStyle(isActive)} parent-nav-btn`}
+        onMouseEnter={(e) => onMouseEnter(sectionKey, e.currentTarget)}
+        onMouseLeave={onMouseLeave}
+        onClick={(e) => onClick(sectionKey, e.currentTarget)}
+      >
+        <span className="text-slate-700 group-hover:text-slate-900">{icon}</span>
+        <span className="text-[8px] font-medium uppercase tracking-wider text-slate-600 group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
+        {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-500 rounded-full" />}
+      </button>
+      <Tooltip
+        text={sectionKey}
+        hoveredButtonTooltip={hoveredButtonTooltip}
+        tooltipPosition={tooltipPosition}
+        tooltipTexts={tooltipTexts}
+      />
+    </div>
+  );
+});
+
+const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, children, position, onClose }) => {
+  if (expandedSection !== sectionKey) return null;
+  const portalStyle = "fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200";
+
+  return createPortal(
+    <div
+      className={`${portalStyle} expanded-section-portal`}
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: `${position.width}px`,
+        maxHeight: `calc(100vh - ${position.y + 20}px)`,
+        height: 'auto',
+        transform: 'translateY(0)'
+      }}
+    >
+      <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 flex-shrink-0">
+        <h3 className="text-white font-bold tracking-tight">{title}</h3>
+        <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-md text-slate-400"><FiX /></button>
+      </div>
+      <div className="p-4 overflow-y-auto pb-10 custom-scrollbar" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+});
+
+const LeftCanvasSidebar = memo(({
   toggleSection,
   openSections,
   hoveredOption,
@@ -37,26 +110,18 @@ const LeftCanvasSidebar = ({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [expandedSection, setExpandedSection] = useState(null);
   const [expandedSectionPosition, setExpandedSectionPosition] = useState({ x: 0, y: 0, width: 0 });
-  const [referencePosition, setReferencePosition] = useState(null); // Store the "Background Settings" position
+  const [referencePosition, setReferencePosition] = useState(null);
   const buttonRefs = useRef({});
 
-  // Refined Styles
-  const styles = {
-    sidebarContainer: "pb-10 flex-[0_0_100px] border-r border-slate-800 flex flex-col items-center py-6 gap-2 z-[10] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-full",
-    parentButton: (isActive) => `relative group flex flex-col items-center justify-center gap-0 w-12 h-12 rounded-2xl transition-all duration-300 mx-1 ${isActive
-      ? 'bg-blue-600/20 text-blue-500 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-      : 'hover:bg-slate-800/50 text-slate-700 border border-transparent hover:border-slate-400 hover:text-slate-900'
-      }`,
-    childButton: (isSelected, isHovered) => `
-      group relative py-3 px-4 rounded-xl cursor-pointer flex items-center gap-3 text-sm font-medium transition-all duration-200 w-full
-      ${isSelected
-        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-        : `text-slate-300 ${isHovered ? 'bg-slate-700 text-white' : 'bg-transparent'}`
-      }
-    `,
-    uploadButton: "w-full py-6 px-4 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-300 group",
-    portalContainer: "fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200"
-  };
+  const sidebarContainerStyle = "pb-10 flex-[0_0_100px] border-r border-slate-800 flex flex-col items-center py-6 gap-2 z-[10] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-full";
+  const childButtonStyle = (isSelected, isHovered) => `
+    group relative py-3 px-4 rounded-xl cursor-pointer flex items-center gap-3 text-sm font-medium transition-all duration-200 w-full
+    ${isSelected
+      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+      : `text-slate-300 ${isHovered ? 'bg-slate-700 text-white' : 'bg-transparent'}`
+    }
+  `;
+  const uploadButtonStyle = "w-full py-6 px-4 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-300 group";
 
   const tooltipTexts = {
     'background': 'Canvas Background',
@@ -132,7 +197,11 @@ const LeftCanvasSidebar = ({
     }
   }, []);
 
-  const handleSectionToggle = useCallback((sectionKey, buttonElement) => {
+  const handleButtonMouseLeave = useCallback(() => {
+    setHoveredButtonTooltip(null);
+  }, []);
+
+  const handleSectionToggleInternal = useCallback((sectionKey, buttonElement) => {
     const isCurrentlyOpen = openSections[sectionKey];
     if (expandedSection && expandedSection !== sectionKey) setExpandedSection(null);
 
@@ -142,18 +211,15 @@ const LeftCanvasSidebar = ({
       const portalWidth = 300;
       let position;
 
-      // If this is the "background" button, calculate and store its position as reference
       if (sectionKey === 'background') {
         const rect = buttonElement.getBoundingClientRect();
         const spacing = 12;
         const x = rect.right + spacing;
         const y = Math.max(20, rect.top);
         position = { x, y, width: portalWidth };
-        setReferencePosition(position); // Store as reference for all other portals
+        setReferencePosition(position);
       } else {
-        // For all other buttons, use the reference position (from "background" button)
         position = referencePosition || (() => {
-          // Fallback: calculate from current button if reference doesn't exist yet
           const rect = buttonElement.getBoundingClientRect();
           const spacing = 12;
           const x = rect.right + spacing;
@@ -169,7 +235,11 @@ const LeftCanvasSidebar = ({
     }
   }, [expandedSection, openSections, toggleSection, referencePosition]);
 
-  // Initialize reference position from "background" button on mount
+  const handleCloseSection = useCallback((sectionKey) => {
+    setExpandedSection(null);
+    toggleSection(sectionKey);
+  }, [toggleSection]);
+
   useEffect(() => {
     const backgroundButton = buttonRefs.current['background'];
     if (backgroundButton && !referencePosition) {
@@ -193,92 +263,109 @@ const LeftCanvasSidebar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [expandedSection, toggleSection]);
 
-  const Tooltip = ({ text }) => {
-    if (!hoveredButtonTooltip || hoveredButtonTooltip !== text) return null;
-    return createPortal(
-      <div
-        className="fixed z-[10000] bg-white text-slate-900 px-3 py-1.5 rounded-lg shadow-xl text-xs font-bold whitespace-nowrap pointer-events-none transition-opacity"
-        style={{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px`, transform: 'translateY(-50%)' }}
-      >
-        {tooltipTexts[text] || text}
-        <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-white"></div>
-      </div>,
-      document.body
-    );
-  };
-
-  const ParentButton = ({ sectionKey, icon, label }) => {
-    const isActive = expandedSection === sectionKey;
-    return (
-      <div className="relative">
-        <button
-          ref={(el) => buttonRefs.current[sectionKey] = el}
-          className={`${styles.parentButton(isActive)} parent-nav-btn`}
-          onMouseEnter={(e) => handleButtonMouseEnter(sectionKey, e.currentTarget)}
-          onMouseLeave={() => setHoveredButtonTooltip(null)}
-          onClick={(e) => handleSectionToggle(sectionKey, e.currentTarget)}
-        >
-          <span className="text-slate-700 group-hover:text-slate-900">{icon}</span>
-          <span className="text-[8px] font-medium uppercase tracking-wider text-slate-600 group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
-          {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-500 rounded-full" />}
-        </button>
-        <Tooltip text={sectionKey} />
-      </div>
-    );
-  };
-
-  const ExpandedSectionPortal = ({ sectionKey, title, children }) => {
-    if (expandedSection !== sectionKey) return null;
-    return createPortal(
-      <div
-        className={`${styles.portalContainer} expanded-section-portal`}
-        style={{
-          left: `${expandedSectionPosition.x}px`,
-          top: `${expandedSectionPosition.y}px`,
-          width: `${expandedSectionPosition.width}px`,
-          maxHeight: `calc(100vh - ${expandedSectionPosition.y + 20}px)`,
-          height: 'auto',
-          transform: 'translateY(0)'
-        }}
-      >
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 flex-shrink-0">
-          <h3 className="text-white font-bold tracking-tight">{title}</h3>
-          <button onClick={() => { setExpandedSection(null); toggleSection(sectionKey); }} className="p-1 hover:bg-slate-800 rounded-md text-slate-400"><FiX /></button>
-        </div>
-        <div className="p-4 overflow-y-auto pb-10 custom-scrollbar" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
-          {children}
-        </div>
-      </div>,
-      document.body
-    );
-  };
-
   return (
     <div className="flex flex-col items-center w-full">
-      <div className={styles.sidebarContainer}>
-
-        <ParentButton sectionKey="background" icon={<FiGrid size={16} />} label="Canvas" />
-        <ParentButton sectionKey="text" icon={<FiType size={16} />} label="Text" />
-        <ParentButton sectionKey="shapes" icon={<FiSquare size={16} />} label="Shapes" />
-        <ParentButton sectionKey="drawing" icon={<FiEdit3 size={16} />} label="Draw" />
-        <ParentButton sectionKey="media" icon={<FiImage size={16} />} label="Media" />
-        <ParentButton sectionKey="stockImages" icon={<FiLayers size={16} />} label="Stock" />
-        <ParentButton sectionKey="templates" icon={<FiStar size={16} />} label="Magic" />
+      <div className={sidebarContainerStyle}>
+        <ParentButton
+          sectionKey="background" icon={<FiGrid size={16} />} label="Canvas"
+          isActive={expandedSection === "background"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["background"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="text" icon={<FiType size={16} />} label="Text"
+          isActive={expandedSection === "text"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["text"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="shapes" icon={<FiSquare size={16} />} label="Shapes"
+          isActive={expandedSection === "shapes"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["shapes"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="drawing" icon={<FiEdit3 size={16} />} label="Draw"
+          isActive={expandedSection === "drawing"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["drawing"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="media" icon={<FiImage size={16} />} label="Media"
+          isActive={expandedSection === "media"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["media"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="stockImages" icon={<FiLayers size={16} />} label="Stock"
+          isActive={expandedSection === "stockImages"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["stockImages"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="templates" icon={<FiStar size={16} />} label="Magic"
+          isActive={expandedSection === "templates"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["templates"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
 
         {/* Portals */}
-        <ExpandedSectionPortal sectionKey="background" title="Background Settings">
+        <ExpandedSectionPortal
+          sectionKey="background" title="Background Settings"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("background")}
+        >
           <BackgroundColor onColorChange={onCanvasBgColorChange} />
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal sectionKey="text" title="Typography">
+        <ExpandedSectionPortal
+          sectionKey="text" title="Typography"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("text")}
+        >
           <div className="flex flex-col gap-2">
             {textConfigs.map(({ key, label, icon, size }) => (
               <button
                 key={key}
-                className={styles.childButton(selectedTool === key, hoveredOption === key)}
+                className={childButtonStyle(selectedTool === key, hoveredOption === key)}
                 onMouseEnter={() => setHoveredOption(key)}
                 onMouseLeave={() => setHoveredOption(null)}
-                onClick={(e) => { handleAddElement(size[0], size[1], key); setSelectedTool('select'); }}
+                onClick={() => { handleAddElement(size[0], size[1], key); setSelectedTool('select'); }}
               >
                 <span className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg group-hover:bg-blue-500 transition-colors">{icon}</span>
                 {label}
@@ -287,7 +374,11 @@ const LeftCanvasSidebar = ({
           </div>
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal sectionKey="shapes" title="Elements">
+        <ExpandedSectionPortal
+          sectionKey="shapes" title="Elements"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("shapes")}
+        >
           <div className="grid grid-cols-2 gap-3">
             {shapeConfigs.map(({ key, label, icon, size }) => (
               <button
@@ -302,13 +393,17 @@ const LeftCanvasSidebar = ({
           </div>
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal sectionKey="drawing" title="Drawing Tools">
+        <ExpandedSectionPortal
+          sectionKey="drawing" title="Drawing Tools"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("drawing")}
+        >
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-2">
               {drawingConfigs.map(({ key, label, icon }) => (
                 <button
                   key={key}
-                  className={styles.childButton(selectedTool === key, hoveredOption === key)}
+                  className={childButtonStyle(selectedTool === key, hoveredOption === key)}
                   onClick={() => handleToolSelect(key)}
                 >
                   {icon} {label}
@@ -341,12 +436,18 @@ const LeftCanvasSidebar = ({
                 </div>
               </div>
             )}
+
+            
           </div>
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal sectionKey="media" title="Assets">
+        <ExpandedSectionPortal
+          sectionKey="media" title="Assets"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("media")}
+        >
           <button
-            className={styles.uploadButton}
+            className={uploadButtonStyle}
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
@@ -389,7 +490,11 @@ const LeftCanvasSidebar = ({
           )}
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal sectionKey="stockImages" title="Stock Images">
+        <ExpandedSectionPortal
+          sectionKey="stockImages" title="Stock Images"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("stockImages")}
+        >
           <div className="grid grid-cols-2 gap-3">
             {stockImages.map(image => (
               <div
@@ -410,7 +515,11 @@ const LeftCanvasSidebar = ({
           </div>
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal sectionKey="templates" title="Design Templates">
+        <ExpandedSectionPortal
+          sectionKey="templates" title="Design Templates"
+          expandedSection={expandedSection} position={expandedSectionPosition}
+          onClose={() => handleCloseSection("templates")}
+        >
           <div className="grid grid-cols-1 gap-3 pb-20">
             {templates.map(template => (
               <button
@@ -432,7 +541,7 @@ const LeftCanvasSidebar = ({
       </div>
     </div>
   )
-}
+});
 
 export default LeftCanvasSidebar;
 

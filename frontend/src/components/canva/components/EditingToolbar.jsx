@@ -219,14 +219,12 @@ const EditingToolbar = ({
                 </div>
 
                 <div className='flex gap-4'>
-
-
                     <div className="flex items-center gap-4">
                         {/* Saving Status */}
                         <button
                             onClick={onDownload}
                             className="flex items-center cursor-pointer gap-2 text-sm mr-2">
-                            <span>Download</span>
+                            <span>Export</span>
                         </button>
                     </div>
 

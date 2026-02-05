@@ -55,7 +55,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState(GRADIENTS[0].value);
+  const [canvasBgColor, setCanvasBgColor] = useState('#ffffff');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -324,6 +324,13 @@ const CanvaEditor = () => {
   };
 
   const handleToolSelect = (toolId) => {
+    // If clicking the same tool again, toggle it off (set to 'select' mode)
+    if (selectedTool === toolId) {
+      setSelectedTool('select');
+      setSelectedLayer(null);
+      return;
+    }
+
     setSelectedTool(toolId);
     setSelectedLayer(null);
     // Set drawing mode when selecting drawing tools
@@ -332,7 +339,7 @@ const CanvaEditor = () => {
         ...prev,
         drawingMode: toolId,
         // Set default sizes based on tool
-        brushSize: toolId === 'brush' ? 12 : (toolId === 'pen' ? 4 : prev.brushSize)
+        brushSize: toolId === 'brush' ? 12 : (toolId === 'pen' ? 4 : (toolId === 'eraser' ? 16 : prev.brushSize))
       }));
     }
   };
@@ -1167,6 +1174,16 @@ const CanvaEditor = () => {
   // Drawing mouse handlers are provided by useDrawing hook
   // No need to redeclare handleDrawingMouseDown
 
+  const onCanvasBgColorChange = useCallback((color) => {
+    setCanvasBgColor(color);
+    setCanvasBgImage(null);
+  }, [setCanvasBgColor, setCanvasBgImage]);
+
+  const onCanvasBgImageChange = useCallback((imageUrl) => {
+    setCanvasBgImage(imageUrl);
+    setCanvasBgColor('transparent');
+  }, [setCanvasBgImage, setCanvasBgColor]);
+
   // Return JSX
   return (
     <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden touch-none">
@@ -1213,14 +1230,8 @@ const CanvaEditor = () => {
             handleTemplateSelect={handleTemplateSelect}
             drawingSettings={drawingSettings}
             handleDrawingSettingsChange={handleDrawingSettingsChange}
-            onCanvasBgColorChange={(color) => {
-              setCanvasBgColor(color);
-              setCanvasBgImage(null); // Clear background image when color is set
-            }}
-            onCanvasBgImageChange={(imageUrl) => {
-              setCanvasBgImage(imageUrl);
-              setCanvasBgColor('transparent'); // Clear background color when image is set
-            }}
+            onCanvasBgColorChange={onCanvasBgColorChange}
+            onCanvasBgImageChange={onCanvasBgImageChange}
           />
         </div>
         {/* Close button for mobile */}
@@ -1282,7 +1293,7 @@ const CanvaEditor = () => {
         {/* Canvas Area - scrollable container with all pages */}
         <div
           onClick={handleOutsideClick}
-          className="flex-1 flex flex-col justify-start py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
+          className="flex-1 flex flex-col justify-center py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
         >
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
