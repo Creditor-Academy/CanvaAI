@@ -136,17 +136,17 @@ export const TemplateSidebar = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-80 bg-white border-l border-border z-50 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-80 bg-gradient-to-b from-blue-50 to-blue-100 border-l border-blue-200 z-50 flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium text-sm">Templates</span>
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-sm text-blue-800">Templates</span>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-muted-foreground"
+                className="p-1.5 rounded-lg hover:bg-blue-200 text-blue-600"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -156,7 +156,7 @@ export const TemplateSidebar = ({
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
               {categories.map((category) => (
                 <div key={category} className="space-y-2">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider">
                     {category}
                   </h3>
                   <div className="grid gap-2">
@@ -169,12 +169,12 @@ export const TemplateSidebar = ({
                             onSelectTemplate(template);
                             onClose();
                           }}
-                          className={`flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-gray-100 transition-colors text-left w-full`}
+                          className={`flex items-start gap-3 p-3 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors text-left w-full`}
                         >
-                          <template.icon className="w-5 h-5 text-muted-foreground mt-0.5" />
+                          <template.icon className="w-5 h-5 text-blue-600 mt-0.5" />
                           <div>
                             <div className="font-medium text-sm">{template.name}</div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-blue-700">
                               {template.description}
                             </div>
                           </div>

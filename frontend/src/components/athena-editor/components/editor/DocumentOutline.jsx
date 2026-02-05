@@ -18,24 +18,24 @@ export const DocumentOutline = ({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '-100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="w-64 border-r border-border bg-background flex flex-col h-full"
+          className="w-64 border-r border-blue-200 bg-gradient-to-b from-blue-50 to-blue-100 flex flex-col h-full"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
+              <FileText className="w-4 h-4 text-blue-600" />
               <span className="font-medium text-sm">Outline</span>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground"
+              className="p-1.5 rounded-lg hover:bg-blue-200 text-blue-600"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Document Title */}
-          <div className="px-4 py-3 border-b border-border">
+          <div className="px-4 py-3 border-b border-blue-200">
             <h2 className="font-medium text-sm truncate">{documentTitle}</h2>
           </div>
 
@@ -43,7 +43,7 @@ export const DocumentOutline = ({
           <div className="flex-1 overflow-y-auto py-2">
             {headings.length === 0 ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-blue-700">
                   No headings found. Add headings to see the document outline.
                 </p>
               </div>
@@ -65,7 +65,7 @@ export const DocumentOutline = ({
                     <div key={`${heading.id}-${index}`}>
                       <button
                         onClick={() => onHeadingClick(heading.id)}
-                        className={`w-full flex items-center gap-2 px-4 py-1.5 text-left text-sm hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground group`}
+                        className={`w-full flex items-center gap-2 px-4 py-1.5 text-left text-sm hover:bg-blue-100 transition-colors text-blue-700 hover:text-blue-900 group`}
                         style={{ paddingLeft: `${(heading.level - 1) * 12 + 16}px` }}
                       >
                         {hasChildren && (
@@ -85,7 +85,7 @@ export const DocumentOutline = ({
                           <div className="w-3 h-3 flex-shrink-0" />
                         )}
                         <span className="truncate font-medium">{heading.text}</span>
-                        <span className="ml-auto text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="ml-auto text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
                           H{heading.level}
                         </span>
                       </button>
@@ -107,8 +107,8 @@ export const DocumentOutline = ({
           </div>
 
           {/* Footer Stats */}
-          <div className="px-4 py-3 border-t border-border">
-            <p className="text-xs text-muted-foreground">
+          <div className="px-4 py-3 border-t border-blue-200">
+            <p className="text-xs text-blue-600">
               {headings.length} heading{headings.length !== 1 ? 's' : ''}
             </p>
           </div>

@@ -1,134 +1,752 @@
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, Drawing, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, ShadingType } from 'docx';
 import { toast } from 'sonner';
 
 export class DocumentExporter {
   static async exportToPDF(editor, options = {}) {
     const {
-      filename = 'document.pdf',
-      includePageNumbers = true,
+      filename = "document.pdf",
+      title = "Document",
+      author = "Athena Editor",
+      pageSize = "A4",
+      fontSize = 12,
       includeHeader = true,
       includeFooter = true,
-      title = 'Document'
+      includeTOC = false,
+      includePageNumbers = true,
+      margin = { top: 20, right: 20, bottom: 20, left: 20 },
+      theme = "light",
+      compress = true,
+      preserveStyles = true
     } = options;
 
+    let toastId = null;
+    
     try {
-      // Get the HTML content from editor
-      const htmlContent = this.getHTMLContent(editor);
+      toastId = toast("Preparing PDF export...");
+
+      const sections = this.extractContentSections(editor);
       
-      // Create properly formatted HTML for PDF
-      const fullHTML = this.wrapHTMLForPDF(htmlContent, {
-        title,
-        includePageNumbers,
-        includeHeader,
-        includeFooter
-      });
-      
-      // Create PDF with proper dimensions (A4)
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      // Create a temporary container to render HTML
-      const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      container.style.width = '210mm'; // A4 width
-      container.style.backgroundColor = 'white';
-      container.innerHTML = fullHTML;
-      document.body.appendChild(container);
-      
-      // Get the total height of the content
-      const totalHeight = container.scrollHeight;
-      const pageHeight = 297; // A4 height in mm
-      const usablePageHeight = pageHeight - 50; // Account for margins (25mm top + 25mm bottom)
-      
-      // Calculate how many pages we need
-      const totalPages = Math.ceil(totalHeight / (usablePageHeight * 3.78)); // 3.78 pixels per mm at current scale
-      
-      // Create pages
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) {
-          pdf.addPage();
-        }
-        
-        // Create a cloned container for this specific page
-        const pageContainer = container.cloneNode(true);
-        pageContainer.style.position = 'absolute';
-        pageContainer.style.left = '-9999px';
-        pageContainer.style.top = `-${page * usablePageHeight * 3.78}px`;
-        pageContainer.style.height = `${usablePageHeight * 3.78}px`;
-        pageContainer.style.overflow = 'hidden';
-        document.body.appendChild(pageContainer);
-        
-        // Convert this page to canvas
-        const canvas = await html2canvas(pageContainer, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          height: usablePageHeight * 3.78,
-          y: page * usablePageHeight * 3.78
-        });
-        
-        document.body.removeChild(pageContainer);
-        
-        // Add image to PDF with margins
-        const marginX = 12.5; // 25mm total padding / 2
-        const marginY = 12.5;
-        const imgWidth = 210 - 25; // A4 width minus padding
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        pdf.addImage(canvas.toDataURL('image/jpeg', 1.0), 'JPEG', marginX, marginY, imgWidth, imgHeight);
+      if (!sections || sections.length === 0) {
+        if (toastId) toast.dismiss(toastId);
+        toast.error("No content to export");
+        return;
       }
-      
-      document.body.removeChild(container);
-      
-      // Add page numbers if requested
+
+      toastId = toast("Processing document content..."); // Update toastId to the new toast
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: pageSize,
+        compress
+      });
+
+      pdf.setProperties({
+        title,
+        author,
+        creator: "Athena Editor",
+        creationDate: new Date()
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const usableWidth = pageWidth - margin.left - margin.right;
+
+      let currentY = margin.top;
+      let currentPage = 1;
+
+      const lineHeight = fontSize * 0.35;
+      const paragraphSpacing = 6;
+      const toc = [];
+
+      const setTextColor = (r, g, b) => {
+        pdf.setTextColor(r, g, b);
+      };
+
+      const drawHeader = () => {
+        if (!includeHeader || currentPage === 1) return;
+        
+        pdf.setFontSize(10);
+        setTextColor(100, 100, 100);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(title, margin.left, margin.top - 10);
+      };
+
+      const drawFooter = () => {
+        if (!includeFooter) return;
+        
+        pdf.setFontSize(9);
+        setTextColor(100, 100, 100);
+        pdf.setFont("helvetica", "normal");
+        
+        const footerText = `Generated by ${author} • ${new Date().toLocaleDateString()}`;
+        pdf.text(footerText, pageWidth / 2, pageHeight - margin.bottom + 10, { align: "center" });
+      };
+
+      const newPage = () => {
+        pdf.addPage();
+        currentPage++;
+        currentY = margin.top;
+        drawHeader();
+      };
+
+      const ensureSpace = (height) => {
+        if (currentY + height > pageHeight - margin.bottom) {
+          newPage();
+          return true;
+        }
+        return false;
+      };
+
+      const writeTextBlock = (text, x, width, align = "left", spacing = paragraphSpacing, style = "normal") => {
+        if (!text || text.trim() === "") {
+          currentY += spacing;
+          return;
+        }
+
+        const lines = pdf.splitTextToSize(text, width);
+        const height = lines.length * lineHeight;
+        
+        ensureSpace(height + spacing);
+
+        pdf.setFont("helvetica", style);
+        
+        lines.forEach((line, index) => {
+          pdf.text(line, x, currentY + (index * lineHeight), { align });
+        });
+
+        currentY += height + spacing;
+      };
+
+      if (includeHeader && currentPage === 1) {
+        pdf.setFontSize(16);
+        pdf.setFont("helvetica", "bold");
+        setTextColor(0, 0, 0);
+        pdf.text(title, pageWidth / 2, margin.top - 10, { align: "center" });
+        currentY = margin.top + 10;
+      }
+
+      for (let i = 0; i < sections.length; i++) {
+        
+        const { type, content, text, level, style } = sections[i];
+
+        switch (type) {
+          case "heading": {
+            const size = fontSize + (14 - level * 2);
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(size);
+            setTextColor(0, 0, 0);
+
+            const neededHeight = size * 0.4 + 8;
+            ensureSpace(neededHeight);
+
+            pdf.text(text, margin.left, currentY);
+            currentY += neededHeight;
+
+            if (includeTOC && level <= 3) {
+              toc.push({ 
+                title: text, 
+                level, 
+                page: currentPage
+              });
+            }
+            break;
+          }
+
+          case "paragraph": {
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(fontSize);
+            setTextColor(0, 0, 0);
+
+            const alignment = style === "center" ? "center" :
+                            style === "right" ? "right" : "left";
+            const x = alignment === "center" ? pageWidth / 2 : 
+                     alignment === "right" ? pageWidth - margin.right : margin.left;
+
+            writeTextBlock(content, x, usableWidth, alignment);
+            break;
+          }
+
+          case "list": {
+            pdf.setFontSize(fontSize);
+            setTextColor(0, 0, 0);
+            pdf.setFont("helvetica", "normal");
+
+            content.forEach((item, idx) => {
+              const indent = margin.left + (item.level || 0) * 8;
+              const prefix = sections[i].listType === "bullet" ? 
+                            "• " : 
+                            `${idx + 1}. `;
+
+              writeTextBlock(prefix + item.text, indent, usableWidth - indent + margin.left, "left", 2);
+            });
+
+            currentY += paragraphSpacing / 2;
+            break;
+          }
+
+          case "image": {
+            try {
+              const { src, alt, title } = content;
+              
+              if (!src) {
+                // Handle missing image source
+                const maxHeight = 20;
+                ensureSpace(maxHeight + 10);
+                pdf.setFontSize(fontSize - 2);
+                setTextColor(150, 150, 150);
+                pdf.text(`[Missing Image: ${alt || "Image"}]`, margin.left, currentY);
+                currentY += maxHeight + 10;
+                break;
+              }
+              
+              // Handle different image sources
+              let imageSrc = src;
+              
+              // If it's a base64 image, use it directly
+              if (src.startsWith('data:image')) {
+                imageSrc = src;
+              } 
+              // If it's a relative URL, try to convert to absolute
+              else if (src.startsWith('/') || !src.includes(':')) {
+                const baseUrl = window.location.origin;
+                imageSrc = baseUrl + (src.startsWith('/') ? src : '/' + src);
+              }
+              
+              // Add image to PDF
+              const maxImageWidth = usableWidth;
+              const maxImageHeight = 100; // Increased from 80
+              
+              ensureSpace(maxImageHeight + 20);
+              
+              // Check if the image needs to be converted to base64 (for cross-origin issues)
+              let finalImageSrc = imageSrc;
+              
+              if (!src.startsWith('data:') && !src.startsWith('blob:')) {
+                // Convert the image to base64 to avoid CORS issues
+                try {
+                  const base64Image = await this.convertImageToBase64(imageSrc);
+                  if (base64Image) {
+                    finalImageSrc = base64Image;
+                  }
+                } catch (conversionError) {
+                  console.warn('Failed to convert image to base64, using original source:', conversionError);
+                }
+              }
+              
+              // Add image with enhanced error handling
+              await new Promise((resolve) => {
+                const img = new Image();
+                
+                // Enhanced timeout handling
+                const timeoutId = setTimeout(() => {
+                  console.warn('Image loading timeout:', src);
+                  pdf.setFontSize(fontSize - 2);
+                  setTextColor(150, 150, 150);
+                  pdf.text(`[Image loading timeout: ${alt || "Image"}]`, margin.left, currentY);
+                  currentY += 25;
+                  resolve();
+                }, 10000); // 10 second timeout
+                
+                img.onload = () => {
+                  clearTimeout(timeoutId);
+                  try {
+                    // Calculate image dimensions to maintain aspect ratio
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Handle very small images
+                    if (width < 10 || height < 10) {
+                      width = Math.max(width, 50);
+                      height = Math.max(height, 50);
+                    }
+                    
+                    if (width > maxImageWidth) {
+                      const ratio = maxImageWidth / width;
+                      width = maxImageWidth;
+                      height = height * ratio;
+                    }
+                    
+                    if (height > maxImageHeight) {
+                      const ratio = maxImageHeight / height;
+                      height = maxImageHeight;
+                      width = width * ratio;
+                    }
+                    
+                    // Ensure minimum size
+                    if (width < 20) width = 20;
+                    if (height < 20) height = 20;
+                    
+                    // Center the image
+                    const imageX = margin.left + (usableWidth - width) / 2;
+                    
+                    // Add image to PDF with better format detection
+                    const imageFormat = this.detectImageFormat(finalImageSrc);
+                    pdf.addImage(img, imageFormat, imageX, currentY, width, height);
+                    
+                    // Add caption if alt text exists
+                    if (alt) {
+                      currentY += height + 8;
+                      pdf.setFontSize(fontSize - 1);
+                      setTextColor(80, 80, 80);
+                      pdf.text(alt, pageWidth / 2, currentY, { align: "center" });
+                    }
+                    
+                    currentY += height + 20;
+                    console.log(`✅ Image added successfully: ${alt || 'Image'} (${width}x${height})`);
+                    
+                  } catch (imgError) {
+                    console.error('❌ Error adding image to PDF:', imgError);
+                    clearTimeout(timeoutId);
+                    // Fallback: show placeholder
+                    pdf.setFontSize(fontSize - 2);
+                    setTextColor(150, 150, 150);
+                    pdf.text(`[Image: ${alt || "Image"}]`, margin.left, currentY);
+                    currentY += 25;
+                  }
+                  resolve();
+                };
+                
+                img.onerror = (error) => {
+                  clearTimeout(timeoutId);
+                  console.error('❌ Failed to load image:', src, error);
+                  // Fallback: show placeholder
+                  pdf.setFontSize(fontSize - 2);
+                  setTextColor(150, 150, 150);
+                  const errorMsg = `[Image not available: ${alt || "Image"}]`;
+                  pdf.text(errorMsg, margin.left, currentY);
+                  currentY += 25;
+                  resolve();
+                };
+                
+                // Try different CORS approaches
+                img.crossOrigin = 'anonymous';
+                
+                // Use the converted image source
+                img.src = finalImageSrc;
+              });
+              
+            } catch (error) {
+              console.error('❌ Error processing image for PDF export:', error);
+              // Fallback: show error message
+              const maxHeight = 25;
+              ensureSpace(maxHeight + 15);
+              pdf.setFontSize(fontSize - 2);
+              setTextColor(200, 0, 0);
+              pdf.text(`[Image Error: ${content.alt || "Image"}]`, margin.left, currentY);
+              currentY += maxHeight + 15;
+            }
+            break;
+          }
+
+          case "table": {
+            const tableHeight = 40;
+            ensureSpace(tableHeight + 10);
+
+            pdf.setFontSize(fontSize);
+            pdf.text("[Table content]", margin.left, currentY);
+            currentY += tableHeight + 10;
+            break;
+          }
+
+          case "quote": {
+            pdf.setFont("helvetica", "italic");
+            pdf.setFontSize(fontSize);
+            setTextColor(100, 100, 100);
+
+            const lines = pdf.splitTextToSize(content, usableWidth - 10);
+            const height = lines.length * lineHeight + 10;
+            
+            ensureSpace(height);
+
+            pdf.setDrawColor(200, 200, 200);
+            pdf.line(margin.left, currentY, margin.left, currentY + height - 5);
+
+            lines.forEach((line, index) => {
+              pdf.text(line, margin.left + 5, currentY + (index * lineHeight));
+            });
+
+            currentY += height + 6;
+            pdf.setFont("helvetica", "normal");
+            setTextColor(0, 0, 0);
+            break;
+          }
+
+          case "code": {
+            pdf.setFont("courier", "normal");
+            pdf.setFontSize(fontSize - 1);
+            setTextColor(0, 100, 0);
+
+            const lines = pdf.splitTextToSize(content, usableWidth);
+            const height = lines.length * lineHeight + 8;
+            
+            ensureSpace(height);
+
+            pdf.setFillColor(245, 245, 245);
+            pdf.rect(margin.left - 2, currentY - 2, usableWidth + 4, height + 4, 'F');
+
+            lines.forEach((line, index) => {
+              pdf.text(line, margin.left, currentY + (index * lineHeight));
+            });
+
+            currentY += height + 8;
+            pdf.setFont("helvetica", "normal");
+            setTextColor(0, 0, 0);
+            break;
+          }
+
+          case "horizontalRule": {
+            ensureSpace(15);
+            pdf.setDrawColor(200, 200, 200);
+            pdf.line(margin.left, currentY + 5, margin.left + usableWidth, currentY + 5);
+            currentY += 15;
+            break;
+          }
+
+          case "pageBreak": {
+            newPage();
+            break;
+          }
+        }
+      }
+
       if (includePageNumbers) {
-        const pageCount = pdf.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
+        const totalPages = pdf.internal.getNumberOfPages();
+        
+        for (let i = 1; i <= totalPages; i++) {
           pdf.setPage(i);
+          
+          drawFooter();
+          
           pdf.setFontSize(10);
-          pdf.setTextColor(100);
+          setTextColor(100, 100, 100);
+          
           pdf.text(
-            `Page ${i} of ${pageCount}`,
-            pdf.internal.pageSize.width - 30,
-            pdf.internal.pageSize.height - 10
+            `Page ${i} of ${totalPages}`,
+            pageWidth / 2,
+            pageHeight - margin.bottom + 5,
+            { align: "center" }
           );
         }
       }
-      
-      // Save the PDF as a proper binary file
+
+      toastId = toast("Saving PDF file...");
       pdf.save(filename);
-      
-      toast.success('PDF exported successfully with automatic page breaking!');
-      
+      toast.success(`PDF exported successfully (${pdf.internal.getNumberOfPages()} pages)`);
+
     } catch (error) {
-      console.error('PDF export error:', error);
-      toast.error('Failed to export PDF');
+      console.error("PDF export error:", error);
+      toast.error("Failed to export PDF: " + error.message);
     }
   }
 
   static async exportToDOCX(editor, options = {}) {
+    const {
+      filename = 'document.docx',
+      title = 'Document',
+      author = 'Athena Editor',
+      subject = 'Document exported from Athena Editor',
+      description = 'Document created with Athena Editor',
+      company = 'Athena Editor'
+    } = options;
+
+    let toastId = null;
+    
     try {
-      // For DOCX export, you should use a proper library
-      // This is a placeholder implementation
-      const htmlContent = this.getHTMLContent(editor);
-      const fullHTML = this.wrapHTMLForWord(htmlContent, options);
+      toastId = toast('Preparing Word document...');
       
-      // Convert HTML to DOCX using a proper method
-      // For now, we'll create an HTML file with .docx extension
-      // In production, use a library like mammoth.js or docx.js
-      const blob = new Blob([fullHTML], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      const sections = this.extractContentSections(editor);
+      const children = [];
+      
+      children.push(
+        new Paragraph({
+          text: title,
+          heading: HeadingLevel.TITLE,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 }
+        })
+      );
+
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Author: ${author}`,
+              size: 20,
+              color: '666666'
+            })
+          ],
+          spacing: { after: 200 }
+        })
+      );
+
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Created: ${new Date().toLocaleDateString()}`,
+              size: 20,
+              color: '666666'
+            })
+          ],
+          spacing: { after: 400 }
+        })
+      );
+
+      sections.forEach(section => {
+        switch (section.type) {
+          case 'heading':
+            const headingLevel = Math.min(section.level, 6);
+            children.push(
+              new Paragraph({
+                text: section.text,
+                heading: HeadingLevel[`HEADING_${headingLevel}`],
+                spacing: { before: 300, after: 200 }
+              })
+            );
+            break;
+
+          case 'paragraph':
+            const paragraphChildren = [];
+            if (section.style === 'center') {
+              paragraphChildren.push(
+                new TextRun({
+                  text: section.content,
+                  break: 0
+                })
+              );
+              children.push(
+                new Paragraph({
+                  children: paragraphChildren,
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 100, after: 100 }
+                })
+              );
+            } else {
+              children.push(
+                new Paragraph({
+                  text: section.content,
+                  spacing: { before: 100, after: 100 }
+                })
+              );
+            }
+            break;
+
+          case 'list':
+            section.content.forEach((item, index) => {
+              children.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: section.listType === 'bullet' ? '• ' : `${index + 1}. `,
+                      bold: false
+                    }),
+                    new TextRun({
+                      text: item.text,
+                      bold: item.bold || false,
+                      italic: item.italic || false,
+                      underline: item.underline || false
+                    })
+                  ],
+                  spacing: { before: 50, after: 50 },
+                  indent: { left: 720 * (item.level || 0) }
+                })
+              );
+            });
+            break;
+
+          case 'table':
+            if (section.content && section.content.headers && section.content.rows) {
+              const tableRows = [
+                new TableRow({
+                  children: section.content.headers.map(header => 
+                    new TableCell({
+                      children: [new Paragraph({
+                        text: header,
+                        heading: HeadingLevel.HEADING_3
+                      })],
+                      margins: { top: 100, bottom: 100, left: 100, right: 100 }
+                    })
+                  )
+                }),
+                ...section.content.rows.map(row => {
+                  const tableCells = row.cells.map(cell => {
+                    return new TableCell({
+                      children: [new Paragraph(cell.content)],
+                      margins: { top: 100, bottom: 100, left: 100, right: 100 }
+                    });
+                  });
+                  return new TableRow({ children: tableCells });
+                })
+              ];
+              
+              children.push(
+                new Table({
+                  rows: tableRows,
+                  width: { size: 100, type: 'pct' }
+                })
+              );
+            }
+            break;
+
+          case 'quote':
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: section.content,
+                    italic: true,
+                    color: '666666'
+                  })
+                ],
+                spacing: { before: 200, after: 100 },
+                indent: { left: 720 }
+              })
+            );
+            break;
+
+          case 'code':
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: section.content,
+                    font: 'Courier New',
+                    size: 22,
+                    color: '006600'
+                  })
+                ],
+                spacing: { before: 100, after: 100 },
+                shading: { fill: 'F5F5F5' }
+              })
+            );
+            break;
+
+          case 'image':
+            try {
+              const { src, alt } = section.content;
+              if (src) {
+                // Handle base64 images
+                if (src.startsWith('data:image')) {
+                  const parts = src.split(';');
+                  const imageData = parts[1].split(',')[1];
+                  
+                  if (imageData) {
+                    // Convert base64 to Uint8Array (browser-compatible)
+                    const binaryString = atob(imageData);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                      bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    
+                    // Add image to document
+                    children.push(
+                      new Paragraph({
+                        children: [
+                          new Drawing({
+                            anchor: {
+                              wrappingStyle: TextWrappingType.SQUARE,
+                              horizontalPosition: HorizontalPositionRelativeFrom.COLUMN,
+                              verticalPosition: VerticalPositionRelativeFrom.PARAGRAPH,
+                              horizontalPositionOffset: 0,
+                              verticalPositionOffset: 0,
+                              allowOverlap: true,
+                              behindDocument: false,
+                              locked: false,
+                              layoutInCell: true,
+                            },
+                            extent: {
+                              cx: 400000, // Width in EMUs (approx 2.8 inches)
+                              cy: 300000, // Height in EMUs (approx 2.1 inches)
+                            },
+                            drawing: {
+                              inline: {
+                                docPr: {
+                                  id: 1,
+                                  name: alt || 'Image',
+                                },
+                                graphicFrameLocks: {
+                                  noChangeAspect: true,
+                                },
+                              },
+                            },
+                            buffer: bytes,
+                            transformation: {
+                              width: 400000,
+                              height: 300000,
+                            },
+                          }),
+                        ],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 200, after: 200 },
+                      })
+                    );
+                  }
+                } else {
+                  // For external images, add as a paragraph with alt text
+                  children.push(
+                    new Paragraph({
+                      text: `[Image: ${alt || 'Embedded image'}]`,
+                      alignment: AlignmentType.CENTER,
+                      spacing: { before: 200, after: 200 },
+                      italics: true,
+                      shading: {
+                        type: ShadingType.CLEAR,
+                        fill: 'D9D9D9',
+                      }
+                    })
+                  );
+                }
+              }
+            } catch (error) {
+              console.error('Error processing image for DOCX:', error);
+              // Fallback to alt text
+              children.push(
+                new Paragraph({
+                  text: `[Image: ${section.content.alt || 'Embedded image'} (Error)]`,
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 200, after: 200 },
+                  italics: true,
+                  shading: {
+                    type: ShadingType.CLEAR,
+                    fill: 'FFB6C1',
+                  }
+                })
+              );
+            }
+            break;
+
+          case 'pageBreak':
+            children.push(
+              new Paragraph({
+                children: [new TextRun({ text: '', break: 1 })]
+              })
+            );
+            break;
+        }
       });
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: children
+        }],
+        creator: author,
+        description: description,
+        title: title,
+        subject: subject,
+        keywords: ['Athena Editor', 'Document'],
+        lastModifiedBy: author,
+        revision: 1
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, filename);
       
-      saveAs(blob, `${options.filename || 'document'}.docx`);
-      toast.success('Document exported to Word format');
+      if (toastId) toast.dismiss(toastId);
+      toast.success(`Word document exported as "${filename}"`);
       
     } catch (error) {
       console.error('DOCX export error:', error);
@@ -136,143 +754,399 @@ export class DocumentExporter {
     }
   }
 
-  static exportToMarkdown(editor, options = {}) {
+  static async exportToHTML(editor, options = {}) {
+    let toastId = null;
+    
     try {
-      const markdownContent = this.convertToMarkdown(editor);
-      const blob = new Blob([markdownContent], { type: 'text/markdown' });
+      const {
+        filename = 'document.html',
+        title = 'Document',
+        author = 'Athena Editor'
+      } = options;
+
+      toastId = toast('Preparing HTML export...');
+      
+      const htmlContent = this.getHTMLContent(editor);
+      const fullHTML = this.wrapHTMLForExport(htmlContent, { title, author });
+      
+      const blob = new Blob([fullHTML], { type: 'text/html' });
+      saveAs(blob, filename);
+      toast.success(`HTML document exported as "${filename}"`);
+      
+    } catch (error) {
+      console.error('HTML export error:', error);
+      toast.error('Failed to export HTML');
+    }
+  }
+
+  static async exportToMarkdown(editor, options = {}) {
+    let toastId = null;
+    
+    try {
+      toastId = toast('Converting to Markdown...');
+      
+      const sections = this.extractContentSections(editor);
+      let markdown = `# ${options.title || 'Document'}\n\n`;
+      markdown += `*Generated: ${new Date().toLocaleDateString()}*
+
+---
+
+`;
+      
+      sections.forEach(section => {
+        switch (section.type) {
+          case 'heading':
+            const hashes = '#'.repeat(section.level);
+            markdown += `${hashes} ${section.text}\n\n`;
+            break;
+
+          case 'paragraph':
+            markdown += `${section.content}\n\n`;
+            break;
+
+          case 'list':
+            section.content.forEach((item, index) => {
+              const indent = '  '.repeat(item.level || 0);
+              const prefix = section.listType === 'bullet' ? '- ' : `${index + 1}. `;
+              markdown += `${indent}${prefix}${item.text}\n`;
+            });
+            markdown += '\n';
+            break;
+
+          case 'table':
+            if (section.content && section.content.headers && section.content.rows) {
+              markdown += `| ${section.content.headers.join(' | ')} |\n`;
+              markdown += `| ${section.content.headers.map(() => '---').join(' | ')} |\n`;
+              
+              section.content.rows.forEach(row => {
+                const rowCells = row.cells.map(cell => cell.content);
+                markdown += `| ${rowCells.join(' | ')} |\n`;
+              });
+              markdown += '\n';
+            }
+            break;
+
+          case 'quote':
+            markdown += `> ${section.content}\n\n`;
+            break;
+
+          case 'code':
+            markdown += '```' + (section.language || '') + '\n';
+            markdown += section.content + '\n';
+            markdown += '```\n\n';
+            break;
+
+          case 'image':
+            const { src, alt } = section.content;
+            if (src) {
+              markdown += `![${alt || 'Image'}](${src})\n\n`;
+            }
+            break;
+        }
+      });
+
+      const blob = new Blob([markdown], { type: 'text/markdown' });
       saveAs(blob, `${options.filename || 'document'}.md`);
       toast.success('Document exported to Markdown');
+      
     } catch (error) {
       console.error('Markdown export error:', error);
       toast.error('Failed to export Markdown');
     }
   }
 
-  static exportToPlainText(editor, options = {}) {
+  static async exportToPlainText(editor, options = {}) {
+    let toastId = null;
+    
     try {
-      const textContent = editor.getText();
-      const blob = new Blob([textContent], { type: 'text/plain' });
+      toastId = toast('Preparing plain text export...');
+      
+      const sections = this.extractContentSections(editor);
+      let text = `TITLE: ${options.title || 'Document'}\n`;
+      text += `GENERATED: ${new Date().toLocaleDateString()}\n`;
+      text += '='.repeat(50) + '\n\n';
+      
+      sections.forEach(section => {
+        switch (section.type) {
+          case 'heading':
+            text += `${section.text.toUpperCase()}\n`;
+            text += '-'.repeat(section.text.length) + '\n\n';
+            break;
+
+          case 'paragraph':
+            text += `${section.content}\n\n`;
+            break;
+
+          case 'list':
+            section.content.forEach((item, index) => {
+              const indent = '    '.repeat(item.level || 0);
+              const prefix = section.listType === 'bullet' ? '• ' : `${index + 1}. `;
+              text += `${indent}${prefix}${item.text}\n`;
+            });
+            text += '\n';
+            break;
+
+          case 'quote':
+            text += `"${section.content}"\n\n`;
+            break;
+
+          case 'code':
+            text += '[CODE BLOCK]\n';
+            text += section.content + '\n';
+            text += '[END CODE BLOCK]\n\n';
+            break;
+
+          case 'image':
+            const { alt } = section.content;
+            text += `[IMAGE: ${alt || 'Embedded image'}]\n\n`;
+            break;
+        }
+      });
+
+      const blob = new Blob([text], { type: 'text/plain' });
       saveAs(blob, `${options.filename || 'document'}.txt`);
       toast.success('Document exported to Plain Text');
+      
     } catch (error) {
       console.error('Text export error:', error);
       toast.error('Failed to export Plain Text');
     }
   }
 
+  static async printDocument(editor, options = {}) {
+    let toastId = null;
+    
+    try {
+      toastId = toast('Preparing for printing...');
+      
+      const htmlContent = this.getHTMLContent(editor);
+      const printHTML = this.wrapHTMLForPrint(htmlContent, options);
+      
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Popup blocked. Please allow popups to print.');
+      }
+      
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        toast.success('Print dialog opened');
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to open print dialog');
+    }
+  }
+
+  static extractContentSections(editor) {
+    if (!editor) {
+      console.error("Editor parameter is required for extractContentSections");
+      return [];
+    }
+    
+    const sections = [];
+    const state = editor.state;
+    const doc = state.doc;
+    
+    if (!doc) {
+      console.error("No document found in editor");
+      return sections;
+    }
+    
+    try {
+      doc.descendants((node, pos) => {
+        const section = {
+          type: node.type.name,
+          pos: pos
+        };
+        
+        switch (node.type.name) {
+          case 'heading':
+            section.level = node.attrs.level || 1;
+            section.text = node.textContent || '';
+            break;
+            
+          case 'paragraph':
+            section.content = node.textContent || '';
+            if (node.attrs && node.attrs.textAlign) {
+              section.style = node.attrs.textAlign;
+            }
+            break;
+            
+          case 'bulletList':
+          case 'orderedList':
+            const items = [];
+            node.descendants((childNode, childPos) => {
+              if (childNode.type.name === 'listItem') {
+                items.push({
+                  text: childNode.textContent || '',
+                  level: this.getListItemLevel(doc, childPos)
+                });
+              }
+            });
+            if (items.length > 0) {
+              sections.push({
+                type: 'list',
+                listType: node.type.name === 'bulletList' ? 'bullet' : 'ordered',
+                content: items
+              });
+            }
+            return false;
+            
+          case 'table':
+            sections.push({
+              type: 'table',
+              content: { rows: [], headers: [] }
+            });
+            return false;
+            
+          case 'blockquote':
+            section.content = node.textContent || '';
+            break;
+            
+          case 'codeBlock':
+            section.content = node.textContent || '';
+            section.language = node.attrs.language || 'text';
+            break;
+            
+          case 'image':
+            section.content = {
+              src: node.attrs.src || '',
+              alt: node.attrs.alt || 'Image',
+              title: node.attrs.title || ''
+            };
+            break;
+            
+          case 'horizontalRule':
+            section.type = 'horizontalRule';
+            break;
+        }
+        
+        if (section.type !== 'bulletList' && section.type !== 'orderedList' && section.type !== 'table') {
+          sections.push(section);
+        }
+        
+        return true;
+      });
+    } catch (error) {
+      console.error("Error extracting sections:", error);
+    }
+    
+    return sections;
+  }
+
+  static getListItemLevel(doc, pos) {
+    let level = 0;
+    try {
+      let node = doc.nodeAt(pos);
+      
+      while (node) {
+        if (node.type.name === 'listItem') {
+          level++;
+          const resolvedPos = doc.resolve(pos);
+          if (resolvedPos.depth > 0) {
+            pos = resolvedPos.before();
+            node = doc.nodeAt(pos);
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+    } catch (error) {
+      console.warn("Error getting list item level:", error);
+    }
+    
+    return level;
+  }
+
   static getHTMLContent(editor) {
     if (!editor) return '';
     
-    // Get the editor's HTML content
-    const html = editor.getHTML();
+    // Get the raw HTML content from the editor
+    const rawHTML = editor.getHTML();
     
-    // Clean up and format HTML for export
-    return this.cleanHTMLForExport(html);
+    // Process the HTML to ensure images are properly embedded
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHTML, 'text/html');
+    
+    // Process all images in the content
+    const images = doc.querySelectorAll('img');
+    images.forEach(img => {
+      const src = img.getAttribute('src');
+      
+      // If the image source is a blob or data URL, it should be preserved
+      if (src && (src.startsWith('data:image/') || src.startsWith('blob:'))) {
+        // These are already embedded images, keep them as is
+      } else if (src && src.startsWith('/')) {
+        // Convert relative paths to absolute paths for export
+        const absoluteSrc = window.location.origin + src;
+        img.setAttribute('src', absoluteSrc);
+      }
+      
+      // Ensure alt text is preserved
+      if (!img.hasAttribute('alt')) {
+        img.setAttribute('alt', 'Embedded image');
+      }
+    });
+    
+    // Return the processed HTML
+    return doc.body.innerHTML;
   }
 
-  static cleanHTMLForExport(html) {
-    // Remove editor-specific classes and attributes
-    return html
-      .replace(/class="ProseMirror[^"]*"/g, '')
-      .replace(/data-[^=]*="[^"]*"/g, '')
-      .replace(/<br\s*\/?>/g, '<br>')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  static wrapHTMLForPDF(html, options) {
-    const { title, includeHeader, includeFooter } = options;
+  static wrapHTMLForExport(html, options) {
+    const { title = 'Document', author = 'Athena Editor' } = options;
     
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      font-size: 12pt;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      font-size: 14px;
       line-height: 1.6;
-      color: #000;
-      margin: 0;
-      padding: 25mm;
-      background: white;
-      width: 210mm;
-      min-height: 297mm;
-      box-sizing: border-box;
-    }
-    
-    .document-header {
-      text-align: center;
-      margin-bottom: 20mm;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 10mm;
-    }
-    
-    .document-footer {
-      position: absolute;
-      bottom: 20mm;
-      width: calc(210mm - 40mm);
-      text-align: center;
-      font-size: 10pt;
-      color: #666;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fff;
     }
     
     h1, h2, h3, h4, h5, h6 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      font-weight: 600;
       margin-top: 1.5em;
       margin-bottom: 0.5em;
-      color: #333;
+      color: #1a1a1a;
     }
     
-    h1 { font-size: 24pt; }
-    h2 { font-size: 20pt; }
-    h3 { font-size: 18pt; }
-    h4 { font-size: 16pt; }
-    h5 { font-size: 14pt; }
-    h6 { font-size: 12pt; }
+    h1 { font-size: 2em; border-bottom: 2px solid #eaeaea; padding-bottom: 0.3em; }
+    h2 { font-size: 1.5em; }
+    h3 { font-size: 1.25em; }
     
     p {
-      margin: 0.5em 0;
-      text-align: justify;
-    }
-    
-    ul, ol {
-      margin: 0.5em 0;
-      padding-left: 1.5em;
-    }
-    
-    li {
-      margin: 0.2em 0;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
       margin: 1em 0;
     }
     
-    table, th, td {
-      border: 1px solid #ddd;
+    ul, ol {
+      margin: 1em 0;
+      padding-left: 2em;
     }
     
-    th, td {
-      padding: 8px;
-      text-align: left;
-    }
-    
-    th {
-      background-color: #f5f5f5;
-      font-weight: bold;
-    }
-    
-    img {
-      max-width: 100%;
-      height: auto;
+    li {
       margin: 0.5em 0;
     }
     
     blockquote {
-      border-left: 4px solid #ccc;
+      border-left: 4px solid #e0e0e0;
       margin: 1em 0;
       padding-left: 1em;
       color: #666;
@@ -280,25 +1154,68 @@ export class DocumentExporter {
     }
     
     code {
-      background-color: #f5f5f5;
-      padding: 2px 4px;
+      background: #f6f8fa;
+      padding: 2px 6px;
       border-radius: 3px;
-      font-family: 'Courier New', monospace;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.9em;
     }
     
     pre {
-      background-color: #f5f5f5;
+      background: #f6f8fa;
       padding: 1em;
-      border-radius: 5px;
+      border-radius: 6px;
       overflow-x: auto;
-      font-family: 'Courier New', monospace;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.9em;
+      line-height: 1.45;
     }
     
-    .page-break {
-      page-break-after: always;
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+    }
+    
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    
+    th {
+      background: #f6f8fa;
+      font-weight: 600;
+    }
+    
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    
+    .document-header {
+      text-align: center;
+      margin-bottom: 3em;
+      padding-bottom: 2em;
+      border-bottom: 1px solid #eaeaea;
+    }
+    
+    .document-footer {
+      margin-top: 3em;
+      padding-top: 1.5em;
+      border-top: 1px solid #eaeaea;
+      color: #666;
+      font-size: 0.9em;
+      text-align: center;
     }
     
     @media print {
+      body {
+        padding: 0;
+        max-width: none;
+      }
+      
       .no-print {
         display: none;
       }
@@ -306,125 +1223,288 @@ export class DocumentExporter {
   </style>
 </head>
 <body>
-  ${includeHeader ? `<div class="document-header">
+  <div class="document-header">
     <h1>${title}</h1>
-  </div>` : ''}
+    <p style="color: #666; font-size: 0.9em;">
+      Created by ${author} • ${new Date().toLocaleDateString()}
+    </p>
+  </div>
   
   <div class="document-content">
     ${html}
   </div>
   
-  ${includeFooter ? `<div class="document-footer">
-    Generated with Athena Editor - ${new Date().toLocaleDateString()}
-  </div>` : ''}
+  <div class="document-footer">
+    <p>Document exported from Athena Editor</p>
+  </div>
 </body>
 </html>`;
   }
 
-  static wrapHTMLForWord(html, options) {
-    const { title = 'Document' } = options;
+  static wrapHTMLForPrint(html, options) {
+    const { title = 'Document', includePageNumbers = true } = options;
     
     return `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
+<html>
 <head>
   <meta charset="UTF-8">
   <title>${title}</title>
-  <!--[if gte mso 9]>
-  <xml>
-    <w:WordDocument>
-      <w:View>Print</w:View>
-      <w:Zoom>100</w:Zoom>
-      <w:DoNotOptimizeForBrowser/>
-    </w:WordDocument>
-  </xml>
-  <![endif]-->
   <style>
-    body {
-      font-family: 'Calibri', 'Arial', sans-serif;
-      font-size: 11pt;
-      line-height: 1.15;
+    @page {
       margin: 1in;
-      background: white;
+      @bottom-center {
+        content: counter(page);
+        font-size: 10pt;
+        color: #666;
+      }
+    }
+    
+    body {
+      font-family: 'Georgia', serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #000;
+      margin: 0;
+      padding: 0;
+      counter-reset: page;
+    }
+    
+    .document-content {
+      padding: 1in;
     }
     
     h1, h2, h3, h4, h5, h6 {
-      font-family: 'Calibri Light', 'Arial', sans-serif;
-      margin-top: 0.5em;
-      margin-bottom: 0.3em;
+      page-break-after: avoid;
+      font-weight: bold;
     }
     
-    h1 { font-size: 16pt; }
-    h2 { font-size: 14pt; }
-    h3 { font-size: 13pt; }
+    h1 {
+      font-size: 18pt;
+      margin: 24pt 0 12pt 0;
+    }
+    
+    h2 {
+      font-size: 16pt;
+      margin: 20pt 0 10pt 0;
+    }
+    
+    h3 {
+      font-size: 14pt;
+      margin: 16pt 0 8pt 0;
+    }
     
     p {
-      margin: 0.5em 0;
+      margin: 0 0 12pt 0;
+      text-align: justify;
     }
     
     ul, ol {
-      margin: 0.5em 0;
-      padding-left: 1.5em;
+      margin: 12pt 0;
+      padding-left: 24pt;
     }
     
     table {
       border-collapse: collapse;
+      margin: 12pt 0;
       width: 100%;
-      margin: 0.5em 0;
-    }
-    
-    table, th, td {
-      border: 1px solid #000;
+      page-break-inside: avoid;
     }
     
     th, td {
-      padding: 4px;
+      border: 1px solid #000;
+      padding: 6pt;
+      text-align: left;
     }
     
     img {
       max-width: 100%;
       height: auto;
+      page-break-inside: avoid;
+    }
+    
+    blockquote {
+      border-left: 3px solid #ccc;
+      margin: 12pt 0;
+      padding: 6pt 0 6pt 12pt;
+      font-style: italic;
+      color: #444;
+    }
+    
+    pre, code {
+      font-family: 'Courier New', monospace;
+      background-color: #f5f5f5;
+    }
+    
+    pre {
+      padding: 8pt;
+      border: 1px solid #ccc;
+      overflow-x: auto;
+      page-break-inside: avoid;
+    }
+    
+    .page-break {
+      page-break-before: always;
+    }
+    
+    .no-print {
+      display: none;
+    }
+    
+    @media print {
+      a {
+        color: #000;
+        text-decoration: none;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>${title}</h1>
-  ${html}
+  <div class="document-content">
+    ${html}
+  </div>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    });
+  </script>
 </body>
 </html>`;
   }
 
-  static convertToMarkdown(editor) {
-    // Basic HTML to Markdown conversion
-    let html = editor.getHTML();
+  static detectImageFormat(src) {
+    if (!src) return 'JPEG';
     
-    // Simple conversions
-    html = html
-      .replace(/<h1>(.*?)<\/h1>/gi, '# $1\n\n')
-      .replace(/<h2>(.*?)<\/h2>/gi, '## $1\n\n')
-      .replace(/<h3>(.*?)<\/h3>/gi, '### $1\n\n')
-      .replace(/<h4>(.*?)<\/h4>/gi, '#### $1\n\n')
-      .replace(/<h5>(.*?)<\/h5>/gi, '##### $1\n\n')
-      .replace(/<h6>(.*?)<\/h6>/gi, '###### $1\n\n')
-      .replace(/<p>(.*?)<\/p>/gi, '$1\n\n')
-      .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
-      .replace(/<b>(.*?)<\/b>/gi, '**$1**')
-      .replace(/<em>(.*?)<\/em>/gi, '*$1*')
-      .replace(/<i>(.*?)<\/i>/gi, '*$1*')
-      .replace(/<ul>(.*?)<\/ul>/gis, (match, content) => {
-        return content.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
-      })
-      .replace(/<ol>(.*?)<\/ol>/gis, (match, content) => {
-        let counter = 1;
-        return content.replace(/<li>(.*?)<\/li>/gi, (liMatch, liContent) => {
-          return `${counter++}. ${liContent}\n`;
+    // Handle base64 images
+    if (src.startsWith('data:')) {
+      const mimeType = src.split(';')[0].split(':')[1];
+      switch (mimeType) {
+        case 'image/png': return 'PNG';
+        case 'image/jpeg': 
+        case 'image/jpg': return 'JPEG';
+        case 'image/gif': return 'GIF';
+        case 'image/webp': return 'WEBP';
+        default: return 'JPEG';
+      }
+    }
+    
+    // Handle URL-based images
+    const extension = src.split('.').pop().toLowerCase().split('?')[0].split('#')[0];
+    switch (extension) {
+      case 'png': return 'PNG';
+      case 'jpg': 
+      case 'jpeg': return 'JPEG';
+      case 'gif': return 'GIF';
+      case 'webp': return 'WEBP';
+      default: return 'JPEG'; // Default fallback
+    }
+  }
+
+  static async convertImageToBase64(url) {
+    try {
+      // Handle data URLs directly
+      if (url.startsWith('data:')) {
+        return url;
+      }
+      
+      // Handle blob URLs
+      if (url.startsWith('blob:')) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
         });
-      })
-      .replace(/<a href="(.*?)">(.*?)<\/a>/gi, '[$2]($1)')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]+>/g, '');
-    
-    return html.trim();
+      }
+      
+      // Handle relative URLs by converting to absolute
+      if (url.startsWith('/')) {
+        url = window.location.origin + url;
+      }
+      
+      // Fetch external images
+      const response = await fetch(url, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error converting image to base64:', error);
+      return null;
+    }
+  }
+
+  static getSupportedFormats() {
+    return {
+      pdf: {
+        name: 'PDF Document',
+        description: 'High-quality PDF for printing and sharing',
+        icon: '📄',
+        options: {
+          fontSize: { type: 'number', default: 12, min: 8, max: 18 },
+          margins: { type: 'object', default: { top: 20, right: 20, bottom: 20, left: 20 } },
+          pageNumbers: { type: 'boolean', default: true },
+          header: { type: 'boolean', default: true },
+          footer: { type: 'boolean', default: true }
+        }
+      },
+      docx: {
+        name: 'Microsoft Word',
+        description: 'Editable Word document',
+        icon: '📝',
+        options: {
+          includeMetadata: { type: 'boolean', default: true }
+        }
+      },
+      html: {
+        name: 'Web Page',
+        description: 'HTML file for web browsers',
+        icon: '🌐',
+        options: {
+          includeStyles: { type: 'boolean', default: true }
+        }
+      },
+      md: {
+        name: 'Markdown',
+        description: 'Plain text with formatting',
+        icon: '📋',
+        options: {
+          includeFrontmatter: { type: 'boolean', default: true }
+        }
+      },
+      txt: {
+        name: 'Plain Text',
+        description: 'Simple text without formatting',
+        icon: '📃',
+        options: {
+          includeHeader: { type: 'boolean', default: true }
+        }
+      },
+      print: {
+        name: 'Print',
+        description: 'Open print dialog',
+        icon: '🖨️',
+        options: {
+          layout: { type: 'select', options: ['portrait', 'landscape'], default: 'portrait' }
+        }
+      }
+    };
   }
 }
+
+// Export the class as default
+export default DocumentExporter;

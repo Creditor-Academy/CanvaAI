@@ -54,12 +54,13 @@ import { getKonvaFontStyle } from './utils/fontUtils';
 import { enhancePresentationText } from './ai/api';
 import { convertBackendFormatToSlides } from './utils/convertBackendFormat';
 
-const useLayerEffects = (nodeRef, effects, scaleFactor = 1, dependencies = []) => {
+const useLayerEffects = (nodeRef, getEffects, scaleFactor = 1, dependencies = []) => {
   useEffect(() => {
     const node = nodeRef?.current;
     if (!node) return;
+    const effects = getEffects?.();
     applyLayerEffectsToNode(node, effects, scaleFactor);
-  }, [nodeRef, effects, scaleFactor, ...dependencies]);
+  }, [nodeRef, scaleFactor, ...dependencies]);
 };
 
 const ElementGroup = ({
@@ -96,7 +97,7 @@ const ElementGroup = ({
     }
     
     groupNode.getLayer()?.batchDraw();
-  }, [groupRef, effects, scale]);
+  }, [groupRef, scale]);
   
   return (
     <Group ref={groupRef}>
@@ -130,7 +131,7 @@ const ImageLayer = React.forwardRef((
       return;
     }
 
-    console.log('ImageLayer: Loading image', layer.src);
+// console.log('ImageLayer: Loading image', layer.src);
     const img = new window.Image();
     
     // For S3 URLs, we may need to handle CORS differently
@@ -145,7 +146,7 @@ const ImageLayer = React.forwardRef((
     }
     
     img.onload = () => {
-      console.log('ImageLayer: Image loaded successfully', layer.src);
+// console.log('ImageLayer: Image loaded successfully', layer.src);
       setImageLoaded(true);
       if (imageRef.current) {
         imageRef.current.image(img);
@@ -166,10 +167,10 @@ const ImageLayer = React.forwardRef((
       
       // Try loading without crossOrigin as fallback (for S3 or CORS issues)
       if (img.crossOrigin && isS3Url) {
-        console.log('ImageLayer: Retrying without crossOrigin', layer.src);
+// console.log('ImageLayer: Retrying without crossOrigin', layer.src);
         const imgRetry = new window.Image();
         imgRetry.onload = () => {
-          console.log('ImageLayer: Image loaded without crossOrigin', layer.src);
+// console.log('ImageLayer: Image loaded without crossOrigin', layer.src);
           setImageLoaded(true);
           if (imageRef.current) {
             imageRef.current.image(imgRetry);
@@ -192,7 +193,7 @@ const ImageLayer = React.forwardRef((
     img.src = layer.src;
   }, [layer.src]);
 
-  useLayerEffects(imageRef, layer.effects, scale, [imageLoaded]);
+  useLayerEffects(imageRef, () => layer.effects, scale, [imageLoaded]);
 
   return (
     <Group
@@ -255,7 +256,7 @@ const TextLayer = React.forwardRef((
   ref,
 ) => {
   const textRef = useRef(null);
-  useLayerEffects(textRef, layer.effects, scale);
+  useLayerEffects(textRef, () => layer.effects, scale);
 
   return (
     <Group
@@ -364,7 +365,7 @@ const ShapeLayer = React.forwardRef((
   const effectsTargetRef = hasImageFill ? imageRef : shapeRef;
   
   // Apply effects to the appropriate target (image or shape)
-  useLayerEffects(effectsTargetRef, layer.effects, scale, hasImageFill ? [imageData] : []);
+  useLayerEffects(effectsTargetRef, () => layer.effects, scale, hasImageFill ? [imageData] : []);
   
   // Calculate image dimensions for cover/contain (same logic as CSS background-size)
   const imageDims = useMemo(() => {
@@ -858,7 +859,7 @@ const PresentationWorkspace = ({ layout, onBack, initialData }) => {
     return () => {
       stage.off('wheel', handleWheel);
     };
-  }, [stageRef, layout]);
+  }, [stageRef, layout?.width, layout?.height]);
 
   const activeSlide = useMemo(
     () => slides.find((slide) => slide.id === activeSlideId) || slides[0],
@@ -1054,13 +1055,13 @@ const PresentationWorkspace = ({ layout, onBack, initialData }) => {
         delete layerNodeRefs.current[layerId];
       }
     });
-  }, [activeSlide]);
+  }, [activeSlide?.id]);
 
   useEffect(() => {
     if (!activeSlide && slides.length > 0) {
       setActiveSlideId(slides[0].id);
     }
-  }, [activeSlide, slides]);
+  }, [activeSlide?.id, slides?.length]);
 
   useEffect(() => {
     if (!activeSlide) return;
@@ -1071,7 +1072,7 @@ const PresentationWorkspace = ({ layout, onBack, initialData }) => {
     if (uploadingLayerId && !ids.has(uploadingLayerId)) {
       setUploadingLayerId(null);
     }
-  }, [activeSlide, enhancingLayerId, uploadingLayerId]);
+  }, [activeSlide?.id, enhancingLayerId, uploadingLayerId]);
 
   // Undo/Redo handlers
   const onUndo = () => {
@@ -1740,7 +1741,7 @@ const handleApplyEnhancedText = (enhancedText) => {
   const selectedLayer = useMemo(() => {
     if (!activeSlide) return null;
     return activeSlide.layers.find((layer) => layer.id === selectedLayerId) || null;
-  }, [activeSlide, selectedLayerId]);
+  }, [activeSlide?.id, selectedLayerId]);
   const slideDuration = activeSlide?.animationDuration ?? DEFAULT_SLIDE_DURATION;
   useEffect(() => {
     setIsTimingPanelOpen(false);

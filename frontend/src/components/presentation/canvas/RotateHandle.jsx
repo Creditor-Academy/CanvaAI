@@ -39,7 +39,7 @@ const RotateHandle = ({ targetRef, isVisible, scale = 1, onRotate, layer }) => {
 
     handleGroup.position({ x: handleX, y: handleY });
     handleGroup.getLayer()?.batchDraw();
-  }, [isVisible, targetRef, scale, layer?.x, layer?.y, layer?.width, layer?.height, layer?.rotation]);
+  }, [isVisible]); // Removed targetRef to prevent infinite loop
 
   if (!isVisible || !targetRef?.current) {
     return null;

@@ -5,12 +5,13 @@ import { getShapePoints } from '../utils/shapeUtils';
 import { applyLayerEffectsToNode } from '../utils/effectUtils';
 import { getKonvaFontStyle } from '../utils/fontUtils';
 
-const useKonvaEffects = (nodeRef, effects, scaleFactor = 1, dependencies = []) => {
+const useKonvaEffects = (nodeRef, getEffects, scaleFactor = 1, dependencies = []) => {
   useEffect(() => {
     const node = nodeRef?.current;
     if (!node) return;
+    const effects = getEffects?.();
     applyLayerEffectsToNode(node, effects, scaleFactor);
-  }, [nodeRef, effects, scaleFactor, ...dependencies]);
+  }, [nodeRef, scaleFactor, ...dependencies]);
 };
 
 const useLayerBlur = (layerRef, blurValue = 0, scaleFactor = 1) => {
@@ -36,7 +37,7 @@ const PreviewElementLayer = ({ layer, scale, children }) => {
 
 const PreviewTextLayer = ({ layer, x, y, width, height, scale }) => {
   const textRef = useRef(null);
-  useKonvaEffects(textRef, layer.effects, scale);
+  useKonvaEffects(textRef, () => layer.effects, scale);
 
   return (
     <Group x={x} y={y}>
@@ -133,7 +134,7 @@ const PreviewImageLayer = ({ layer, x, y, width, height, scale }) => {
     img.src = layer.src;
   }, [layer.src]);
 
-  useKonvaEffects(imageRef, layer.effects, scale, [imageLoaded]);
+  useKonvaEffects(imageRef, () => layer.effects, scale, [imageLoaded]);
 
   return (
     <Group x={x} y={y}>
@@ -155,7 +156,7 @@ const PreviewImageLayer = ({ layer, x, y, width, height, scale }) => {
 
 const PreviewShapeLayer = ({ layer, x, y, width, height, scale }) => {
   const shapeRef = useRef(null);
-  useKonvaEffects(shapeRef, layer.effects, scale);
+  useKonvaEffects(shapeRef, () => layer.effects, scale);
 
   const circleRadius = Math.min(width, height) / 2;
   const groupX = layer.shape === 'circle' ? x + circleRadius : x;

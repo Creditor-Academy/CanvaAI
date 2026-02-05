@@ -93,7 +93,10 @@ import {
   Split,
   Code2,
   Clipboard,
-  Brain
+  Brain,
+  Trash2,
+  ChevronDown,
+  Play
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import {
@@ -214,8 +217,10 @@ const ToolbarButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          "h-9 w-9 p-0 hover:bg-gray-100 rounded-full",
-          isActive && "bg-blue-100 text-blue-600 hover:bg-blue-100",
+          "h-9 w-9 p-0 rounded-lg",
+          "bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border border-blue-200",
+          "transition-all duration-200",
+          isActive && "bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 border-blue-300",
           disabled && "opacity-50 cursor-not-allowed",
           className
         )}
@@ -223,7 +228,7 @@ const ToolbarButton = ({
         {children}
       </Button>
     </TooltipTrigger>
-    <TooltipContent side="bottom" className="text-xs">
+    <TooltipContent side="bottom" className="text-xs bg-gray-800 text-white px-2 py-1 rounded shadow-lg">
       {tooltip}
     </TooltipContent>
   </Tooltip>
@@ -237,10 +242,8 @@ export const EditorToolbar = ({
   handleInsertImage, 
   setShowReferencesPanel, 
   setIsAISidebarOpen,
-  isAISidebarOpen,
   documentTitle,
   onPrint,
-  showFormatMenu,
   setShowFormatMenu,
   showInsertMenu,
   setShowInsertMenu,
@@ -252,11 +255,40 @@ export const EditorToolbar = ({
   onGenerateDocument,
   onAIInlineAction,
   onCodeAssistant,
+  onExport,
   // Template Sidebar
   setIsTemplateSidebarOpen,
   // Routing
-  navigateTo
+  navigateTo,
+  // Export Loading State
+  exportLoading,
+  // Blockquote function
+  toggleBlockquote
 }) => {
+  // Removed debug log to prevent infinite renders
+  // Check if cursor is inside a table - moved to top to avoid initialization issues
+  const isInsideTable = () => {
+    if (!editor) return false;
+    
+    try {
+      const { state } = editor;
+      const { selection } = state;
+      const { $from } = selection;
+      
+      // Check if selection is inside a table
+      for (let depth = $from.depth; depth > 0; depth--) {
+        const node = $from.node(depth);
+        if (node && (node.type.name === 'table' || node.type.name === 'tableRow' || node.type.name === 'tableCell')) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking table position:', error);
+      return false;
+    }
+  };
+
   const [linkUrl, setLinkUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -269,11 +301,26 @@ export const EditorToolbar = ({
   const [showRuler, setShowRuler] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
+  
+  // Zoom helper functions
+  const effectiveZoom = zoom || 100;
+  
+  const onZoomChangeWithFeedback = (newZoom) => {
+    if (onZoomChange && typeof onZoomChange === 'function') {
+      onZoomChange(newZoom);
+      toast.success(`Zoom set to ${newZoom}%`);
+    } else {
+      toast.error('Zoom function not available');
+    }
+  };
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportFormat, setExportFormat] = useState('');
+  const [exportProgressMessage, setExportProgressMessage] = useState('');
   
   // Routing
   const navigate = useNavigate();
@@ -282,6 +329,13 @@ export const EditorToolbar = ({
   const [showAIDocumentGenerator, setShowAIDocumentGenerator] = useState(false);
   const [showAIInlineActions, setShowAIInlineActions] = useState(false);
   const [showCodeAssistant, setShowCodeAssistant] = useState(false);
+  const [showCodeBlockMenu, setShowCodeBlockMenu] = useState(false);
+  const [showCodeBlockConfigDialog, setShowCodeBlockConfigDialog] = useState(false);
+  const [selectedCodeLanguage, setSelectedCodeLanguage] = useState('javascript');
+  const [codeExecutionEnabled, setCodeExecutionEnabled] = useState(false);
+  const [codeTheme, setCodeTheme] = useState('default');
+  const [showLineNumbers, setShowLineNumbers] = useState(true);
+  const [codeWrapEnabled, setCodeWrapEnabled] = useState(false);
   
   // Document Generation States
   const [documentTopic, setDocumentTopic] = useState("");
@@ -291,6 +345,51 @@ export const EditorToolbar = ({
   
   // File upload ref
   const fileInputRef = useRef(null);
+
+  // Auto-hide export progress messages after 5 seconds
+  useEffect(() => {
+    if (exportProgressMessage) {
+      const timer = setTimeout(() => {
+        setExportProgressMessage('');
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [exportProgressMessage]);
+
+  // Keyboard shortcuts for table manipulation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isInsideTable()) return;
+      
+      // Ctrl+Shift+Enter to add row
+      if (e.ctrlKey && e.shiftKey && e.key === 'Enter') {
+        e.preventDefault();
+        addTableRow();
+      }
+      
+      // Ctrl+Alt+Enter to add column
+      if (e.ctrlKey && e.altKey && e.key === 'Enter') {
+        e.preventDefault();
+        addTableColumn();
+      }
+      
+      // Ctrl+Shift+Delete to delete row
+      if (e.ctrlKey && e.shiftKey && e.key === 'Delete') {
+        e.preventDefault();
+        deleteTableRow();
+      }
+      
+      // Ctrl+Alt+Delete to delete column
+      if (e.ctrlKey && e.altKey && e.key === 'Delete') {
+        e.preventDefault();
+        deleteTableColumn();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [editor]); // Use editor as dependency instead of isInsideTable()
 
   // Helper function to set font size
   const setCurrentFontSize = (size) => {
@@ -459,12 +558,111 @@ export const EditorToolbar = ({
 
   const addTable = () => {
     if (editor) {
-      editor
-        .chain()
-        .focus()
-        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-        .run();
-      toast.success('Table inserted');
+      // Try custom table first, fallback to standard table
+      if (editor.can().insertCustomTable) {
+        editor
+          .chain()
+          .focus()
+          .insertCustomTable({ 
+            rows: 3, 
+            cols: 3, 
+            cells: Array(3).fill().map(() => Array(3).fill('')),
+            borderColor: '#d1d5db',
+            fontSize: 14,
+            color: '#000000',
+            textAlign: 'left'
+          })
+          .run();
+        toast.success('Custom table inserted');
+      } else {
+        editor
+          .chain()
+          .focus()
+          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+          .run();
+        toast.success('Table inserted');
+      }
+    }
+  };
+
+  // Table manipulation functions for Tiptap tables
+  const addTableRow = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (editor.can().addRowAfter) {
+      editor.chain().focus().addRowAfter().run();
+      toast.success('Row added to table');
+    } else {
+      toast.error('No table selected or feature not available');
+    }
+  };
+
+  const addTableColumn = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (editor.can().addColumnAfter) {
+      editor.chain().focus().addColumnAfter().run();
+      toast.success('Column added to table');
+    } else {
+      toast.error('No table selected or feature not available');
+    }
+  };
+
+  const deleteTableRow = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (editor.can().deleteRow) {
+      editor.chain().focus().deleteRow().run();
+      toast.success('Row deleted from table');
+    } else {
+      toast.error('No table selected or feature not available');
+    }
+  };
+
+  const deleteTableColumn = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (editor.can().deleteColumn) {
+      editor.chain().focus().deleteColumn().run();
+      toast.success('Column deleted from table');
+    } else {
+      toast.error('No table selected or feature not available');
+    }
+  };
+
+  const toggleTableHeader = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (editor.can().toggleHeaderCell) {
+      editor.chain().focus().toggleHeaderCell().run();
+      toast.success('Table header toggled');
+    } else {
+      toast.error('No table selected or feature not available');
+    }
+  };
+
+  const deleteTable = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (editor.can().deleteTable) {
+      if (window.confirm('Are you sure you want to delete this table?')) {
+        editor.chain().focus().deleteTable().run();
+        toast.success('Table deleted');
+      }
+    } else {
+      toast.error('No table selected or feature not available');
     }
   };
 
@@ -536,37 +734,161 @@ export const EditorToolbar = ({
 
   const indent = () => {
     if (editor) {
-      editor.chain().focus().indent().run();
+      // If we're in a list item, increase the list item indent (Google Docs style)
+      if (editor.isActive('listItem')) {
+        editor.chain().focus().sinkListItem('listItem').run();
+        toast.success('List item indented');
+        console.log('Indented list item (Google Docs style)');
+      } else {
+        // For regular paragraphs/headers, use the standard indent
+        editor.chain().focus().indent().run();
+        toast.success('Text indented');
+        console.log('Indented regular text');
+      }
     }
   };
 
   const outdent = () => {
     if (editor) {
-      editor.chain().focus().outdent().run();
-    }
-  };
-
-  const toggleBlockquote = () => {
-    if (editor) {
-      editor.chain().focus().toggleBlockquote().run();
+      // If we're in a list item, decrease the list item indent (Google Docs style)
+      if (editor.isActive('listItem')) {
+        editor.chain().focus().liftListItem('listItem').run();
+        toast.success('List item outdented');
+        console.log('Outdented list item (Google Docs style)');
+      } else {
+        // For regular paragraphs/headers, use the standard outdent
+        editor.chain().focus().outdent().run();
+        toast.success('Text outdented');
+        console.log('Outdented regular text');
+      }
     }
   };
 
   const toggleCodeBlock = () => {
-    if (editor) {
-      editor.chain().focus().toggleCodeBlock().run();
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    editor.chain().focus().toggleCodeBlock().run();
+    toast.success('Code block toggled');
+  };
+
+  const insertCodeBlockWithLanguage = (language) => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    
+    // Set the language and insert code block
+    editor.chain().focus().toggleCodeBlock().run();
+    
+    // Update the code block attributes with language
+    if (editor.isActive('codeBlock')) {
+      editor.commands.updateAttributes('codeBlock', { language });
+    }
+    
+    setSelectedCodeLanguage(language);
+    setShowCodeBlockMenu(false);
+    toast.success(`${language} code block inserted`);
+  };
+
+  const toggleCodeExecution = () => {
+    setCodeExecutionEnabled(!codeExecutionEnabled);
+    toast.info(`Code execution ${!codeExecutionEnabled ? 'enabled' : 'disabled'}`);
+  };
+
+  const executeCodeBlock = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    
+    // Get the current code block content
+    const codeBlock = editor.state.doc.cut(editor.state.selection.from, editor.state.selection.to);
+    const codeContent = codeBlock.textContent || '';
+    
+    if (!codeContent.trim()) {
+      toast.error('No code to execute');
+      return;
+    }
+    
+    toast.success('Code execution started...');
+    // In a real implementation, this would execute the code in a secure sandbox
+    console.log('Executing code:', codeContent);
+  };
+
+  const applyCodeBlockConfiguration = () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    
+    // Apply the current configuration to the code block
+    if (editor.isActive('codeBlock')) {
+      editor.commands.updateAttributes('codeBlock', { 
+        language: selectedCodeLanguage,
+        theme: codeTheme,
+        lineNumbers: showLineNumbers,
+        wrap: codeWrapEnabled
+      });
+      
+      toast.success('Code block configuration applied');
+    }
+    
+    setShowCodeBlockConfigDialog(false);
+  };
+
+  const resetCodeBlockConfiguration = () => {
+    setCodeTheme('default');
+    setShowLineNumbers(true);
+    setCodeWrapEnabled(false);
+    setSelectedCodeLanguage('javascript');
+    toast.info('Code block configuration reset to defaults');
+  };
+
+  const openCodeBlockConfigDialog = () => {
+    setShowCodeBlockConfigDialog(true);
+    setShowCodeBlockMenu(false);
+  };
+
+  const updateCodeBlockTheme = (theme) => {
+    setCodeTheme(theme);
+    if (editor && editor.isActive('codeBlock')) {
+      editor.commands.updateAttributes('codeBlock', { theme });
+    }
+  };
+
+  const toggleLineNumbers = () => {
+    const newValue = !showLineNumbers;
+    setShowLineNumbers(newValue);
+    if (editor && editor.isActive('codeBlock')) {
+      editor.commands.updateAttributes('codeBlock', { lineNumbers: newValue });
+    }
+  };
+
+  const toggleCodeWrap = () => {
+    const newValue = !codeWrapEnabled;
+    setCodeWrapEnabled(newValue);
+    if (editor && editor.isActive('codeBlock')) {
+      editor.commands.updateAttributes('codeBlock', { wrap: newValue });
     }
   };
 
   const clearAllFormatting = () => {
-    if (editor) {
-      editor.chain().focus().unsetAllMarks().clearNodes().setParagraph().run();
-      toast.success('Formatting cleared');
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
     }
+    editor.chain().focus().unsetAllMarks().clearNodes().setParagraph().run();
+    toast.success('Formatting cleared');
   };
 
   const openImageCropper = () => {
-    if (!editor || !editor.view || !editor.view.state || !editor.view.state.selection) {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    if (!editor.view || !editor.view.state || !editor.view.state.selection) {
       toast.error('Editor is not ready');
       return;
     }
@@ -689,128 +1011,151 @@ export const EditorToolbar = ({
 
   // Formatting action handlers
   const handleFormatAction = (action) => {
-    if (!editor) return;
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
     
-    switch(action) {
-      case 'bold':
-        editor.chain().focus().toggleBold().run();
-        break;
-      case 'italic':
-        editor.chain().focus().toggleItalic().run();
-        break;
-      case 'underline':
-        editor.chain().focus().toggleUnderline().run();
-        break;
-      case 'strike':
-        editor.chain().focus().toggleStrike().run();
-        break;
-      case 'superscript':
-        editor.chain().focus().toggleSuperscript().run();
-        break;
-      case 'subscript':
-        editor.chain().focus().toggleSubscript().run();
-        break;
-      default:
-        break;
+    try {
+      switch(action) {
+        case 'bold':
+          editor.chain().focus().toggleBold().run();
+          break;
+        case 'italic':
+          editor.chain().focus().toggleItalic().run();
+          break;
+        case 'underline':
+          editor.chain().focus().toggleUnderline().run();
+          break;
+        case 'strike':
+          editor.chain().focus().toggleStrike().run();
+          break;
+        case 'superscript':
+          editor.chain().focus().toggleSuperscript().run();
+          toast.success('Superscript applied');
+          break;
+        case 'subscript':
+          editor.chain().focus().toggleSubscript().run();
+          toast.success('Subscript applied');
+          break;
+        default:
+          toast.error('Unknown format action');
+          break;
+      }
+    } catch (error) {
+      console.error('Format action error:', error);
+      toast.error('Failed to apply formatting');
     }
   };
 
   const handleInsertAction = (action) => {
-    if (!editor) return;
-    
-    switch(action) {
-      case 'image':
-        if (handleInsertImage) {
-          handleInsertImage();
-        } else {
-          const url = prompt('Enter image URL:');
-          if (url) {
-            editor.chain().focus().setImage({ src: url }).run();
-          }
-        }
-        break;
-      case 'table':
-        try {
-          // Check if the table command is available
-          if (editor.can().insertTable({ rows: 3, cols: 3, withHeaderRow: true })) {
-            editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-            toast.success('Table inserted successfully');
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+      
+    try {
+      switch(action) {
+        case 'image':
+          if (handleInsertImage) {
+            handleInsertImage();
           } else {
-            // Alternative approach if insertTable command is not available
-            editor.chain().focus().insertContent({
-              type: 'doc',
-              content: [{
-                type: 'table',
-                attrs: { class: 'table-border-black' },
-                content: [
-                  {
-                    type: 'tableRow',
-                    content: [
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] }
-                    ]
-                  },
-                  {
-                    type: 'tableRow',
-                    content: [
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] }
-                    ]
-                  },
-                  {
-                    type: 'tableRow',
-                    content: [
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] },
-                      { type: 'tableCell', attrs: { class: 'cell-border-black' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: ' ' }] }] }
-                    ]
-                  }
-                ]
-              }]
-            }).run();
-            toast.success('Table inserted successfully');
+            const url = prompt('Enter image URL:');
+            if (url) {
+              editor.chain().focus().setImage({ src: url }).run();
+              toast.success('Image inserted');
+            }
           }
-        } catch (error) {
-          console.error('Error inserting table:', error);
-          toast.error('Failed to insert table. Please try again.');
-        }
-        break;
-      case 'link':
-        const linkUrl = prompt('Enter URL:');
-        if (linkUrl) {
-          editor.chain().focus().setLink({ href: linkUrl }).run();
-        }
-        break;
-      case 'page_break':
-        editor.chain().focus().setHorizontalRule().run();
-        break;
-      case 'date':
-        const date = new Date().toLocaleDateString();
-        editor.chain().focus().insertContent(date).run();
-        break;
-      case 'time':
-        const time = new Date().toLocaleTimeString();
-        editor.chain().focus().insertContent(time).run();
-        break;
-      case 'symbol':
-        const symbol = prompt('Enter symbol (e.g., ©, ®, ™):', '©');
-        if (symbol) {
-          editor.chain().focus().insertContent(symbol).run();
-        }
-        break;
-      case 'equation':
-        editor.chain().focus().insertContent('\\[E = mc^2\\]').run();
-        break;
-      case 'code_block':
-        editor.chain().focus().toggleCodeBlock().run();
-        break;
-      case 'quote':
-        editor.chain().focus().toggleBlockquote().run();
-        break;
-      default:
-        break;
+          break;
+        case 'table':
+          try {
+            // Create a simple table with proper structure and black borders
+            const tableHTML = `
+              <div class="table-container">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr>
+                      <th style="border: 2px solid #000000; padding: 8px; background-color: #f8fafc; font-weight: 600; text-align: left;">Header 1</th>
+                      <th style="border: 2px solid #000000; padding: 8px; background-color: #f8fafc; font-weight: 600; text-align: left;">Header 2</th>
+                      <th style="border: 2px solid #000000; padding: 8px; background-color: #f8fafc; font-weight: 600; text-align: left;">Header 3</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="border: 2px solid #000000; padding: 8px;">Row 1, Cell 1</td>
+                      <td style="border: 2px solid #000000; padding: 8px;">Row 1, Cell 2</td>
+                      <td style="border: 2px solid #000000; padding: 8px;">Row 1, Cell 3</td>
+                    </tr>
+                    <tr>
+                      <td style="border: 2px solid #000000; padding: 8px;">Row 2, Cell 1</td>
+                      <td style="border: 2px solid #000000; padding: 8px;">Row 2, Cell 2</td>
+                      <td style="border: 2px solid #000000; padding: 8px;">Row 2, Cell 3</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            `;
+            
+            // Insert the table
+            editor
+              .chain()
+              .focus()
+              .insertContent(tableHTML)
+              .run();
+            
+            toast.success('Table inserted successfully with black borders');
+          } catch (error) {
+            console.error('Error inserting table:', error);
+            toast.error('Failed to insert table');
+          }
+          break;
+        case 'link':
+          const linkUrl = prompt('Enter URL:');
+          if (linkUrl) {
+            editor.chain().focus().setLink({ href: linkUrl }).run();
+            toast.success('Link inserted');
+          }
+          break;
+        case 'page_break':
+          editor.chain().focus().setHorizontalRule().run();
+          toast.success('Page break inserted');
+          break;
+        case 'date':
+          const date = new Date().toLocaleDateString();
+          editor.chain().focus().insertContent(date).run();
+          toast.success('Date inserted');
+          break;
+        case 'time':
+          const time = new Date().toLocaleTimeString();
+          editor.chain().focus().insertContent(time).run();
+          toast.success('Time inserted');
+          break;
+        case 'symbol':
+          const symbol = prompt('Enter symbol (e.g., ©, ®, ™):', '©');
+          if (symbol) {
+            editor.chain().focus().insertContent(symbol).run();
+            toast.success('Symbol inserted');
+          }
+          break;
+        case 'equation':
+          editor.chain().focus().insertContent('\[E = mc^2\]').run();
+          toast.success('Equation inserted');
+          break;
+        case 'code_block':
+          editor.chain().focus().toggleCodeBlock().run();
+          toast.success('Code block toggled');
+          break;
+        case 'quote':
+          editor.chain().focus().toggleBlockquote().run();
+          toast.success('Quote toggled');
+          break;
+        default:
+          toast.error('Unknown insert action');
+          break;
+      }
+    } catch (error) {
+      console.error('Insert action error:', error);
+      toast.error('Failed to perform insert action');
     }
   };
 
@@ -944,28 +1289,96 @@ export const EditorToolbar = ({
   // ========================
 
   const setPageMargins = (margins) => {
-    // This would update CSS variables or styles for page margins
-    document.documentElement.style.setProperty('--page-margin-top', `${margins.top}px`);
-    document.documentElement.style.setProperty('--page-margin-right', `${margins.right}px`);
-    document.documentElement.style.setProperty('--page-margin-bottom', `${margins.bottom}px`);
-    document.documentElement.style.setProperty('--page-margin-left', `${margins.left}px`);
-    toast.success(`Page margins set to ${margins.top}px (top), ${margins.right}px (right), ${margins.bottom}px (bottom), ${margins.left}px (left)`);
+    if (!margins || typeof margins !== 'object') {
+      toast.error('Invalid margins provided');
+      return;
+    }
+    
+    // Validate margin values
+    const validMargins = {
+      top: Math.max(0, Math.min(200, margins.top || 72)),
+      right: Math.max(0, Math.min(200, margins.right || 72)),
+      bottom: Math.max(0, Math.min(200, margins.bottom || 72)),
+      left: Math.max(0, Math.min(200, margins.left || 72))
+    };
+    
+    // Update CSS variables for page margins
+    document.documentElement.style.setProperty('--page-margin-top', `${validMargins.top}px`);
+    document.documentElement.style.setProperty('--page-margin-right', `${validMargins.right}px`);
+    document.documentElement.style.setProperty('--page-margin-bottom', `${validMargins.bottom}px`);
+    document.documentElement.style.setProperty('--page-margin-left', `${validMargins.left}px`);
+    
+    // Also update editor container styling
+    const editorContainer = document.querySelector('.tiptap.ProseMirror');
+    if (editorContainer) {
+      editorContainer.style.paddingTop = `${validMargins.top}px`;
+      editorContainer.style.paddingRight = `${validMargins.right}px`;
+      editorContainer.style.paddingBottom = `${validMargins.bottom}px`;
+      editorContainer.style.paddingLeft = `${validMargins.left}px`;
+    }
+    
+    toast.success(`Page margins set to ${validMargins.top}px (top), ${validMargins.right}px (right), ${validMargins.bottom}px (bottom), ${validMargins.left}px (left)`);
   };
 
   const setBorders = (type) => {
-    if (editor) {
-      // Implement border setting logic
-      toast.info(`${type} border applied`);
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
     }
+    
+    // Apply borders to selected content or current paragraph
+    const borderStyles = {
+      'page': '2px solid #000000',
+      'paragraph': '1px solid #666666',
+      'table': '1px solid #333333'
+    };
+    
+    const borderStyle = borderStyles[type] || '1px solid #000000';
+    
+    // Wrap current selection or paragraph with bordered div
+    const borderedContent = `
+      <div style="
+        border: ${borderStyle};
+        padding: 10px;
+        margin: 5px 0;
+      ">
+        ${editor.state.doc.textBetween(
+          editor.state.selection.from,
+          editor.state.selection.to,
+          ' '
+        ) || 'Content with border'}
+      </div>
+    `;
+    
+    editor.chain().focus().insertContent(borderedContent).run();
+    toast.success(`${type} border applied`);
   };
 
   const insertSectionBreak = () => {
-    if (editor) {
-      editor.chain().focus().setHorizontalRule().run();
-      editor.chain().focus().insertContent('<section-break>').run();
-      toast.success('Section break inserted');
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
     }
+    
+    // Insert a proper section break with styling
+    const sectionBreakHTML = `
+      <div class="section-break" style="
+        page-break-before: always;
+        border-top: 1px dashed #cccccc;
+        margin: 20px 0;
+        text-align: center;
+        color: #666666;
+        font-size: 12px;
+      ">
+        SECTION BREAK
+      </div>
+    `;
+    editor.chain().focus().insertContent(sectionBreakHTML).run();
+    toast.success('Section break inserted');
   };
+  
+  // Page management functions are passed as props
+  // addNewPage, addPageBreak, and insertPageNumber are received as props
 
   // ========================
   // MENU DEFINITIONS
@@ -991,12 +1404,17 @@ export const EditorToolbar = ({
           label: "Export", 
           icon: Download,
           submenu: EXPORT_FORMATS.map(format => ({
-            label: `Export as ${format.label}`,
-            icon: format.icon,
+            label: exportLoading && exportLoading[format.value] ? `Exporting as ${format.label}...` : `Export as ${format.label}`,
+            icon: exportLoading && exportLoading[format.value] ? Download : format.icon,
             action: () => {
+              if (exportLoading && exportLoading[format.value]) {
+                toast.info(`${format.label} export is already in progress`);
+                return;
+              }
               setExportFormat(format.value);
               setShowExportDialog(true);
-            }
+            },
+            disabled: exportLoading && exportLoading[format.value]
           }))
         },
         { type: "separator" },
@@ -1039,16 +1457,53 @@ export const EditorToolbar = ({
           label: "Zoom", 
           icon: ZoomIn,
           submenu: [
-            { label: "Zoom In", icon: ZoomIn, shortcut: "Ctrl++", action: () => onZoomChange(Math.min(200, zoom + 10)) },
-            { label: "Zoom Out", icon: ZoomOut, shortcut: "Ctrl+-", action: () => onZoomChange(Math.max(50, zoom - 10)) },
-            { label: "Zoom to 100%", icon: ZoomIn, shortcut: "Ctrl+0", action: () => onZoomChange(100) },
+            { label: "Zoom In", icon: ZoomIn, shortcut: "Ctrl++", action: () => {
+              console.log('Menu Zoom In clicked, current zoom:', zoom);
+              console.log('Effective zoom:', effectiveZoom);
+              if (onZoomChange && typeof onZoomChange === 'function') {
+                const currentZoom = zoom || 100;
+                const newZoom = Math.min(200, currentZoom + 10);
+                console.log('Zooming in from', currentZoom, 'to', newZoom);
+                onZoomChange(newZoom);
+              } else {
+                console.error('onZoomChange is not available');
+                toast.error('Zoom function not available');
+              }
+            }},
+            { label: "Zoom Out", icon: ZoomOut, shortcut: "Ctrl+-", action: () => {
+              console.log('Menu Zoom Out clicked, current zoom:', zoom);
+              console.log('Effective zoom:', effectiveZoom);
+              if (onZoomChange && typeof onZoomChange === 'function') {
+                const currentZoom = zoom || 100;
+                const newZoom = Math.max(50, currentZoom - 10);
+                console.log('Zooming out from', currentZoom, 'to', newZoom);
+                onZoomChange(newZoom);
+              } else {
+                console.error('onZoomChange is not available');
+                toast.error('Zoom function not available');
+              }
+            }},
+            { label: "Zoom to 100%", icon: ZoomIn, shortcut: "Ctrl+0", action: () => {
+              console.log('Menu Zoom Reset clicked, current zoom:', zoom);
+              console.log('Effective zoom:', effectiveZoom);
+              if (onZoomChange && typeof onZoomChange === 'function') {
+                onZoomChange(100);
+                console.log('Zoom reset to 100%');
+              } else {
+                console.error('onZoomChange is not available');
+                toast.error('Zoom function not available');
+              }
+            }},
             { type: "separator" },
-            { label: "50%", action: () => onZoomChange(50) },
-            { label: "75%", action: () => onZoomChange(75) },
-            { label: "100%", action: () => onZoomChange(100) },
-            { label: "125%", action: () => onZoomChange(125) },
-            { label: "150%", action: () => onZoomChange(150) },
-            { label: "200%", action: () => onZoomChange(200) },
+            { label: "50%", action: () => onZoomChangeWithFeedback(50) },
+            { label: "75%", action: () => onZoomChangeWithFeedback(75) },
+            { label: "100%", action: () => onZoomChangeWithFeedback(100) },
+            { label: "125%", action: () => onZoomChangeWithFeedback(125) },
+            { label: "150%", action: () => onZoomChangeWithFeedback(150) },
+            { label: "200%", action: () => onZoomChangeWithFeedback(200) },
+            { type: "separator" },
+            { label: "Fit to Width", action: () => toast.info('Fit to width (coming soon)') },
+            { label: "Fit to Page", action: () => toast.info('Fit to page (coming soon)') },
           ]
         },
         { label: "Full Screen", icon: Maximize2, shortcut: "F11", action: () => {
@@ -1094,7 +1549,14 @@ export const EditorToolbar = ({
         { type: "separator" },
         { label: "Image", icon: ImageIcon, action: () => handleInsertAction('image') },
         { label: "Crop Image", icon: Crop, action: openImageCropper },
-        { label: "Table", icon: TableIcon, action: () => handleInsertAction('table') },
+        { label: "Table", icon: TableIcon, action: () => {
+          if (isInsideTable()) {
+            // Show table tools dropdown
+            toast.info('Inside table - use More Options menu for table tools');
+          } else {
+            addTable();
+          }
+        }},
         { label: "Advanced Table", icon: Table2, action: () => toast.info('Advanced table dialog') },
         { label: "Link", icon: Link, shortcut: "Ctrl+K", action: () => handleInsertAction('link') },
         { label: "Bookmark", icon: Bookmark, action: () => toast.info('Insert bookmark dialog') },
@@ -1164,7 +1626,28 @@ export const EditorToolbar = ({
             { label: "Bullet List", icon: List, action: () => toggleBulletList() },
             { label: "Numbered List", icon: ListOrdered, action: () => toggleOrderedList() },
             { label: "Task List", icon: ListChecks, action: () => toggleTaskList() },
-            { label: "Multilevel List", icon: ListChecks, action: () => toast.info('Multilevel list applied') },
+            { label: "Multilevel List", icon: ListChecks, action: () => {
+              if (editor) {
+                // Create a sample multilevel list structure
+                const multilevelList = `
+                  <ol>
+                    <li>First level item
+                      <ol>
+                        <li>Second level item
+                          <ol>
+                            <li>Third level item</li>
+                          </ol>
+                        </li>
+                        <li>Another second level item</li>
+                      </ol>
+                    </li>
+                    <li>Another first level item</li>
+                  </ol>
+                `;
+                editor.chain().focus().insertContent(multilevelList).run();
+                toast.success('Multilevel list inserted');
+              }
+            } },
             { type: "separator" },
             { label: "Align Left", icon: AlignLeft, action: () => setTextAlign('left') },
             { label: "Align Center", icon: AlignCenter, action: () => setTextAlign('center') },
@@ -1174,8 +1657,58 @@ export const EditorToolbar = ({
             { label: "Increase Indent", icon: IndentIncrease, action: indent },
             { label: "Decrease Indent", icon: IndentDecrease, action: outdent },
             { type: "separator" },
-            { label: "Line Spacing", icon: Rows, action: () => setShowFormatMenu('lineSpacing') },
-            { label: "Paragraph Spacing", icon: Rows, action: () => toast.info('Paragraph spacing dialog') },
+            { label: "Line Spacing", icon: Rows, action: () => {
+              if (editor) {
+                // Show line spacing options
+                const spacingOptions = [
+                  { label: 'Single', value: 1 },
+                  { label: '1.15', value: 1.15 },
+                  { label: '1.5', value: 1.5 },
+                  { label: 'Double', value: 2 }
+                ];
+                
+                const selectedSpacing = prompt(
+                  'Select line spacing:\n' + 
+                  spacingOptions.map(opt => `${opt.label}: ${opt.value}`).join('\n') + 
+                  '\n\nEnter value (e.g., 1.5):',
+                  '1.15'
+                );
+                
+                if (selectedSpacing && !isNaN(parseFloat(selectedSpacing))) {
+                  const spacingValue = parseFloat(selectedSpacing);
+                  setLineSpacing(spacingValue);
+                  
+                  // Apply line height to current paragraph
+                  editor.chain().focus().setLineHeight(spacingValue).run();
+                  toast.success(`Line spacing set to ${spacingValue}`);
+                }
+              }
+            } },
+            { label: "Paragraph Spacing", icon: Rows, action: () => {
+              if (editor) {
+                const beforeSpacing = prompt('Paragraph spacing before (points):', '0');
+                const afterSpacing = prompt('Paragraph spacing after (points):', '0');
+                
+                if (beforeSpacing !== null && afterSpacing !== null) {
+                  const beforeValue = parseInt(beforeSpacing) || 0;
+                  const afterValue = parseInt(afterSpacing) || 0;
+                  
+                  // Apply paragraph spacing using custom styles
+                  const spacingHTML = `
+                    <p style="margin-top: ${beforeValue}px; margin-bottom: ${afterValue}px;">
+                      ${editor.state.doc.textBetween(
+                        editor.state.selection.from,
+                        editor.state.selection.to,
+                        ' '
+                      ) || 'Paragraph with custom spacing'}
+                    </p>
+                  `;
+                  
+                  editor.chain().focus().insertContent(spacingHTML).run();
+                  toast.success(`Paragraph spacing set: ${beforeValue}pt before, ${afterValue}pt after`);
+                }
+              }
+            } },
             { label: "Keep Lines Together", icon: AlignCenter, action: () => toast.info('Keep lines together toggled') },
             { label: "Page Break Before", icon: CornerDownLeft, action: () => toast.info('Page break before applied') },
           ]
@@ -1408,14 +1941,14 @@ export const EditorToolbar = ({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="sticky top-0 z-40 bg-white border-b border-gray-300 shadow-sm"
+      className="sticky top-0 z-40 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 shadow-sm"
     >
       {/* Header with Menu */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100">
+      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-100 to-blue-200">
         {/* Left section */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
-            <div className="text-blue-600 font-bold text-lg">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent font-bold text-lg">
               ATHENA-AI EDITOR
             </div>
             <span className="text-xs flex items-center gap-1">
@@ -1433,21 +1966,41 @@ export const EditorToolbar = ({
         {/* Right section */}
         <div className="flex items-center gap-2">
           <ToolbarButton
-            onClick={() => onZoomChange && onZoomChange(Math.max(50, zoom - 10))}
+            onClick={() => {
+              if (onZoomChange && typeof onZoomChange === 'function') {
+                const currentZoom = zoom || 100;
+                const newZoom = Math.max(50, currentZoom - 10);
+                console.log('Zooming out from', currentZoom, 'to', newZoom);
+                onZoomChange(newZoom);
+              } else {
+                console.error('onZoomChange is not available');
+                toast.error('Zoom function not available');
+              }
+            }}
             tooltip="Zoom Out"
-            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-0 w-7 h-7"
+            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
           >
-            <Minus className="w-3 h-3 text-white" />
+            <Minus className="w-5 h-5 text-blue-600" />
           </ToolbarButton>
           <div className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 min-w-[40px] text-center">
-            {zoom}%
+            {zoom || 100}%
           </div>
           <ToolbarButton
-            onClick={() => onZoomChange && onZoomChange(Math.min(200, zoom + 10))}
+            onClick={() => {
+              if (onZoomChange && typeof onZoomChange === 'function') {
+                const currentZoom = zoom || 100;
+                const newZoom = Math.min(200, currentZoom + 10);
+                console.log('Zooming in from', currentZoom, 'to', newZoom);
+                onZoomChange(newZoom);
+              } else {
+                console.error('onZoomChange is not available');
+                toast.error('Zoom function not available');
+              }
+            }}
             tooltip="Zoom In"
-            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-0 w-7 h-7"
+            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
           >
-            <Plus className="w-3 h-3 text-white" />
+            <Plus className="w-5 h-5 text-blue-600" />
           </ToolbarButton>
 
           <Separator orientation="vertical" className="h-6 mx-2" />
@@ -1455,17 +2008,17 @@ export const EditorToolbar = ({
           <ToolbarButton
             onClick={() => setShowSearch(!showSearch)}
             tooltip="Search (Ctrl+F)"
-            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-1.5"
+            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
           >
-            <Search className="w-4 h-4 text-white" />
+            <Search className="w-5 h-5 text-blue-600" />
           </ToolbarButton>
 
           <ToolbarButton 
             onClick={handlePrint} 
             tooltip="Print (Ctrl+P)"
-            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-1.5"
+            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
           >
-            <Printer className="w-4 h-4 text-white" />
+            <Printer className="w-5 h-5 text-blue-600" />
           </ToolbarButton>
 
 
@@ -1478,9 +2031,9 @@ export const EditorToolbar = ({
               }
             }}
             tooltip="AI Assistance"
-            className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 p-1.5"
+            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
           >
-            <Sparkles className="w-4 h-4 text-white" />
+            <Sparkles className="w-4 h-4 text-blue-600" />
           </ToolbarButton>
 
 
@@ -1488,32 +2041,32 @@ export const EditorToolbar = ({
       </div>
 
       {/* Compact Single-Row Toolbar */}
-      <div className="flex items-center px-4 py-2 gap-1 border-t border-gray-200 bg-white overflow-x-auto">
+      <div className="flex items-center px-4 py-1 gap-1 border-t border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 overflow-x-auto">
         {/* History Controls */}
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
           tooltip="Undo (Ctrl+Z)"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
-          <Undo className="w-5 h-5 text-white" />
+          <Undo className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
           tooltip="Redo (Ctrl+Y)"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
-          <Redo className="w-5 h-5 text-white" />
+          <Redo className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
 
         {/* Font Controls */}
         <select 
           value={currentFont}
           onChange={(e) => setFontFamily(e.target.value)}
-          className="text-sm bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg px-3 py-1.5 h-9 min-w-[120px] hover:from-yellow-100 hover:to-yellow-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-yellow shadow-sm border border-yellow-300"
+          className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 min-w-[120px] hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
         >
           {FONTS.map(font => (
             <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -1525,7 +2078,7 @@ export const EditorToolbar = ({
         <select 
           value={currentFontSize}
           onChange={(e) => setCurrentFontSize(parseInt(e.target.value))}
-          className="text-sm bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg px-3 py-1.5 h-9 w-16 hover:from-amber-100 hover:to-amber-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-amber shadow-sm border border-amber-300"
+          className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 w-16 hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
         >
           {FONT_SIZES.map(size => (
             <option key={size} value={size}>{size}</option>
@@ -1535,7 +2088,7 @@ export const EditorToolbar = ({
         <select 
           value={activeHeadingLevel || 0}
           onChange={(e) => handleHeadingChange(parseInt(e.target.value))}
-          className="text-sm bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg px-3 py-1.5 h-9 w-20 hover:from-amber-100 hover:to-amber-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-amber shadow-sm border border-amber-300"
+          className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 w-20 hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
         >
           <option value={0}>Normal</option>
           <option value={1}>H1</option>
@@ -1546,52 +2099,52 @@ export const EditorToolbar = ({
           <option value={6}>H6</option>
         </select>
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
 
         {/* Basic Formatting */}
         <ToolbarButton
           onClick={() => handleFormatAction('bold')}
           isActive={editor.isActive("bold")}
           tooltip="Bold (Ctrl+B)"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Bold className="w-5 h-5 text-white" />
+          <Bold className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleFormatAction('italic')}
           isActive={editor.isActive("italic")}
           tooltip="Italic (Ctrl+I)"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Italic className="w-5 h-5 text-white" />
+          <Italic className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleFormatAction('underline')}
           isActive={editor.isActive("underline")}
           tooltip="Underline (Ctrl+U)"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Underline className="w-5 h-5 text-white" />
+          <Underline className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleFormatAction('strike')}
           isActive={editor.isActive("strike")}
           tooltip="Strikethrough"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Strikethrough className="w-5 h-5 text-white" />
+          <Strikethrough className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
 
-        {/* Colors */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded bg-gray-100 hover:bg-gray-200">
-              <Palette className="w-5 h-5 text-gray-700" />
+        {/* Text Color Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
+              <Palette className="w-4 h-4 text-blue-600" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-3 rounded-xl shadow-lg border border-gray-200">
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-3 rounded-xl shadow-lg border border-gray-200 bg-white">
             <div className="space-y-3">
               <div>
                 <h4 className="text-xs font-medium mb-2">Text Color</h4>
@@ -1609,8 +2162,21 @@ export const EditorToolbar = ({
                   ))}
                 </div>
               </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
+        {/* Highlight Color Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
+              <Highlighter className="w-4 h-4 text-blue-600" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-3 rounded-xl shadow-lg border border-gray-200 bg-white">
+            <div className="space-y-3">
               <div>
-                <h4 className="text-xs font-medium mb-2">Highlight</h4>
+                <h4 className="text-xs font-medium mb-2">Highlight Color</h4>
                 <div className="grid grid-cols-6 gap-1">
                   {HIGHLIGHT_COLORS.slice(0, 12).map(color => (
                     <button
@@ -1626,101 +2192,155 @@ export const EditorToolbar = ({
                 </div>
               </div>
             </div>
-          </PopoverContent>
-        </Popover>
+          </DropdownMenuContent>
+        </DropdownMenu>
         
-        <ToolbarButton
-          onClick={() => setHighlightColor(currentHighlight)}
-          tooltip="Highlight"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <Highlighter className="w-5 h-5 text-white" />
-        </ToolbarButton>
-        
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
 
-        {/* Lists */}
-        <ToolbarButton
-          onClick={toggleBulletList}
-          isActive={editor.isActive("bulletList")}
-          tooltip="Bullet List"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <List className="w-5 h-5 text-white" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={toggleOrderedList}
-          isActive={editor.isActive("orderedList")}
-          tooltip="Numbered List"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <ListOrdered className="w-5 h-5 text-white" />
-        </ToolbarButton>
+        {/* Lists Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`h-9 w-9 rounded-lg transition-all duration-300 ${
+                (editor.isActive("bulletList") || editor.isActive("orderedList") || editor.isActive("taskList")) 
+                  ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300" 
+                  : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+              }`}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 bg-white z-[100] shadow-lg border border-gray-200 rounded-md p-1">
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Numbered list selected');
+                toggleOrderedList();
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive("orderedList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <ListOrdered className="w-4 h-4 mr-2" />
+              Numbered List {editor.isActive("orderedList") && "✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Bullet list selected');
+                toggleBulletList();
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive("bulletList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <List className="w-4 h-4 mr-2" />
+              Bullet List {editor.isActive("bulletList") && "✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Task list selected');
+                toggleTaskList();
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive("taskList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <ListChecks className="w-4 h-4 mr-2" />
+              Task List {editor.isActive("taskList") && "✓"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         
-        <ToolbarButton
-          onClick={toggleTaskList}
-          isActive={editor.isActive("taskList")}
-          tooltip="Task List"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <ListChecks className="w-5 h-5 text-white" />
-        </ToolbarButton>
+        <Separator orientation="vertical" className="mx-2 h-5" />
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        {/* Text Alignment Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`h-9 w-9 rounded-lg transition-all duration-300 ${
+                (editor.isActive({ textAlign: 'left' }) || editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }))
+                  ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300" 
+                  : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+              }`}
+            >
+              <AlignLeft className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 bg-white z-[100] shadow-lg border border-gray-200 rounded-md p-1">
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Align left selected');
+                setTextAlign('left');
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive({ textAlign: 'left' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <AlignLeft className="w-4 h-4 mr-2" />
+              Align Left {editor.isActive({ textAlign: 'left' }) && "✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Align center selected');
+                setTextAlign('center');
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive({ textAlign: 'center' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <AlignCenter className="w-4 h-4 mr-2" />
+              Align Center {editor.isActive({ textAlign: 'center' }) && "✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Align right selected');
+                setTextAlign('right');
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive({ textAlign: 'right' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <AlignRight className="w-4 h-4 mr-2" />
+              Align Right {editor.isActive({ textAlign: 'right' }) && "✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                console.log('Justify selected');
+                setTextAlign('justify');
+              }}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
+                editor.isActive({ textAlign: 'justify' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              }`}
+            >
+              <AlignJustify className="w-4 h-4 mr-2" />
+              Justify {editor.isActive({ textAlign: 'justify' }) && "✓"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         
-        {/* Text Alignment */}
-        <ToolbarButton
-          onClick={() => setTextAlign('left')}
-          isActive={editor.isActive({ textAlign: 'left' })}
-          tooltip="Align Left"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <AlignLeft className="w-5 h-5 text-white" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => setTextAlign('center')}
-          isActive={editor.isActive({ textAlign: 'center' })}
-          tooltip="Align Center"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <AlignCenter className="w-5 h-5 text-white" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => setTextAlign('right')}
-          isActive={editor.isActive({ textAlign: 'right' })}
-          tooltip="Align Right"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <AlignRight className="w-5 h-5 text-white" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => setTextAlign('justify')}
-          isActive={editor.isActive({ textAlign: 'justify' })}
-          tooltip="Justify"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <AlignJustify className="w-5 h-5 text-white" />
-        </ToolbarButton>
-        
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
         
         {/* Indentation */}
         <ToolbarButton
           onClick={indent}
           tooltip="Increase Indent"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <ArrowRightToLine className="w-5 h-5 text-white" />
+          <ArrowRightToLine className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         <ToolbarButton
           onClick={outdent}
           tooltip="Decrease Indent"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <ArrowLeftToLine className="w-5 h-5 text-white" />
+          <ArrowLeftToLine className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
         
         {/* Quick Insert */}
         <ToolbarButton
@@ -1778,9 +2398,9 @@ export const EditorToolbar = ({
             fileInput.click();
           }}
           tooltip="Insert Image"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <ImageIcon className="w-5 h-5 text-white" />
+          <ImageIcon className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
         <ToolbarButton
@@ -1792,79 +2412,165 @@ export const EditorToolbar = ({
             }
           }}
           tooltip="Templates"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <LayoutTemplate className="w-5 h-5 text-white" />
+          <LayoutTemplate className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
         <ToolbarButton
           onClick={() => handleInsertAction('link')}
           tooltip="Insert Link"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Link className="w-5 h-5 text-white" />
+          <Link className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
         <ToolbarButton
           onClick={() => handleInsertAction('table')}
-          tooltip="Insert Table"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          tooltip={isInsideTable() ? "Table Tools (Click for options)" : "Insert Table"}
+          isActive={isInsideTable()}
+          className={`rounded-lg transition-all duration-300 ${
+            isInsideTable() 
+              ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700" 
+              : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+          }`}
         >
-          <TableIcon className="w-5 h-5 text-white" />
+          <TableIcon className={`w-4 h-4 ${isInsideTable() ? "text-white" : "text-blue-600"}`} />
         </ToolbarButton>
 
-        <ToolbarButton
-          onClick={toggleCodeBlock}
-          isActive={editor.isActive('codeBlock')}
-          tooltip="Insert Code Block"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-        >
-          <Code className="w-5 h-5 text-white" />
-        </ToolbarButton>
+        {/* Code Block with Configuration Dropdown */}
+        <div className="relative">
+          <div className="flex items-center rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 border border-blue-200">
+            <ToolbarButton
+              onClick={toggleCodeBlock}
+              isActive={editor.isActive('codeBlock')}
+              tooltip="Insert Code Block"
+              className="h-8 w-8 rounded-r-none bg-transparent hover:bg-transparent"
+            >
+              <Code className="w-4 h-4 text-blue-600" />
+            </ToolbarButton>
+            <DropdownMenu open={showCodeBlockMenu} onOpenChange={setShowCodeBlockMenu}>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-6 rounded-l-none bg-transparent hover:bg-blue-200 hover:text-blue-700 transition-all duration-200 border-l border-blue-300"
+                  onClick={() => setShowCodeBlockMenu(!showCodeBlockMenu)}
+                >
+                  <ChevronDown className="w-3 h-3 text-blue-600" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                className="w-64 bg-white border border-blue-200 rounded-lg shadow-lg p-2" 
+                align="start"
+                side="bottom"
+              >
+                <div className="px-2 py-1">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2">Code Block Configuration</h3>
+                  
+                  {/* Language Selection */}
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Language</label>
+                    <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                      {CODE_LANGUAGES.slice(0, 12).map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => insertCodeBlockWithLanguage(lang)}
+                          className={`text-xs px-2 py-1 rounded text-left transition-all duration-200 ${
+                            selectedCodeLanguage === lang
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                              : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200 hover:border hover:border-blue-300'
+                          }`}
+                        >
+                          {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Execution Controls */}
+                  <div className="pt-2 border-t border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-600">Execution Context</span>
+                      <button
+                        onClick={toggleCodeExecution}
+                        className={`text-xs px-2 py-1 rounded transition-all duration-200 ${
+                          codeExecutionEnabled
+                            ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                            : 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700'
+                        }`}
+                      >
+                        {codeExecutionEnabled ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                    
+                    {codeExecutionEnabled && (
+                      <button
+                        onClick={executeCodeBlock}
+                        disabled={!editor.isActive('codeBlock')}
+                        className="w-full text-xs bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 mt-1"
+                      >
+                        <Play className="w-3 h-3 inline mr-1" />
+                        Execute Code Block
+                      </button>
+                    )}
+                    
+                    <p className="text-xs text-gray-500 mt-2 italic">
+                      {codeExecutionEnabled 
+                        ? 'Code execution enabled (simulated in dev mode)' 
+                        : 'Enable execution to run code snippets'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
 
         <ToolbarButton
           onClick={toggleBlockquote}
           isActive={editor.isActive('blockquote')}
           tooltip="Insert Block Quote"
-          className="rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Quote className="w-5 h-5 text-white" />
+          <Quote className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
         
         {/* AI Tools */}
         <ToolbarButton
           onClick={() => setShowAIDocumentGenerator(true)}
           tooltip="Generate Document with AI"
-          className="rounded-full bg-gradient-to-r from-purple-100 to-blue-100 hover:from-purple-200 hover:to-blue-200"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Sparkles className="w-5 h-5 text-purple-600" />
+          <Sparkles className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
 
         <ToolbarButton
           onClick={() => setShowAIInlineActions(true)}
           tooltip="AI Inline Actions"
-          className="rounded-full bg-gradient-to-r from-green-100 to-blue-100 hover:from-green-200 hover:to-blue-200"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Wand2 className="w-5 h-5 text-green-600" />
+          <Wand2 className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
 
         <ToolbarButton
           onClick={() => setShowCodeAssistant(true)}
           tooltip="Code Assistant"
-          className="rounded-full bg-gradient-to-r from-orange-100 to-red-100 hover:from-orange-200 hover:to-red-200"
+          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
-          <Code2 className="w-5 h-5 text-orange-600" />
+          <Code2 className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         
-        <Separator orientation="vertical" className="mx-2 h-6" />
+        <Separator orientation="vertical" className="mx-2 h-5" />
         
         {/* More Options */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded bg-gray-100 hover:bg-gray-200">
-              <MoreHorizontal className="w-5 h-5 text-gray-700" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded bg-gray-100 hover:bg-gray-200">
+              <MoreHorizontal className="w-4 h-4 text-gray-700" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56">
@@ -1880,6 +2586,12 @@ export const EditorToolbar = ({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={toggleCodeBlock}>
               <Code className="w-4 h-4 mr-2" /> Code Block
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openCodeBlockConfigDialog}>
+              <Code2 className="w-4 h-4 mr-2" /> Code Block Configuration
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={executeCodeBlock} disabled={!editor.isActive('codeBlock') || !codeExecutionEnabled}>
+              <Play className="w-4 h-4 mr-2" /> Execute Code Block
             </DropdownMenuItem>
             <DropdownMenuItem onClick={clearAllFormatting}>
               <RemoveFormatting className="w-4 h-4 mr-2" /> Clear Formatting
@@ -1900,6 +2612,26 @@ export const EditorToolbar = ({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={insertPageNumber}>
               <Hash className="w-4 h-4 mr-2" /> Insert Page Number
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Table Tools</DropdownMenuLabel>
+            <DropdownMenuItem onClick={addTableRow} disabled={!isInsideTable()}>
+              <Rows className="w-4 h-4 mr-2" /> Add Row
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={addTableColumn} disabled={!isInsideTable()}>
+              <Columns className="w-4 h-4 mr-2" /> Add Column
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={deleteTableRow} disabled={!isInsideTable()}>
+              <Minus className="w-4 h-4 mr-2" /> Delete Row
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={deleteTableColumn} disabled={!isInsideTable()}>
+              <Minus className="w-4 h-4 mr-2" /> Delete Column
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={toggleTableHeader} disabled={!isInsideTable()}>
+              <Heading className="w-4 h-4 mr-2" /> Toggle Header
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={deleteTable} disabled={!isInsideTable()}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Table
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setPageMargins({ top: 72, right: 72, bottom: 72, left: 72 })}>
@@ -2221,6 +2953,224 @@ export const EditorToolbar = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Export Document</DialogTitle>
+            <DialogDescription>
+              Select the format to export your document
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="text-center mb-4">
+              <div className="text-lg font-semibold">{exportFormat ? exportFormat.toUpperCase() : 'SELECT FORMAT'}</div>
+              <div className="text-sm text-gray-500">Ready to export</div>
+            </div>
+            
+            <div className="space-y-2">
+              {EXPORT_FORMATS.map((format) => (
+                <div 
+                  key={format.value}
+                  className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${
+                    exportFormat === format.value 
+                      ? 'bg-blue-100 border-2 border-blue-500' 
+                      : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                  onClick={() => setExportFormat(format.value)}
+                >
+                  <format.icon className="w-5 h-5 mr-3 text-blue-600" />
+                  <span className="font-medium">{format.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowExportDialog(false);
+                setExportFormat('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                // Trigger export based on the selected format
+                if (onExport && typeof onExport === 'function') {
+                  setExportProgressMessage(`Processing document content...`);
+                  onExport(exportFormat);
+                } else {
+                  setExportProgressMessage(`Preparing ${exportFormat.toUpperCase()} export...`);
+                  // Simulate export process
+                  setTimeout(() => {
+                    setExportProgressMessage(`Export completed as ${exportFormat.toUpperCase()}`);
+                  }, 2000);
+                }
+                setShowExportDialog(false);
+                setExportFormat('');
+              }}
+              disabled={!exportFormat}
+            >
+              Export
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Code Block Configuration Dialog */}
+      <Dialog open={showCodeBlockConfigDialog} onOpenChange={setShowCodeBlockConfigDialog}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code2 className="w-5 h-5 text-blue-600" />
+              Code Block Configuration
+            </DialogTitle>
+            <DialogDescription>
+              Configure advanced settings for your code blocks
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Language Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="codeLanguage">Default Language</Label>
+              <Select value={selectedCodeLanguage} onValueChange={setSelectedCodeLanguage}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select language..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CODE_LANGUAGES.map((lang) => (
+                    <SelectItem key={lang} value={lang}>
+                      {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Theme Selection */}
+            <div className="space-y-2">
+              <Label>Code Theme</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'default', label: 'Default' },
+                  { value: 'dark', label: 'Dark' },
+                  { value: 'light', label: 'Light' },
+                  { value: 'monokai', label: 'Monokai' },
+                  { value: 'github', label: 'GitHub' },
+                  { value: 'solarized', label: 'Solarized' }
+                ].map((theme) => (
+                  <button
+                    key={theme.value}
+                    onClick={() => updateCodeBlockTheme(theme.value)}
+                    className={`text-xs px-3 py-2 rounded transition-all duration-200 ${
+                      codeTheme === theme.value 
+                        ? 'ring-2 ring-blue-500 ring-offset-2' 
+                        : ''
+                    } ${
+                      theme.value === 'default' ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200' :
+                      theme.value === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800' :
+                      theme.value === 'light' ? 'bg-gradient-to-r from-white to-gray-50 text-gray-800 hover:from-gray-50 hover:to-white border' :
+                      theme.value === 'monokai' ? 'bg-gradient-to-r from-purple-900 to-indigo-900 text-purple-200 hover:from-purple-800 hover:to-indigo-800' :
+                      theme.value === 'github' ? 'bg-gradient-to-r from-gray-100 to-white text-gray-800 hover:from-gray-200 hover:to-gray-50' :
+                      theme.value === 'solarized' ? 'bg-gradient-to-r from-amber-50 to-yellow-100 text-amber-800 hover:from-amber-100 hover:to-yellow-200' :
+                      'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'
+                    }`}
+                  >
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Display Options */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700">Display Options</h4>
+              
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <span className="text-sm">Show Line Numbers</span>
+                </Label>
+                <Switch 
+                  checked={showLineNumbers} 
+                  onCheckedChange={toggleLineNumbers}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <span className="text-sm">Wrap Long Lines</span>
+                </Label>
+                <Switch 
+                  checked={codeWrapEnabled} 
+                  onCheckedChange={toggleCodeWrap}
+                />
+              </div>
+            </div>
+            
+            {/* Execution Context */}
+            <div className="space-y-3 pt-3 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700">Execution Context</h4>
+              
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <span className="text-sm">Enable Code Execution</span>
+                  <span className="text-xs text-gray-500">(Development Mode)</span>
+                </Label>
+                <Switch 
+                  checked={codeExecutionEnabled} 
+                  onCheckedChange={toggleCodeExecution}
+                />
+              </div>
+              
+              <p className="text-xs text-gray-500">
+                {codeExecutionEnabled 
+                  ? 'Code execution is enabled for testing and development purposes' 
+                  : 'Enable to execute code snippets directly in the editor'
+                }
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={resetCodeBlockConfiguration}>
+              Reset Defaults
+            </Button>
+            <Button variant="outline" onClick={() => setShowCodeBlockConfigDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={applyCodeBlockConfiguration}>
+              Apply Configuration
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Export Progress Toast */}
+      <AnimatePresence>
+        {exportProgressMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+          >
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span>{exportProgressMessage}</span>
+            <button 
+              onClick={() => setExportProgressMessage('')}
+              className="ml-2 text-white hover:text-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

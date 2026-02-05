@@ -56,7 +56,7 @@ const ResizeHandles = ({ targetRef, isVisible, scale = 1, onResize, selectionKey
       transformer.nodes([]);
     }
     transformer.getLayer()?.batchDraw();
-  }, [isVisible, targetRef, selectionKey, expectedWidth, expectedHeight, scale]);
+  }, [isVisible]); // Removed targetRef to prevent infinite loop
 
   if (!isVisible) {
     return null;

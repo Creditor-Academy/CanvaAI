@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -8,15 +8,17 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { Typography } from '@tiptap/extension-typography';
 import { CharacterCount } from '@tiptap/extension-character-count';
 import { Focus } from '@tiptap/extension-focus';
-import { Collaboration } from '@tiptap/extension-collaboration';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
-import { Blockquote } from '@tiptap/extension-blockquote';
+import { BulletList } from '@tiptap/extension-bullet-list';
+import { OrderedList } from '@tiptap/extension-ordered-list';
+import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../extensions/Indent.js';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
+import TableExtension from '../extensions/TableExtension.js';
 import { Color } from '@tiptap/extension-color';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { ResizableImage } from '../extensions/ResizableImage.jsx';
@@ -132,9 +134,16 @@ import { Input } from './ui/input';
 import { EditorToolbar } from './editor/EditorToolbar';
 import { AISidebar } from './editor/AISidebar';
 import { DocumentOutline } from './editor/DocumentOutline';
-
 import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import { DocumentExporter } from '../../../utils/documentExporter.js';
+import { saveAs } from 'file-saver';
+
+// Context providers
+import { EditorProvider, useEditorContext } from '../contexts/EditorContent.jsx';
+import { ImageProvider, useImageContext } from '../contexts/ImageContext.jsx';
+
+// Export state hook
+import { useExportState } from '../hooks/useExportState.js';
 import { Label } from './ui/label.jsx';
 import { Textarea } from './ui/textarea.jsx';
 import { Switch } from './ui/switch.jsx';
@@ -352,36 +361,62 @@ const handleFileAction = (action, editor) => {
   }
 }
 
-const handleViewAction = (action, editor, setZoom) => {
+const handleViewAction = (action, editorActions, zoom) => {
   switch(action) {
     case 'zoom_in':
-      setZoom(prev => Math.min(200, prev + 10))
-      break
+      editorActions.setZoom(prev => Math.min(200, prev + 10));
+      toast.success(`Zoom: ${Math.min(200, (zoom || 100) + 10)}%`);
+      break;
     case 'zoom_out':
-      setZoom(prev => Math.max(50, prev - 10))
-      break
+      editorActions.setZoom(prev => Math.max(50, prev - 10));
+      toast.success(`Zoom: ${Math.max(50, (zoom || 100) - 10)}%`);
+      break;
     case 'zoom_100':
-      setZoom(100)
-      break
+      editorActions.setZoom(100);
+      toast.success('Zoom reset to 100%');
+      break;
+    case 'zoom_50':
+      editorActions.setZoom(50);
+      toast.success('Zoom set to 50%');
+      break;
+    case 'zoom_75':
+      editorActions.setZoom(75);
+      toast.success('Zoom set to 75%');
+      break;
+    case 'zoom_125':
+      editorActions.setZoom(125);
+      toast.success('Zoom set to 125%');
+      break;
+    case 'zoom_150':
+      editorActions.setZoom(150);
+      toast.success('Zoom set to 150%');
+      break;
+    case 'zoom_200':
+      editorActions.setZoom(200);
+      toast.success('Zoom set to 200%');
+      break;
     case 'fullscreen':
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen()
+        document.documentElement.requestFullscreen();
+        toast.success('Entered fullscreen mode');
       } else {
-        document.exitFullscreen()
+        document.exitFullscreen();
+        toast.success('Exited fullscreen mode');
       }
-      break
+      break;
     default:
       if (action.startsWith('zoom_')) {
-        const zoomValue = parseInt(action.split('_')[1])
+        const zoomValue = parseInt(action.split('_')[1]);
         if (!isNaN(zoomValue)) {
-          setZoom(zoomValue)
+          editorActions.setZoom(zoomValue);
+          toast.success(`Zoom set to ${zoomValue}%`);
         }
       }
-      break
+      break;
   }
-}
+};
 
-const handleEditAction = (action, editor, evt = null) => {
+const handleEditAction = (action, editor, evt = null, handleCopy, handlePaste) => {
   if (!editor) return
   
   switch(action) {
@@ -444,7 +479,20 @@ const handleInsertAction = (action, editor) => {
       }
       break
     case 'table':
-      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+      // Try custom table first, fallback to standard table
+      if (editor.can().insertCustomTable) {
+        editor.chain().focus().insertCustomTable({ 
+          rows: 3, 
+          cols: 3, 
+          cells: Array(3).fill().map(() => Array(3).fill('')),
+          borderColor: '#d1d5db',
+          fontSize: 14,
+          color: '#000000',
+          textAlign: 'left'
+        }).run();
+      } else {
+        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      }
       break
     case 'link':
       const linkUrl = prompt('Enter URL:')
@@ -508,160 +556,78 @@ const handleFormatAction = (action, editor) => {
   }
 }
 
-export const TextEditor = () => {
-  // Custom clipboard handlers
-  const handleCopy = async () => {
-    if (!editor) return;
-    
-    try {
-      // Get the current selection
-      const { from, to } = editor.state.selection;
-      
-      if (from === to) {
-        toast.info('Nothing selected to copy');
-        return;
-      }
-      
-      // Create a fragment from the selected content
-      const slice = editor.state.doc.slice(from, to);
-      
-      // Use the editor's serializer to convert to HTML
-      const fragment = slice.content;
-      const htmlString = editor.schema.serializer.serializeFragment(fragment);
-      
-      // Create a temporary div to get HTML string
-      const tempDiv = document.createElement('div');
-      tempDiv.appendChild(htmlString);
-      const finalHtmlString = tempDiv.innerHTML;
-      
-      // Get plain text as well
-      const plainText = editor.state.doc.textBetween(from, to, ' ');
-      
-      // Use Clipboard API if available
-      if (navigator.clipboard && window.ClipboardItem) {
-        try {
-          const clipboardItem = new ClipboardItem({
-            'text/html': new Blob([finalHtmlString], { type: 'text/html' }),
-            'text/plain': new Blob([plainText], { type: 'text/plain' })
-          });
-          
-          await navigator.clipboard.write([clipboardItem]);
-          toast.success('Content copied to clipboard');
-        } catch (err) {
-          console.error('Failed to copy to clipboard:', err);
-          // Fallback to execCommand
-          document.execCommand('copy');
-          toast.success('Content copied to clipboard');
-        }
-      } else {
-        // Fallback for older browsers
-        document.execCommand('copy');
-        toast.success('Content copied to clipboard');
-      }
-    } catch (error) {
-      console.error('Copy failed:', error);
-      toast.error('Failed to copy content');
-    }
-  };
+// Wrapper component that provides context to the editor
+const TextEditorWithProviders = () => {
+  return (
+    <EditorProvider>
+      <ImageProvider>
+        <TextEditorContent />
+      </ImageProvider>
+    </EditorProvider>
+  );
+};
 
-  const handlePaste = async (event) => {
-    if (!editor) return;
-    
-    try {
-      // Check if Clipboard API is available
-      if (navigator.clipboard && window.ClipboardItem) {
-        // Modern approach using Clipboard API
-        const clipboardItems = await navigator.clipboard.read();
-        
-        for (const clipboardItem of clipboardItems) {
-          for (const type of clipboardItem.types) {
-            if (type === 'text/html') {
-              const blob = await clipboardItem.getType(type);
-              const htmlString = await blob.text();
-              
-              // Insert HTML content
-              editor.commands.insertContent(htmlString);
-              toast.success('Content pasted from clipboard');
-              return;
-            } else if (type === 'text/plain') {
-              const blob = await clipboardItem.getType(type);
-              const plainText = await blob.text();
-              
-              // Insert plain text
-              editor.commands.insertContent(plainText);
-              toast.success('Text pasted from clipboard');
-              return;
-            }
-          }
-        }
-      } else {
-        // Fallback: Get clipboard data from event
-        const clipboardData = event?.clipboardData || window.clipboardData;
-        if (clipboardData) {
-          const html = clipboardData.getData('text/html');
-          const text = clipboardData.getData('text/plain');
-          
-          if (html) {
-            // Prefer HTML content if available
-            editor.commands.insertContent(html);
-            toast.success('HTML content pasted from clipboard');
-          } else {
-            // Fallback to plain text
-            editor.commands.insertContent(text);
-            toast.success('Text pasted from clipboard');
-          }
-        } else {
-          // If no clipboard data in event, let Tiptap handle it naturally
-          toast.info('Using default paste behavior');
-        }
-      }
-    } catch (error) {
-      console.error('Paste failed:', error);
-      
-      // Ultimate fallback
-      try {
-        // Get clipboard data manually
-        const clipboardData = event?.clipboardData || window.clipboardData;
-        if (clipboardData) {
-          const html = clipboardData.getData('text/html');
-          const text = clipboardData.getData('text/plain');
-          
-          if (html) {
-            editor.commands.insertContent(html);
-          } else {
-            editor.commands.insertContent(text);
-          }
-          toast.success('Content pasted (fallback)');
-        }
-      } catch (fallbackError) {
-        console.error('Fallback paste also failed:', fallbackError);
-        toast.error('Failed to paste content. Please try again.');
-      }
+// Main TextEditor component that uses context providers
+const TextEditorContent = () => {
+  // Constants for page management
+  const PAGE_HEIGHT = 1122; // A4 height in points at 96 DPI (11.69 inches * 96)
+  const PAGE_WIDTH = 793;   // A4 width in points at 96 DPI (8.27 inches * 96)
+  const LINE_HEIGHT = 1.5;
+  
+  // Use context hooks for state management with safe defaults
+  const { state: editorState = {}, actions: editorActions = {} } = useEditorContext() || {};
+  const { state: imageState = {}, actions: imageActions = {} } = useImageContext() || {};
+  
+  // Use export state hook
+  const { exportToPDF, exportToDOCX, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
+  
+  // Destructure state from contexts with defaults
+  const { 
+    isAISidebarOpen = false, 
+    showReferencesPanel = false,
+    showExportDialog = false, 
+    exportFormat = 'pdf', 
+    exportOptions = {
+      includePageNumbers: true,
+      includeHeader: true,
+      includeFooter: true,
+      exportComments: false,
+      exportTrackChanges: false
+    }, 
+    documentTitle = 'Untitled Document', 
+    lastSaved = null, 
+    zoom = 100, 
+    saveStatus = 'saved',
+    documentStats = {
+      paragraphs: 0,
+      images: 0,
+      tables: 0,
+      pages: 1
     }
-  };
+  } = editorState;
+  
+  // Destructure actions from contexts with safe fallbacks
+  const { 
+    setSaveStatus = () => {}, 
+    setLastSaved = () => {}, 
+    setDocumentStats = () => {},
+    setDocumentTitle = () => {},
+    updateEditorFeatures = () => {},
+    updateExportOptions = () => {},
+    updateUIState = () => {},
+    updateDocumentStats: updateDocumentStatsAction = () => {}
+  } = editorActions;
 
-  const [documentTitle, setDocumentTitle] = useState('Untitled Document');
-  const [isAISidebarOpen, setIsAISidebarOpen] = useState(false);
+  // State variables
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
-  const [isTemplateSidebarOpen, setIsTemplateSidebarOpen] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [headings, setHeadings] = useState([]);
-  const [lastSaved, setLastSaved] = useState(new Date());
   const [wordCount, setWordCount] = useState(0);
   const [characterCount, setCharacterCount] = useState(0);
   const [readingTime, setReadingTime] = useState(0);
-  const [zoom, setZoom] = useState(100);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('saved');
   const [showFormatMenu, setShowFormatMenu] = useState(false);
-  const [showInsertMenu, setShowInsertMenu] = useState(false);
-  const [documentStats, setDocumentStats] = useState({
-    paragraphs: 0,
-    images: 0,
-    tables: 0,
-    pages: 1,  // Initial page count
-  });
+  const [isTemplateSidebarOpen, setIsTemplateSidebarOpen] = useState(false);
   
   // Document management states
   const [documentVersions, setDocumentVersions] = useState([
@@ -678,7 +644,6 @@ export const TextEditor = () => {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   
   // Advanced formatting states
-  const [lineSpacing, setLineSpacing] = useState(1.15);
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
   const [indentLevel, setIndentLevel] = useState(0);
   const [textDirection, setTextDirection] = useState('ltr');
@@ -693,21 +658,19 @@ export const TextEditor = () => {
   const [pageSize, setPageSize] = useState('A4');
   const [pageOrientation, setPageOrientation] = useState('portrait');
   const [pageMargins, setPageMargins] = useState({
-    top: 72,    // 1 inch in points
+    top: 72,
     bottom: 72,
     left: 72,
     right: 72
   });
   const [columnLayout, setColumnLayout] = useState({
     count: 1,
-    spacing: 36, // 0.5 inch in points
+    spacing: 36,
     equalWidth: true
   });
   const [pageColor, setPageColor] = useState('#ffffff');
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [sectionBreaks, setSectionBreaks] = useState([]);
-  const [showRuler, setShowRuler] = useState(false);
-  const [showGrid, setShowGrid] = useState(false);
   
   // Media Elements states
   const [mediaElements, setMediaElements] = useState([]);
@@ -730,179 +693,327 @@ export const TextEditor = () => {
   });
   const [watermarks, setWatermarks] = useState([]);
   const [shapes, setShapes] = useState([]);
-  const [drawingMode, setDrawingMode] = useState(null); // 'rectangle', 'circle', 'line', 'freehand'
+  const [drawingMode, setDrawingMode] = useState(null);
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(2);
   
   // Image insertion states
   const [showImageModal, setShowImageModal] = useState(false);
-  const [imageInsertMethod, setImageInsertMethod] = useState('url'); // 'url', 'upload', 'unsplash'
+  const [imageInsertMethod, setImageInsertMethod] = useState('url');
   const [imageUrl, setImageUrl] = useState('');
   const [imageSearchQuery, setImageSearchQuery] = useState('');
   const [unsplashImages, setUnsplashImages] = useState([]);
   const [isLoadingImages, setIsLoadingImages] = useState(false);
   const [selectedImageAlt, setSelectedImageAlt] = useState('');
   const [isImageUploading, setIsImageUploading] = useState(false);
-
-  // Export states
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportFormat, setExportFormat] = useState('pdf');
-  const [exportOptions, setExportOptions] = useState({
-    includePageNumbers: true,
-    includeHeader: true,
-    includeFooter: true,
-    exportComments: false,
-    exportTrackChanges: false
-  });
-
+  
   // References & Links states
   const [bookmarks, setBookmarks] = useState([]);
   const [footnotes, setFootnotes] = useState([]);
   const [citations, setCitations] = useState([]);
   const [crossReferences, setCrossReferences] = useState([]);
   const [bibliography, setBibliography] = useState([]);
-  const [showReferencesPanel, setShowReferencesPanel] = useState(false);
-  const [citationStyle, setCitationStyle] = useState('apa'); // apa, mla, chicago
+  const [citationStyle, setCitationStyle] = useState('apa');
+  
+  // Additional state variables
+  const [lineSpacing, setLineSpacing] = useState(1.5);
+  const [pages, setPages] = useState([{ id: 1, content: '', height: 0 }]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageContents, setPageContents] = useState(['']);
+  const [isPageCalculationLocked, setIsPageCalculationLocked] = useState(false);
 
+  // Create refs
+  const editorRef = useRef(null);
+  const contentContainerRef = useRef(null);
+
+  // Function to calculate content height for a page - FIXED: removed dependencies that cause loops
+  const calculateContentHeight = useCallback((htmlContent) => {
+    if (!htmlContent || htmlContent.trim() === '') return 0;
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      width: ${PAGE_WIDTH - 144}px; // Fixed width without dynamic dependencies
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12pt;
+      line-height: ${LINE_HEIGHT};
+      padding: 0;
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    `;
+    tempDiv.innerHTML = htmlContent;
+    document.body.appendChild(tempDiv);
+    
+    const height = tempDiv.offsetHeight;
+    document.body.removeChild(tempDiv);
+    
+    return height;
+  }, []); // EMPTY dependency array to prevent re-creation
+
+  // Function to split content into pages (Google Docs style) - FIXED: removed problematic dependencies
+  const splitContentIntoPages = useCallback((fullContent) => {
+    if (!fullContent || fullContent.trim() === '') {
+      return [{ id: 1, content: '', height: 0 }];
+    }
+
+    const maxPageHeight = PAGE_HEIGHT - 144; // Fixed margins
+    const pages = [];
+    let currentPageContent = '';
+    let currentHeight = 0;
+    let pageId = 1;
+
+    // Split by paragraphs and process each
+    const paragraphs = fullContent.split(/(?=<p[^>]*>|<\/p>|<h[1-6][^>]*>|<\/h[1-6]>|<div[^>]*>|<\/div>|<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>|<li[^>]*>|<\/li>)/gi)
+      .filter(p => p.trim().length > 0);
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      const paragraph = paragraphs[i];
+      
+      // Calculate height of this paragraph
+      const paragraphHeight = calculateContentHeight(paragraph);
+      
+      // If adding this paragraph would exceed page height, start new page
+      if (currentHeight + paragraphHeight > maxPageHeight && currentHeight > 0) {
+        // Save current page
+        pages.push({
+          id: pageId,
+          content: currentPageContent,
+          height: currentHeight
+        });
+        
+        // Start new page
+        pageId++;
+        currentPageContent = paragraph;
+        currentHeight = paragraphHeight;
+      } else {
+        // Add to current page
+        currentPageContent += paragraph;
+        currentHeight += paragraphHeight;
+      }
+      
+      // If we're at the last paragraph, add the current page
+      if (i === paragraphs.length - 1 && currentPageContent.trim()) {
+        pages.push({
+          id: pageId,
+          content: currentPageContent,
+          height: currentHeight
+        });
+      }
+    }
+
+    // Ensure at least one page exists
+    if (pages.length === 0) {
+      pages.push({ id: 1, content: '', height: 0 });
+    }
+
+    return pages;
+  }, [calculateContentHeight]); // Only depends on calculateContentHeight
+
+  // Update pages when content changes - FIXED: Added proper dependency management
+  const updatePages = useCallback((content) => {
+    if (!content || isPageCalculationLocked) return;
+    
+    setIsPageCalculationLocked(true);
+    
+    try {
+      const newPages = splitContentIntoPages(content);
+      
+      // Only update if pages actually changed
+      if (JSON.stringify(newPages) !== JSON.stringify(pages)) {
+        setPages(newPages);
+        
+        // Update document stats
+        if (setDocumentStats) {
+          setDocumentStats(prev => ({
+            ...prev,
+            pages: newPages.length
+          }));
+        }
+        
+        // Update page contents for rendering
+        setPageContents(newPages.map(page => page.content));
+      }
+    } catch (error) {
+      console.error('Error updating pages:', error);
+    } finally {
+      setTimeout(() => setIsPageCalculationLocked(false), 100);
+    }
+  }, [splitContentIntoPages, isPageCalculationLocked, pages, setDocumentStats]);
+
+  // Main editor instance
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3, 4, 5, 6],
         },
-        codeBlock: true,
-        code: true,
-        link: true,
-        underline: true,
-        listItem: true,
-        bulletList: true,
-        orderedList: true,
-        blockquote: true,
-      }),
-      Placeholder.configure({
-        placeholder: ({ node }) => {
-          if (node.type.name === 'heading') {
-            return 'Heading...';
-          }
-          return 'Start typing or type "/" for commands...';
+        bulletList: {
+          HTMLAttributes: {
+            class: 'bullet-list',
+          },
         },
+        orderedList: {
+          HTMLAttributes: {
+            class: 'ordered-list',
+          },
+        },
+        blockquote: {
+          HTMLAttributes: {
+            class: 'blockquote',
+          },
+        },
+        // Disable extensions we want to configure separately
+        underline: false,
+        link: false,
+        listItem: false,
+        codeBlock: false,
       }),
-      Blockquote,
-      Underline,
+      TextStyle,
+      Color,
+      FontFamily,
+      FontSize,
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
-      Highlight.configure({
-        multicolor: true,
-      }),
+      // Add custom Underline, Link, BulletList, OrderedList, ListItem, CodeBlockLowlight
+      Underline,
       Link.configure({
-        openOnClick: true,
-        autolink: true,
-        defaultProtocol: 'https',
+        openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-500 underline',
+          class: 'text-blue-600 underline',
         },
+      }),
+
+      ListItem,
+      CodeBlockLowlight.configure({
+        lowlight: createLowlight(common),
+      }),
+      Highlight.configure({ multicolor: true }),
+      Typography,
+      CharacterCount,
+      Focus.configure({
+        content: `
+          <h1 style="font-family: 'Inter', sans-serif; font-weight: 700;">Welcome to TEXT Editor Pro</h1>
+          <p style="font-family: 'Inter', sans-serif; color: #4b5563;">
+            Start typing your document...
+          </p>
+        `
+      }),
+      Placeholder.configure({
+        placeholder: 'Start typing or press / for commands...',
       }),
       Image.configure({
-        inline: true,
-        allowBase64: true,
         HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg',
+          class: 'rounded-lg',
         },
+      }),
+      ResizableImage,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list',
+        },
+      }),
+      TaskItem.configure({
+        HTMLAttributes: {
+          class: 'task-item',
+        },
+        nested: true,
       }),
       Table.configure({
         resizable: true,
-        lastColumnResizable: true,
-        cellMinWidth: 100,
         HTMLAttributes: {
           class: 'table-border-black',
         },
       }),
       TableRow,
-      TableCell.configure({
-        HTMLAttributes: {
-          class: 'cell-border-black',
-        },
-      }),
+      TableCell,
       TableHeader,
-      TextStyle,
-      Color,
-      FontFamily,
+      TableExtension,
       Subscript,
       Superscript,
-      TaskList,
-      TaskItem,
-      CodeBlockLowlight.configure({
-        lowlight: createLowlight(common),
-      }),
-      FontSize,
-      Typography,
       Indent,
-      ResizableImage,
       PageBreak,
-      Focus.configure({
-        className: 'has-focus',
-        mode: 'all',
-      }),
-      CharacterCount.configure({
-        limit: 100000,
-      }),
     ],
-    content: `
-      <h1 style="font-family: 'Inter', sans-serif; font-weight: 700;">Welcome to TEXT Editor Pro</h1>
-      <p style="font-family: 'Inter', sans-serif; color: #4b5563;">
-        This is a <mark style="background-color: #fef3c7;">professional-grade</mark> document editor with 
-        <strong> AI-powered features</strong>. Start writing your next masterpiece!
-      </p>
-      <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #1f2937;">Getting Started</h2>
-      <p style="font-family: 'Inter', sans-serif;">
-        Use the <strong>toolbar above</strong> to format your text, add headings, lists, and more. 
-        Click the <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 20px; border: none; font-weight: 500; cursor: pointer; font-size: 14px;">✨ AI</button> 
-        button to access <strong>AI-powered writing assistance</strong>.
-      </p>
-      <h3 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #374151;">Features</h3>
-      <ul style="font-family: 'Inter', sans-serif;">
-        <li>Rich text formatting (bold, italic, underline, etc.)</li>
-        <li>Multiple heading levels with proper hierarchy</li>
-        <li>Smart lists and blockquotes</li>
-        <li>Code blocks with syntax highlighting</li>
-        <li>Resizable tables and images</li>
-        <li>Page breaks and print layout</li>
-        <li>AI-powered content generation and enhancement</li>
-      </ul>
-      <blockquote style="border-left: 4px solid #3b82f6; padding-left: 20px; margin: 24px 0; color: #6b7280; font-style: italic;">
-        "The first draft is just you telling yourself the story." 
-        <br />
-        <strong style="color: #374151;">— Terry Pratchett</strong>
-      </blockquote>
-      <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 20px; margin: 24px 0;">
-        <h4 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #0369a1;">💡 Pro Tip</h4>
-        <p style="font-family: 'Inter', sans-serif; color: #0c4a6e; margin-bottom: 8px;">
-          Press <kbd style="background: #f3f4f6; border: 1px solid #d1d5db; padding: 2px 8px; border-radius: 4px; font-size: 12px;">Ctrl + /</kbd> 
-          to open command palette for quick actions.
-        </p>
-      </div>
-    `,
-    onUpdate: ({ editor }) => {
-      updateDocumentStats(editor);
-      updateHeadings(editor);
-      updateWordCount(editor);
-      updatePageCount(editor);
-      setSaveStatus('modified');
-      
-      // Auto-save after 3 seconds of inactivity
-      const timer = setTimeout(() => {
-        if (saveStatus === 'modified') {
-          handleAutoSave();
+    content: '',
+    editable: true,
+    autofocus: true,
+    onUpdate: ({ editor: editorInstance }) => {
+      try {
+        const content = editorInstance.getHTML();
+        
+        // Update word count
+        const text = editorInstance.state.doc.textContent;
+        const words = text.trim().split(/\s+/).filter(Boolean).length;
+        const characters = text.length;
+        const readingTimeMinutes = Math.ceil(words / 200);
+        
+        setWordCount(words);
+        setCharacterCount(characters);
+        setReadingTime(readingTimeMinutes);
+        
+        // Update headings
+        const newHeadings = [];
+        editorInstance.state.doc.descendants((node, pos) => {
+          if (node.type.name === 'heading') {
+            newHeadings.push({
+              level: node.attrs.level,
+              text: node.textContent,
+              id: `heading-${pos}`,
+            });
+          }
+        });
+        setHeadings(newHeadings);
+        
+        // Update document stats
+        let paragraphs = 0;
+        let images = 0;
+        let tables = 0;
+        
+        editorInstance.state.doc.descendants((node) => {
+          if (node.type.name === 'paragraph') paragraphs++;
+          if (node.type.name === 'image') images++;
+          if (node.type.name === 'table') tables++;
+        });
+        
+        if (updateDocumentStatsAction) {
+          updateDocumentStatsAction(prev => ({
+            ...prev,
+            paragraphs,
+            images,
+            tables
+          }));
         }
-      }, 3000);
-      
-      return () => clearTimeout(timer);
+        
+        // Update pages with new content - use debounce to prevent excessive updates
+        if (window.pagesUpdateTimeout) {
+          clearTimeout(window.pagesUpdateTimeout);
+        }
+        
+        window.pagesUpdateTimeout = setTimeout(() => {
+          updatePages(content);
+        }, 500); // Debounce page calculation
+        
+        // Update save status
+        setSaveStatus('modified');
+        
+        // Auto-save after 3 seconds of inactivity
+        clearTimeout(window.autoSaveTimer);
+        window.autoSaveTimer = setTimeout(() => {
+          if (saveStatus === 'modified') {
+            handleAutoSave();
+          }
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Error in onUpdate:', error);
+      }
     },
-    onSelectionUpdate: ({ editor }) => {
-      const { from, to } = editor.state.selection;
+    onSelectionUpdate: ({ editor: editorInstance }) => {
+      const { from, to } = editorInstance.state.selection;
       if (from !== to) {
-        const text = editor.state.doc.textBetween(from, to, ' ');
+        const text = editorInstance.state.doc.textBetween(from, to, ' ');
         setSelectedText(text);
       } else {
         setSelectedText('');
@@ -911,7 +1022,7 @@ export const TextEditor = () => {
       // Update active heading level based on current selection
       if (from === to) {
         // Cursor is at a single position
-        const node = editor.state.doc.nodeAt(from);
+        const node = editorInstance.state.doc.nodeAt(from);
         if (node && node.type.name === 'heading') {
           setActiveHeadingLevel(node.attrs.level);
         } else {
@@ -920,7 +1031,7 @@ export const TextEditor = () => {
       } else {
         // There's a selection
         let foundHeadingLevel = 0;
-        editor.state.doc.nodesBetween(from, to, (node) => {
+        editorInstance.state.doc.nodesBetween(from, to, (node) => {
           if (node.type.name === 'heading') {
             foundHeadingLevel = node.attrs.level;
             return false; // Stop iteration
@@ -934,9 +1045,8 @@ export const TextEditor = () => {
       attributes: {
         class: 'prose prose-lg max-w-none focus:outline-none min-h-[600px] table-border-black',
         spellcheck: 'true',
+        'data-testid': 'editor-content'
       },
-      
-      // Add custom styles for tables
       contentAttributes: {
         style: `
           table.table-border-black { 
@@ -962,32 +1072,200 @@ export const TextEditor = () => {
             background-color: #f8f9fa !important;
             font-weight: bold;
           }
+          .bullet-list {
+            list-style-type: disc !important;
+            padding-left: 2rem !important;
+            margin: 1rem 0 !important;
+            background: #f8f9fa !important;
+            border-left: 3px solid #3b82f6 !important;
+            padding: 1rem 1rem 1rem 2rem !important;
+          }
+          .ordered-list {
+            list-style-type: decimal !important;
+            padding-left: 2rem !important;
+            margin: 1rem 0 !important;
+            background: #f0f9ff !important;
+            border-left: 3px solid #0ea5e9 !important;
+            padding: 1rem 1rem 1rem 2rem !important;
+          }
+          .task-list {
+            list-style: none !important;
+            padding-left: 2rem !important;
+            margin: 1rem 0 !important;
+            background: #f0fdf4 !important;
+            border-left: 3px solid #22c55e !important;
+            padding: 1rem 1rem 1rem 2rem !important;
+          }
+          .task-list .task-item {
+            display: flex;
+            align-items: flex-start;
+            margin: 0.25rem 0;
+          }
+          .task-list .task-item > label {
+            margin-right: 0.5rem;
+            margin-top: 0.1rem;
+          }
+          .task-list .task-item > div {
+            flex: 1;
+          }
+          .list-item {
+            margin: 0.25rem 0;
+          }
+          .blockquote {
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+            color: #4b5563;
+          }
         `,
       },
-      
       handleKeyDown: (view, event) => {
         // Handle slash commands
         if (event.key === '/' && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
-          setIsAISidebarOpen(true);
+          updateEditorFeatures({ isAISidebarOpen: true });
           return true;
         }
+        
+        // Handle Enter key in lists
+        if (event.key === 'Enter' && !event.shiftKey) {
+          const { state } = view;
+          const { $from } = state.selection;
+          const parent = $from.node(-1);
+          
+          if (parent && (parent.type.name === 'listItem')) {
+            // If we're in an empty list item, break out of the list
+            if ($from.parent.content.size === 0) {
+              event.preventDefault();
+              if (editor) {
+                editor.chain().focus().liftListItem('listItem').run();
+                return true;
+              }
+            }
+          }
+        }
+        
+        // Handle Tab and Shift+Tab for list indentation
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          if (editor) {
+            if (event.shiftKey) {
+              editor.chain().focus().liftListItem('listItem').run();
+            } else {
+              editor.chain().focus().sinkListItem('listItem').run();
+            }
+            return true;
+          }
+        }
+        
         return false;
-      },
+      }
     },
   });
 
-  // Update the handleInsertImage function
-  const handleInsertImage = () => {
-    setShowImageModal(true);
-    setImageInsertMethod('url');
-    setImageUrl('');
-    setImageSearchQuery('');
-    setSelectedImageAlt('');
-  };
+  // Store editor reference
+  useEffect(() => {
+    if (editor) {
+      editorRef.current = editor;
+      
+      // Load initial content
+      const savedContent = localStorage.getItem('text-editor-document');
+      if (savedContent) {
+        try {
+          const parsed = JSON.parse(savedContent);
+          editor.commands.setContent(parsed.html || '');
+          if (parsed.title) {
+            setDocumentTitle(parsed.title);
+          }
+        } catch (error) {
+          console.error('Error loading saved content:', error);
+        }
+      }
+    }
+  }, [editor]); // Removed setDocumentTitle to prevent infinite loop
+
+  // Custom clipboard handlers
+  const handleCopy = useCallback(async () => {
+    if (!editor) return;
+    
+    try {
+      const { from, to } = editor.state.selection;
+      
+      if (from === to) {
+        toast.info('Nothing selected to copy');
+        return;
+      }
+      
+      const text = editor.state.doc.textBetween(from, to, ' ');
+      
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          const clipboardItem = new ClipboardItem({
+            'text/plain': new Blob([text], { type: 'text/plain' })
+          });
+          
+          await navigator.clipboard.write([clipboardItem]);
+          toast.success('Content copied to clipboard');
+        } catch (err) {
+          console.error('Clipboard API failed:', err);
+          document.execCommand('copy');
+          toast.success('Content copied to clipboard');
+        }
+      } else {
+        document.execCommand('copy');
+        toast.success('Content copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Copy failed:', error);
+      toast.error('Failed to copy content');
+    }
+  }, [editor]);
+
+  const handlePaste = useCallback(async (event) => {
+    if (!editor) return;
+    
+    try {
+      event.preventDefault();
+      
+      let pastedText = '';
+      
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const clipboardItem of clipboardItems) {
+            for (const type of clipboardItem.types) {
+              if (type === 'text/html') {
+                const blob = await clipboardItem.getType(type);
+                pastedText = await blob.text();
+                break;
+              } else if (type === 'text/plain' && !pastedText) {
+                const blob = await clipboardItem.getType(type);
+                pastedText = await blob.text();
+              }
+            }
+            if (pastedText) break;
+          }
+        } catch (error) {
+          console.error('Clipboard API failed:', error);
+          pastedText = event.clipboardData?.getData('text/plain') || '';
+        }
+      } else {
+        pastedText = event.clipboardData?.getData('text/plain') || '';
+      }
+      
+      if (pastedText) {
+        editor.chain().focus().insertContent(pastedText).run();
+        toast.success('Content pasted successfully');
+      }
+    } catch (error) {
+      console.error('Paste error:', error);
+      toast.error('Failed to paste content');
+    }
+  }, [editor]);
 
   // Enhanced insertImage function that uses ResizableImage extension with fallbacks
-  const insertImage = (src, alt = '', width = 400, height = 300, options = {}) => {
+  const insertImage = useCallback((src, alt = '', width = 400, height = 300, options = {}) => {
     if (!editor || !src) {
       console.error('Editor not ready or image source not provided');
       toast.error('Cannot insert image');
@@ -1012,7 +1290,7 @@ export const TextEditor = () => {
       setShowImageModal(false);
       
       // Update document stats
-      setDocumentStats(prev => ({
+      updateDocumentStatsAction(prev => ({
         ...prev,
         images: prev.images + 1
       }));
@@ -1032,7 +1310,7 @@ export const TextEditor = () => {
         setShowImageModal(false);
         
         // Update document stats
-        setDocumentStats(prev => ({
+        updateDocumentStatsAction(prev => ({
           ...prev,
           images: prev.images + 1
         }));
@@ -1049,7 +1327,7 @@ export const TextEditor = () => {
           setShowImageModal(false);
           
           // Update document stats
-          setDocumentStats(prev => ({
+          updateDocumentStatsAction(prev => ({
             ...prev,
             images: prev.images + 1
           }));
@@ -1059,11 +1337,10 @@ export const TextEditor = () => {
         }
       }
     }
-  };
+  }, [editor, updateDocumentStatsAction]);
 
-
-  // Function to handle multiple image uploads with enhanced state management and error handling
-  const handleMultipleImageUpload = async (event) => {
+  // Function to handle multiple image uploads
+  const handleMultipleImageUpload = useCallback(async (event) => {
     try {
       const files = Array.from(event.target.files);
       
@@ -1072,7 +1349,6 @@ export const TextEditor = () => {
         return;
       }
       
-      // Show processing message
       toast.loading(`🔍 Processing ${files.length} file(s)...`);
       
       const validFiles = files.filter(file => {
@@ -1115,10 +1391,10 @@ export const TextEditor = () => {
       toast.dismiss();
       toast.error('❌ Failed to process selected files. Please try again.');
     }
-  };
+  }, [imagePreview]);
 
   // Function to handle image URL insertion with enhanced validation and feedback
-  const handleImageUrlSubmit = () => {
+  const handleImageUrlSubmit = useCallback(() => {
     try {
       if (!imageUrl.trim()) {
         toast.error('❌ Please enter an image URL');
@@ -1167,10 +1443,10 @@ export const TextEditor = () => {
       toast.dismiss();
       toast.error('❌ Failed to insert image. Please try again.');
     }
-  };
+  }, [imageUrl, selectedImageAlt, insertImage]);
 
-  // Enhanced image upload functions with improved state management and error handling
-  const handleImageUpload = async (event) => {
+  // Enhanced image upload functions
+  const handleImageUpload = useCallback(async (event) => {
     try {
       const files = Array.from(event.target.files);
       
@@ -1216,10 +1492,10 @@ export const TextEditor = () => {
       console.error('Image upload error:', error);
       toast.error('❌ Failed to process selected files. Please try again.');
     }
-  };
+  }, []);
 
   // New function to confirm and insert selected images
-  const confirmImageUpload = async () => {
+  const confirmImageUpload = useCallback(async () => {
     if (selectedFiles.length === 0) {
       toast.error('No images selected');
       return;
@@ -1300,10 +1576,10 @@ export const TextEditor = () => {
         setShowImageModal(false);
       }
     }, 1000);
-  };
+  }, [selectedFiles, insertImage]);
 
   // Function to remove a selected file
-  const removeSelectedFile = (index) => {
+  const removeSelectedFile = useCallback((index) => {
     const newFiles = [...selectedFiles];
     newFiles.splice(index, 1);
     setSelectedFiles(newFiles);
@@ -1318,23 +1594,23 @@ export const TextEditor = () => {
     } else if (newFiles.length === 0) {
       setImagePreview('');
     }
-  };
+  }, [selectedFiles]);
 
   // Function to clear all selected files
-  const clearSelectedFiles = () => {
+  const clearSelectedFiles = useCallback(() => {
     setSelectedFiles([]);
     setImagePreview('');
-  };
+  }, []);
 
   // Function to handle quick image insertion
-  const handleQuickImageInsert = (url, alt = '') => {
+  const handleQuickImageInsert = useCallback((url, alt = '') => {
     setImageUrl(url);
     setSelectedImageAlt(alt);
     handleImageUrlSubmit();
-  };
+  }, [handleImageUrlSubmit]);
 
   // Function to test image insertion (for debugging) with enhanced feedback
-  const testImageInsertion = () => {
+  const testImageInsertion = useCallback(() => {
     try {
       if (!editor) {
         toast.error('❌ Editor not ready. Please wait for the editor to load.');
@@ -1381,337 +1657,340 @@ export const TextEditor = () => {
         toast.error('❌ Test insertion failed. Please check console for technical details.');
       }
     }
-  };
-
-
-  const updateHeadings = useCallback((editor) => {
-    const newHeadings = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'heading') {
-        newHeadings.push({
-          level: node.attrs.level,
-          text: node.textContent,
-          id: `heading-${pos}`,
-        });
-      }
-    });
-    setHeadings(newHeadings);
-  }, []);
-
-  const updateWordCount = useCallback((editor) => {
-    const text = editor.state.doc.textContent;
-    const words = text.trim().split(/\s+/).filter(Boolean).length;
-    const characters = text.length;
-    const readingTimeMinutes = Math.ceil(words / 200);
-    
-    setWordCount(words);
-    setCharacterCount(characters);
-    setReadingTime(readingTimeMinutes);
-  }, []);
-
-  const updateDocumentStats = useCallback((editor) => {
-    let paragraphs = 0;
-    let images = 0;
-    let tables = 0;
-    
-    editor.state.doc.descendants((node) => {
-      if (node.type.name === 'paragraph') paragraphs++;
-      if (node.type.name === 'image') images++;
-      if (node.type.name === 'table') tables++;
-    });
-    
-    // Count page breaks to estimate pages
-    const content = editor.getHTML();
-    const pageBreakCount = (content.match(/<hr/g) || []).length;
-    const pageCount = pageBreakCount + 1; // +1 for the initial page
-    
-    setDocumentStats({
-      paragraphs,
-      images,
-      tables,
-      pages: pageCount
-    });
-  }, []);
+  }, [editor]);
 
   // Page management functions
-  const addNewPage = () => {
+  const addNewPage = useCallback(() => {
     if (editor) {
       // Insert a page break to simulate a new page
-      editor.chain().focus().setPageBreak().run();
+      editor.chain().focus().setHorizontalRule().run();
+      // Add a page marker for better page management
+      editor.chain().focus().insertContent('<div data-page-marker="true" style="page-break-after: always; height: 1px; background: transparent;"></div>').run();
       toast.success('New page added');
     }
-  };
+  }, [editor]);
 
-  const addPageBreak = () => {
+  const addPageBreak = useCallback(() => {
     if (editor) {
       editor.chain().focus().setHorizontalRule().run();
-      toast.success('Page break added');
+      toast.success('Page break inserted');
     }
-  };
+  }, [editor]);
 
-  const insertPageNumber = () => {
+  const insertPageNumber = useCallback(() => {
     if (editor) {
-      const currentPageNumber = documentStats.pages || 1;
-      editor.chain().focus().insertContent(`Page ${currentPageNumber}`).run();
-      toast.success('Page number inserted');
+      const currentPageNumber = pages.findIndex(page => page.id === currentPage) + 1;
+      editor.chain().focus().insertContent(
+        `<span data-page-number="${currentPageNumber}" style="user-select: none; color: #666; font-size: 12px;">${currentPageNumber}</span>`
+      ).run();
+      toast.success(`Page ${currentPageNumber} number inserted`);
     }
-  };
+  }, [editor, pages, currentPage]);
 
-  const goToPage = (pageNumber) => {
-    // Scroll to the specified page (this is a simplified implementation)
-    const pageElements = document.querySelectorAll('[data-page-number]');
-    if (pageElements[pageNumber - 1]) {
-      pageElements[pageNumber - 1].scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // Update document stats to include page count
-  const updatePageCount = (editorInstance) => {
-    if (editorInstance) {
-      const content = editorInstance.getHTML();
-      // Count page breaks to estimate pages
-      const pageBreakCount = (content.match(/<hr/g) || []).length;
-      const pageCount = pageBreakCount + 1; // +1 for the initial page
-      
-      setDocumentStats(prev => ({
-        ...prev,
-        pages: pageCount
-      }));
-    }
-  };
-
-  const handleAutoSave = () => {
-    if (!editor) return;
-    
-    const content = {
-      title: documentTitle,
-      html: editor.getHTML(),
-      savedAt: new Date().toISOString(),
-    };
-    
-    localStorage.setItem('text-editor-document', JSON.stringify(content));
-    setLastSaved(new Date());
-    setSaveStatus('saved');
-    toast.success('Document auto-saved!');
-  };
-
-  useEffect(() => {
-    if (editor) {
-      updateHeadings(editor);
-      updateWordCount(editor);
-    }
-  }, [editor, updateHeadings, updateWordCount]);
-
-  const handleSave = () => {
-    if (!editor) return;
-    
-    const content = {
-      title: documentTitle,
-      html: editor.getHTML(),
-      savedAt: new Date().toISOString(),
-      metadata: {
-        wordCount: editor.storage.characterCount.words(),
-        characterCount: editor.storage.characterCount.characters(),
-        lastModified: new Date().toISOString()
-      }
-    };
-    
-    // Save to localStorage
-    localStorage.setItem('text-editor-document', JSON.stringify(content));
-    
-    setLastSaved(new Date());
-    setSaveStatus('saved');
-    toast.success('Document saved successfully!');
-  };
-
-  const handlePrint = () => {
-    if (!editor) return;
-    
-    // Create a temporary print window with proper document styling
-    const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-    
-    if (!printWindow) {
-      toast.error('Could not open print window. Please check your popup blocker.');
+  const goToPage = useCallback((pageNumber) => {
+    if (pageNumber < 1 || pageNumber > pages.length) {
+      toast.error(`Invalid page number. Please enter between 1 and ${pages.length}`);
       return;
     }
     
-    const editorContent = editor.getHTML();
+    setCurrentPage(pageNumber);
     
-    // Create a styled print document
-    const printContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${documentTitle || 'Document'}</title>
-        <style>
-          @page {
-            margin: 20mm;
-            size: A4;
-          }
-          @media print {
-            body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-            .page-break { page-break-before: always; }
-          }
-          body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #000;
-            max-width: 210mm; /* A4 width */
-            margin: 0 auto;
-            padding: 15mm;
-            background: white;
-          }
-          .document-header {
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-          }
-          .document-title {
-            font-size: 18pt;
-            font-weight: bold;
-            margin: 0 0 10px 0;
-          }
-          .document-meta {
-            font-size: 10pt;
-            color: #666;
-            margin: 0;
-          }
-          .ProseMirror {
-            min-height: auto;
-          }
-          img {
-            max-width: 100%;
-            height: auto;
-          }
-          h1 { font-size: 16pt; font-weight: bold; margin: 20px 0 10px 0; }
-          h2 { font-size: 14pt; font-weight: bold; margin: 18px 0 8px 0; }
-          h3 { font-size: 13pt; font-weight: bold; margin: 16px 0 6px 0; }
-          p { margin: 8px 0; }
-          ul, ol { margin: 8px 0 8px 20px; }
-          li { margin: 4px 0; }
-          table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-          th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-        </style>
-      </head>
-      <body>
-        <div class="document-header">
-          <h1 class="document-title">${documentTitle || 'Untitled Document'}</h1>
-          <p class="document-meta">Printed on ${new Date().toLocaleString()}</p>
-        </div>
-        <div class="ProseMirror">${editorContent}</div>
-        <script>
-          // Wait for content to load, then print
-          setTimeout(() => {
-            window.print();
-            // Close the window after printing if the user cancels or completes print
-            setTimeout(() => {
-              window.close();
-            }, 1000);
-          }, 1000);
-        </script>
-      </body>
-      </html>
-    `;
+    // Scroll to the page
+    const pageElement = document.getElementById(`page-${pageNumber}`);
+    if (pageElement) {
+      pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-  };
+    toast.success(`Navigated to page ${pageNumber}`);
+  }, [pages]);
 
-  const handleExport = async () => {
+  const handleAutoSave = useCallback(() => {
     if (!editor) return;
     
     try {
-      const options = {
-        filename: `${documentTitle || 'document'}.${exportFormat}`,
-        includePageNumbers: exportOptions.includePageNumbers,
-        includeHeader: exportOptions.includeHeader,
-        includeFooter: exportOptions.includeFooter,
-        title: documentTitle || 'My Document'
+      const content = {
+        title: documentTitle,
+        html: editor.getHTML(),
+        savedAt: new Date().toISOString(),
+        metadata: {
+          wordCount,
+          characterCount,
+          lastModified: new Date().toISOString()
+        }
       };
+      
+      localStorage.setItem('text-editor-document', JSON.stringify(content));
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+      toast.success('Document auto-saved!');
+    } catch (error) {
+      console.error('Auto-save error:', error);
+    }
+  }, [editor, documentTitle, wordCount, characterCount, setLastSaved, setSaveStatus]);
 
+  const handleSave = useCallback(() => {
+    if (!editor) return;
+    
+    try {
+      const content = {
+        title: documentTitle,
+        html: editor.getHTML(),
+        savedAt: new Date().toISOString(),
+        metadata: {
+          wordCount,
+          characterCount,
+          lastModified: new Date().toISOString()
+        }
+      };
+      
+      localStorage.setItem('text-editor-document', JSON.stringify(content));
+      
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+      toast.success('Document saved successfully!');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to save document');
+    }
+  }, [editor, documentTitle, wordCount, characterCount, setLastSaved, setSaveStatus]);
+
+  const handlePrint = useCallback(() => {
+    if (!editor) return;
+    
+    try {
+      // Get all page content
+      const allContent = pages.map(page => page.content).join('');
+      
+      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+      
+      if (!printWindow) {
+        toast.error('Could not open print window. Please check your popup blocker.');
+        return;
+      }
+      
+      const printContent = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${documentTitle || 'Document'}</title>
+          <style>
+            @page {
+              margin: 20mm;
+              size: A4;
+            }
+            @media print {
+              body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+              .page-break { page-break-before: always; }
+            }
+            body {
+              font-family: Arial, sans-serif;
+              font-size: 12pt;
+              line-height: 1.5;
+              color: #000;
+              max-width: 210mm;
+              margin: 0 auto;
+              padding: 15mm;
+              background: white;
+            }
+            .document-header {
+              border-bottom: 2px solid #333;
+              padding-bottom: 10px;
+              margin-bottom: 20px;
+            }
+            .document-title {
+              font-size: 18pt;
+              font-weight: bold;
+              margin: 0 0 10px 0;
+            }
+            .document-meta {
+              font-size: 10pt;
+              color: #666;
+              margin: 0;
+            }
+            .page-content {
+              margin-bottom: 20px;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+            }
+            h1 { font-size: 16pt; font-weight: bold; margin: 20px 0 10px 0; }
+            h2 { font-size: 14pt; font-weight: bold; margin: 18px 0 8px 0; }
+            h3 { font-size: 13pt; font-weight: bold; margin: 16px 0 6px 0; }
+            p { margin: 8px 0; }
+            ul, ol { margin: 8px 0 8px 20px; }
+            li { margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <div class="document-header">
+            <h1 class="document-title">${documentTitle || 'Untitled Document'}</h1>
+            <p class="document-meta">Printed on ${new Date().toLocaleString()}</p>
+          </div>
+          <div class="page-content">${allContent}</div>
+          <script>
+            setTimeout(() => {
+              window.print();
+              setTimeout(() => {
+                window.close();
+              }, 1000);
+            }, 1000);
+          </script>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to print document');
+    }
+  }, [editor, documentTitle, pages]);
+
+  const handleExport = useCallback(async () => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+    
+    // Check if editor has content before attempting export
+    const editorContent = editor.getHTML();
+    if (!editorContent || editorContent === '<p></p>' || editorContent.trim() === '<p></p>') {
+      toast.error('Cannot export: Document is empty');
+      updateEditorFeatures({ showExportDialog: false });
+      return;
+    }
+    
+    const options = {
+      filename: `${documentTitle || 'document'}.${exportFormat}`,
+      includePageNumbers: exportOptions.includePageNumbers,
+      includeHeader: exportOptions.includeHeader,
+      includeFooter: exportOptions.includeFooter,
+      title: documentTitle || 'My Document'
+    };
+
+    try {
       switch (exportFormat) {
         case 'pdf':
-          await DocumentExporter.exportToPDF(editor, options);
-          toast.info('PDF file downloaded. Open it and use Ctrl+P → "Save as PDF"');
+          if (exportLoading.pdf) {
+            toast.info('PDF export is already in progress');
+            return;
+          }
+          await exportToPDF(editor, options);
           break;
         case 'docx':
-          await DocumentExporter.exportToDOCX(editor, options);
+          if (exportLoading.docx) {
+            toast.info('DOCX export is already in progress');
+            return;
+          }
+          await exportToDOCX(editor, options);
           break;
         case 'md':
-          DocumentExporter.exportToMarkdown(editor, options);
+          if (exportLoading.md) {
+            toast.info('Markdown export is already in progress');
+            return;
+          }
+          await exportToMarkdown(editor, options);
           break;
         case 'txt':
-          DocumentExporter.exportToPlainText(editor, options);
+          if (exportLoading.txt) {
+            toast.info('Plain text export is already in progress');
+            return;
+          }
+          await exportToPlainText(editor, options);
           break;
         case 'html':
-          // HTML export
-          const htmlContent = DocumentExporter.getHTMLContent(editor);
-          const fullHTML = DocumentExporter.wrapHTMLForPDF(htmlContent, options);
-          const blob = new Blob([fullHTML], { type: 'text/html' });
-          DocumentExporter.downloadBlob(blob, 'document.html');
-          toast.success('HTML document exported');
+          if (exportLoading.html) {
+            toast.info('HTML export is already in progress');
+            return;
+          }
+          await exportToHTML(editor, options);
           break;
         default:
-          toast.info(`Exporting as ${exportFormat.toUpperCase()}...`);
+          toast.error(`Unsupported export format: ${exportFormat}`);
       }
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Export failed');
+    } finally {
+      // Close export dialog after processing
+      updateEditorFeatures({ showExportDialog: false });
     }
-    
-    setShowExportDialog(false);
-  };
+  }, [editor, documentTitle, exportFormat, exportOptions, exportLoading, updateEditorFeatures, exportToPDF, exportToDOCX, exportToMarkdown, exportToPlainText, exportToHTML]);
 
-  const handleAIGenerate = async (content) => {
+  const handleAIGenerate = useCallback(async (content) => {
     if (!editor) return;
     
-    if (content.startsWith('API:')) {
-      // Simulate API call
-      const prompt = content.substring(4);
-      toast.info(`Generating content for: "${prompt}"`);
-      editor.chain().focus().insertContent(`<p>${prompt} - AI generated content would appear here.</p>`).run();
-    } else {
-      editor.chain().focus().insertContent(content).run();
+    try {
+      if (content.startsWith('API:')) {
+        const prompt = content.substring(4);
+        toast.info(`Generating content for: "${prompt}"`);
+        editor.chain().focus().insertContent(`<p>${prompt} - AI generated content would appear here.</p>`).run();
+      } else {
+        editor.chain().focus().insertContent(content).run();
+      }
+      updateEditorFeatures({ isAISidebarOpen: false });
+    } catch (error) {
+      console.error('AI generate error:', error);
+      toast.error('Failed to generate content');
     }
-    setIsAISidebarOpen(false);
-  };
+  }, [editor, updateEditorFeatures]);
 
-  const handleTransformText = async (action, result) => {
+  const handleTransformText = useCallback(async (action, result) => {
     if (!editor) return;
     
-    const { from, to } = editor.state.selection;
-    if (from !== to) {
-      editor.chain().focus().deleteRange({ from, to }).insertContent(result).run();
-      toast.success(`Text ${action}ed successfully!`);
+    try {
+      const { from, to } = editor.state.selection;
+      if (from !== to) {
+        editor.chain().focus().deleteRange({ from, to }).insertContent(result).run();
+        toast.success(`Text ${action}ed successfully!`);
+      }
+    } catch (error) {
+      console.error('Transform text error:', error);
+      toast.error('Failed to transform text');
     }
-  };
+  }, [editor]);
 
-  const handleHeadingClick = (id) => {
-    const pos = parseInt(id.replace('heading-', ''));
-    if (editor) {
+  const handleHeadingClick = useCallback((id) => {
+    if (!editor) return;
+    
+    try {
+      const pos = parseInt(id.replace('heading-', ''));
       editor.chain().focus().setTextSelection(pos).run();
+    } catch (error) {
+      console.error('Heading click error:', error);
     }
-  };
+  }, [editor]);
 
-  const getHTML = () => editor?.getHTML() || '';
+  const handleZoomChange = useCallback((newZoom) => {
+    updateUIState({ zoom: newZoom });
+  }, [updateUIState]);
 
-  const handleZoomChange = (newZoom) => {
-    setZoom(newZoom);
-  };
-
-  const handleTemplateSelect = (template) => {
+  const handleTemplateSelect = useCallback((template) => {
     if (editor) {
-      editor.commands.setContent(template.content);
-      setDocumentTitle(template.name);
-      toast.success(`Template "${template.name}" applied!`);
+      try {
+        editor.commands.setContent(template.content);
+        setDocumentTitle(template.name);
+        toast.success(`Template "${template.name}" applied!`);
+      } catch (error) {
+        console.error('Template select error:', error);
+        toast.error('Failed to apply template');
+      }
     }
-  };
+  }, [editor, setDocumentTitle]);
+
+  const openExportDialog = useCallback(() => {
+    updateEditorFeatures({ showExportDialog: true });
+  }, [updateEditorFeatures]);
 
   // Document Management Functions
-  const handleRenameDocument = () => {
+  const handleRenameDocument = useCallback(() => {
     if (isRenaming) {
       setDocumentTitle(tempTitle);
       setIsRenaming(false);
@@ -1720,71 +1999,48 @@ export const TextEditor = () => {
       setTempTitle(documentTitle);
       setIsRenaming(true);
     }
-  };
+  }, [isRenaming, tempTitle, documentTitle, setDocumentTitle]);
 
-  const handleDuplicateDocument = () => {
-    const newTitle = `${documentTitle} (Copy)`;
-    const content = editor?.getHTML() || '';
-    
-    // Create new version entry
-    const newVersion = {
-      id: Date.now(),
-      timestamp: new Date(),
-      title: `Copy of ${documentTitle}`,
-      content: content,
-      author: 'Current User'
-    };
-    
-    setDocumentVersions(prev => [...prev, newVersion]);
-    setDocumentTitle(newTitle);
-    toast.success(`Document duplicated as "${newTitle}"`);
-  };
-
-  const handleDeleteDocument = () => {
+  const handleDeleteDocument = useCallback(() => {
     if (window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-      // In a real app, this would delete from storage
-      toast.success('Document deleted');
-      // Reset to new document
-      editor?.commands.clearContent();
-      setDocumentTitle('Untitled Document');
+      try {
+        editor?.commands.clearContent();
+        setDocumentTitle('Untitled Document');
+        localStorage.removeItem('text-editor-document');
+        toast.success('Document deleted');
+      } catch (error) {
+        console.error('Delete document error:', error);
+        toast.error('Failed to delete document');
+      }
     }
-  };
+  }, [editor, setDocumentTitle]);
 
-  const handleSaveVersion = () => {
-    const content = editor?.getHTML() || '';
-    const newVersion = {
-      id: Date.now(),
-      timestamp: new Date(),
-      title: `Version ${documentVersions.length + 1}`,
-      content: content,
-      author: 'Current User'
-    };
-    
-    setDocumentVersions(prev => [...prev, newVersion]);
-    toast.success('Version saved successfully');
-  };
-
-  const handleRestoreVersion = (versionId) => {
+  const handleRestoreVersion = useCallback((versionId) => {
     const version = documentVersions.find(v => v.id === versionId);
     if (version && editor) {
-      editor.commands.setContent(version.content);
-      setDocumentTitle(version.title);
-      toast.success(`Restored version from ${version.timestamp.toLocaleString()}`);
-      setShowVersionHistory(false);
+      try {
+        editor.commands.setContent(version.content);
+        setDocumentTitle(version.title);
+        toast.success(`Restored version from ${version.timestamp.toLocaleString()}`);
+        setShowVersionHistory(false);
+      } catch (error) {
+        console.error('Restore version error:', error);
+        toast.error('Failed to restore version');
+      }
     }
-  };
+  }, [editor, documentVersions, setDocumentTitle]);
 
   // Advanced Formatting Functions
-  const handleLineSpacing = (spacing) => {
+  const handleLineSpacing = useCallback((spacing) => {
     setLineSpacing(spacing);
     if (editor) {
       editor.commands.updateAttributes('paragraph', { lineHeight: spacing });
       editor.commands.updateAttributes('heading', { lineHeight: spacing });
     }
     toast.success(`Line spacing set to ${spacing}`);
-  };
+  }, [editor]);
 
-  const handleIndent = (direction) => {
+  const handleIndent = useCallback((direction) => {
     if (!editor) return;
     
     if (direction === 'increase') {
@@ -1794,17 +2050,17 @@ export const TextEditor = () => {
       setIndentLevel(prev => Math.max(0, prev - 1));
       editor.commands.liftListItem('listItem');
     }
-  };
+  }, [editor]);
 
-  const handleTextDirection = (direction) => {
+  const handleTextDirection = useCallback((direction) => {
     setTextDirection(direction);
     if (editor) {
       editor.commands.setTextAlign(direction === 'rtl' ? 'right' : 'left');
     }
     toast.success(`Text direction set to ${direction.toUpperCase()}`);
-  };
+  }, [editor]);
 
-  const handleParagraphSpacing = (type, value) => {
+  const handleParagraphSpacing = useCallback((type, value) => {
     setParagraphSpacing(prev => ({
       ...prev,
       [type]: value
@@ -1814,38 +2070,169 @@ export const TextEditor = () => {
       const style = `${type === 'before' ? 'margin-top' : 'margin-bottom'}: ${value}px`;
       editor.commands.updateAttributes('paragraph', { style });
     }
-  };
+  }, [editor]);
 
   // Headings & Structure Functions
-  const handleHeadingChange = (level) => {
+  const handleHeadingChange = useCallback((level) => {
     if (!editor) return;
     
-    if (level === 0) {
-      editor.chain().focus().setParagraph().run();
-    } else {
-      editor.chain().focus().toggleHeading({ level }).run();
+    try {
+      if (level === 0) {
+        editor.chain().focus().setParagraph().run();
+      } else {
+        editor.chain().focus().toggleHeading({ level }).run();
+      }
+      
+      setActiveHeadingLevel(level);
+      toast.success(`Heading level ${level === 0 ? 'Normal' : level} applied`);
+    } catch (error) {
+      console.error('Heading change error:', error);
+    }
+  }, [editor]);
+
+  // Toggle functions for lists and blockquote
+  const toggleBulletList = useCallback(() => {
+    if (!editor) {
+      console.error('Editor not available');
+      toast.error('Editor not ready');
+      return;
     }
     
-    setActiveHeadingLevel(level);
-    toast.success(`Heading level ${level === 0 ? 'Normal' : level} applied`);
-  };
+    try {
+      const isActive = editor.isActive('bulletList');
+      
+      if (isActive) {
+        // If bullet list is active, turn it off
+        editor.chain().focus().toggleBulletList().run();
+        toast.success('Bullet list disabled');
+      } else {
+        // If ordered list is active, turn it off first
+        if (editor.isActive('orderedList')) {
+          editor.chain().focus().toggleOrderedList().run();
+        }
+        
+        // Then turn on bullet list
+        editor.chain().focus().toggleBulletList().run();
+        
+        // Apply automatic indentation for better visual structure (Google Docs style)
+        setTimeout(() => {
+          if (editor.isActive('bulletList')) {
+            // Apply small indent to make list items visually distinct
+            editor.chain().focus().updateAttributes('listItem', { indent: 1 }).run();
+          }
+        }, 50);
+        
+        toast.success('Bullet list enabled with indentation');
+      }
+    } catch (error) {
+      console.error('Error toggling bullet list:', error);
+      toast.error('Failed to toggle bullet list');
+    }
+  }, [editor]);
 
-  const toggleBulletList = () => {
+  const toggleOrderedList = useCallback(() => {
+    if (!editor) {
+      console.error('Editor not available');
+      toast.error('Editor not ready');
+      return;
+    }
+    
+    try {
+      const isActive = editor.isActive('orderedList');
+      
+      if (isActive) {
+        // If ordered list is active, turn it off
+        editor.chain().focus().toggleOrderedList().run();
+        toast.success('Numbered list disabled');
+      } else {
+        // If bullet list is active, turn it off first
+        if (editor.isActive('bulletList')) {
+          editor.chain().focus().toggleBulletList().run();
+        }
+        
+        // Then turn on ordered list
+        editor.chain().focus().toggleOrderedList().run();
+        
+        // Apply automatic indentation for better visual structure (Google Docs style)
+        setTimeout(() => {
+          if (editor.isActive('orderedList')) {
+            // Apply small indent to make list items visually distinct
+            editor.chain().focus().updateAttributes('listItem', { indent: 1 }).run();
+          }
+        }, 50);
+        
+        toast.success('Numbered list enabled with indentation');
+      }
+    } catch (error) {
+      console.error('Error toggling ordered list:', error);
+      toast.error('Failed to toggle numbered list');
+    }
+  }, [editor]);
+
+  const toggleTaskList = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleBulletList().run();
-  };
+    
+    try {
+      editor.chain().focus().toggleTaskList().run();
+      
+      // Apply automatic indentation for better visual structure (Google Docs style)
+      setTimeout(() => {
+        if (editor.isActive('taskList')) {
+          // Apply small indent to make task list items visually distinct
+          editor.chain().focus().updateAttributes('listItem', { indent: 1 }).run();
+        }
+      }, 50);
+      
+      toast.success('Task list enabled with indentation');
+    } catch (error) {
+      console.error('Error toggling task list:', error);
+      toast.error('Failed to toggle task list');
+    }
+  }, [editor]);
 
-  const toggleOrderedList = () => {
+  const toggleUnderline = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleOrderedList().run();
-  };
+    
+    try {
+      editor.chain().focus().toggleUnderline().run();
+      toast.success('Underline toggled');
+    } catch (error) {
+      console.error('Error toggling underline:', error);
+      toast.error('Failed to toggle underline');
+    }
+  }, [editor]);
 
-  const toggleTaskList = () => {
-    if (!editor) return;
-    editor.chain().focus().toggleTaskList().run();
-  };
+  const toggleBlockquote = useCallback(() => {
+    if (!editor) {
+      console.error('Editor not available');
+      toast.error('Editor not ready');
+      return;
+    }
+    
+    try {
+      const isActive = editor.isActive('blockquote');
+      
+      if (isActive) {
+        // If blockquote is active, turn it off
+        editor.chain().focus().toggleBlockquote().run();
+        toast.success('Blockquote disabled');
+      } else {
+        // If we're in a list, lift out of it first
+        if (editor.isActive('listItem')) {
+          editor.chain().focus().liftListItem('listItem').run();
+        }
+        
+        // Then turn on blockquote
+        editor.chain().focus().toggleBlockquote().run();
+        toast.success('Blockquote enabled');
+      }
+    } catch (error) {
+      console.error('Error toggling blockquote:', error);
+      toast.error('Failed to toggle blockquote');
+    }
+  }, [editor]);
 
-  const saveCustomHeadingStyle = (level, styles) => {
+  const saveCustomHeadingStyle = useCallback((level, styles) => {
     setCustomHeadingStyles(prev => ({
       ...prev,
       [level]: styles
@@ -1853,7 +2240,7 @@ export const TextEditor = () => {
     
     // Apply styles to existing headings of this level
     if (editor) {
-      const headingNodes = editor.state.doc.descendants((node, pos) => {
+      editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading' && node.attrs.level === level) {
           editor.commands.updateAttributes('heading', styles);
         }
@@ -1861,9 +2248,9 @@ export const TextEditor = () => {
     }
     
     toast.success(`Custom style saved for Heading ${level}`);
-  };
+  }, [editor]);
 
-  const toggleSectionCollapse = (headingId) => {
+  const toggleSectionCollapse = useCallback((headingId) => {
     setCollapsedSections(prev => {
       const newSet = new Set(prev);
       if (newSet.has(headingId)) {
@@ -1873,68 +2260,49 @@ export const TextEditor = () => {
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const applyHeadingStyle = (level) => {
+  const applyHeadingStyle = useCallback((level) => {
     const customStyle = customHeadingStyles[level];
     if (customStyle && editor) {
       editor.commands.updateAttributes('heading', customStyle);
       toast.success(`Applied custom style to Heading ${level}`);
     }
-  };
-
-  const updateDocumentOutline = useCallback(() => {
-    if (!editor) return;
-    
-    const headings = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'heading') {
-        headings.push({
-          id: `heading-${pos}`,
-          level: node.attrs.level,
-          text: node.textContent,
-          pos: pos,
-          collapsed: collapsedSections.has(`heading-${pos}`)
-        });
-      }
-    });
-    
-    setHeadings(headings);
-  }, [editor, collapsedSections]);
+  }, [customHeadingStyles, editor]);
 
   // Page Layout & Setup Functions
-  const handlePageSizeChange = (size) => {
+  const handlePageSizeChange = useCallback((size) => {
     setPageSize(size);
     toast.success(`Page size changed to ${size}`);
-  };
+  }, []);
 
-  const handleOrientationChange = (orientation) => {
+  const handleOrientationChange = useCallback((orientation) => {
     setPageOrientation(orientation);
     toast.success(`Page orientation changed to ${orientation}`);
-  };
+  }, []);
 
-  const handleMarginChange = (side, value) => {
+  const handleMarginChange = useCallback((side, value) => {
     setPageMargins(prev => ({
       ...prev,
       [side]: value
     }));
     toast.success(`${side.charAt(0).toUpperCase() + side.slice(1)} margin updated`);
-  };
+  }, []);
 
-  const handleColumnChange = (property, value) => {
+  const handleColumnChange = useCallback((property, value) => {
     setColumnLayout(prev => ({
       ...prev,
       [property]: value
     }));
     toast.success(`Column ${property} updated`);
-  };
+  }, []);
 
-  const handlePageColorChange = (color) => {
+  const handlePageColorChange = useCallback((color) => {
     setPageColor(color);
     toast.success('Page color updated');
-  };
+  }, []);
 
-  const addSectionBreak = (type = 'next-page') => {
+  const addSectionBreak = useCallback((type = 'next-page') => {
     const newBreak = {
       id: Date.now(),
       type: type,
@@ -1949,20 +2317,10 @@ export const TextEditor = () => {
     if (editor) {
       editor.chain().focus().setHorizontalRule().run();
     }
-  };
-
-  const toggleRuler = () => {
-    setShowRuler(!showRuler);
-    toast.success(`Ruler ${showRuler ? 'hidden' : 'shown'}`);
-  };
-
-  const toggleGrid = () => {
-    setShowGrid(!showGrid);
-    toast.success(`Grid ${showGrid ? 'hidden' : 'shown'}`);
-  };
+  }, [editor]);
 
   // Media Elements Functions
-  const addImageFromUrl = () => {
+  const addImageFromUrl = useCallback(() => {
     const url = prompt('Enter image URL:');
     if (url && editor) {
       try {
@@ -1973,9 +2331,9 @@ export const TextEditor = () => {
         toast.error('Failed to insert image');
       }
     }
-  };
+  }, [editor]);
 
-  const addLocalImage = async (file) => {
+  const addLocalImage = useCallback(async (file) => {
     if (!file || !editor) return;
     
     if (!file.type.startsWith('image/')) {
@@ -2004,9 +2362,9 @@ export const TextEditor = () => {
     } catch (error) {
       toast.error('Failed to add image');
     }
-  };
+  }, [editor]);
 
-  const addWatermark = (text, options = {}) => {
+  const addWatermark = useCallback((text, options = {}) => {
     const newWatermark = {
       id: Date.now(),
       type: 'watermark',
@@ -2019,9 +2377,9 @@ export const TextEditor = () => {
     
     setWatermarks(prev => [...prev, newWatermark]);
     toast.success(`Watermark "${text}" added`);
-  };
+  }, []);
 
-  const addShape = (shapeType, properties = {}) => {
+  const addShape = useCallback((shapeType, properties = {}) => {
     const newShape = {
       id: Date.now(),
       type: 'shape',
@@ -2037,14 +2395,14 @@ export const TextEditor = () => {
     setShapes(prev => [...prev, newShape]);
     setDrawingMode(null);
     toast.success(`${shapeType} shape added`);
-  };
+  }, [editor, drawingColor, drawingStrokeWidth]);
 
-  const startDrawing = (mode) => {
+  const startDrawing = useCallback((mode) => {
     setDrawingMode(mode);
     toast.info(`Drawing mode: ${mode}. Click and drag to draw.`);
-  };
+  }, []);
 
-  const groupSelectedElements = () => {
+  const groupSelectedElements = useCallback(() => {
     if (selectedMedia && selectedMedia.length > 1) {
       const groupId = Date.now();
       const groupedElements = selectedMedia.map(id => ({
@@ -2059,9 +2417,9 @@ export const TextEditor = () => {
       
       toast.success(`Grouped ${selectedMedia.length} elements`);
     }
-  };
+  }, [selectedMedia, mediaElements]);
 
-  const ungroupElements = (groupId) => {
+  const ungroupElements = useCallback((groupId) => {
     setMediaElements(prev => 
       prev.map(media => 
         media.groupId === groupId 
@@ -2070,8 +2428,25 @@ export const TextEditor = () => {
       )
     );
     toast.success('Elements ungrouped');
-  };
+  }, []);
 
+  const handleInsertImage = useCallback(() => {
+    setShowImageModal(true);
+    setImageInsertMethod('url');
+    setImageUrl('');
+    setImageSearchQuery('');
+    setSelectedImageAlt('');
+  }, []);
+
+  // Clean up on unmount - FIXED: Add pagesUpdateTimeout cleanup
+  useEffect(() => {
+    return () => {
+      clearTimeout(window.autoSaveTimer);
+      clearTimeout(window.pagesUpdateTimeout);
+    };
+  }, []);
+
+  // Render the editor content
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Google Docs-style Header */}
@@ -2088,7 +2463,7 @@ export const TextEditor = () => {
               value={documentTitle}
               onChange={(e) => setDocumentTitle(e.target.value)}
               placeholder="Document Title"
-              className="text-lg font-medium w-[300px] border-none focus:ring-0 focus:outline-none px-2 py-1"
+              className="text-lg font-medium w-75 border-none focus:ring-0 focus:outline-none px-2 py-1"
             />
           </div>
         </div>
@@ -2130,16 +2505,16 @@ export const TextEditor = () => {
           <Button
             onClick={handleSave}
             size="sm"
-            className="h-8 bg-gradient-to-r from-amber-400 to-amber-500 text-black hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
+            className="h-8 bg-linear-to-r from-amber-400 to-amber-500 text-black hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
           >
             <Save className="w-4 h-4 mr-1" />
             Save
           </Button>
 
           <Button
-            onClick={() => setShowExportDialog(true)}
+            onClick={openExportDialog}
             size="sm"
-            className="h-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+            className="h-8 bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
           >
             <Download className="w-4 h-4 mr-1" />
             Export
@@ -2154,8 +2529,6 @@ export const TextEditor = () => {
             <Trash2 className="w-4 h-4 mr-1" />
             Delete
           </Button>
-
-
         </div>
       </header>
 
@@ -2165,9 +2538,10 @@ export const TextEditor = () => {
         zoom={zoom} 
         onZoomChange={handleZoomChange}
         onSave={handleSave}
+        onPrint={handlePrint}
         handleInsertImage={handleInsertImage}
-        setShowReferencesPanel={setShowReferencesPanel}
-        setIsAISidebarOpen={setIsAISidebarOpen}
+        setShowReferencesPanel={(show) => updateEditorFeatures({ showReferencesPanel: show })}
+        setIsAISidebarOpen={(open) => updateEditorFeatures({ isAISidebarOpen: open })}
         isAISidebarOpen={isAISidebarOpen}
         documentTitle={documentTitle}
         addNewPage={addNewPage}
@@ -2178,7 +2552,11 @@ export const TextEditor = () => {
         toggleBulletList={toggleBulletList}
         toggleOrderedList={toggleOrderedList}
         toggleTaskList={toggleTaskList}
+        toggleUnderline={toggleUnderline}
+        toggleBlockquote={toggleBlockquote}
         setIsTemplateSidebarOpen={setIsTemplateSidebarOpen}
+        openExportDialog={openExportDialog}
+        exportLoading={exportLoading}
       />
 
       {/* Main Content Area */}
@@ -2194,55 +2572,64 @@ export const TextEditor = () => {
           onToggleCollapse={toggleSectionCollapse}
         />
 
-        {/* Editor Area - Google Docs style paper */}
-        <div className="flex-1 overflow-auto bg-secondary/30">
-          <div className="flex justify-center py-6 px-4 min-h-full">
-            <div 
-              className="bg-background shadow-lg rounded-sm w-full max-w-[816px] min-h-[1056px]"
-              style={{ 
-                transform: `scale(${zoom / 100})`,
-                transformOrigin: 'top center',
-                backgroundColor: pageColor,
-                padding: `${pageMargins.top}px ${pageMargins.right}px ${pageMargins.bottom}px ${pageMargins.left}px`
-              }}
-            >
-              <div className="p-16">
-                {/* Column layout simulation */}
-                {columnLayout.count > 1 ? (
-                  <div 
-                    className="grid gap-4"
-                    style={{
-                      gridTemplateColumns: `repeat(${columnLayout.count}, 1fr)`,
-                      columnGap: `${columnLayout.spacing}px`
-                    }}
-                  >
-                    <div>
-                      <EditorContent 
-                        editor={editor} 
-                        className="prose prose-sm sm:prose lg:prose-lg max-w-none focus:outline-none min-h-[900px]"
-                      />
-                    </div>
-                    {Array.from({ length: columnLayout.count - 1 }).map((_, i) => (
-                      <div key={i} className="border-l border-gray-200 pl-4">
-                        <div className="text-gray-400 text-sm">Column {i + 2}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
+        {/* Editor Area - Single editor for all pages */}
+        <div 
+          ref={contentContainerRef}
+          className="flex-1 overflow-auto bg-secondary/30"
+          onPaste={handlePaste}
+          onCopy={handleCopy}
+        >
+          <div className="flex flex-col items-center py-6 px-4 min-h-full">
+            {/* Single editor that spans all pages */}
+            {editor && (
+              <div 
+                className="bg-background shadow-lg rounded-sm w-full max-w-204 min-h-264 mb-8 relative"
+                style={{
+                  transform: `scale(${zoom / 100})`,
+                  transformOrigin: 'top center',
+                  backgroundColor: pageColor,
+                  minHeight: '297mm', // A4 height
+                  width: '210mm', // A4 width
+                }}
+              >
+                <div 
+                  className="p-16"
+                  style={{
+                    minHeight: `calc(297mm - ${pageMargins.top + pageMargins.bottom}px)`,
+                    padding: `${pageMargins.top}px ${pageMargins.right}px ${pageMargins.bottom}px ${pageMargins.left}px`
+                  }}
+                >
                   <EditorContent 
                     editor={editor} 
-                    className="prose prose-sm sm:prose lg:prose-lg max-w-none focus:outline-none min-h-[900px]"
+                    className="min-h-[calc(297mm-144px)]"
                   />
-                )}
+                </div>
               </div>
-            </div>
+            )}
+            
+            {/* Render page indicators for multi-page content */}
+            {pages.length > 1 && (
+              <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                {pages.map((page, index) => (
+                  <Button
+                    key={page.id}
+                    variant={currentPage === page.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(page.id)}
+                    className="text-xs"
+                  >
+                    Page {page.id}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         {/* AI Sidebar */}
         <AISidebar
           isOpen={isAISidebarOpen}
-          onClose={() => setIsAISidebarOpen(false)}
+          onClose={() => updateEditorFeatures({ isAISidebarOpen: false })}
           onGenerate={handleAIGenerate}
           selectedText={selectedText}
           onTransformText={handleTransformText}
@@ -2267,7 +2654,26 @@ export const TextEditor = () => {
           <span>{documentStats.paragraphs} paras</span>
           <span>{documentStats.images} images</span>
           <span>{documentStats.tables} tables</span>
-          <span>{documentStats.pages} pages</span>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                const pageInput = prompt(`Go to page (1-${pages.length}):`, currentPage.toString());
+                if (pageInput) {
+                  const pageNumber = parseInt(pageInput);
+                  if (!isNaN(pageNumber) && pageNumber >= 1 && pageNumber <= pages.length) {
+                    goToPage(pageNumber);
+                  } else {
+                    toast.error(`Please enter a valid page number between 1 and ${pages.length}`);
+                  }
+                }
+              }}
+              className="h-7 px-2 text-xs"
+            >
+              Page {currentPage} of {pages.length}
+            </Button>
+          </div>
           <span>Zoom: {zoom}%</span>
         </div>
       </footer>
@@ -2280,19 +2686,23 @@ export const TextEditor = () => {
       />
 
       {/* Export Dialog */}
-      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-md bg-white">
+      <Dialog open={showExportDialog} onOpenChange={(open) => updateEditorFeatures({ showExportDialog: open })}>
+        <DialogContent className="max-w-md bg-white" aria-describedby="export-dialog-description">
           <DialogHeader>
-            <DialogTitle>Export Document</DialogTitle>
-            <DialogDescription>
-              Choose format and options for exporting your document. PDF exports as printable HTML that you can save as PDF using your browser's print function.
-            </DialogDescription>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <DialogTitle>Export Document</DialogTitle>
+                <DialogDescription id="export-dialog-description">
+                  Choose format and options for exporting your document. PDF exports as printable HTML that you can save as PDF using your browser's print function.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Format</Label>
-              <Select value={exportFormat} onValueChange={setExportFormat}>
+              <Select value={exportFormat} onValueChange={(value) => updateEditorFeatures({ exportFormat: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select format" />
                 </SelectTrigger>
@@ -2339,7 +2749,7 @@ export const TextEditor = () => {
                     id="pageNumbers"
                     checked={exportOptions.includePageNumbers}
                     onCheckedChange={(checked) => 
-                      setExportOptions({...exportOptions, includePageNumbers: checked})
+                      updateExportOptions({ includePageNumbers: checked })
                     }
                   />
                   <Label htmlFor="pageNumbers">Include Page Numbers</Label>
@@ -2350,7 +2760,7 @@ export const TextEditor = () => {
                     id="header"
                     checked={exportOptions.includeHeader}
                     onCheckedChange={(checked) => 
-                      setExportOptions({...exportOptions, includeHeader: checked})
+                      updateExportOptions({ includeHeader: checked })
                     }
                   />
                   <Label htmlFor="header">Include Header</Label>
@@ -2361,7 +2771,7 @@ export const TextEditor = () => {
                     id="footer"
                     checked={exportOptions.includeFooter}
                     onCheckedChange={(checked) => 
-                      setExportOptions({...exportOptions, includeFooter: checked})
+                      updateExportOptions({ includeFooter: checked })
                     }
                   />
                   <Label htmlFor="footer">Include Footer</Label>
@@ -2372,7 +2782,7 @@ export const TextEditor = () => {
                     id="comments"
                     checked={exportOptions.exportComments}
                     onCheckedChange={(checked) => 
-                      setExportOptions({...exportOptions, exportComments: checked})
+                      updateExportOptions({ exportComments: checked })
                     }
                   />
                   <Label htmlFor="comments">Export Comments</Label>
@@ -2383,7 +2793,7 @@ export const TextEditor = () => {
                     id="trackChanges"
                     checked={exportOptions.exportTrackChanges}
                     onCheckedChange={(checked) => 
-                      setExportOptions({...exportOptions, exportTrackChanges: checked})
+                      updateExportOptions({ exportTrackChanges: checked })
                     }
                   />
                   <Label htmlFor="trackChanges">Export Track Changes</Label>
@@ -2409,12 +2819,29 @@ export const TextEditor = () => {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => updateEditorFeatures({ showExportDialog: false })}
+              disabled={exportLoading[exportFormat]}
+            >
               Cancel
             </Button>
-            <Button onClick={handleExport} className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300">
-              <Download className="w-4 h-4 mr-2" />
-              Export
+            <Button 
+              onClick={handleExport} 
+              className="bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+              disabled={exportLoading[exportFormat]}
+            >
+              {exportLoading[exportFormat] ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3372,4 +3799,5 @@ export const TextEditor = () => {
   );
 };
 
-export default TextEditor;
+// Export the component with providers wrapped
+export default TextEditorWithProviders;

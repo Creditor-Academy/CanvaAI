@@ -62,19 +62,19 @@ export const AISidebar = ({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="w-80 border-l border-border bg-background flex flex-col h-full"
+          className="w-80 border-l border-blue-200 bg-gradient-to-b from-blue-50 to-blue-100 flex flex-col h-full"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <span className="font-medium text-sm">AI Assistant</span>
+              <span className="font-medium text-sm text-blue-800">AI Assistant</span>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground"
+              className="p-1.5 rounded-lg hover:bg-blue-200 text-blue-600"
             >
               <X className="w-4 h-4" />
             </button>
@@ -84,10 +84,10 @@ export const AISidebar = ({
             {/* Quick Actions */}
             {selectedText && (
               <div className="space-y-2">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider">
                   Quick Actions
                 </h3>
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className="text-xs text-blue-600 mb-2">
                   Selected: "{selectedText.slice(0, 50)}{selectedText.length > 50 ? '...' : ''}"
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -96,9 +96,9 @@ export const AISidebar = ({
                       key={action.id}
                       onClick={() => handleQuickAction(action.id)}
                       disabled={isLoading}
-                      className={`flex items-center gap-2 p-2 rounded-lg text-sm border border-border hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`flex items-center gap-2 p-2 rounded-lg text-sm border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <action.icon className="w-4 h-4 text-muted-foreground" />
+                      <action.icon className="w-4 h-4 text-blue-600" />
                       <span>{action.label}</span>
                     </button>
                   ))}
@@ -108,7 +108,7 @@ export const AISidebar = ({
 
             {/* Generate Content */}
             <div className="space-y-2">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider">
                 Generate Content
               </h3>
               <Textarea
@@ -120,7 +120,7 @@ export const AISidebar = ({
               <Button
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isLoading}
-                className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               >
                 {isLoading ? (
                   <motion.div
@@ -140,7 +140,7 @@ export const AISidebar = ({
 
             {/* Suggestions */}
             <div className="space-y-2">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider">
                 Suggestions
               </h3>
               <div className="space-y-2">
@@ -153,7 +153,7 @@ export const AISidebar = ({
                   <button
                     key={suggestion}
                     onClick={() => setPrompt(suggestion)}
-                    className="w-full text-left p-2 rounded-lg border border-border hover:bg-secondary text-sm text-muted-foreground transition-colors"
+                    className="w-full text-left p-2 rounded-lg border border-blue-200 hover:bg-blue-100 text-sm text-blue-700 transition-colors"
                   >
                     {suggestion}
                   </button>

@@ -35,7 +35,7 @@ const TransformHandles = ({
     }
     
     transformer.getLayer()?.batchDraw();
-  }, [isVisible, targetRef, layer?.x, layer?.y, layer?.width, layer?.height, layer?.rotation]);
+  }, [isVisible]); // Removed targetRef from dependencies to prevent infinite loop
 
   if (!isVisible) {
     return null;

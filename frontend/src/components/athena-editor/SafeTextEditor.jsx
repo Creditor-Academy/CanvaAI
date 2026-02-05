@@ -10,8 +10,8 @@ const SafeTextEditor = () => {
   React.useEffect(() => {
     const loadEditor = async () => {
       try {
-        const { TextEditor } = await import('./components/TextEditor.jsx');
-        const EditorComponent = TextEditor;
+        const TextEditorModule = await import('./components/TextEditor.jsx');
+        const EditorComponent = TextEditorModule.default;
         
         // Store the component type for rendering
         window.EditorComponent = EditorComponent;

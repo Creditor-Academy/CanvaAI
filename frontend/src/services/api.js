@@ -20,7 +20,7 @@ class ApiService {
     };
 
     try {
-      console.log(`Making request to: ${url}`);
+      // console.log(`Making request to: ${url}`); // Uncomment for debugging API calls
       // console.log('Request headers:', config.headers); // Optional debug
       const response = await fetch(url, config);
       const contentType = response.headers.get('content-type') || '';
