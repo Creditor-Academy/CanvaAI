@@ -89,6 +89,37 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+/* Compact, clean color picker */
+.properties-panel .color-picker {
+  display: inline-flex;
+  align-items: center;
+}
+
+.properties-panel .color-input {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  cursor: pointer;
+}
+
+.properties-panel .color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.properties-panel .color-input::-webkit-color-swatch {
+  border-radius: 6px;
+  border: none;
+}
+
+.properties-panel .color-input::-moz-color-swatch {
+  border-radius: 6px;
+  border: none;
+}
+
 /* Buttons */
 .properties-panel button {
   padding: 10px 14px;

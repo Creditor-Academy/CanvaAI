@@ -68,37 +68,43 @@ const TopBar = ({ onPresent }) => {
       {/* ================= ROW 1 ================= */}
       <div className="topbar-row topbar-row-1">
 
+        {/* Left: Project name */}
         <div className="topbar-left">
           <input
             type="text"
             placeholder="Untitled Project"
             className="project-input"
           />
-
-          <div className="dropdown" ref={themeRef}>
-            <button
-              className="nav-btn"
-              onClick={() => setShowTheme(!showTheme)}
-            >
-              Theme <ChevronDown size={14} />
-            </button>
-
-            {showTheme && (
-              <div className="dropdown-menu">
-                <button>Blue Professional</button>
-                <button>Dark Slate</button>
-                <button>Light Minimal</button>
-              </div>
-            )}
-          </div>
-
-          <button className="nav-btn">Share</button>
-          <button className="nav-btn">Agent</button>
         </div>
 
-        <button onClick={onPresent} className="present-btn">
-          ▶ Present
-        </button>
+        {/* Right: Theme / Share / Agent / Present aligned in one line */}
+        <div className="topbar-right">
+          <div className="topbar-links">
+            <div className="dropdown" ref={themeRef}>
+              <button
+                className="nav-btn"
+                onClick={() => setShowTheme(!showTheme)}
+              >
+                Theme
+              </button>
+
+              {showTheme && (
+                <div className="dropdown-menu">
+                  <button>Blue Professional</button>
+                  <button>Dark Slate</button>
+                  <button>Light Minimal</button>
+                </div>
+              )}
+            </div>
+
+            <button className="nav-btn">Share</button>
+            <button className="nav-btn">Agent</button>
+          </div>
+
+          <button onClick={onPresent} className="present-btn">
+            ▶ Present
+          </button>
+        </div>
 
       </div>
 

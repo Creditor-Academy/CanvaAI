@@ -1,7 +1,19 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
 
 const SlidePresenter = ({ slide, onClose }) => {
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        const handleResize = () => {
+            const s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
+            setScale(s);
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
     if (!slide) return null;
 
     return (
@@ -12,17 +24,12 @@ const SlidePresenter = ({ slide, onClose }) => {
                 left: 0,
                 width: "100%",
                 height: "100%",
-                backgroundColor: slide.background || "#ffffff",
-                backgroundImage: slide.backgroundImage
-                    ? `url(${slide.backgroundImage})`
-                    : "none",
-                backgroundSize: "100% 100%",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
+                backgroundColor: "#000000",
                 zIndex: 2000,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                overflow: "hidden",
             }}
         >
             <button
@@ -48,7 +55,17 @@ const SlidePresenter = ({ slide, onClose }) => {
                     width: 960,
                     height: 540,
                     position: "relative",
-                    boxShadow: "0 0 20px rgba(0,0,0,0.1)",
+                    backgroundColor: slide.background || "#ffffff",
+                    backgroundImage: slide.backgroundImage
+                        ? `url(${slide.backgroundImage})`
+                        : "none",
+                    backgroundSize: "100% 100%",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center",
+                    boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+                    transform: `scale(${scale})`,
+                    transformOrigin: "center center",
+                    flexShrink: 0,
                 }}
             >
                 {slide.layers.map((layer) => {
