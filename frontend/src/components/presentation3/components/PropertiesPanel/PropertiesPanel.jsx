@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 import { debounce } from "lodash";
 import "./properties-panel.css";
@@ -37,7 +37,7 @@ const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
   return (
     <div style={styles.control}>
       <label style={styles.label}>{label}</label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <input
           type="range"
           min={min}
@@ -56,14 +56,100 @@ const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
             const val = Number(e.target.value);
             onChange(val, true); // Immediate save for direct number input
           }}
-          style={{ width: '50px' }}
+          style={{ width: "50px" }}
         />
       </div>
     </div>
   );
 };
 
+// Shared 2x5 palette used for slide background + text colors
+const PALETTE_COLORS = [
+  "#ffffff",
+  "#e5e7eb",
+  "#64748b",
+  "#000000",
+  "#ef4444",
+  "#3b82f6",
+  "#22c55e",
+  "#eab308",
+  "#a855f7",
+  "#f97316",
+];
 
+// MS Paint–style color control with current color, "+" custom picker and swatch grid
+const PaletteColorControl = ({
+  label,
+  value,
+  onColorChange,
+  onHistorySave,
+}) => {
+  const inputRef = useRef(null);
+  const currentColor = value || "#ffffff";
+
+  const handleOpenPicker = () => {
+    if (inputRef.current) {
+      inputRef.current.click();
+    }
+  };
+
+  const handleCustomChange = (e) => {
+    const newColor = e.target.value;
+    if (!newColor) return;
+    if (onHistorySave) onHistorySave();
+    onColorChange(newColor);
+  };
+
+  const handleSwatchClick = (color) => {
+    if (onHistorySave) onHistorySave();
+    onColorChange(color);
+  };
+
+  return (
+    <div className="panel-section">
+      <div className="panel-section-header">
+        <span>{label}</span>
+      </div>
+
+      <div className="palette-row">
+        <div
+          className="palette-color-current"
+          style={{ backgroundColor: currentColor }}
+        />
+        <button
+          type="button"
+          className="palette-color-add"
+          onClick={handleOpenPicker}
+        >
+          +
+        </button>
+        <input
+          ref={inputRef}
+          type="color"
+          value={currentColor}
+          onChange={handleCustomChange}
+          className="palette-color-input-hidden"
+        />
+      </div>
+
+      <div className="color-swatch-grid">
+        {PALETTE_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            className={`color-swatch ${
+              currentColor.toLowerCase() === color.toLowerCase()
+                ? "selected"
+                : ""
+            }`}
+            style={{ backgroundColor: color }}
+            onClick={() => handleSwatchClick(color)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const PropertiesPanel = () => {
   const {
@@ -98,6 +184,25 @@ const PropertiesPanel = () => {
     "Georgia",
     "Courier New",
     "Verdana",
+    "Roboto",
+    "Open Sans",
+    "Lato",
+    "Montserrat",
+    "Poppins",
+    "Playfair Display",
+    "Merriweather",
+    "Raleway",
+    "Ubuntu",
+    "Source Sans Pro",
+    "PT Sans",
+    "Inter",
+    "Nunito",
+    "Work Sans",
+    "Noto Sans",
+    "Crimson Text",
+    "Libre Baskerville",
+    "Fira Sans",
+    "DM Sans",
   ];
 
 
@@ -122,25 +227,27 @@ const PropertiesPanel = () => {
 
       {/* Scrollable Content */}
       <div className="properties-content">
-        {/* SLIDE PROPERTIES */}
-        {/* ========================= */}
+        {/* SLIDE PROPERTIES (no layer selected) */}
         {!selectedLayer && (
           <>
             <h3 style={styles.heading}>Slide</h3>
 
-            <div style={styles.control}>
-              <label style={styles.label}>Background</label>
-              <ColorPicker
-                value={activeSlide.background}
-                onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateSlideBackground(activeSlideId, val, saveHistory)
-                }
-              />
-            </div>
+            {/* Section 1: Background Color (MS Paint style) */}
+            <PaletteColorControl
+              label="Background"
+              value={activeSlide.background}
+              onHistorySave={saveToHistory}
+              onColorChange={(color) =>
+                updateSlideBackground(activeSlideId, color, true)
+              }
+            />
 
-            <div style={styles.control}>
-              <label style={styles.label}>Background Image</label>
+            {/* Section 2: Background Image */}
+            <div className="panel-section">
+              <div className="panel-section-header">
+                <span>Background Image</span>
+              </div>
+
               <div style={styles.row}>
                 <button
                   style={{ ...styles.btn, flex: 1 }}
@@ -164,15 +271,24 @@ const PropertiesPanel = () => {
                   Insert Image (Local)
                 </button>
               </div>
-              <div style={{ ...styles.row, marginTop: '8px' }}>
+
+              <div style={{ ...styles.row, marginTop: "8px" }}>
                 <input
                   type="text"
                   placeholder="Image URL"
-                  style={{ ...styles.btn, flex: 1, textAlign: 'left', paddingLeft: '8px' }}
+                  style={{
+                    ...styles.btn,
+                    flex: 1,
+                    textAlign: "left",
+                    paddingLeft: "8px",
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.currentTarget.value) {
-                      setSlideBackgroundImage(activeSlideId, e.currentTarget.value);
-                      e.currentTarget.value = ''; // Clear input
+                    if (e.key === "Enter" && e.currentTarget.value) {
+                      setSlideBackgroundImage(
+                        activeSlideId,
+                        e.currentTarget.value
+                      );
+                      e.currentTarget.value = ""; // Clear input
                     }
                   }}
                 />
@@ -180,9 +296,14 @@ const PropertiesPanel = () => {
                   style={{ ...styles.btn }}
                   onClick={() => {
                     const urlInput = document.activeElement; // Get the currently focused element
-                    if (urlInput && urlInput.tagName === 'INPUT' && urlInput.type === 'text' && urlInput.value) {
+                    if (
+                      urlInput &&
+                      urlInput.tagName === "INPUT" &&
+                      urlInput.type === "text" &&
+                      urlInput.value
+                    ) {
                       setSlideBackgroundImage(activeSlideId, urlInput.value);
-                      urlInput.value = ''; // Clear input
+                      urlInput.value = ""; // Clear input
                     } else {
                       const url = prompt("Enter image URL:");
                       if (url) {
@@ -195,11 +316,18 @@ const PropertiesPanel = () => {
                   URL
                 </button>
               </div>
+
               {activeSlide.backgroundImage && (
                 <button
-                  style={{ ...styles.btn, color: "#dc3545", borderColor: "#dc3545", marginTop: '8px', width: '100%' }}
+                  style={{
+                    ...styles.btn,
+                    color: "#dc3545",
+                    borderColor: "#dc3545",
+                    marginTop: "8px",
+                    width: "100%",
+                  }}
                   onClick={() => setSlideBackgroundImage(activeSlideId, null)}
-                  title="Remove background image"
+                  title="Remove image"
                 >
                   Remove Image
                 </button>
@@ -210,8 +338,7 @@ const PropertiesPanel = () => {
 
 
         {/* ========================= */}
-        {/* COMMON LAYER PROPERTIES */}
-        {/* ========================= */}
+        {/* COMMON LAYER PROPERTIES (Arrange + canvas alignment) */}
         {selectedLayer && (
           <div style={{ marginBottom: "20px", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
             <h3 style={styles.heading}>Arrange</h3>
@@ -420,23 +547,29 @@ const PropertiesPanel = () => {
               />
             </div>
 
-            {/* Text Color */}
-            <div style={styles.control}>
-              <label style={styles.label}>Text Color</label>
-              <ColorPicker
-                value={editingLayerId ? (selectionMarks.color || selectedLayer.color) : selectedLayer.color}
-                onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) => {
-                  if (editingLayerId) {
-                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'color', value: val } }));
-                    // Update layer default for responsive UI, no history
-                    updateTextLayer(selectedLayer.id, { color: val }, false);
-                  } else {
-                    updateTextLayer(selectedLayer.id, { color: val }, saveHistory);
-                  }
-                }}
-              />
-            </div>
+            {/* Text Color – shared palette UI */}
+            <PaletteColorControl
+              label="Text Color"
+              value={
+                editingLayerId
+                  ? selectionMarks.color || selectedLayer.color
+                  : selectedLayer.color
+              }
+              onHistorySave={saveToHistory}
+              onColorChange={(color) => {
+                if (editingLayerId) {
+                  window.dispatchEvent(
+                    new CustomEvent("slate-apply-mark", {
+                      detail: { format: "color", value: color },
+                    })
+                  );
+                  // Update layer default for responsive UI, no history
+                  updateTextLayer(selectedLayer.id, { color }, false);
+                } else {
+                  updateTextLayer(selectedLayer.id, { color }, true);
+                }
+              }}
+            />
             {/* Font Family */}
             <div style={styles.control}>
               <label style={styles.label}>Font</label>
@@ -561,37 +694,6 @@ const PropertiesPanel = () => {
                   }}
                 >
                   U
-                </button>
-              </div>
-            </div>
-
-            {/* List Controls */}
-            <div style={styles.control}>
-              <label style={styles.label}>Lists</label>
-              <div style={styles.row}>
-                <button
-                  onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-block', { detail: { format: 'bulleted-list' } }));
-                    }
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ ...styles.btn, flex: 1 }}
-                  title="Bullet List"
-                >
-                  • List
-                </button>
-                <button
-                  onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-block', { detail: { format: 'numbered-list' } }));
-                    }
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{ ...styles.btn, flex: 1 }}
-                  title="Numbered List"
-                >
-                  1. List
                 </button>
               </div>
             </div>

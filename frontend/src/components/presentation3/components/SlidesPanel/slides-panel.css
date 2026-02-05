@@ -1,249 +1,293 @@
 /* =========================
-   Slides Panel - Athena UI (Full Implementation)
+   Slides Panel — Athena Floating UI
 ========================= */
 
 .slides-panel {
-  position: relative;
+  position: absolute;
+  top: 88px;                 /* below topbar */
+  left: 16px;
+
   width: 260px;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);
-  border-right: 1px solid #e2e8f0;
-  padding: 16px 12px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 100vh;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.04);
-  z-index: 5;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(99, 116, 139, 0.5) transparent;
+  max-height: calc(100vh - 120px);
+
+  display: flex;
+  flex-direction: column;
+
+  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.12),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+
+  padding: 14px 12px;
+
+  /* Allow collapse handle to sit slightly outside the card */
+  overflow: visible;
+  z-index: 40;
+
+  transition:
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
 }
 
-/* Enhanced hover state */
+/* Hover elevation */
 .slides-panel:hover {
-  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.08);
-  transform: translateX(2px);
+  box-shadow:
+    0 18px 42px rgba(15, 23, 42, 0.18),
+    0 6px 16px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
 }
 
-/* Collapsed State */
+/* =========================
+   Collapsed State
+========================= */
+
 .slides-panel.collapsed {
-  width: 60px;
-  padding: 16px 6px;
+  width: 56px;
+  padding: 14px 6px;
 }
 
-.slides-panel.collapsed .slides-title,
+.slides-panel.collapsed .slides-header,
 .slides-panel.collapsed .slides-list {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.slides-panel.collapsed:hover {
-  transform: none;
-}
+/* =========================
+   Collapse Button
+========================= */
 
-/* Custom Scrollbar - Webkit (Chrome/Safari) */
-.slides-panel::-webkit-scrollbar {
-  width: 6px;
-}
-
-.slides-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.slides-panel::-webkit-scrollbar-thumb {
-  background: rgba(99, 116, 139, 0.5);
-  border-radius: 3px;
-}
-
-.slides-panel::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 116, 139, 0.8);
-}
-
-/* Collapse Button */
 .collapse-btn {
   position: absolute;
-  right: 12px;
+  right: -14px;
   top: 50%;
   transform: translateY(-50%);
-  width: 24px;
-  height: 48px;
+
+  width: 28px;
+  height: 56px;
+
   background: #ead202;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 18px;
-  color: #475569;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-  z-index: 10;
+  border-radius: 12px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+
+  box-shadow:
+    0 6px 18px rgba(15, 23, 42, 0.15);
+
+  transition: all 0.2s ease;
+  z-index: 50;
 }
 
 .collapse-btn:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
   transform: translateY(-50%) scale(1.05);
 }
 
-/* Header */
+/* =========================
+   Header
+========================= */
+
 .slides-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  justify-content: space-between;
+
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .slides-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #0c4a6e;
-  margin: 0;
+  color: #0f172a;
 }
 
-/* Add Slide Button */
+/* =========================
+   Add Slide Button
+========================= */
+
 .add-slide-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
+
   border-radius: 8px;
   border: none;
-  cursor: pointer;
-  font-size: 20px;
-  font-weight: 600;
+
+  background: #2563eb;
   color: #ffffff;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-  transition: all 0.3s ease;
+
+  font-size: 18px;
+  font-weight: 600;
+
+  cursor: pointer;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
 }
 
 .add-slide-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
 }
 
-/* Slide Rows */
+/* =========================
+   Slides List
+========================= */
+
+.slides-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Scrollbar */
+.slides-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.slides-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 3px;
+}
+
+/* =========================
+   Slide Row
+========================= */
+
 .slide-row {
   display: flex;
-  align-items: flex-start;
   gap: 10px;
-  margin-bottom: 18px;
   padding: 8px;
-  border-radius: 8px;
+
+  border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .slide-row:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateX(2px);
+  background: rgba(241, 245, 249, 0.8);
 }
 
 /* Slide Number */
 .slide-number {
-  width: 20px;
-  font-size: 13px;
-  color: #64748b;
-  padding-top: 8px;
-  user-select: none;
+  width: 18px;
+  font-size: 12px;
   font-weight: 500;
-  flex-shrink: 0;
+  color: #64748b;
+  padding-top: 6px;
+  user-select: none;
 }
 
-/* Thumbnail wrapper */
+/* =========================
+   Thumbnail
+========================= */
+
 .slide-thumbnail-wrapper {
   position: relative;
   flex: 1;
 }
 
-/* Thumbnail style */
 .thumbnail {
   width: 160px;
   height: 90px;
-  border-radius: 8px;
+
+  background: #ffffff;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
+
   overflow: hidden;
   cursor: pointer;
+
   transition: all 0.2s ease;
-  background: #ffffff;
 }
 
 .thumbnail:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
 }
 
 /* Active slide */
 .thumbnail.active {
-  border: 2px solid #1e40af;
-  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.2);
+  border: 2px solid #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
-/* Slide action buttons */
+/* =========================
+   Slide Actions
+========================= */
+
 .slide-actions {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
+  bottom: 6px;
+  right: 6px;
+
   display: flex;
-  gap: 4px;
+  gap: 6px;
+
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 
-.slide-row:hover .slide-actions,
-.slide-actions.visible {
+.slide-row:hover .slide-actions {
   opacity: 1;
 }
 
-/* Action buttons */
+/* Buttons */
 .slide-actions button {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+
+  border-radius: 8px;
   border: none;
-  cursor: pointer;
+
   font-size: 14px;
   font-weight: 600;
-  color: white;
-  transition: all 0.2s ease;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+/* Duplicate */
 .duplicate-btn {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .duplicate-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.4);
 }
 
+/* Delete */
 .delete-btn {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: black;
+  background: #fbbf24;
+  color: #000000;
 }
 
 .delete-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 10px rgba(251, 191, 36, 0.4);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .slides-panel {
-    width: 220px;
-  }
-  
-  .slides-panel.collapsed {
-    width: 50px;
-  }
-  
-  .thumbnail {
-    width: 120px;
-    height: 68px;
-  }
+  box-shadow: 0 6px 14px rgba(251, 191, 36, 0.45);
 }
