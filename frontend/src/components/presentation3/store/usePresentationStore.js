@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { createShapeLayer, createImageLayer } from "../models/presentationModel";
 import useHistoryStore from "./useHistoryStore";
+import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
 
 /* =========================
    DEFAULT LAYOUT
@@ -10,12 +11,12 @@ const createDefaultTextLayers = () => [
   {
     id: nanoid(),
     type: "text",
-    text: "",
+    content: createInitialValue(),
     placeholder: "Click to add title",
     hasBeenEdited: false,
     x: 120,
     y: 160,
-    width: 720,
+    width: 600,
     height: 80,
     fontSize: 48,
     fontFamily: "Arial",
@@ -30,7 +31,7 @@ const createDefaultTextLayers = () => [
   {
     id: nanoid(),
     type: "text",
-    text: "",
+    content: createInitialValue(),
     placeholder: "Click to add subtitle",
     hasBeenEdited: false,
     x: 180,
@@ -43,7 +44,7 @@ const createDefaultTextLayers = () => [
     fontStyle: "normal",
     textDecoration: "none",
     textAlign: "center",
-    color: "#4b5563",
+    color: "#343b44ff",
     link: "",
     rotation: 0,
   },
@@ -202,11 +203,29 @@ const usePresentationStore = create((set, get) => {
     selectedLayerId: null,
 
     setSelectedLayer: (layerId) => {
-      set({ selectedLayerId: layerId });
+      set({ selectedLayerId: layerId, editingLayerId: null });
     },
 
     clearSelection: () => {
-      set({ selectedLayerId: null });
+      set({ selectedLayerId: null, editingLayerId: null });
+    },
+
+    /* =========================
+       EDITING MODE
+    ========================= */
+    editingLayerId: null,
+    selectionMarks: {},
+
+    setEditingLayer: (layerId) => {
+      set({ editingLayerId: layerId });
+    },
+
+    clearEditingLayer: () => {
+      set({ editingLayerId: null, selectionMarks: {} });
+    },
+
+    setSelectionMarks: (marks) => {
+      set({ selectionMarks: marks });
     },
 
     getSelectedLayer: () => {
@@ -343,7 +362,7 @@ const usePresentationStore = create((set, get) => {
                   y: 120,
                   width: 260,
                   height: 80,
-                  text: "",
+                  content: createInitialValue(),
                   placeholder: "Click to add text",
                   hasBeenEdited: false,
                   fontSize: 24,
@@ -767,6 +786,24 @@ const usePresentationStore = create((set, get) => {
             : slide
         ),
       });
+    },
+    // Migration helper (call this on slide load if needed, or perform lazy migration)
+    migrateTextLayers: () => {
+      set((state) => ({
+        slides: state.slides.map((slide) => ({
+          ...slide,
+          layers: slide.layers.map((layer) => {
+            if (layer.type === "text" && layer.text !== undefined && !layer.content) {
+              const { text, ...rest } = layer;
+              return {
+                ...rest,
+                content: convertTextToSlate(text),
+              };
+            }
+            return layer;
+          }),
+        })),
+      }));
     },
   };
 });

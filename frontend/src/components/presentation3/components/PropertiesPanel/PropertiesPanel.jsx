@@ -85,6 +85,8 @@ const PropertiesPanel = () => {
     addTableColumn,
     saveToHistory,
     updateLayerStyle,
+    editingLayerId,
+    selectionMarks,
   } = usePresentationStore();
 
   const [collapsed, setCollapsed] = useState(false);
@@ -402,14 +404,19 @@ const PropertiesPanel = () => {
               <label style={styles.label}>Font Size</label>
               <input
                 type="number"
-                value={selectedLayer.fontSize}
+                value={editingLayerId ? (selectionMarks.fontSize || selectedLayer.fontSize) : selectedLayer.fontSize}
                 min={8}
                 max={200}
-                onChange={(e) =>
-                  updateTextLayer(selectedLayer.id, {
-                    fontSize: Number(e.target.value),
-                  })
-                }
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (editingLayerId) {
+                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
+                    // Update layer default for responsive UI, no history
+                    updateTextLayer(selectedLayer.id, { fontSize: val }, false);
+                  } else {
+                    updateTextLayer(selectedLayer.id, { fontSize: val });
+                  }
+                }}
               />
             </div>
 
@@ -417,25 +424,36 @@ const PropertiesPanel = () => {
             <div style={styles.control}>
               <label style={styles.label}>Text Color</label>
               <ColorPicker
-                value={selectedLayer.color}
+                value={editingLayerId ? (selectionMarks.color || selectedLayer.color) : selectedLayer.color}
                 onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateTextLayer(selectedLayer.id, {
-                    color: val,
-                  }, saveHistory)
-                }
+                onChange={(val, saveHistory) => {
+                  if (editingLayerId) {
+                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'color', value: val } }));
+                    // Update layer default for responsive UI, no history
+                    updateTextLayer(selectedLayer.id, { color: val }, false);
+                  } else {
+                    updateTextLayer(selectedLayer.id, { color: val }, saveHistory);
+                  }
+                }}
               />
             </div>
             {/* Font Family */}
             <div style={styles.control}>
               <label style={styles.label}>Font</label>
               <select
-                value={selectedLayer.fontFamily}
-                onChange={(e) =>
-                  updateTextLayer(selectedLayer.id, {
-                    fontFamily: e.target.value,
-                  })
-                }
+                value={editingLayerId ? (selectionMarks.fontFamily || selectedLayer.fontFamily) : selectedLayer.fontFamily}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (editingLayerId) {
+                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
+                    // Update layer default for responsive UI, no history
+                    updateTextLayer(selectedLayer.id, { fontFamily: val }, false);
+                  } else {
+                    updateTextLayer(selectedLayer.id, {
+                      fontFamily: val,
+                    });
+                  }
+                }}
               >
                 {FONTS.map((font) => (
                   <option key={font} value={font}>
@@ -474,15 +492,22 @@ const PropertiesPanel = () => {
               <label style={styles.label}>Style</label>
               <div style={styles.row}>
                 <button
-                  onClick={() => toggleBold(selectedLayer.id)}
+                  onClick={() => {
+                    if (editingLayerId) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
+                    } else {
+                      toggleBold(selectedLayer.id);
+                    }
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
                   style={{
                     ...styles.btn,
                     background:
-                      selectedLayer.fontWeight === "bold"
+                      (editingLayerId ? selectionMarks.bold : selectedLayer.fontWeight === "bold")
                         ? "#2563eb"
                         : "#f3f4f6",
                     color:
-                      selectedLayer.fontWeight === "bold"
+                      (editingLayerId ? selectionMarks.bold : selectedLayer.fontWeight === "bold")
                         ? "#fff"
                         : "#000",
                   }}
@@ -491,15 +516,22 @@ const PropertiesPanel = () => {
                 </button>
 
                 <button
-                  onClick={() => toggleItalic(selectedLayer.id)}
+                  onClick={() => {
+                    if (editingLayerId) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
+                    } else {
+                      toggleItalic(selectedLayer.id);
+                    }
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
                   style={{
                     ...styles.btn,
                     background:
-                      selectedLayer.fontStyle === "italic"
+                      (editingLayerId ? selectionMarks.italic : selectedLayer.fontStyle === "italic")
                         ? "#2563eb"
                         : "#f3f4f6",
                     color:
-                      selectedLayer.fontStyle === "italic"
+                      (editingLayerId ? selectionMarks.italic : selectedLayer.fontStyle === "italic")
                         ? "#fff"
                         : "#000",
                   }}
@@ -508,20 +540,58 @@ const PropertiesPanel = () => {
                 </button>
 
                 <button
-                  onClick={() => toggleUnderline(selectedLayer.id)}
+                  onClick={() => {
+                    if (editingLayerId) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
+                    } else {
+                      toggleUnderline(selectedLayer.id);
+                    }
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
                   style={{
                     ...styles.btn,
                     background:
-                      selectedLayer.textDecoration === "underline"
+                      (editingLayerId ? selectionMarks.underline : selectedLayer.textDecoration === "underline")
                         ? "#2563eb"
                         : "#f3f4f6",
                     color:
-                      selectedLayer.textDecoration === "underline"
+                      (editingLayerId ? selectionMarks.underline : selectedLayer.textDecoration === "underline")
                         ? "#fff"
                         : "#000",
                   }}
                 >
                   U
+                </button>
+              </div>
+            </div>
+
+            {/* List Controls */}
+            <div style={styles.control}>
+              <label style={styles.label}>Lists</label>
+              <div style={styles.row}>
+                <button
+                  onClick={() => {
+                    if (editingLayerId) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-block', { detail: { format: 'bulleted-list' } }));
+                    }
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{ ...styles.btn, flex: 1 }}
+                  title="Bullet List"
+                >
+                  • List
+                </button>
+                <button
+                  onClick={() => {
+                    if (editingLayerId) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-block', { detail: { format: 'numbered-list' } }));
+                    }
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{ ...styles.btn, flex: 1 }}
+                  title="Numbered List"
+                >
+                  1. List
                 </button>
               </div>
             </div>
@@ -544,9 +614,13 @@ const PropertiesPanel = () => {
                           ? "#fff"
                           : "#000",
                     }}
-                    onClick={() =>
-                      setTextAlignment(selectedLayer.id, align)
-                    }
+                    onClick={() => {
+                      if (editingLayerId) {
+                        window.dispatchEvent(new CustomEvent('slate-set-block-style', { detail: { properties: { textAlign: align } } }));
+                      }
+                      // Always update store for responsive UI
+                      setTextAlignment(selectedLayer.id, align);
+                    }}
                   >
                     {align}
                   </button>

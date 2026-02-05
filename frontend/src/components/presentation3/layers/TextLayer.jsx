@@ -1,53 +1,55 @@
 import React from "react";
 import usePresentationStore from "../store/usePresentationStore";
+import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
+import SlateTextEditor from "../editors/slate/SlateTextEditor";
 
-const TextLayer = ({ layer }) => {
-  const {
-    selectedLayerId,
-    setSelectedLayer,
-    updateLayerPosition,
-  } = usePresentationStore();
+const TextLayer = ({ layer, isEditing }) => {
+  const { updateTextLayer } = usePresentationStore();
 
-  const isSelected = selectedLayerId === layer.id;
+  const handleSlateChange = (newValue) => {
+    // We update the content, but we don't call saveToHistory on every keystroke
+    // as per user requirements. saveToHistory is called on enter/exit edit mode in CanvasShell.
+    updateTextLayer(layer.id, { content: newValue, hasBeenEdited: true }, false);
+  };
+
+  const isPlaceholderVisible =
+    !layer.hasBeenEdited && (!layer.content || (layer.content.length === 1 && layer.content[0].children[0].text === ""));
+
+  const commonStyle = {
+    width: "100%",
+    height: "100%",
+    fontSize: layer.fontSize,
+    color: isPlaceholderVisible ? "#94a3b8" : layer.color,
+    fontFamily: layer.fontFamily,
+    fontWeight: layer.fontWeight,
+    fontStyle: layer.fontStyle,
+    textDecoration: layer.textDecoration,
+    textAlign: layer.textAlign,
+    outline: "none",
+    wordBreak: "break-word",
+    whiteSpace: "pre-wrap",
+    lineHeight: 1.2,
+  };
+
+  if (isEditing) {
+    return (
+      <div style={{ ...commonStyle, cursor: "text" }}>
+        <SlateTextEditor
+          value={layer.content || [{ type: 'paragraph', children: [{ text: '' }] }]}
+          onChange={handleSlateChange}
+          style={commonStyle}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: layer.x,
-        top: layer.y,
-        width: layer.width,
-        height: layer.height,
-        padding: 6,
-        border: isSelected
-          ? "1.5px solid #2563eb"
-          : "1px solid transparent",
-        cursor: "move",
-        boxSizing: "border-box",
-      }}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        setSelectedLayer(layer.id);
-      }}
-    >
-      <div
-        contentEditable
-        suppressContentEditableWarning
-        style={{
-          width: "100%",
-          height: "100%",
-          fontSize: layer.fontSize,
-          color: layer.color,
-          fontFamily: layer.fontFamily,
-          fontWeight: layer.fontWeight,
-          fontStyle: layer.fontStyle,
-          textDecoration: layer.textDecoration,
-          textAlign: layer.textAlign,
-          outline: "none",
-        }}
-      >
-        {layer.text}
-      </div>
+    <div style={commonStyle}>
+      {isPlaceholderVisible ? (
+        <span>{layer.placeholder || "Click to add text"}</span>
+      ) : (
+        <SlateStaticRenderer value={layer.content} />
+      )}
     </div>
   );
 };

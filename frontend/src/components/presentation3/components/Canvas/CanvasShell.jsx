@@ -25,7 +25,18 @@ const CanvasShell = () => {
     undo,
     redo,
     canvasZoom,
+    editingLayerId,
+    setEditingLayer,
+    clearEditingLayer,
+    migrateTextLayers,
   } = usePresentationStore();
+
+  /* =========================
+     MIGRATION (Legacy text -> Slate JSON)
+  ========================= */
+  useEffect(() => {
+    migrateTextLayers();
+  }, [migrateTextLayers]);
 
   const activeSlide = slides.find(
     (slide) => slide.id === activeSlideId
@@ -48,6 +59,9 @@ const CanvasShell = () => {
   ========================= */
   useEffect(() => {
     const handler = (e) => {
+      // If we're editing text, let Slate handle keyboard shortcuts
+      if (editingLayerId) return;
+
       // Delete key
       if (e.key === "Delete" && selectedLayerId) {
         deleteSelectedLayer();
@@ -68,7 +82,7 @@ const CanvasShell = () => {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedLayerId, deleteSelectedLayer, undo, redo]);
+  }, [selectedLayerId, editingLayerId, deleteSelectedLayer, undo, redo]);
 
   const handleMouseMove = (e) => {
     const slideRect = e.currentTarget.getBoundingClientRect();
@@ -197,6 +211,10 @@ const CanvasShell = () => {
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
               clearSelection();
+              if (editingLayerId) {
+                saveToHistory();
+                clearEditingLayer();
+              }
             }
           }}
         >
@@ -395,12 +413,7 @@ const CanvasShell = () => {
               );
             }
 
-            if (layer.type !== "text") return null;
-            const Wrapper = layer.link ? "a" : "div";
-
-            const isPlaceholderVisible =
-              !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
-
+            const isEditing = editingLayerId === layer.id;
 
             return (
               <div
@@ -412,94 +425,40 @@ const CanvasShell = () => {
                   width: layer.width,
                   height: layer.height,
                   padding: "6px",
-                  border: selected
-                    ? "1.5px solid #2563eb"
-                    : "1px solid transparent",
-                  cursor: "move",
-                  userSelect: "none",
+                  border:
+                    selected && !isEditing
+                      ? "1.5px solid #2563eb"
+                      : "1px solid transparent",
+                  cursor: isEditing ? "text" : "move",
+                  userSelect: isEditing ? "text" : "none",
                   boxSizing: "border-box",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
                 onMouseDown={(e) => {
+                  if (isEditing) return;
                   e.stopPropagation();
                   saveToHistory();
                   setSelectedLayer(layer.id);
                   setDraggingId(layer.id);
 
-                  const rect =
-                    e.currentTarget.getBoundingClientRect();
+                  const rect = e.currentTarget.getBoundingClientRect();
                   setOffset({
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top,
                   });
                 }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  if (!isEditing) {
+                    saveToHistory();
+                    setEditingLayer(layer.id);
+                  }
+                }}
               >
-                <Wrapper
-                  href={layer.link || undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  contentEditable={!layer.link}
-                  suppressContentEditableWarning
+                <TextLayer layer={layer} isEditing={isEditing} />
 
-                  onFocus={(e) => {
-                    // Remove placeholder visually on focus (not stored)
-                    if (isPlaceholderVisible) {
-                      e.target.innerText = "";
-                    }
-                  }}
-
-
-                  onBlur={(e) => {
-                    const value = e.target.innerText.trim();
-
-                    // 👇 IMPORTANT: restore placeholder in DOM
-                    if (value.length === 0) {
-                      e.target.innerText = layer.placeholder;
-                    }
-
-                    // Optional: call saveToHistory here if text change is discrete
-                    // Actually updateTextLayer in store will handle it if we put it there.
-                    updateTextLayer(layer.id, {
-                      text: value,
-                      hasBeenEdited: value.length > 0,
-                    });
-                  }}
-
-
-                  onClick={(e) => {
-                    if (layer.link) {
-                      // Force open in new window as requested
-                      e.preventDefault();
-                      window.open(layer.link, "_blank", "noopener,noreferrer");
-                    } else {
-                      e.preventDefault();
-                    }
-                  }}
-
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    fontSize: layer.fontSize,
-                    color: isPlaceholderVisible ? "#000000" : layer.color,
-                    fontFamily: layer.fontFamily,
-                    fontWeight: layer.fontWeight,
-                    fontStyle: layer.fontStyle,
-                    textDecoration: layer.textDecoration,
-                    textAlign: layer.textAlign,
-                    outline: "none",
-                    cursor: layer.link ? "pointer" : "text",
-                    userSelect: "text",
-                  }}
-                >
-                  {isPlaceholderVisible
-                    ? layer.placeholder
-                    : layer.text}
-                </Wrapper>
-
-
-                {selected && (
+                {selected && !isEditing && (
                   <>
                     <div
                       style={styles.resizeHandle}
