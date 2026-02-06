@@ -34,9 +34,6 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
       >
         {slide.layers.map((layer) => {
           if (layer.type === "text") {
-            const isPlaceholderVisible =
-              !layer.hasBeenEdited && (!layer.content || (layer.content.length === 1 && layer.content[0].children[0].text === ""));
-
             return (
               <div
                 key={layer.id}
@@ -46,25 +43,17 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   top: layer.y,
                   width: layer.width,
                   height: layer.height,
-                  fontSize: layer.fontSize,
-                  color: isPlaceholderVisible ? "#94a3b8" : layer.color,
-                  fontFamily: layer.fontFamily,
-                  fontWeight: layer.fontWeight,
-                  fontStyle: layer.fontStyle,
-                  textDecoration: layer.textDecoration,
-                  textAlign: layer.textAlign,
-                  overflow: "hidden",
-                  whiteSpace: "pre-wrap",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
-                  lineHeight: 1.2,
+                  display: 'flex',
+                  // Allows vertical alignment if needed, defaults to top
+                  alignItems: 'flex-start',
+                  //textAlign is handled by Slate nodes
+                  justifyContent: 'flex-start',
+                  overflow: "hidden",
                 }}
               >
-                {isPlaceholderVisible ? (
-                  <span>{layer.placeholder || "Add text..."}</span>
-                ) : (
-                  <SlateStaticRenderer value={layer.content} />
-                )}
+                <SlateStaticRenderer value={layer.content} />
               </div>
             );
           }

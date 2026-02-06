@@ -5,9 +5,10 @@ const Leaf = ({ attributes, children, leaf }) => {
         fontWeight: leaf.bold ? 'bold' : 'normal',
         fontStyle: leaf.italic ? 'italic' : 'normal',
         textDecoration: leaf.underline ? 'underline' : 'none',
-        fontSize: leaf.fontSize ? `${leaf.fontSize}px` : undefined,
-        color: leaf.color ? leaf.color : undefined,
-        fontFamily: leaf.fontFamily ? leaf.fontFamily : undefined,
+        // Use mark if present, otherwise explicit inherit to avoid fallback
+        fontSize: leaf.fontSize ? `${leaf.fontSize}px` : 'inherit',
+        color: leaf.color ? leaf.color : 'inherit',
+        fontFamily: leaf.fontFamily ? leaf.fontFamily : 'inherit',
     };
 
     return (
@@ -20,6 +21,8 @@ const Leaf = ({ attributes, children, leaf }) => {
 const Element = ({ attributes, children, element }) => {
     const style = {
         textAlign: element.textAlign || 'inherit',
+        fontSize: 'inherit',
+        fontFamily: 'inherit',
         margin: 0
     };
     switch (element.type) {
@@ -34,11 +37,19 @@ const Element = ({ attributes, children, element }) => {
     }
 };
 
-export const SlateStaticRenderer = ({ value }) => {
+export const SlateStaticRenderer = ({ value, style }) => {
     if (!value || !Array.isArray(value)) return null;
 
     return (
-        <div className="slate-static-content">
+        <div
+            className="slate-static-content"
+            style={{
+                fontSize: 'inherit',
+                fontFamily: 'inherit',
+                textAlign: 'inherit',
+                ...style
+            }}
+        >
             {value.map((node, i) => renderNode(node, i))}
         </div>
     );
@@ -46,38 +57,28 @@ export const SlateStaticRenderer = ({ value }) => {
 
 const renderNode = (node, index) => {
     if (node.text !== undefined) {
-        const style = {
-            fontWeight: node.bold ? 'bold' : undefined,
-            fontStyle: node.italic ? 'italic' : undefined,
-            textDecoration: node.underline ? 'underline' : undefined,
-            fontSize: node.fontSize ? `${node.fontSize}px` : undefined,
-            color: node.color ? node.color : undefined,
-            fontFamily: node.fontFamily ? node.fontFamily : undefined,
-        };
-
         return (
-            <span key={index} style={style}>
+            <Leaf
+                key={index}
+                leaf={node}
+                attributes={{ 'data-slate-leaf': true }}
+            >
                 {node.text || "\u00A0"}
-            </span>
+            </Leaf>
         );
     }
 
     const children = node.children.map((child, i) => renderNode(child, i));
 
-    switch (node.type) {
-        case "bulleted-list":
-            return <ul key={index} style={{ listStyleType: 'disc', marginLeft: '20px', margin: 0, textAlign: node.textAlign || 'inherit' }}>{children}</ul>;
-        case "numbered-list":
-            return <ol key={index} style={{ listStyleType: 'decimal', marginLeft: '20px', margin: 0, textAlign: node.textAlign || 'inherit' }}>{children}</ol>;
-        case "list-item":
-            return <li key={index} style={{ textAlign: node.textAlign || 'inherit' }}>{children}</li>;
-        default:
-            return (
-                <div key={index} style={{ margin: 0, minHeight: '1.2em', textAlign: node.textAlign || 'inherit' }}>
-                    {children.length > 0 ? children : <br />}
-                </div>
-            );
-    }
+    return (
+        <Element
+            key={index}
+            element={node}
+            attributes={{ 'data-slate-node': 'element' }}
+        >
+            {children.length > 0 ? children : <br />}
+        </Element>
+    );
 };
 
 export { Leaf, Element };

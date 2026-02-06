@@ -137,11 +137,10 @@ const PaletteColorControl = ({
           <button
             key={color}
             type="button"
-            className={`color-swatch ${
-              currentColor.toLowerCase() === color.toLowerCase()
-                ? "selected"
-                : ""
-            }`}
+            className={`color-swatch ${currentColor.toLowerCase() === color.toLowerCase()
+              ? "selected"
+              : ""
+              }`}
             style={{ backgroundColor: color }}
             onClick={() => handleSwatchClick(color)}
           />
@@ -171,6 +170,7 @@ const PropertiesPanel = () => {
     addTableColumn,
     saveToHistory,
     updateLayerStyle,
+    applyGlobalTextStyle,
     editingLayerId,
     selectionMarks,
   } = usePresentationStore();
@@ -204,7 +204,6 @@ const PropertiesPanel = () => {
     "Fira Sans",
     "DM Sans",
   ];
-
 
   const activeSlide = slides.find(
     (slide) => slide.id === activeSlideId
@@ -541,7 +540,7 @@ const PropertiesPanel = () => {
                     // Update layer default for responsive UI, no history
                     updateTextLayer(selectedLayer.id, { fontSize: val }, false);
                   } else {
-                    updateTextLayer(selectedLayer.id, { fontSize: val });
+                    applyGlobalTextStyle(selectedLayer.id, { fontSize: val });
                   }
                 }}
               />
@@ -566,7 +565,7 @@ const PropertiesPanel = () => {
                   // Update layer default for responsive UI, no history
                   updateTextLayer(selectedLayer.id, { color }, false);
                 } else {
-                  updateTextLayer(selectedLayer.id, { color }, true);
+                  applyGlobalTextStyle(selectedLayer.id, { color });
                 }
               }}
             />
@@ -582,14 +581,12 @@ const PropertiesPanel = () => {
                     // Update layer default for responsive UI, no history
                     updateTextLayer(selectedLayer.id, { fontFamily: val }, false);
                   } else {
-                    updateTextLayer(selectedLayer.id, {
-                      fontFamily: val,
-                    });
+                    applyGlobalTextStyle(selectedLayer.id, { fontFamily: val });
                   }
                 }}
               >
                 {FONTS.map((font) => (
-                  <option key={font} value={font}>
+                  <option key={font} value={font} style={{ fontFamily: font }}>
                     {font}
                   </option>
                 ))}
@@ -629,7 +626,8 @@ const PropertiesPanel = () => {
                     if (editingLayerId) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
                     } else {
-                      toggleBold(selectedLayer.id);
+                      const newVal = selectedLayer.fontWeight === "bold" ? "normal" : "bold";
+                      applyGlobalTextStyle(selectedLayer.id, { fontWeight: newVal });
                     }
                   }}
                   onMouseDown={(e) => e.preventDefault()}
@@ -653,7 +651,8 @@ const PropertiesPanel = () => {
                     if (editingLayerId) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
                     } else {
-                      toggleItalic(selectedLayer.id);
+                      const newVal = selectedLayer.fontStyle === "italic" ? "normal" : "italic";
+                      applyGlobalTextStyle(selectedLayer.id, { fontStyle: newVal });
                     }
                   }}
                   onMouseDown={(e) => e.preventDefault()}
@@ -677,7 +676,8 @@ const PropertiesPanel = () => {
                     if (editingLayerId) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
                     } else {
-                      toggleUnderline(selectedLayer.id);
+                      const newVal = selectedLayer.textDecoration === "underline" ? "none" : "underline";
+                      applyGlobalTextStyle(selectedLayer.id, { textDecoration: newVal });
                     }
                   }}
                   onMouseDown={(e) => e.preventDefault()}
@@ -719,10 +719,13 @@ const PropertiesPanel = () => {
                     onClick={() => {
                       if (editingLayerId) {
                         window.dispatchEvent(new CustomEvent('slate-set-block-style', { detail: { properties: { textAlign: align } } }));
+                        // Update layer default for responsive UI, no history
+                        updateTextLayer(selectedLayer.id, { textAlign: align }, false);
+                      } else {
+                        applyGlobalTextStyle(selectedLayer.id, { textAlign: align });
                       }
-                      // Always update store for responsive UI
-                      setTextAlignment(selectedLayer.id, align);
                     }}
+                    onMouseDown={(e) => e.preventDefault()}
                   >
                     {align}
                   </button>

@@ -7,46 +7,53 @@ const TextLayer = ({ layer, isEditing }) => {
   const { updateTextLayer } = usePresentationStore();
 
   const handleSlateChange = (newValue) => {
-    // We update the content, but we don't call saveToHistory on every keystroke
-    // as per user requirements. saveToHistory is called on enter/exit edit mode in CanvasShell.
     updateTextLayer(layer.id, { content: newValue, hasBeenEdited: true }, false);
   };
 
   const isPlaceholderVisible =
-    !layer.hasBeenEdited && (!layer.content || (layer.content.length === 1 && layer.content[0].children[0].text === ""));
+    !layer.hasBeenEdited &&
+    (!layer.content ||
+      (layer.content.length === 1 &&
+        layer.content[0].children[0].text === ""));
 
-  const commonStyle = {
+  // Base container styles, removing conflicting text styles
+  const containerStyle = {
     width: "100%",
     height: "100%",
-    fontSize: layer.fontSize,
-    color: isPlaceholderVisible ? "#94a3b8" : layer.color,
-    fontFamily: layer.fontFamily,
-    fontWeight: layer.fontWeight,
-    fontStyle: layer.fontStyle,
-    textDecoration: layer.textDecoration,
-    textAlign: layer.textAlign,
     outline: "none",
     wordBreak: "break-word",
     whiteSpace: "pre-wrap",
     lineHeight: 1.2,
+    cursor: isEditing ? "text" : "move",
+  };
+
+  // Styles to be passed down to the editor/renderer for inheritance
+  const textBlockStyle = {
+    fontFamily: layer.fontFamily,
+    fontSize: `${layer.fontSize}px`,
+    textAlign: layer.textAlign,
   };
 
   if (isEditing) {
     return (
-      <div style={{ ...commonStyle, cursor: "text" }}>
+      <div style={containerStyle}>
         <SlateTextEditor
-          value={layer.content || [{ type: 'paragraph', children: [{ text: '' }] }]}
+          value={
+            layer.content || [{ type: "paragraph", children: [{ text: "" }] }]
+          }
           onChange={handleSlateChange}
-          style={commonStyle}
+          style={textBlockStyle} // Pass the correct inheritable styles
         />
       </div>
     );
   }
 
   return (
-    <div style={commonStyle}>
+    <div style={{ ...containerStyle, ...textBlockStyle }}>
       {isPlaceholderVisible ? (
-        <span>{layer.placeholder || "Click to add text"}</span>
+        <span style={{ color: "#94a3b8" }}>
+          {layer.placeholder || "Click to add text"}
+        </span>
       ) : (
         <SlateStaticRenderer value={layer.content} />
       )}

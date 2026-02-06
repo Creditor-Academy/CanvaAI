@@ -51,6 +51,18 @@ const SlateTextEditor = ({ value, onChange, style }) => {
         };
     }, [editor]);
 
+    // Implement controlled value synchronization
+    useEffect(() => {
+        // Only update if value is different and we're not currently editing? 
+        // No, if value comes from store (e.g. Undo), we MUST reflect it.
+        // Slate 0.90+ uses editor.children directly for its state.
+        if (value && value !== editor.children) {
+            editor.children = value;
+            // Trigger a re-render without affecting history/selection if possible
+            editor.onChange();
+        }
+    }, [value, editor]);
+
     return (
         <Slate editor={editor} initialValue={value} onChange={handleSlateChange}>
             <Editable
@@ -61,6 +73,10 @@ const SlateTextEditor = ({ value, onChange, style }) => {
                     outline: 'none',
                     minHeight: '1em',
                     ...style,
+                    // Ensure block properties are applied to the typing area directly
+                    fontFamily: style?.fontFamily || 'inherit',
+                    fontSize: style?.fontSize || 'inherit',
+                    textAlign: style?.textAlign || 'inherit',
                 }}
                 onKeyDown={event => {
                     if (!event.ctrlKey) return;

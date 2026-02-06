@@ -4,6 +4,39 @@ import { createShapeLayer, createImageLayer } from "../models/presentationModel"
 import useHistoryStore from "./useHistoryStore";
 import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
 
+const applyStylesToNodes = (nodes, styles) => {
+  return nodes.map((node) => {
+    if (node.text !== undefined) {
+      const newNode = { ...node };
+      if (styles.color !== undefined) newNode.color = styles.color;
+      if (styles.fontSize !== undefined) newNode.fontSize = styles.fontSize;
+      if (styles.fontFamily !== undefined) newNode.fontFamily = styles.fontFamily;
+      if (styles.fontWeight !== undefined) {
+        if (styles.fontWeight === "bold") newNode.bold = true;
+        else delete newNode.bold;
+      }
+      if (styles.fontStyle !== undefined) {
+        if (styles.fontStyle === "italic") newNode.italic = true;
+        else delete newNode.italic;
+      }
+      if (styles.textDecoration !== undefined) {
+        if (styles.textDecoration.includes("underline")) newNode.underline = true;
+        else delete newNode.underline;
+      }
+      return newNode;
+    }
+    if (node.children) {
+      const newNode = {
+        ...node,
+        children: applyStylesToNodes(node.children, styles),
+      };
+      if (styles.textAlign !== undefined) newNode.textAlign = styles.textAlign;
+      return newNode;
+    }
+    return node;
+  });
+};
+
 /* =========================
    DEFAULT LAYOUT
 ========================= */
@@ -394,6 +427,32 @@ const usePresentationStore = create((set, get) => {
               layers: slide.layers.map((layer) =>
                 layer.id === layerId ? { ...layer, ...updates } : layer
               ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    applyGlobalTextStyle: (layerId, styles) => {
+      get().saveToHistory();
+      const { slides, activeSlideId } = get();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) => {
+                if (layer.id === layerId && layer.type === "text") {
+                  // Merge styles into layer defaults AND content nodes
+                  return {
+                    ...layer,
+                    ...styles,
+                    content: applyStylesToNodes(layer.content || [], styles),
+                  };
+                }
+                return layer;
+              }),
             }
             : slide
         ),
