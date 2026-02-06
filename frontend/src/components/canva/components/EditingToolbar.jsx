@@ -40,6 +40,16 @@ const EditingToolbar = ({
     const fontDropdownRef = useRef(null);
     const menuRef = useRef(null);
     const exportDropdownRef = useRef(null);
+    const colorPickerRef = useRef(null);
+
+    const presetColors = [
+        '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#efefef', '#f3f3f3', '#ffffff',
+        '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff', '#9900ff', '#ff00ff',
+        '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#cfe2f3', '#d9d2e9', '#ead1dc',
+        '#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#a4c2f4', '#9fc5e8', '#b4a7d6', '#d5a6bd',
+        '#cc4125', '#e06666', '#f6b26b', '#ffd966', '#93c47d', '#76a5af', '#6d9eeb', '#6fa8dc', '#8e7cc3', '#c27ba0',
+        '#a61c00', '#cc0000', '#e69138', '#f1c232', '#6aa84f', '#45818e', '#3c78d8', '#3d85c6', '#674ea7', '#a64d79',
+    ];
 
     const fonts = [
         'Arial',
@@ -69,6 +79,9 @@ const EditingToolbar = ({
             }
             if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target)) {
                 setShowExportDropdown(false);
+            }
+            if (colorPickerRef.current && !colorPickerRef.current.contains(e.target)) {
+                setShowColorPicker(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -191,7 +204,50 @@ const EditingToolbar = ({
                                 <button onClick={onToggleBold} className={layer.fontWeight === 'bold' ? 'text-blue-600 p-1' : 'p-1'}><FiBold size={15} /></button>
                                 <button onClick={onToggleItalic} className={layer.fontStyle === 'italic' ? 'text-blue-600 p-1' : 'p-1'}><FiItalic size={15} /></button>
                                 <button onClick={onToggleUnderline} className={layer.textDecoration === 'underline' ? 'text-blue-600 p-1' : 'p-1'}><FiUnderline size={15} /></button>
-                                <button onClick={() => setShowColorPicker(!showColorPicker)} className="p-1 border-l ml-1 pl-2 border-gray-200"><FiType size={15} style={{ borderBottom: `2px solid ${layer.color || '#000'}` }} /></button>
+                                <div className="relative" ref={colorPickerRef}>
+                                    <button
+                                        onClick={() => setShowColorPicker(!showColorPicker)}
+                                        className="p-1 border-l ml-1 pl-2 border-gray-200"
+                                        title="Text Color"
+                                    >
+                                        <FiType size={15} style={{ borderBottom: `2px solid ${layer.color || '#000'}` }} />
+                                    </button>
+                                    {showColorPicker && (
+                                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[150] p-3 w-64">
+                                            <div className="text-xs font-semibold text-gray-500 mb-2">Preset Colors</div>
+                                            <div className="grid grid-cols-10 gap-1 mb-3">
+                                                {presetColors.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => {
+                                                            onTextColorChange(c);
+                                                            setShowColorPicker(false);
+                                                        }}
+                                                        className="w-5 h-5 rounded-sm border border-gray-200 hover:scale-110 transition-transform"
+                                                        style={{ backgroundColor: c }}
+                                                        title={c}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="border-t border-gray-100 pt-2">
+                                                <div className="text-xs font-semibold text-gray-500 mb-2">Custom</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative w-8 h-8 rounded-full overflow-hidden border border-gray-200">
+                                                        <input
+                                                            type="color"
+                                                            value={layer.color || '#000000'}
+                                                            onChange={(e) => onTextColorChange(e.target.value)}
+                                                            className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer p-0 border-0"
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-gray-600 font-mono uppercase">
+                                                        {layer.color || '#000000'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div className={toolGroup}>
@@ -299,4 +355,5 @@ const EditingToolbar = ({
 };
 
 export default EditingToolbar;
+
 

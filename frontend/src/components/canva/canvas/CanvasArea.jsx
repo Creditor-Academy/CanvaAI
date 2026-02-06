@@ -330,7 +330,7 @@ const CanvasArea = ({
   getShapeDisplayProps, handleQuickColorChange, handleLayerDuplicate, handleLayerDelete,
   handleEnhanceText, isEnhancingText, getLayerPrimaryColor, setSelectedLayer,
   canvasBgColor = '#ffffff', canvasBgImage = null, handleUndo, handleRedo,
-  pageId, onPageRemove, canRemovePage = true,
+  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] }
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -388,13 +388,8 @@ const CanvasArea = ({
             height: `${canvasSize.height}px`,
             transform: `scale(${zoom / 100})`,
             background: canvasBgColor,
-            backgroundImage: [
-              showGrid ? 'radial-gradient(circle, #ddd 1px, transparent 1px)' : null,
-              canvasBgImage ? `url(${canvasBgImage})` : null
-            ].filter(Boolean).join(', '),
-
-            /* ✅ ONLY FIX */
-            backgroundSize: canvasBgImage ? '100% 100%' : '20px 20px',
+            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : 'none',
+            backgroundSize: canvasBgImage ? '100% 100%' : 'auto',
             backgroundRepeat: canvasBgImage ? 'no-repeat' : 'repeat',
             backgroundPosition: 'center',
 
@@ -412,6 +407,19 @@ const CanvasArea = ({
           onMouseMove={handleCanvasMouseMove}
           onMouseLeave={handleCanvasMouseLeave}
         >
+          {/* 0. Grid Overlay (Separate from background to handle sizing/export interactions) */}
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none z-0"
+              style={{
+                backgroundImage: 'radial-gradient(circle, #999 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+                backgroundPosition: 'center'
+              }}
+              data-html2canvas-ignore="true"
+            />
+          )}
+
           {/* 1. Content Layer (Clipped) */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             {/* Pointer events none on wrapper? No, users need to click content. 
@@ -498,6 +506,24 @@ const CanvasArea = ({
                 onEnhanceText={handleEnhanceText}
                 isEnhancingText={isEnhancingText}
                 renderLayerUIOnly={true} // 🔴 UI Mode
+              />
+            ))}
+          </div>
+
+          {/* 3. Alignment Guides Layer */}
+          <div className="absolute inset-0 pointer-events-none z-[1400]">
+            {alignmentGuides && alignmentGuides.x.map((val, i) => (
+              <div
+                key={`guide-x-${i}`}
+                className="absolute top-0 bottom-0 border-l border-dashed border-pink-500"
+                style={{ left: val, width: '1px' }}
+              />
+            ))}
+            {alignmentGuides && alignmentGuides.y.map((val, i) => (
+              <div
+                key={`guide-y-${i}`}
+                className="absolute left-0 right-0 border-t border-dashed border-pink-500"
+                style={{ top: val, height: '1px' }}
               />
             ))}
           </div>

@@ -4,7 +4,6 @@ import {
   FiMaximize,
   FiMinimize,
   FiHelpCircle,
-  FiPlus,
   FiRotateCcw,
   FiRotateCw,
   FiZoomOut,
@@ -19,12 +18,10 @@ const BottomToolbar = ({
   setZoom,
   currentPage = 1,
   totalPages = 1,
-  onAddPage,
   onPageChange,
   showGrid,
   onToggleGrid,
   onMaximize,
-  // TopToolbar features
   onUndo,
   onRedo,
   canUndo,
@@ -80,22 +77,6 @@ const BottomToolbar = ({
 
       {(onSave || onExport || onDuplicate) && <div className="w-px h-6 bg-gray-300 mx-1" />}
 
-      {/* Add Page Button */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (onAddPage) {
-            onAddPage();
-          }
-        }}
-        className="px-2 py-1.5 border border-gray-300 rounded-md bg-white cursor-pointer flex items-center gap-1 text-xs text-gray-800 transition-all duration-200 font-medium hover:bg-gray-50 hover:border-gray-400"
-      >
-        <FiPlus size={14} />
-        Add page
-      </button>
-
       <div className="flex-1" />
 
       {/* Zoom controls */}
@@ -145,7 +126,7 @@ const BottomToolbar = ({
           <FiMaximize size={14} />
         </button>
       )}
-      {handleFitToScreen && (
+      {/* {handleFitToScreen && (
         <button
           type="button"
           onClick={handleFitToScreen}
@@ -154,7 +135,7 @@ const BottomToolbar = ({
         >
           <FiMinimize size={14} />
         </button>
-      )}
+      )} */}
 
       {(handleZoomOut || handleZoomReset || handleFitToScreen) && <div className="w-px h-6 bg-gray-300 mx-1" />}
 

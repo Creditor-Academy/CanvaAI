@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useAlignment } from './useAlignment';
 
 /**
  * Custom hook for canvas interactions (drag, resize, rotate)
@@ -10,8 +11,11 @@ export const useCanvasInteractions = (
   setSelectedLayer,
   selectedTool,
   getCanvasPoint,
-  saveToHistory
+  saveToHistory,
+  canvasSize
 ) => {
+  /* ===================== ALIGNMENT ===================== */
+  const { snap, alignmentGuides, setAlignmentGuides, clearGuides } = useAlignment(layers, canvasSize);
   /* ===================== STATE ===================== */
 
   const [isDragging, setIsDragging] = useState(false);
@@ -194,13 +198,25 @@ export const useCanvasInteractions = (
       const dx = x - dragStart.x;
       const dy = y - dragStart.y;
 
-      setLayers(prev =>
-        prev.map(l =>
-          l.id === selectedLayer
-            ? { ...l, x: l.x + dx, y: l.y + dy }
-            : l
-        )
-      );
+      // Find the current layer to snap
+      const currentLayer = layers.find(l => l.id === selectedLayer);
+
+      if (currentLayer) {
+        // Calculate raw new position based on delta
+        const rawX = currentLayer.x + dx;
+        const rawY = currentLayer.y + dy;
+
+        // Snap the candidate position
+        const { x: finalX, y: finalY, guides } = snap({ ...currentLayer, x: rawX, y: rawY });
+
+        // Set alignment guides for visualization
+        setAlignmentGuides(guides);
+
+        // Update the layer position in state
+        setLayers(prev =>
+          prev.map(l => l.id === selectedLayer ? { ...l, x: finalX, y: finalY } : l)
+        );
+      }
 
       setDragStart({ x, y });
     }
@@ -213,7 +229,10 @@ export const useCanvasInteractions = (
     resizeStart,
     rotateStart,
     getCanvasPoint,
-    setLayers
+    setLayers,
+    layers, // Add layers to dependency
+    snap, // Add snap to dependency
+    setAlignmentGuides // Add setter to dependency
   ]);
 
   /* ===================== MOUSE UP ===================== */
@@ -224,6 +243,9 @@ export const useCanvasInteractions = (
     setIsDragging(false);
     setIsResizing(false);
     setIsRotating(false);
+
+    // Clear alignment guides when drag ends
+    clearGuides();
 
     setResizeStart({
       startX: 0,
@@ -248,7 +270,7 @@ export const useCanvasInteractions = (
       saveToHistory(curr);
       return curr;
     });
-  }, [isDragging, isResizing, isRotating, setLayers, saveToHistory]);
+  }, [isDragging, isResizing, isRotating, setLayers, saveToHistory, clearGuides]);
 
   /* ===================== GLOBAL LISTENERS ===================== */
 
@@ -300,5 +322,6 @@ export const useCanvasInteractions = (
     handleCanvasMouseMove,
     handleCanvasMouseLeave,
     handleCanvasClick,
+    alignmentGuides, // Export guides
   };
 };

@@ -187,7 +187,8 @@ const CanvaEditor = () => {
     handleRotateMouseDown,
     handleCanvasMouseMove: handleCanvasMouseMoveBase,
     handleCanvasMouseLeave,
-    handleCanvasClick: handleCanvasClickBase
+    handleCanvasClick: handleCanvasClickBase,
+    alignmentGuides
   } = useCanvasInteractions(
     layers,
     setLayers,
@@ -195,7 +196,8 @@ const CanvaEditor = () => {
     setSelectedLayer,
     selectedTool,
     getCanvasPoint,
-    saveToHistory
+    saveToHistory,
+    canvasSize
   );
 
   // 🔴 Wrapper for handleCanvasMouseMove to handle drawing
@@ -764,22 +766,6 @@ const CanvaEditor = () => {
     }
   }, [layers, currentPageIndex]); // Save layers whenever they change
 
-  const handleAddPage = useCallback(() => {
-    // Save current page first
-    setPages(prevPages => {
-      const updatedPages = [...prevPages];
-      if (updatedPages[currentPageIndex]) {
-        updatedPages[currentPageIndex] = { ...updatedPages[currentPageIndex], layers: [...layers] };
-      }
-
-      const newPage = {
-        id: Date.now(),
-        layers: []
-      };
-      const newPages = [...updatedPages, newPage];
-      return newPages;
-    });
-  }, [currentPageIndex, layers]);
 
   const handlePageChange = useCallback((index) => {
     if (index >= 0 && index < pages.length && index !== currentPageIndex) {
@@ -1352,6 +1338,7 @@ const CanvaEditor = () => {
                     pageId={page.id}
                     onPageRemove={handlePageRemove}
                     canRemovePage={pages.length > 1}
+                    alignmentGuides={isActivePage ? alignmentGuides : { x: [], y: [] }}
                   />
                 </div>
               </div>
@@ -1366,7 +1353,6 @@ const CanvaEditor = () => {
           setZoom={setZoom}
           currentPage={currentPageIndex + 1}
           totalPages={pages.length}
-          onAddPage={handleAddPage}
           onPageChange={handlePageChange}
           showGrid={showGrid}
           onToggleGrid={() => setShowGrid(!showGrid)}

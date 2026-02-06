@@ -75,7 +75,7 @@ const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, childr
         <h3 className="text-white font-bold tracking-tight">{title}</h3>
         <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-md text-slate-400"><FiX /></button>
       </div>
-      <div className="p-4 overflow-y-auto pb-10 custom-scrollbar" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
+      <div className="p-4 overflow-y-auto pb-10 custom-scrollbar pb-32" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
         {children}
       </div>
     </div>,
@@ -129,7 +129,7 @@ const LeftCanvasSidebar = memo(({
     'shapes': 'Shapes & Icons',
     'drawing': 'Freehand Draw',
     'media': 'Images & AI',
-    'templates': 'Layouts',
+    'templates': 'mas',
     'canvas': 'Dimensions',
     'stockImages': 'Stock Images'
   };
@@ -159,35 +159,41 @@ const LeftCanvasSidebar = memo(({
   const stockImages = [
     {
       id: 'stock-1',
-      src: 'https://images.unsplash.com/photo-1761839257513-a921710a4291?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8',
-      name: 'Stock Image 1'
+      src: 'https://images.unsplash.com/photo-1666334111978-614a8d680bbf?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGdyZWV0aW5nJTIwY2FyZHMlMjBkZWZhdWx0fGVufDB8fDB8fHww',
+      name: 'Greeting Card 1'
     },
     {
       id: 'stock-2',
-      src: 'https://plus.unsplash.com/premium_photo-1764598889620-d6b8667f3c77?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwyfHx8ZW58MHx8fHx8',
-      name: 'Stock Image 2'
+      src: 'https://plus.unsplash.com/premium_photo-1718119435904-856798cccb7f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGdyZWV0aW5nJTIwY2FyZHN8ZW58MHx8MHx8fDA%3D',
+      name: 'Greeting Card 2'
     },
     {
       id: 'stock-3',
-      src: 'https://images.unsplash.com/photo-1768409234914-96f61529b7e2?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw0fHx8ZW58MHx8fHx8',
-      name: 'Stock Image 3'
+      src: 'https://images.unsplash.com/photo-1612774103836-6f1c15e7d3da?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGdyZWV0aW5nJTIwY2FyZHxlbnwwfHwwfHx8MA%3D%3D',
+      name: 'Greeting Card 3'
     },
     {
       id: 'stock-4',
-      src: 'https://plus.unsplash.com/premium_photo-1766012368210-14b362ad9805?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw2fHx8ZW58MHx8fHx8',
-      name: 'Stock Image 4'
+      src: 'https://plus.unsplash.com/premium_photo-1718428773716-a58c246f7414?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGdyZWV0aW5nJTIwY2FyZHMlMjBkZWZhdWx0fGVufDB8fDB8fHww',
+      name: 'Greeting Card 4'
     },
     {
       id: 'stock-5',
-      src: 'https://images.unsplash.com/photo-1768449864366-b78dda95c9a0?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxMHx8fGVufDB8fHx8fA%3D%3D',
-      name: 'Stock Image 5'
+      src: 'https://images.unsplash.com/photo-1764385827388-2560c0cdc1e9?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8aW52aXRhdGlvbiUyMGNhcmRzfGVufDB8fDB8fHww',
+      name: 'Invitation Card'
     },
     {
       id: 'stock-6',
-      src: 'https://plus.unsplash.com/premium_photo-1766012368356-69b7ee24081d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxMXx8fGVufDB8fHx8fA%3D%3D',
-      name: 'Stock Image 6'
+      src: 'https://plus.unsplash.com/premium_photo-1727805664106-b76f1ecad1e7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8bmV3JTIweWVhcnxlbnwwfHwwfHx8MA%3D%3D',
+      name: 'New Year Card'
+    },
+    {
+      id: 'stock-7',
+      src: 'https://images.unsplash.com/photo-1692902288471-4beec045f56d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cmFrc2hhYmFuZGhhbnxlbnwwfHwwfHx8MA%3D%3D',
+      name: 'Raksha Bandhan Card'
     }
   ];
+
 
   const handleButtonMouseEnter = useCallback((text, buttonElement) => {
     if (buttonElement) {
@@ -322,7 +328,7 @@ const LeftCanvasSidebar = memo(({
           tooltipPosition={tooltipPosition}
         />
         <ParentButton
-          sectionKey="stockImages" icon={<FiLayers size={16} />} label="Stock"
+          sectionKey="stockImages" icon={<FiLayers size={16} />} label="Template"
           isActive={expandedSection === "stockImages"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
@@ -333,7 +339,7 @@ const LeftCanvasSidebar = memo(({
           tooltipPosition={tooltipPosition}
         />
         <ParentButton
-          sectionKey="templates" icon={<FiStar size={16} />} label="Magic"
+          sectionKey="templates" icon={<FiStar size={16} />} label="Layout"
           isActive={expandedSection === "templates"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
