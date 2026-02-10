@@ -25,11 +25,11 @@ import { ResizableImage } from '../extensions/ResizableImage.jsx';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
+import { Blockquote } from '@tiptap/extension-blockquote';
 import { createLowlight } from 'lowlight';
 import { common } from 'lowlight';
-import { mergeAttributes } from '@tiptap/core';
+import { mergeAttributes, Node, Extension } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { Node } from '@tiptap/core';
 import {
   Sparkles,
   Save,
@@ -182,32 +182,44 @@ import {
 } from './ui/popover';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Custom Font Size Extension
-const FontSize = TextStyle.extend({
+// Custom Font Size Extension - Refactored to use TextStyle global attributes
+const FontSize = Extension.create({
   name: 'fontSize',
-  
-  addAttributes() {
-    return {
-      fontSize: {
-        default: null,
-        parseHTML: element => element.style.fontSize,
-        renderHTML: attributes => {
-          if (!attributes.fontSize) return {};
-          return {
-            style: `font-size: ${attributes.fontSize}`,
-          };
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: [TextStyle.name],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize,
+            renderHTML: attributes => {
+              if (!attributes.fontSize) {
+                return {};
+              }
+
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              };
+            },
+          },
         },
       },
-    };
+    ];
   },
-  
+
   addCommands() {
     return {
-      setFontSize: (size) => ({ commands }) => {
-        return commands.setMark('fontSize', { fontSize: size });
+      setFontSize: (fontSize) => ({ chain }) => {
+        return chain()
+          .setMark('textStyle', { fontSize: fontSize.includes('px') ? fontSize : `${fontSize}px` })
+          .run();
       },
-      unsetFontSize: () => ({ commands }) => {
-        return commands.unsetMark('fontSize');
+      unsetFontSize: () => ({ chain }) => {
+        return chain()
+          .setMark('textStyle', { fontSize: null })
+          .run();
       },
     };
   },
@@ -216,7 +228,7 @@ const FontSize = TextStyle.extend({
 // React component for page break
 const PageBreakComponent = ({ node, updateAttributes }) => {
   return (
-    <div 
+    <div
       className="relative my-10"
       contentEditable={false}
     >
@@ -235,7 +247,7 @@ const PageBreakComponent = ({ node, updateAttributes }) => {
 // Custom Page Break Extension
 const PageBreak = Node.create({
   name: 'pageBreak',
-  
+
   addOptions() {
     return {
       HTMLAttributes: {},
@@ -259,10 +271,10 @@ const PageBreak = Node.create({
       'data-type': 'page-break',
       style: 'page-break-after: always; border-top: 1px dashed #e5e7eb; margin: 40px 0; text-align: center; height: 1px;',
     }), [
-      'span',
-      { style: 'background: white; padding: 0 12px; color: #9ca3af; font-size: 12px; position: relative; top: -12px;' },
-      'Page Break'
-    ]];
+        'span',
+        { style: 'background: white; padding: 0 12px; color: #9ca3af; font-size: 12px; position: relative; top: -12px;' },
+        'Page Break'
+      ]];
   },
 
   addNodeView() {
@@ -340,7 +352,7 @@ const ToolbarButton = ({
 
 // Handler functions
 const handleFileAction = (action, editor) => {
-  switch(action) {
+  switch (action) {
     case 'new':
       if (window.confirm('Are you sure you want to create a new document? Your current changes will be lost.')) {
         editor?.commands.clearContent()
@@ -362,7 +374,7 @@ const handleFileAction = (action, editor) => {
 }
 
 const handleViewAction = (action, editorActions, zoom) => {
-  switch(action) {
+  switch (action) {
     case 'zoom_in':
       editorActions.setZoom(prev => Math.min(200, prev + 10));
       toast.success(`Zoom: ${Math.min(200, (zoom || 100) + 10)}%`);
@@ -418,8 +430,8 @@ const handleViewAction = (action, editorActions, zoom) => {
 
 const handleEditAction = (action, editor, evt = null, handleCopy, handlePaste) => {
   if (!editor) return
-  
-  switch(action) {
+
+  switch (action) {
     case 'undo':
       editor.chain().focus().undo().run()
       break
@@ -470,8 +482,8 @@ const handleEditAction = (action, editor, evt = null, handleCopy, handlePaste) =
 
 const handleInsertAction = (action, editor) => {
   if (!editor) return
-  
-  switch(action) {
+
+  switch (action) {
     case 'image':
       const url = prompt('Enter image URL:')
       if (url) {
@@ -481,9 +493,9 @@ const handleInsertAction = (action, editor) => {
     case 'table':
       // Try custom table first, fallback to standard table
       if (editor.can().insertCustomTable) {
-        editor.chain().focus().insertCustomTable({ 
-          rows: 3, 
-          cols: 3, 
+        editor.chain().focus().insertCustomTable({
+          rows: 3,
+          cols: 3,
           cells: Array(3).fill().map(() => Array(3).fill('')),
           borderColor: '#d1d5db',
           fontSize: 14,
@@ -533,8 +545,8 @@ const handleInsertAction = (action, editor) => {
 
 const handleFormatAction = (action, editor) => {
   if (!editor) return
-  
-  switch(action) {
+
+  switch (action) {
     case 'bold':
       editor.chain().focus().toggleBold().run()
       break
@@ -573,30 +585,30 @@ const TextEditorContent = () => {
   const PAGE_HEIGHT = 1122; // A4 height in points at 96 DPI (11.69 inches * 96)
   const PAGE_WIDTH = 793;   // A4 width in points at 96 DPI (8.27 inches * 96)
   const LINE_HEIGHT = 1.5;
-  
+
   // Use context hooks for state management with safe defaults
   const { state: editorState = {}, actions: editorActions = {} } = useEditorContext() || {};
   const { state: imageState = {}, actions: imageActions = {} } = useImageContext() || {};
-  
+
   // Use export state hook
   const { exportToPDF, exportToDOCX, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
-  
+
   // Destructure state from contexts with defaults
-  const { 
-    isAISidebarOpen = false, 
+  const {
+    isAISidebarOpen = false,
     showReferencesPanel = false,
-    showExportDialog = false, 
-    exportFormat = 'pdf', 
+    showExportDialog = false,
+    exportFormat = 'pdf',
     exportOptions = {
       includePageNumbers: true,
       includeHeader: true,
       includeFooter: true,
       exportComments: false,
       exportTrackChanges: false
-    }, 
-    documentTitle = 'Untitled Document', 
-    lastSaved = null, 
-    zoom = 100, 
+    },
+    documentTitle = 'Untitled Document',
+    lastSaved = null,
+    zoom = 100,
     saveStatus = 'saved',
     documentStats = {
       paragraphs: 0,
@@ -605,17 +617,17 @@ const TextEditorContent = () => {
       pages: 1
     }
   } = editorState;
-  
+
   // Destructure actions from contexts with safe fallbacks
-  const { 
-    setSaveStatus = () => {}, 
-    setLastSaved = () => {}, 
-    setDocumentStats = () => {},
-    setDocumentTitle = () => {},
-    updateEditorFeatures = () => {},
-    updateExportOptions = () => {},
-    updateUIState = () => {},
-    updateDocumentStats: updateDocumentStatsAction = () => {}
+  const {
+    setSaveStatus = () => { },
+    setLastSaved = () => { },
+    setDocumentStats = () => { },
+    setDocumentTitle = () => { },
+    updateEditorFeatures = () => { },
+    updateExportOptions = () => { },
+    updateUIState = () => { },
+    updateDocumentStats: updateDocumentStatsAction = () => { }
   } = editorActions;
 
   // State variables
@@ -628,7 +640,7 @@ const TextEditorContent = () => {
   const [isStarred, setIsStarred] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [isTemplateSidebarOpen, setIsTemplateSidebarOpen] = useState(false);
-  
+
   // Document management states
   const [documentVersions, setDocumentVersions] = useState([
     {
@@ -642,18 +654,18 @@ const TextEditorContent = () => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [tempTitle, setTempTitle] = useState(documentTitle);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-  
+
   // Advanced formatting states
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
   const [indentLevel, setIndentLevel] = useState(0);
   const [textDirection, setTextDirection] = useState('ltr');
-  
+
   // Headings & Structure states
   const [customHeadingStyles, setCustomHeadingStyles] = useState({});
   const [collapsedSections, setCollapsedSections] = useState(new Set());
   const [activeHeadingLevel, setActiveHeadingLevel] = useState(0);
   const [showHeadingStyles, setShowHeadingStyles] = useState(false);
-  
+
   // Page Layout & Setup states
   const [pageSize, setPageSize] = useState('A4');
   const [pageOrientation, setPageOrientation] = useState('portrait');
@@ -671,12 +683,12 @@ const TextEditorContent = () => {
   const [pageColor, setPageColor] = useState('#ffffff');
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [sectionBreaks, setSectionBreaks] = useState([]);
-  
+
   // Media Elements states
   const [mediaElements, setMediaElements] = useState([]);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [showMediaPanel, setShowMediaPanel] = useState(false);
-  
+
   // Image Upload states
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [imagePreview, setImagePreview] = useState('');
@@ -696,7 +708,7 @@ const TextEditorContent = () => {
   const [drawingMode, setDrawingMode] = useState(null);
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(2);
-  
+
   // Image insertion states
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageInsertMethod, setImageInsertMethod] = useState('url');
@@ -706,7 +718,7 @@ const TextEditorContent = () => {
   const [isLoadingImages, setIsLoadingImages] = useState(false);
   const [selectedImageAlt, setSelectedImageAlt] = useState('');
   const [isImageUploading, setIsImageUploading] = useState(false);
-  
+
   // References & Links states
   const [bookmarks, setBookmarks] = useState([]);
   const [footnotes, setFootnotes] = useState([]);
@@ -714,7 +726,7 @@ const TextEditorContent = () => {
   const [crossReferences, setCrossReferences] = useState([]);
   const [bibliography, setBibliography] = useState([]);
   const [citationStyle, setCitationStyle] = useState('apa');
-  
+
   // Additional state variables
   const [lineSpacing, setLineSpacing] = useState(1.5);
   const [pages, setPages] = useState([{ id: 1, content: '', height: 0 }]);
@@ -729,14 +741,14 @@ const TextEditorContent = () => {
   // Function to calculate content height for a page - FIXED: removed dependencies that cause loops
   const calculateContentHeight = useCallback((htmlContent) => {
     if (!htmlContent || htmlContent.trim() === '') return 0;
-    
+
     const tempDiv = document.createElement('div');
     tempDiv.style.cssText = `
       position: absolute;
       visibility: hidden;
-      width: ${PAGE_WIDTH - 144}px; // Fixed width without dynamic dependencies
-      font-family: 'Times New Roman', Times, serif;
-      font-size: 12pt;
+      width: ${PAGE_WIDTH - 144}px; 
+      font-family: var(--athena-font-body);
+      font-size: 11pt;
       line-height: ${LINE_HEIGHT};
       padding: 0;
       margin: 0;
@@ -745,10 +757,10 @@ const TextEditorContent = () => {
     `;
     tempDiv.innerHTML = htmlContent;
     document.body.appendChild(tempDiv);
-    
+
     const height = tempDiv.offsetHeight;
     document.body.removeChild(tempDiv);
-    
+
     return height;
   }, []); // EMPTY dependency array to prevent re-creation
 
@@ -770,10 +782,10 @@ const TextEditorContent = () => {
 
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i];
-      
+
       // Calculate height of this paragraph
       const paragraphHeight = calculateContentHeight(paragraph);
-      
+
       // If adding this paragraph would exceed page height, start new page
       if (currentHeight + paragraphHeight > maxPageHeight && currentHeight > 0) {
         // Save current page
@@ -782,7 +794,7 @@ const TextEditorContent = () => {
           content: currentPageContent,
           height: currentHeight
         });
-        
+
         // Start new page
         pageId++;
         currentPageContent = paragraph;
@@ -792,7 +804,7 @@ const TextEditorContent = () => {
         currentPageContent += paragraph;
         currentHeight += paragraphHeight;
       }
-      
+
       // If we're at the last paragraph, add the current page
       if (i === paragraphs.length - 1 && currentPageContent.trim()) {
         pages.push({
@@ -814,16 +826,16 @@ const TextEditorContent = () => {
   // Update pages when content changes - FIXED: Added proper dependency management
   const updatePages = useCallback((content) => {
     if (!content || isPageCalculationLocked) return;
-    
+
     setIsPageCalculationLocked(true);
-    
+
     try {
       const newPages = splitContentIntoPages(content);
-      
+
       // Only update if pages actually changed
       if (JSON.stringify(newPages) !== JSON.stringify(pages)) {
         setPages(newPages);
-        
+
         // Update document stats
         if (setDocumentStats) {
           setDocumentStats(prev => ({
@@ -831,7 +843,7 @@ const TextEditorContent = () => {
             pages: newPages.length
           }));
         }
-        
+
         // Update page contents for rendering
         setPageContents(newPages.map(page => page.content));
       }
@@ -859,11 +871,7 @@ const TextEditorContent = () => {
             class: 'ordered-list',
           },
         },
-        blockquote: {
-          HTMLAttributes: {
-            class: 'blockquote',
-          },
-        },
+        blockquote: false,
         // Disable extensions we want to configure separately
         underline: false,
         link: false,
@@ -887,6 +895,11 @@ const TextEditorContent = () => {
       }),
 
       ListItem,
+      Blockquote.configure({
+        HTMLAttributes: {
+          class: 'blockquote',
+        },
+      }),
       CodeBlockLowlight.configure({
         lowlight: createLowlight(common),
       }),
@@ -894,12 +907,8 @@ const TextEditorContent = () => {
       Typography,
       CharacterCount,
       Focus.configure({
-        content: `
-          <h1 style="font-family: 'Inter', sans-serif; font-weight: 700;">Welcome to TEXT Editor Pro</h1>
-          <p style="font-family: 'Inter', sans-serif; color: #4b5563;">
-            Start typing your document...
-          </p>
-        `
+        className: 'has-focus',
+        mode: 'all',
       }),
       Placeholder.configure({
         placeholder: 'Start typing or press / for commands...',
@@ -942,17 +951,17 @@ const TextEditorContent = () => {
     onUpdate: ({ editor: editorInstance }) => {
       try {
         const content = editorInstance.getHTML();
-        
+
         // Update word count
         const text = editorInstance.state.doc.textContent;
         const words = text.trim().split(/\s+/).filter(Boolean).length;
         const characters = text.length;
         const readingTimeMinutes = Math.ceil(words / 200);
-        
+
         setWordCount(words);
         setCharacterCount(characters);
         setReadingTime(readingTimeMinutes);
-        
+
         // Update headings
         const newHeadings = [];
         editorInstance.state.doc.descendants((node, pos) => {
@@ -965,18 +974,18 @@ const TextEditorContent = () => {
           }
         });
         setHeadings(newHeadings);
-        
+
         // Update document stats
         let paragraphs = 0;
         let images = 0;
         let tables = 0;
-        
+
         editorInstance.state.doc.descendants((node) => {
           if (node.type.name === 'paragraph') paragraphs++;
           if (node.type.name === 'image') images++;
           if (node.type.name === 'table') tables++;
         });
-        
+
         if (updateDocumentStatsAction) {
           updateDocumentStatsAction(prev => ({
             ...prev,
@@ -985,19 +994,19 @@ const TextEditorContent = () => {
             tables
           }));
         }
-        
+
         // Update pages with new content - use debounce to prevent excessive updates
         if (window.pagesUpdateTimeout) {
           clearTimeout(window.pagesUpdateTimeout);
         }
-        
+
         window.pagesUpdateTimeout = setTimeout(() => {
           updatePages(content);
         }, 500); // Debounce page calculation
-        
+
         // Update save status
         setSaveStatus('modified');
-        
+
         // Auto-save after 3 seconds of inactivity
         clearTimeout(window.autoSaveTimer);
         window.autoSaveTimer = setTimeout(() => {
@@ -1005,7 +1014,7 @@ const TextEditorContent = () => {
             handleAutoSave();
           }
         }, 3000);
-        
+
       } catch (error) {
         console.error('Error in onUpdate:', error);
       }
@@ -1018,7 +1027,7 @@ const TextEditorContent = () => {
       } else {
         setSelectedText('');
       }
-      
+
       // Update active heading level based on current selection
       if (from === to) {
         // Cursor is at a single position
@@ -1047,79 +1056,6 @@ const TextEditorContent = () => {
         spellcheck: 'true',
         'data-testid': 'editor-content'
       },
-      contentAttributes: {
-        style: `
-          table.table-border-black { 
-            border-collapse: collapse; 
-            border: 2px solid #000000; 
-            width: 100%; 
-            background-color: #ffffff; 
-            box-shadow: 0 0 0 1px #000000; 
-          }
-          table.table-border-black td, 
-          table.table-border-black th { 
-            border: 1px solid #000000; 
-            padding: 8px; 
-            background-color: #ffffff; 
-            vertical-align: top; 
-          }
-          .cell-border-black { 
-            border: 1px solid #000000 !important; 
-            padding: 8px; 
-            background-color: #ffffff; 
-          }
-          table.table-border-black th {
-            background-color: #f8f9fa !important;
-            font-weight: bold;
-          }
-          .bullet-list {
-            list-style-type: disc !important;
-            padding-left: 2rem !important;
-            margin: 1rem 0 !important;
-            background: #f8f9fa !important;
-            border-left: 3px solid #3b82f6 !important;
-            padding: 1rem 1rem 1rem 2rem !important;
-          }
-          .ordered-list {
-            list-style-type: decimal !important;
-            padding-left: 2rem !important;
-            margin: 1rem 0 !important;
-            background: #f0f9ff !important;
-            border-left: 3px solid #0ea5e9 !important;
-            padding: 1rem 1rem 1rem 2rem !important;
-          }
-          .task-list {
-            list-style: none !important;
-            padding-left: 2rem !important;
-            margin: 1rem 0 !important;
-            background: #f0fdf4 !important;
-            border-left: 3px solid #22c55e !important;
-            padding: 1rem 1rem 1rem 2rem !important;
-          }
-          .task-list .task-item {
-            display: flex;
-            align-items: flex-start;
-            margin: 0.25rem 0;
-          }
-          .task-list .task-item > label {
-            margin-right: 0.5rem;
-            margin-top: 0.1rem;
-          }
-          .task-list .task-item > div {
-            flex: 1;
-          }
-          .list-item {
-            margin: 0.25rem 0;
-          }
-          .blockquote {
-            border-left: 4px solid #3b82f6;
-            padding-left: 1rem;
-            margin: 1rem 0;
-            font-style: italic;
-            color: #4b5563;
-          }
-        `,
-      },
       handleKeyDown: (view, event) => {
         // Handle slash commands
         if (event.key === '/' && (event.ctrlKey || event.metaKey)) {
@@ -1127,13 +1063,13 @@ const TextEditorContent = () => {
           updateEditorFeatures({ isAISidebarOpen: true });
           return true;
         }
-        
+
         // Handle Enter key in lists
         if (event.key === 'Enter' && !event.shiftKey) {
           const { state } = view;
           const { $from } = state.selection;
           const parent = $from.node(-1);
-          
+
           if (parent && (parent.type.name === 'listItem')) {
             // If we're in an empty list item, break out of the list
             if ($from.parent.content.size === 0) {
@@ -1145,7 +1081,7 @@ const TextEditorContent = () => {
             }
           }
         }
-        
+
         // Handle Tab and Shift+Tab for list indentation
         if (event.key === 'Tab') {
           event.preventDefault();
@@ -1158,7 +1094,7 @@ const TextEditorContent = () => {
             return true;
           }
         }
-        
+
         return false;
       }
     },
@@ -1168,7 +1104,7 @@ const TextEditorContent = () => {
   useEffect(() => {
     if (editor) {
       editorRef.current = editor;
-      
+
       // Load initial content
       const savedContent = localStorage.getItem('text-editor-document');
       if (savedContent) {
@@ -1188,23 +1124,23 @@ const TextEditorContent = () => {
   // Custom clipboard handlers
   const handleCopy = useCallback(async () => {
     if (!editor) return;
-    
+
     try {
       const { from, to } = editor.state.selection;
-      
+
       if (from === to) {
         toast.info('Nothing selected to copy');
         return;
       }
-      
+
       const text = editor.state.doc.textBetween(from, to, ' ');
-      
+
       if (navigator.clipboard && window.ClipboardItem) {
         try {
           const clipboardItem = new ClipboardItem({
             'text/plain': new Blob([text], { type: 'text/plain' })
           });
-          
+
           await navigator.clipboard.write([clipboardItem]);
           toast.success('Content copied to clipboard');
         } catch (err) {
@@ -1224,12 +1160,12 @@ const TextEditorContent = () => {
 
   const handlePaste = useCallback(async (event) => {
     if (!editor) return;
-    
+
     try {
       event.preventDefault();
-      
+
       let pastedText = '';
-      
+
       if (navigator.clipboard && window.ClipboardItem) {
         try {
           const clipboardItems = await navigator.clipboard.read();
@@ -1253,7 +1189,7 @@ const TextEditorContent = () => {
       } else {
         pastedText = event.clipboardData?.getData('text/plain') || '';
       }
-      
+
       if (pastedText) {
         editor.chain().focus().insertContent(pastedText).run();
         toast.success('Content pasted successfully');
@@ -1271,10 +1207,10 @@ const TextEditorContent = () => {
       toast.error('Cannot insert image');
       return;
     }
-    
+
     try {
       // Try using the ResizableImage extension first
-      editor.chain().focus().setResizableImage({ 
+      editor.chain().focus().setResizableImage({
         src: src,
         alt: alt,
         title: alt || 'Image',
@@ -1283,12 +1219,12 @@ const TextEditorContent = () => {
         originalWidth: width,
         originalHeight: height,
         align: 'left',
-        ...options 
+        ...options
       }).run();
-      
+
       toast.success('Image inserted successfully');
       setShowImageModal(false);
-      
+
       // Update document stats
       updateDocumentStatsAction(prev => ({
         ...prev,
@@ -1296,19 +1232,19 @@ const TextEditorContent = () => {
       }));
     } catch (error) {
       console.error('Resizable image insertion failed:', error);
-      
+
       try {
         // Fallback to regular Image extension
-        editor.chain().focus().setImage({ 
+        editor.chain().focus().setImage({
           src: src,
           alt: alt,
           title: alt || 'Image',
-          ...options 
+          ...options
         }).run();
-        
+
         toast.success('Image inserted (using fallback)');
         setShowImageModal(false);
-        
+
         // Update document stats
         updateDocumentStatsAction(prev => ({
           ...prev,
@@ -1316,16 +1252,16 @@ const TextEditorContent = () => {
         }));
       } catch (fallbackError) {
         console.error('Fallback also failed:', fallbackError);
-        
+
         try {
           // Last resort: insert as HTML
           editor.chain().focus().insertContent(
             `<img src="${src}" alt="${alt || 'Image'}" width="${width}" height="${height}" style="max-width: 100%; height: auto;" />`
           ).run();
-          
+
           toast.success('Image inserted (as HTML)');
           setShowImageModal(false);
-          
+
           // Update document stats
           updateDocumentStatsAction(prev => ({
             ...prev,
@@ -1343,40 +1279,40 @@ const TextEditorContent = () => {
   const handleMultipleImageUpload = useCallback(async (event) => {
     try {
       const files = Array.from(event.target.files);
-      
+
       if (!files || files.length === 0) {
         toast.error('❌ No files selected');
         return;
       }
-      
+
       toast.loading(`🔍 Processing ${files.length} file(s)...`);
-      
+
       const validFiles = files.filter(file => {
         const isValidType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(file.type);
         const isValidSize = file.size <= 10 * 1024 * 1024;
-        
+
         if (!isValidType) {
           toast.error(`❌ Skipped ${file.name}: Invalid file type. Supported: JPG, PNG, GIF, WebP, SVG, BMP`);
         }
         if (!isValidSize) {
           toast.error(`❌ Skipped ${file.name}: File too large. Maximum size: 10MB`);
         }
-        
+
         return isValidType && isValidSize;
       });
-      
+
       if (validFiles.length === 0) {
         toast.dismiss();
         toast.error('⚠️ No valid images to upload. Please check file types and sizes.');
         return;
       }
-      
+
       toast.dismiss();
       toast.success(`✅ ${validFiles.length} valid image(s) ready for upload`);
-      
+
       // Set selected files
       setSelectedFiles(prev => [...prev, ...validFiles]);
-      
+
       // Create preview for the first newly added image if no preview exists
       if (validFiles[0] && !imagePreview) {
         const reader = new FileReader();
@@ -1385,7 +1321,7 @@ const TextEditorContent = () => {
         };
         reader.readAsDataURL(validFiles[0]);
       }
-      
+
     } catch (error) {
       console.error('Multiple image upload error:', error);
       toast.dismiss();
@@ -1400,7 +1336,7 @@ const TextEditorContent = () => {
         toast.error('❌ Please enter an image URL');
         return;
       }
-      
+
       // Basic URL validation
       let validUrl = '';
       try {
@@ -1417,10 +1353,10 @@ const TextEditorContent = () => {
           return;
         }
       }
-      
+
       // Show loading state
       toast.loading('📥 Inserting image from URL...');
-      
+
       // Test if the URL is accessible
       const img = new Image();
       img.onload = () => {
@@ -1430,14 +1366,14 @@ const TextEditorContent = () => {
         setSelectedImageAlt('');
         toast.success('✅ Image inserted successfully!');
       };
-      
+
       img.onerror = () => {
         toast.dismiss();
         toast.error('❌ Could not load image from URL. Please check if the URL is correct and accessible.');
       };
-      
+
       img.src = validUrl;
-      
+
     } catch (error) {
       console.error('URL image insertion error:', error);
       toast.dismiss();
@@ -1449,35 +1385,35 @@ const TextEditorContent = () => {
   const handleImageUpload = useCallback(async (event) => {
     try {
       const files = Array.from(event.target.files);
-      
+
       if (!files || files.length === 0) {
         toast.error('No file selected');
         return;
       }
-      
+
       // Validate all files
       const validFiles = files.filter(file => {
         const isValidType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(file.type);
         const isValidSize = file.size <= 10 * 1024 * 1024;
-        
+
         if (!isValidType) {
           toast.error(`❌ Skipped ${file.name}: Invalid file type. Supported: JPG, PNG, GIF, WebP, SVG, BMP`);
         }
         if (!isValidSize) {
           toast.error(`❌ Skipped ${file.name}: File too large. Maximum size: 10MB`);
         }
-        
+
         return isValidType && isValidSize;
       });
-      
+
       if (validFiles.length === 0) {
         toast.error('⚠️ No valid images to upload. Please check file types and sizes.');
         return;
       }
-      
+
       // Set selected files and show preview
       setSelectedFiles(validFiles);
-      
+
       // Create preview for the first image
       if (validFiles[0]) {
         const reader = new FileReader();
@@ -1486,7 +1422,7 @@ const TextEditorContent = () => {
         };
         reader.readAsDataURL(validFiles[0]);
       }
-      
+
       toast.success(`✅ ${validFiles.length} valid image(s) selected. Click "Insert Image" to upload.`);
     } catch (error) {
       console.error('Image upload error:', error);
@@ -1500,25 +1436,25 @@ const TextEditorContent = () => {
       toast.error('No images selected');
       return;
     }
-    
+
     setIsImageUploading(true);
     setUploadProgress(0);
-    
+
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
-      
+
       try {
         // Create a temporary URL for the image
         const imageUrl = URL.createObjectURL(file);
-        
+
         // Get image dimensions
         const img = new Image();
-        
+
         await new Promise((resolve, reject) => {
           img.onload = () => {
             const width = img.width;
             const height = img.height;
-            
+
             // Insert the image into the editor
             insertImage(imageUrl, file.name, width, height, {
               fileName: file.name,
@@ -1526,50 +1462,50 @@ const TextEditorContent = () => {
               originalWidth: width,
               originalHeight: height
             });
-            
+
             // Update progress
             setUploadProgress(((i + 1) / selectedFiles.length) * 100);
-            
+
             // Clean up the object URL
             setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
             resolve();
           };
-          
+
           img.onerror = () => {
             // If we can't get dimensions, use default
             insertImage(imageUrl, file.name, 400, 300, {
               fileName: file.name,
               fileSize: file.size
             });
-            
+
             // Update progress
             setUploadProgress(((i + 1) / selectedFiles.length) * 100);
-            
+
             // Clean up the object URL
             setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
             resolve();
           };
-          
+
           img.src = imageUrl;
         });
-        
+
         // Small delay between inserts
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
       } catch (error) {
         console.error(`Error processing ${file.name}:`, error);
         toast.error(`Failed to upload ${file.name}`);
       }
     }
-    
+
     // Reset states
     setIsImageUploading(false);
     setUploadProgress(0);
     setSelectedFiles([]);
     setImagePreview('');
-    
+
     toast.success(`Successfully uploaded ${selectedFiles.length} image(s)`);
-    
+
     // Close modal if all uploads are complete
     setTimeout(() => {
       if (selectedFiles.length > 0) {
@@ -1583,7 +1519,7 @@ const TextEditorContent = () => {
     const newFiles = [...selectedFiles];
     newFiles.splice(index, 1);
     setSelectedFiles(newFiles);
-    
+
     // Update preview if we removed the first image
     if (index === 0 && newFiles.length > 0) {
       const reader = new FileReader();
@@ -1616,42 +1552,42 @@ const TextEditorContent = () => {
         toast.error('❌ Editor not ready. Please wait for the editor to load.');
         return;
       }
-      
+
       const testImageUrl = 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop';
-      
+
       toast.loading('🧪 Testing image insertion...');
-      
+
       // Test with ResizableImage
-      editor.chain().focus().setResizableImage({ 
-        src: testImageUrl, 
+      editor.chain().focus().setResizableImage({
+        src: testImageUrl,
         alt: 'Test image',
         width: 400,
         height: 300,
         align: 'left'
       }).run();
-      
+
       toast.dismiss();
       toast.success('✅ Test image inserted successfully with ResizableImage extension!');
-      
+
       // Close modal after successful test
       setTimeout(() => setShowImageModal(false), 1500);
-      
+
     } catch (error) {
       console.error('ResizableImage test failed:', error);
       toast.dismiss();
-      
+
       try {
         // Fallback to regular Image
-        editor.chain().focus().setImage({ 
-          src: testImageUrl, 
-          alt: 'Test image' 
+        editor.chain().focus().setImage({
+          src: testImageUrl,
+          alt: 'Test image'
         }).run();
-        
+
         toast.success('✅ Test image inserted successfully with regular Image extension!');
-        
+
         // Close modal after successful test
         setTimeout(() => setShowImageModal(false), 1500);
-        
+
       } catch (fallbackError) {
         console.error('Regular Image test failed:', fallbackError);
         toast.error('❌ Test insertion failed. Please check console for technical details.');
@@ -1692,21 +1628,21 @@ const TextEditorContent = () => {
       toast.error(`Invalid page number. Please enter between 1 and ${pages.length}`);
       return;
     }
-    
+
     setCurrentPage(pageNumber);
-    
+
     // Scroll to the page
     const pageElement = document.getElementById(`page-${pageNumber}`);
     if (pageElement) {
       pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    
+
     toast.success(`Navigated to page ${pageNumber}`);
   }, [pages]);
 
   const handleAutoSave = useCallback(() => {
     if (!editor) return;
-    
+
     try {
       const content = {
         title: documentTitle,
@@ -1718,7 +1654,7 @@ const TextEditorContent = () => {
           lastModified: new Date().toISOString()
         }
       };
-      
+
       localStorage.setItem('text-editor-document', JSON.stringify(content));
       setLastSaved(new Date());
       setSaveStatus('saved');
@@ -1730,7 +1666,7 @@ const TextEditorContent = () => {
 
   const handleSave = useCallback(() => {
     if (!editor) return;
-    
+
     try {
       const content = {
         title: documentTitle,
@@ -1742,9 +1678,9 @@ const TextEditorContent = () => {
           lastModified: new Date().toISOString()
         }
       };
-      
+
       localStorage.setItem('text-editor-document', JSON.stringify(content));
-      
+
       setLastSaved(new Date());
       setSaveStatus('saved');
       toast.success('Document saved successfully!');
@@ -1756,18 +1692,18 @@ const TextEditorContent = () => {
 
   const handlePrint = useCallback(() => {
     if (!editor) return;
-    
+
     try {
       // Get all page content
       const allContent = pages.map(page => page.content).join('');
-      
+
       const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-      
+
       if (!printWindow) {
         toast.error('Could not open print window. Please check your popup blocker.');
         return;
       }
-      
+
       const printContent = `
         <!DOCTYPE html>
         <html lang="en">
@@ -1843,10 +1779,10 @@ const TextEditorContent = () => {
         </body>
         </html>
       `;
-      
+
       printWindow.document.write(printContent);
       printWindow.document.close();
-      
+
     } catch (error) {
       console.error('Print error:', error);
       toast.error('Failed to print document');
@@ -1858,7 +1794,7 @@ const TextEditorContent = () => {
       toast.error('Editor not available');
       return;
     }
-    
+
     // Check if editor has content before attempting export
     const editorContent = editor.getHTML();
     if (!editorContent || editorContent === '<p></p>' || editorContent.trim() === '<p></p>') {
@@ -1866,7 +1802,7 @@ const TextEditorContent = () => {
       updateEditorFeatures({ showExportDialog: false });
       return;
     }
-    
+
     const options = {
       filename: `${documentTitle || 'document'}.${exportFormat}`,
       includePageNumbers: exportOptions.includePageNumbers,
@@ -1926,7 +1862,7 @@ const TextEditorContent = () => {
 
   const handleAIGenerate = useCallback(async (content) => {
     if (!editor) return;
-    
+
     try {
       if (content.startsWith('API:')) {
         const prompt = content.substring(4);
@@ -1944,7 +1880,7 @@ const TextEditorContent = () => {
 
   const handleTransformText = useCallback(async (action, result) => {
     if (!editor) return;
-    
+
     try {
       const { from, to } = editor.state.selection;
       if (from !== to) {
@@ -1959,7 +1895,7 @@ const TextEditorContent = () => {
 
   const handleHeadingClick = useCallback((id) => {
     if (!editor) return;
-    
+
     try {
       const pos = parseInt(id.replace('heading-', ''));
       editor.chain().focus().setTextSelection(pos).run();
@@ -2042,7 +1978,7 @@ const TextEditorContent = () => {
 
   const handleIndent = useCallback((direction) => {
     if (!editor) return;
-    
+
     if (direction === 'increase') {
       setIndentLevel(prev => prev + 1);
       editor.commands.sinkListItem('listItem');
@@ -2065,7 +2001,7 @@ const TextEditorContent = () => {
       ...prev,
       [type]: value
     }));
-    
+
     if (editor) {
       const style = `${type === 'before' ? 'margin-top' : 'margin-bottom'}: ${value}px`;
       editor.commands.updateAttributes('paragraph', { style });
@@ -2075,14 +2011,14 @@ const TextEditorContent = () => {
   // Headings & Structure Functions
   const handleHeadingChange = useCallback((level) => {
     if (!editor) return;
-    
+
     try {
       if (level === 0) {
         editor.chain().focus().setParagraph().run();
       } else {
         editor.chain().focus().toggleHeading({ level }).run();
       }
-      
+
       setActiveHeadingLevel(level);
       toast.success(`Heading level ${level === 0 ? 'Normal' : level} applied`);
     } catch (error) {
@@ -2097,10 +2033,10 @@ const TextEditorContent = () => {
       toast.error('Editor not ready');
       return;
     }
-    
+
     try {
       const isActive = editor.isActive('bulletList');
-      
+
       if (isActive) {
         // If bullet list is active, turn it off
         editor.chain().focus().toggleBulletList().run();
@@ -2110,10 +2046,10 @@ const TextEditorContent = () => {
         if (editor.isActive('orderedList')) {
           editor.chain().focus().toggleOrderedList().run();
         }
-        
+
         // Then turn on bullet list
         editor.chain().focus().toggleBulletList().run();
-        
+
         // Apply automatic indentation for better visual structure (Google Docs style)
         setTimeout(() => {
           if (editor.isActive('bulletList')) {
@@ -2121,7 +2057,7 @@ const TextEditorContent = () => {
             editor.chain().focus().updateAttributes('listItem', { indent: 1 }).run();
           }
         }, 50);
-        
+
         toast.success('Bullet list enabled with indentation');
       }
     } catch (error) {
@@ -2136,10 +2072,10 @@ const TextEditorContent = () => {
       toast.error('Editor not ready');
       return;
     }
-    
+
     try {
       const isActive = editor.isActive('orderedList');
-      
+
       if (isActive) {
         // If ordered list is active, turn it off
         editor.chain().focus().toggleOrderedList().run();
@@ -2149,10 +2085,10 @@ const TextEditorContent = () => {
         if (editor.isActive('bulletList')) {
           editor.chain().focus().toggleBulletList().run();
         }
-        
+
         // Then turn on ordered list
         editor.chain().focus().toggleOrderedList().run();
-        
+
         // Apply automatic indentation for better visual structure (Google Docs style)
         setTimeout(() => {
           if (editor.isActive('orderedList')) {
@@ -2160,7 +2096,7 @@ const TextEditorContent = () => {
             editor.chain().focus().updateAttributes('listItem', { indent: 1 }).run();
           }
         }, 50);
-        
+
         toast.success('Numbered list enabled with indentation');
       }
     } catch (error) {
@@ -2171,10 +2107,10 @@ const TextEditorContent = () => {
 
   const toggleTaskList = useCallback(() => {
     if (!editor) return;
-    
+
     try {
       editor.chain().focus().toggleTaskList().run();
-      
+
       // Apply automatic indentation for better visual structure (Google Docs style)
       setTimeout(() => {
         if (editor.isActive('taskList')) {
@@ -2182,7 +2118,7 @@ const TextEditorContent = () => {
           editor.chain().focus().updateAttributes('listItem', { indent: 1 }).run();
         }
       }, 50);
-      
+
       toast.success('Task list enabled with indentation');
     } catch (error) {
       console.error('Error toggling task list:', error);
@@ -2192,7 +2128,7 @@ const TextEditorContent = () => {
 
   const toggleUnderline = useCallback(() => {
     if (!editor) return;
-    
+
     try {
       editor.chain().focus().toggleUnderline().run();
       toast.success('Underline toggled');
@@ -2208,10 +2144,10 @@ const TextEditorContent = () => {
       toast.error('Editor not ready');
       return;
     }
-    
+
     try {
       const isActive = editor.isActive('blockquote');
-      
+
       if (isActive) {
         // If blockquote is active, turn it off
         editor.chain().focus().toggleBlockquote().run();
@@ -2221,7 +2157,7 @@ const TextEditorContent = () => {
         if (editor.isActive('listItem')) {
           editor.chain().focus().liftListItem('listItem').run();
         }
-        
+
         // Then turn on blockquote
         editor.chain().focus().toggleBlockquote().run();
         toast.success('Blockquote enabled');
@@ -2237,7 +2173,7 @@ const TextEditorContent = () => {
       ...prev,
       [level]: styles
     }));
-    
+
     // Apply styles to existing headings of this level
     if (editor) {
       editor.state.doc.descendants((node, pos) => {
@@ -2246,7 +2182,7 @@ const TextEditorContent = () => {
         }
       });
     }
-    
+
     toast.success(`Custom style saved for Heading ${level}`);
   }, [editor]);
 
@@ -2309,10 +2245,10 @@ const TextEditorContent = () => {
       position: editor?.state.selection.from || 0,
       timestamp: new Date()
     };
-    
+
     setSectionBreaks(prev => [...prev, newBreak]);
     toast.success(`Section break (${type}) added`);
-    
+
     // In a real implementation, this would insert a section break node
     if (editor) {
       editor.chain().focus().setHorizontalRule().run();
@@ -2335,12 +2271,12 @@ const TextEditorContent = () => {
 
   const addLocalImage = useCallback(async (file) => {
     if (!file || !editor) return;
-    
+
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
-    
+
     try {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -2374,7 +2310,7 @@ const TextEditorContent = () => {
       opacity: options.opacity || 20,
       rotation: options.rotation || -45
     };
-    
+
     setWatermarks(prev => [...prev, newWatermark]);
     toast.success(`Watermark "${text}" added`);
   }, []);
@@ -2391,7 +2327,7 @@ const TextEditorContent = () => {
       },
       position: editor?.state.selection.from || 0
     };
-    
+
     setShapes(prev => [...prev, newShape]);
     setDrawingMode(null);
     toast.success(`${shapeType} shape added`);
@@ -2409,20 +2345,20 @@ const TextEditorContent = () => {
         ...mediaElements.find(m => m.id === id),
         groupId
       }));
-      
+
       setMediaElements(prev => [
         ...prev.filter(m => !selectedMedia.includes(m.id)),
         ...groupedElements
       ]);
-      
+
       toast.success(`Grouped ${selectedMedia.length} elements`);
     }
   }, [selectedMedia, mediaElements]);
 
   const ungroupElements = useCallback((groupId) => {
-    setMediaElements(prev => 
-      prev.map(media => 
-        media.groupId === groupId 
+    setMediaElements(prev =>
+      prev.map(media =>
+        media.groupId === groupId
           ? { ...media, groupId: undefined }
           : media
       )
@@ -2456,7 +2392,7 @@ const TextEditorContent = () => {
           <div className="w-10 h-10 flex items-center justify-center">
             <FileText className="w-8 h-8 text-blue-500" />
           </div>
-          
+
           {/* Document Title Input */}
           <div className="flex flex-col">
             <Input
@@ -2475,7 +2411,7 @@ const TextEditorContent = () => {
               Last edit was {lastSaved.toLocaleTimeString()}
             </span>
           )}
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -2484,7 +2420,7 @@ const TextEditorContent = () => {
           >
             <Star className={`w-4 h-4 ${isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
           </Button>
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -2493,7 +2429,7 @@ const TextEditorContent = () => {
           >
             <FolderOpen className="w-4 h-4" />
           </Button>
-          
+
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <History className="w-4 h-4" onClick={() => setShowVersionHistory(true)} />
           </Button>
@@ -2501,7 +2437,7 @@ const TextEditorContent = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <MessageSquare className="w-4 h-4" />
           </Button>
-          
+
           <Button
             onClick={handleSave}
             size="sm"
@@ -2533,9 +2469,9 @@ const TextEditorContent = () => {
       </header>
 
       {/* Toolbar */}
-      <EditorToolbar 
+      <EditorToolbar
         editor={editor}
-        zoom={zoom} 
+        zoom={zoom}
         onZoomChange={handleZoomChange}
         onSave={handleSave}
         onPrint={handlePrint}
@@ -2573,7 +2509,7 @@ const TextEditorContent = () => {
         />
 
         {/* Editor Area - Single editor for all pages */}
-        <div 
+        <div
           ref={contentContainerRef}
           className="flex-1 overflow-auto bg-secondary/30"
           onPaste={handlePaste}
@@ -2582,7 +2518,7 @@ const TextEditorContent = () => {
           <div className="flex flex-col items-center py-6 px-4 min-h-full">
             {/* Single editor that spans all pages */}
             {editor && (
-              <div 
+              <div
                 className="bg-background shadow-lg rounded-sm w-full max-w-204 min-h-264 mb-8 relative"
                 style={{
                   transform: `scale(${zoom / 100})`,
@@ -2592,21 +2528,21 @@ const TextEditorContent = () => {
                   width: '210mm', // A4 width
                 }}
               >
-                <div 
+                <div
                   className="p-16"
                   style={{
                     minHeight: `calc(297mm - ${pageMargins.top + pageMargins.bottom}px)`,
                     padding: `${pageMargins.top}px ${pageMargins.right}px ${pageMargins.bottom}px ${pageMargins.left}px`
                   }}
                 >
-                  <EditorContent 
-                    editor={editor} 
+                  <EditorContent
+                    editor={editor}
                     className="min-h-[calc(297mm-144px)]"
                   />
                 </div>
               </div>
             )}
-            
+
             {/* Render page indicators for multi-page content */}
             {pages.length > 1 && (
               <div className="mt-4 flex flex-wrap gap-2 justify-center">
@@ -2655,8 +2591,8 @@ const TextEditorContent = () => {
           <span>{documentStats.images} images</span>
           <span>{documentStats.tables} tables</span>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => {
                 const pageInput = prompt(`Go to page (1-${pages.length}):`, currentPage.toString());
@@ -2698,7 +2634,7 @@ const TextEditorContent = () => {
               </div>
             </div>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Format</Label>
@@ -2740,7 +2676,7 @@ const TextEditorContent = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-3">
               <Label>Export Options</Label>
               <div className="space-y-2">
@@ -2748,51 +2684,51 @@ const TextEditorContent = () => {
                   <Switch
                     id="pageNumbers"
                     checked={exportOptions.includePageNumbers}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       updateExportOptions({ includePageNumbers: checked })
                     }
                   />
                   <Label htmlFor="pageNumbers">Include Page Numbers</Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="header"
                     checked={exportOptions.includeHeader}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       updateExportOptions({ includeHeader: checked })
                     }
                   />
                   <Label htmlFor="header">Include Header</Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="footer"
                     checked={exportOptions.includeFooter}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       updateExportOptions({ includeFooter: checked })
                     }
                   />
                   <Label htmlFor="footer">Include Footer</Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="comments"
                     checked={exportOptions.exportComments}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       updateExportOptions({ exportComments: checked })
                     }
                   />
                   <Label htmlFor="comments">Export Comments</Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="trackChanges"
                     checked={exportOptions.exportTrackChanges}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       updateExportOptions({ exportTrackChanges: checked })
                     }
                   />
@@ -2800,7 +2736,7 @@ const TextEditorContent = () => {
                 </div>
               </div>
             </div>
-            
+
             {exportFormat === 'pdf' && (
               <div className="space-y-2">
                 <Label>PDF Quality</Label>
@@ -2817,17 +2753,17 @@ const TextEditorContent = () => {
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => updateEditorFeatures({ showExportDialog: false })}
               disabled={exportLoading[exportFormat]}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleExport} 
+            <Button
+              onClick={handleExport}
               className="bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
               disabled={exportLoading[exportFormat]}
             >
@@ -2876,11 +2812,11 @@ const TextEditorContent = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="p-6 overflow-y-auto max-h-[60vh]">
                   <div className="space-y-4">
                     {documentVersions.map((version) => (
-                      <div 
+                      <div
                         key={version.id}
                         className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                       >
@@ -2938,7 +2874,7 @@ const TextEditorContent = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="p-6 overflow-y-auto max-h-[60vh]">
                   <div className="space-y-6">
                     {[1, 2, 3, 4, 5, 6].map(level => (
@@ -2954,7 +2890,7 @@ const TextEditorContent = () => {
                             Apply Style
                           </Button>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Font Size</label>
@@ -2969,7 +2905,7 @@ const TextEditorContent = () => {
                               className="h-8"
                             />
                           </div>
-                          
+
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Font Weight</label>
                             <select
@@ -2992,7 +2928,7 @@ const TextEditorContent = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
                   <Button
                     onClick={() => setShowHeadingStyles(false)}
@@ -3044,13 +2980,13 @@ const TextEditorContent = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="p-6 overflow-y-auto max-h-[70vh]">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Page Size & Orientation */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium text-gray-900">Page Size & Orientation</h3>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Page Size</label>
                         <select
@@ -3066,7 +3002,7 @@ const TextEditorContent = () => {
                           <option value="B5">B5 (176 × 250 mm)</option>
                         </select>
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Orientation</label>
                         <div className="flex gap-2">
@@ -3085,7 +3021,7 @@ const TextEditorContent = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Margins */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium text-gray-900">Margins (points)</h3>
@@ -3105,7 +3041,7 @@ const TextEditorContent = () => {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Columns */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium text-gray-900">Columns</h3>
@@ -3120,7 +3056,7 @@ const TextEditorContent = () => {
                           max="3"
                         />
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Column Spacing (points)</label>
                         <Input
@@ -3133,7 +3069,7 @@ const TextEditorContent = () => {
                         />
                       </div>
                     </div>
-                    
+
                     {/* Page Color */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium text-gray-900">Page Appearance</h3>
@@ -3149,7 +3085,7 @@ const TextEditorContent = () => {
                           <span className="text-sm text-gray-600">{pageColor}</span>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">Quick Colors</label>
                         <div className="flex flex-wrap gap-2">
@@ -3167,7 +3103,7 @@ const TextEditorContent = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
                   <Button
                     onClick={() => setShowPageSetup(false)}
@@ -3219,7 +3155,7 @@ const TextEditorContent = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="p-6 overflow-y-auto max-h-[70vh]">
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Images Section */}
@@ -3228,7 +3164,7 @@ const TextEditorContent = () => {
                         <ImageIcon className="w-5 h-5" />
                         Images
                       </h3>
-                      
+
                       <div className="space-y-3">
                         <Button
                           onClick={addImageFromUrl}
@@ -3238,7 +3174,7 @@ const TextEditorContent = () => {
                           <ImageIcon className="w-4 h-4 mr-2" />
                           Add from URL
                         </Button>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
                           <input
@@ -3248,7 +3184,7 @@ const TextEditorContent = () => {
                             className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                           />
                         </div>
-                        
+
                         {selectedMedia && mediaElements.find(m => m.id === selectedMedia)?.type === 'image' && (
                           <div className="border border-gray-200 rounded-lg p-4 space-y-3">
                             <h4 className="font-medium text-gray-900">Image Properties</h4>
@@ -3257,7 +3193,7 @@ const TextEditorContent = () => {
                                 <label className="block text-xs text-gray-600 mb-1">Width</label>
                                 <Input
                                   value={imageProperties.width}
-                                  onChange={(e) => setImageProperties(prev => ({...prev, width: e.target.value}))}
+                                  onChange={(e) => setImageProperties(prev => ({ ...prev, width: e.target.value }))}
                                   className="h-8 text-xs"
                                 />
                               </div>
@@ -3265,17 +3201,17 @@ const TextEditorContent = () => {
                                 <label className="block text-xs text-gray-600 mb-1">Height</label>
                                 <Input
                                   value={imageProperties.height}
-                                  onChange={(e) => setImageProperties(prev => ({...prev, height: e.target.value}))}
+                                  onChange={(e) => setImageProperties(prev => ({ ...prev, height: e.target.value }))}
                                   className="h-8 text-xs"
                                 />
                               </div>
                             </div>
-                            
+
                             <div>
                               <label className="block text-xs text-gray-600 mb-1">Alignment</label>
                               <select
                                 value={imageProperties.alignment}
-                                onChange={(e) => setImageProperties(prev => ({...prev, alignment: e.target.value}))}
+                                onChange={(e) => setImageProperties(prev => ({ ...prev, alignment: e.target.value }))}
                                 className="w-full h-8 text-xs border border-gray-300 rounded px-2"
                               >
                                 <option value="left">Left</option>
@@ -3283,13 +3219,13 @@ const TextEditorContent = () => {
                                 <option value="right">Right</option>
                               </select>
                             </div>
-                            
+
                             <div>
                               <label className="block text-xs text-gray-600 mb-1">Rotation (degrees)</label>
                               <Input
                                 type="number"
                                 value={imageProperties.rotation}
-                                onChange={(e) => setImageProperties(prev => ({...prev, rotation: parseInt(e.target.value) || 0}))}
+                                onChange={(e) => setImageProperties(prev => ({ ...prev, rotation: parseInt(e.target.value) || 0 }))}
                                 className="h-8 text-xs"
                                 min="-360"
                                 max="360"
@@ -3299,14 +3235,14 @@ const TextEditorContent = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Watermarks Section */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                         <FileText className="w-5 h-5" />
                         Watermarks
                       </h3>
-                      
+
                       <div className="space-y-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Add Text Watermark</label>
@@ -3329,7 +3265,7 @@ const TextEditorContent = () => {
                             </Button>
                           </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <Button
                             onClick={() => addWatermark('CONFIDENTIAL', { opacity: 30, fontSize: '24px' })}
@@ -3362,14 +3298,14 @@ const TextEditorContent = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Shapes & Drawing Section */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                         <Square className="w-5 h-5" />
                         Shapes & Drawing
                       </h3>
-                      
+
                       <div className="space-y-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Drawing Tools</label>
@@ -3408,7 +3344,7 @@ const TextEditorContent = () => {
                             </Button>
                           </div>
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Drawing Properties</label>
                           <div className="flex items-center gap-2 mb-2">
@@ -3433,7 +3369,7 @@ const TextEditorContent = () => {
                             <span className="text-xs text-gray-500">{drawingStrokeWidth}px</span>
                           </div>
                         </div>
-                        
+
                         <div className="border-t pt-3">
                           <h4 className="font-medium text-gray-900 mb-2">Quick Shapes</h4>
                           <div className="grid grid-cols-3 gap-2">
@@ -3456,7 +3392,7 @@ const TextEditorContent = () => {
                               variant="outline"
                               size="sm"
                             >
-                               triangle
+                              triangle
                             </Button>
                             <Button
                               onClick={() => addShape('arrow')}
@@ -3485,7 +3421,7 @@ const TextEditorContent = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
                   <Button
                     onClick={() => setShowMediaPanel(false)}
@@ -3517,7 +3453,7 @@ const TextEditorContent = () => {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div 
+              <div
                 className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -3537,7 +3473,7 @@ const TextEditorContent = () => {
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                  
+
                   {/* Method Tabs */}
                   <div className="flex gap-2 mt-4">
                     <Button
@@ -3560,7 +3496,7 @@ const TextEditorContent = () => {
                     </Button>
                   </div>
                 </div>
-                
+
                 {/* Modal Content */}
                 <div className="p-6 overflow-y-auto max-h-[60vh]">
                   <Tabs value={imageInsertMethod} onValueChange={setImageInsertMethod} className="w-full">
@@ -3574,7 +3510,7 @@ const TextEditorContent = () => {
                         Upload
                       </TabsTrigger>
                     </TabsList>
-                    
+
                     <TabsContent value="url" className="mt-0 space-y-6">
                       <div className="space-y-4">
                         <div>
@@ -3598,7 +3534,7 @@ const TextEditorContent = () => {
                             Supported formats: JPG, PNG, GIF, WebP, SVG, BMP
                           </p>
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Alternative Text (Optional)
@@ -3611,23 +3547,23 @@ const TextEditorContent = () => {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="border-t pt-4">
                         <h4 className="text-sm font-medium text-gray-700 mb-3">Quick Examples</h4>
                         <div className="grid grid-cols-3 gap-3">
                           {[
-                            { 
-                              url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop', 
+                            {
+                              url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop',
                               alt: 'Colorful gradient background',
                               label: 'Gradient'
                             },
-                            { 
-                              url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400&auto=format&fit=crop', 
+                            {
+                              url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400&auto=format&fit=crop',
                               alt: 'Bright colorful background',
                               label: 'Colorful'
                             },
-                            { 
-                              url: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&auto=format&fit=crop', 
+                            {
+                              url: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&auto=format&fit=crop',
                               alt: 'Abstract background',
                               label: 'Abstract'
                             }
@@ -3652,10 +3588,10 @@ const TextEditorContent = () => {
                         </div>
                       </div>
                     </TabsContent>
-                    
+
                     <TabsContent value="upload" className="mt-0 space-y-6">
                       <div className="space-y-6">
-                        <div 
+                        <div
                           className={`border-2 border-dashed ${(isImageUploading || false) ? 'border-gray-400 bg-gray-200/50 cursor-not-allowed' : 'border-gray-300 hover:border-blue-500'} rounded-xl p-8 text-center transition-colors bg-gray-50/50 cursor-pointer`}
                           onClick={!(isImageUploading || false) ? () => document.getElementById('image-upload')?.click() : undefined}
                         >
@@ -3670,8 +3606,8 @@ const TextEditorContent = () => {
                               <p className="text-sm text-gray-600 mb-4">
                                 or drag and drop
                               </p>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 className="gap-2"
                                 disabled={isImageUploading || false}
                               >
@@ -3692,7 +3628,7 @@ const TextEditorContent = () => {
                             disabled={isImageUploading || false}
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Multiple Images
@@ -3706,14 +3642,14 @@ const TextEditorContent = () => {
                             disabled={isImageUploading || false}
                           />
                         </div>
-                        
+
                         {selectedFiles.length > 0 && (
                           <div className="border rounded-lg p-4 bg-gray-50">
                             <div className="flex justify-between items-center mb-3">
                               <h4 className="font-medium text-gray-700">Selected Files ({selectedFiles.length})</h4>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={clearSelectedFiles}
                               >
                                 Clear All
@@ -3723,9 +3659,9 @@ const TextEditorContent = () => {
                               {selectedFiles.map((file, index) => (
                                 <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
                                   <span className="text-sm truncate flex-1">{file.name}</span>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => removeSelectedFile(index)}
                                   >
                                     <X className="w-4 h-4" />
@@ -3739,7 +3675,7 @@ const TextEditorContent = () => {
                     </TabsContent>
                   </Tabs>
                 </div>
-                
+
                 {/* Modal Footer */}
                 <div className="p-6 border-t border-gray-200 bg-gray-50/50">
                   <div className="flex justify-between items-center">

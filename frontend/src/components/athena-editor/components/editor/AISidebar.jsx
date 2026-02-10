@@ -8,16 +8,21 @@ import {
   Languages,
   Zap,
   MessageSquare,
+  SpellCheck,
+  List,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
+import { fixGrammar } from '../../ai/aiUtils';
 
 const quickActions = [
   { id: 'enhance', label: 'Enhance writing', icon: Wand2 },
+  { id: 'grammar_fix', label: 'Fix Grammar', icon: SpellCheck },
   { id: 'summarize', label: 'Summarize', icon: FileText },
   { id: 'expand', label: 'Expand', icon: Zap },
   { id: 'simplify', label: 'Simplify', icon: MessageSquare },
   { id: 'translate', label: 'Translate', icon: Languages },
+  { id: 'bullets_to_text', label: 'Bullets to Text', icon: List }, // Add this
 ];
 
 export const AISidebar = ({
@@ -33,7 +38,7 @@ export const AISidebar = ({
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setIsLoading(true);
-    
+
     // Simulate AI generation with placeholder
     setTimeout(() => {
       onGenerate(`API:${prompt}`);
@@ -43,15 +48,30 @@ export const AISidebar = ({
   };
 
   const handleQuickAction = async (action) => {
-    if (!selectedText) return;
+    // For bullets_to_text, we don't strictly need text selection as we can use cursor position
+    if (!selectedText && action !== 'bullets_to_text') return;
     setIsLoading(true);
-    
+
     // Simulate transformation
-    setTimeout(() => {
-      const transformedText = `[${action}] ${selectedText}`;
+    try {
+      let transformedText = `[${action}] ${selectedText}`;
+
+      if (action === 'grammar_fix') {
+        transformedText = await fixGrammar(selectedText);
+      } else if (action === 'bullets_to_text') {
+        transformedText = null; // Signal to editor to handle via commands
+      } else if (action === 'enhance') {
+        transformedText = selectedText + " [Enhanced by AI]";
+      } else if (action === 'summarize') {
+        transformedText = "Summary: " + selectedText.substring(0, Math.min(selectedText.length, 50)) + "...";
+      }
+
       onTransformText(action, transformedText);
+    } catch (error) {
+      console.error("AI Action failed", error);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (

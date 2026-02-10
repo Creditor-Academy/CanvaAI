@@ -39,13 +39,10 @@ h6 {
 }
 
 body,
-p,
-span,
-div,
-a,
-button,
 input,
 textarea,
-select {
+select,
+button,
+a {
   font-family: var(--athena-font-body);
 }

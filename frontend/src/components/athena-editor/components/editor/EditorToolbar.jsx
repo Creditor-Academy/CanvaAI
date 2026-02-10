@@ -139,6 +139,57 @@ import { CodeAssistant } from './CodeAssistant';
 // Import AI-related utilities
 import { generateDocument, rewriteText, expandText, summarizeText, changeTone, fixGrammar, bulletToParagraph, generateCode, explainCode, refactorCode, addComments } from '../../ai/aiUtils';
 
+// Import keyboard shortcuts hook
+import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+
+// Table Grid Selector Component
+const TableGridSelector = ({ onSelect }) => {
+  const [hovered, setHovered] = useState({ rows: 0, cols: 0 });
+
+  return (
+    <div
+      className="p-3 bg-white w-[220px]"
+      role="grid"
+      aria-label="Table dimension selector"
+    >
+      <div className="mb-2 text-sm font-medium text-center text-gray-700" aria-live="polite">
+        {hovered.rows > 0 ? `${hovered.cols} x ${hovered.rows} Table` : 'Insert Table'}
+      </div>
+      <div
+        className="grid gap-1"
+        style={{ gridTemplateColumns: 'repeat(10, 1fr)' }}
+        onMouseLeave={() => setHovered({ rows: 0, cols: 0 })}
+      >
+        {Array.from({ length: 100 }).map((_, i) => {
+          const row = Math.floor(i / 10) + 1;
+          const col = (i % 10) + 1;
+          const isActive = row <= hovered.rows && col <= hovered.cols;
+
+          return (
+            <div
+              key={i}
+              role="gridcell"
+              aria-label={`${col} by ${row}`}
+              className={`w-4 h-4 border transition-colors cursor-pointer rounded-sm ${isActive
+                ? 'bg-blue-500 border-blue-600 shadow-sm'
+                : 'bg-white border-gray-200 hover:border-gray-300'
+                }`}
+              onMouseEnter={() => setHovered({ rows: row, cols: col })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(row, col);
+              }}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-2 text-xs text-center text-gray-400">
+        Mouse over to select size
+      </div>
+    </div>
+  );
+};
+
 
 // Constants
 const FONTS = [
@@ -207,7 +258,8 @@ const ToolbarButton = ({
   disabled = false,
   tooltip,
   children,
-  className
+  className,
+  'aria-label': ariaLabel
 }) => (
   <Tooltip delayDuration={300}>
     <TooltipTrigger asChild>
@@ -216,6 +268,9 @@ const ToolbarButton = ({
         size="icon"
         onClick={onClick}
         disabled={disabled}
+        aria-label={ariaLabel || tooltip}
+        aria-pressed={isActive}
+        aria-disabled={disabled}
         className={cn(
           "h-9 w-9 p-0 rounded-lg",
           "bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border border-blue-200",
@@ -234,13 +289,13 @@ const ToolbarButton = ({
   </Tooltip>
 );
 
-export const EditorToolbar = ({ 
-  editor, 
-  zoom, 
-  onZoomChange, 
-  onSave, 
-  handleInsertImage, 
-  setShowReferencesPanel, 
+export const EditorToolbar = ({
+  editor,
+  zoom,
+  onZoomChange,
+  onSave,
+  handleInsertImage,
+  setShowReferencesPanel,
   setIsAISidebarOpen,
   documentTitle,
   onPrint,
@@ -269,12 +324,12 @@ export const EditorToolbar = ({
   // Check if cursor is inside a table - moved to top to avoid initialization issues
   const isInsideTable = () => {
     if (!editor) return false;
-    
+
     try {
       const { state } = editor;
       const { selection } = state;
       const { $from } = selection;
-      
+
       // Check if selection is inside a table
       for (let depth = $from.depth; depth > 0; depth--) {
         const node = $from.node(depth);
@@ -301,10 +356,12 @@ export const EditorToolbar = ({
   const [showRuler, setShowRuler] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
-  
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
   // Zoom helper functions
   const effectiveZoom = zoom || 100;
-  
+
   const onZoomChangeWithFeedback = (newZoom) => {
     if (onZoomChange && typeof onZoomChange === 'function') {
       onZoomChange(newZoom);
@@ -321,10 +378,10 @@ export const EditorToolbar = ({
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportFormat, setExportFormat] = useState('');
   const [exportProgressMessage, setExportProgressMessage] = useState('');
-  
+
   // Routing
   const navigate = useNavigate();
-  
+
   // AI States
   const [showAIDocumentGenerator, setShowAIDocumentGenerator] = useState(false);
   const [showAIInlineActions, setShowAIInlineActions] = useState(false);
@@ -336,15 +393,33 @@ export const EditorToolbar = ({
   const [codeTheme, setCodeTheme] = useState('default');
   const [showLineNumbers, setShowLineNumbers] = useState(true);
   const [codeWrapEnabled, setCodeWrapEnabled] = useState(false);
-  
+
   // Document Generation States
   const [documentTopic, setDocumentTopic] = useState("");
   const [documentPages, setDocumentPages] = useState(1);
   const [documentTone, setDocumentTone] = useState("Professional");
   const [documentType, setDocumentType] = useState("Technical Document");
-  
+
   // File upload ref
   const fileInputRef = useRef(null);
+
+  // Keyboard Shortcuts Hook integration
+  useKeyboardShortcuts(editor, {
+    onSave,
+    onPrint: () => {
+      if (onPrint) onPrint();
+      else window.print();
+    },
+    onSearch: () => setShowSearch(prev => !prev),
+    onHelp: () => setShowShortcutsDialog(true),
+    onNewDocument: () => {
+      if (window.confirm('Create new document? Current changes will be lost.')) {
+        editor.commands.clearContent();
+        toast.success('New document created');
+      }
+    },
+    onOpenDocument: () => fileInputRef.current?.click()
+  });
 
   // Auto-hide export progress messages after 5 seconds
   useEffect(() => {
@@ -352,7 +427,7 @@ export const EditorToolbar = ({
       const timer = setTimeout(() => {
         setExportProgressMessage('');
       }, 5000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [exportProgressMessage]);
@@ -361,25 +436,25 @@ export const EditorToolbar = ({
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!isInsideTable()) return;
-      
+
       // Ctrl+Shift+Enter to add row
       if (e.ctrlKey && e.shiftKey && e.key === 'Enter') {
         e.preventDefault();
         addTableRow();
       }
-      
+
       // Ctrl+Alt+Enter to add column
       if (e.ctrlKey && e.altKey && e.key === 'Enter') {
         e.preventDefault();
         addTableColumn();
       }
-      
+
       // Ctrl+Shift+Delete to delete row
       if (e.ctrlKey && e.shiftKey && e.key === 'Delete') {
         e.preventDefault();
         deleteTableRow();
       }
-      
+
       // Ctrl+Alt+Delete to delete column
       if (e.ctrlKey && e.altKey && e.key === 'Delete') {
         e.preventDefault();
@@ -397,27 +472,70 @@ export const EditorToolbar = ({
       editor
         .chain()
         .focus()
-        .setMark('fontSize', { fontSize: `${size}px` })
+        .setFontSize(`${size}px`)
         .run();
     }
     setCurrentFontSizeState(size);
   };
 
+  // Sync toolbar state with editor selection
   useEffect(() => {
-    if (editor && currentFontSize) {
-      editor
-        .chain()
-        .setMark('fontSize', { fontSize: `${currentFontSize}px` })
-        .run();
-    }
-  }, [editor, currentFontSize]);
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      // Sync Font Family
+      const fontFamily = editor.getAttributes('textStyle').fontFamily;
+      if (fontFamily) {
+        setCurrentFont(fontFamily);
+      } else {
+        // Fallback or default
+        setCurrentFont('Arial');
+      }
+
+      // Sync Font Size
+      const fontSizeAttr = editor.getAttributes('textStyle').fontSize;
+      if (fontSizeAttr) {
+        // Handle "14px" string or number
+        const size = parseInt(fontSizeAttr);
+        if (!isNaN(size)) {
+          setCurrentFontSizeState(size);
+        }
+      } else {
+        setCurrentFontSizeState(11); // Default
+      }
+
+      // Sync Text Color
+      const color = editor.getAttributes('textStyle').color;
+      if (color) {
+        setCurrentTextColor(color);
+      } else {
+        setCurrentTextColor('#000000');
+      }
+
+      // Sync Highlight Color
+      const highlight = editor.getAttributes('highlight').color;
+      if (highlight) {
+        setCurrentHighlight(highlight);
+      }
+
+      // Update heading level used by parent is handled via props, but we could sync local visual states if needed
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('transaction', handleSelectionUpdate);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('transaction', handleSelectionUpdate);
+    };
+  }, [editor]);
 
   if (!editor) return null;
 
   // ========================
   // ROUTING FUNCTIONS
   // ========================
-  
+
   const handleNavigation = (path) => {
     if (navigateTo) {
       navigateTo(path);
@@ -556,31 +674,24 @@ export const EditorToolbar = ({
     }
   };
 
-  const addTable = () => {
+  const addTable = (rows = 3, cols = 3) => {
     if (editor) {
-      // Try custom table first, fallback to standard table
-      if (editor.can().insertCustomTable) {
+      try {
+        // Build a table with the specified dimensions
+        // We use insertContent with HTML because insertTable sometimes has issues with specific configs
+        // or we use the chain command if available and reliable.
+
+        // Let's use the standard extension command which is cleaner for dynamic sizes
         editor
           .chain()
           .focus()
-          .insertCustomTable({ 
-            rows: 3, 
-            cols: 3, 
-            cells: Array(3).fill().map(() => Array(3).fill('')),
-            borderColor: '#d1d5db',
-            fontSize: 14,
-            color: '#000000',
-            textAlign: 'left'
-          })
+          .insertTable({ rows, cols, withHeaderRow: true })
           .run();
-        toast.success('Custom table inserted');
-      } else {
-        editor
-          .chain()
-          .focus()
-          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-          .run();
-        toast.success('Table inserted');
+
+        toast.success(`Table (${cols}x${rows}) inserted`);
+      } catch (error) {
+        console.error('Table insert error:', error);
+        toast.error('Failed to insert table');
       }
     }
   };
@@ -673,7 +784,7 @@ export const EditorToolbar = ({
         .focus()
         .setHorizontalRule()
         .run();
-      
+
       toast.success(`Section break (${type}) inserted`);
     }
   };
@@ -778,15 +889,15 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    
+
     // Set the language and insert code block
     editor.chain().focus().toggleCodeBlock().run();
-    
+
     // Update the code block attributes with language
     if (editor.isActive('codeBlock')) {
       editor.commands.updateAttributes('codeBlock', { language });
     }
-    
+
     setSelectedCodeLanguage(language);
     setShowCodeBlockMenu(false);
     toast.success(`${language} code block inserted`);
@@ -802,16 +913,16 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    
+
     // Get the current code block content
     const codeBlock = editor.state.doc.cut(editor.state.selection.from, editor.state.selection.to);
     const codeContent = codeBlock.textContent || '';
-    
+
     if (!codeContent.trim()) {
       toast.error('No code to execute');
       return;
     }
-    
+
     toast.success('Code execution started...');
     // In a real implementation, this would execute the code in a secure sandbox
     console.log('Executing code:', codeContent);
@@ -822,19 +933,19 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    
+
     // Apply the current configuration to the code block
     if (editor.isActive('codeBlock')) {
-      editor.commands.updateAttributes('codeBlock', { 
+      editor.commands.updateAttributes('codeBlock', {
         language: selectedCodeLanguage,
         theme: codeTheme,
         lineNumbers: showLineNumbers,
         wrap: codeWrapEnabled
       });
-      
+
       toast.success('Code block configuration applied');
     }
-    
+
     setShowCodeBlockConfigDialog(false);
   };
 
@@ -892,16 +1003,16 @@ export const EditorToolbar = ({
       toast.error('Editor is not ready');
       return;
     }
-    
+
     const { from, to } = editor.view.state.selection;
     let foundImage = false;
-    
+
     editor.state.doc.nodesBetween(from, to, (node) => {
       if (node.type.name === 'image') {
         const imgSrc = node.attrs.src;
         setSelectedImage(imgSrc);
         setIsCropDialogOpen(true);
-        
+
         const img = new Image();
         img.onload = () => {
           setImageDimensions({ width: img.width, height: img.height });
@@ -918,14 +1029,14 @@ export const EditorToolbar = ({
       }
       return true;
     });
-    
+
     if (!foundImage) {
       editor.state.doc.descendants(node => {
         if (node.type.name === 'image') {
           const imgSrc = node.attrs.src;
           setSelectedImage(imgSrc);
           setIsCropDialogOpen(true);
-          
+
           const img = new Image();
           img.onload = () => {
             setImageDimensions({ width: img.width, height: img.height });
@@ -943,7 +1054,7 @@ export const EditorToolbar = ({
         return true;
       });
     }
-    
+
     if (!foundImage) {
       toast.error('Please insert an image to crop');
     }
@@ -951,15 +1062,15 @@ export const EditorToolbar = ({
 
   const applyCrop = () => {
     if (!selectedImage) return;
-    
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     img.onload = () => {
       canvas.width = cropArea.width;
       canvas.height = cropArea.height;
-      
+
       ctx.drawImage(
         img,
         cropArea.x,
@@ -971,9 +1082,9 @@ export const EditorToolbar = ({
         cropArea.width,
         cropArea.height
       );
-      
+
       const croppedImageDataUrl = canvas.toDataURL('image/png');
-      
+
       let imagePos = null;
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'image' && node.attrs.src === selectedImage) {
@@ -982,7 +1093,7 @@ export const EditorToolbar = ({
         }
         return true;
       });
-      
+
       if (imagePos !== null) {
         editor.commands.deleteRange({ from: imagePos, to: imagePos + 1 });
         editor.commands.insertContentAt(imagePos, {
@@ -995,12 +1106,12 @@ export const EditorToolbar = ({
           attrs: { src: croppedImageDataUrl }
         });
       }
-      
+
       toast.success('Image cropped successfully');
       setIsCropDialogOpen(false);
       setSelectedImage(null);
     };
-    
+
     img.src = selectedImage;
   };
 
@@ -1015,9 +1126,9 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    
+
     try {
-      switch(action) {
+      switch (action) {
         case 'bold':
           editor.chain().focus().toggleBold().run();
           break;
@@ -1053,9 +1164,9 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-      
+
     try {
-      switch(action) {
+      switch (action) {
         case 'image':
           if (handleInsertImage) {
             handleInsertImage();
@@ -1095,14 +1206,14 @@ export const EditorToolbar = ({
                 </table>
               </div>
             `;
-            
+
             // Insert the table
             editor
               .chain()
               .focus()
               .insertContent(tableHTML)
               .run();
-            
+
             toast.success('Table inserted successfully with black borders');
           } catch (error) {
             console.error('Error inserting table:', error);
@@ -1169,6 +1280,8 @@ export const EditorToolbar = ({
       return;
     }
 
+    setIsGenerating(true);
+
     if (onGenerateDocument) {
       onGenerateDocument({
         topic: documentTopic,
@@ -1176,6 +1289,9 @@ export const EditorToolbar = ({
         tone: documentTone,
         type: documentType
       });
+      // Allow parent to handle loading state or assume it's async but quick enough or handled there
+      // For now we just reset local loading after a short delay if it was a direct call
+      setTimeout(() => setIsGenerating(false), 2000);
     } else {
       // Fallback to local generation
       try {
@@ -1185,16 +1301,17 @@ export const EditorToolbar = ({
           tone: documentTone,
           type: documentType
         });
-        
+
         editor.commands.clearContent();
         editor.commands.insertContent(generatedContent);
         toast.success('Document generated successfully');
       } catch (error) {
         toast.error('Failed to generate document');
+      } finally {
+        setIsGenerating(false);
+        setShowAIDocumentGenerator(false);
       }
     }
-    
-    setShowAIDocumentGenerator(false);
   };
 
   const handleAIInlineAction = async (action, text) => {
@@ -1208,7 +1325,7 @@ export const EditorToolbar = ({
     } else {
       try {
         let result;
-        switch(action) {
+        switch (action) {
           case 'rewrite':
             result = await rewriteText(text);
             break;
@@ -1230,7 +1347,7 @@ export const EditorToolbar = ({
           default:
             return;
         }
-        
+
         // Replace selected text with result
         if (!editor || !editor.state || !editor.state.selection) {
           toast.error('Editor is not ready');
@@ -1239,7 +1356,7 @@ export const EditorToolbar = ({
         const { from, to } = editor.state.selection;
         editor.commands.deleteRange({ from, to });
         editor.commands.insertContent(result);
-        
+
         toast.success(`${action.replace('_', ' ')} completed`);
       } catch (error) {
         toast.error(`Failed to ${action.replace('_', ' ')} text`);
@@ -1258,7 +1375,7 @@ export const EditorToolbar = ({
     } else {
       try {
         let result;
-        switch(action) {
+        switch (action) {
           case 'generate':
             result = await generateCode(code, language);
             break;
@@ -1274,7 +1391,7 @@ export const EditorToolbar = ({
           default:
             return;
         }
-        
+
         // Insert result
         editor.commands.insertContent(result);
         toast.success(`Code ${action} completed`);
@@ -1293,7 +1410,7 @@ export const EditorToolbar = ({
       toast.error('Invalid margins provided');
       return;
     }
-    
+
     // Validate margin values
     const validMargins = {
       top: Math.max(0, Math.min(200, margins.top || 72)),
@@ -1301,13 +1418,13 @@ export const EditorToolbar = ({
       bottom: Math.max(0, Math.min(200, margins.bottom || 72)),
       left: Math.max(0, Math.min(200, margins.left || 72))
     };
-    
+
     // Update CSS variables for page margins
     document.documentElement.style.setProperty('--page-margin-top', `${validMargins.top}px`);
     document.documentElement.style.setProperty('--page-margin-right', `${validMargins.right}px`);
     document.documentElement.style.setProperty('--page-margin-bottom', `${validMargins.bottom}px`);
     document.documentElement.style.setProperty('--page-margin-left', `${validMargins.left}px`);
-    
+
     // Also update editor container styling
     const editorContainer = document.querySelector('.tiptap.ProseMirror');
     if (editorContainer) {
@@ -1316,7 +1433,7 @@ export const EditorToolbar = ({
       editorContainer.style.paddingBottom = `${validMargins.bottom}px`;
       editorContainer.style.paddingLeft = `${validMargins.left}px`;
     }
-    
+
     toast.success(`Page margins set to ${validMargins.top}px (top), ${validMargins.right}px (right), ${validMargins.bottom}px (bottom), ${validMargins.left}px (left)`);
   };
 
@@ -1325,16 +1442,16 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    
+
     // Apply borders to selected content or current paragraph
     const borderStyles = {
       'page': '2px solid #000000',
       'paragraph': '1px solid #666666',
       'table': '1px solid #333333'
     };
-    
+
     const borderStyle = borderStyles[type] || '1px solid #000000';
-    
+
     // Wrap current selection or paragraph with bordered div
     const borderedContent = `
       <div style="
@@ -1343,13 +1460,13 @@ export const EditorToolbar = ({
         margin: 5px 0;
       ">
         ${editor.state.doc.textBetween(
-          editor.state.selection.from,
-          editor.state.selection.to,
-          ' '
-        ) || 'Content with border'}
+      editor.state.selection.from,
+      editor.state.selection.to,
+      ' '
+    ) || 'Content with border'}
       </div>
     `;
-    
+
     editor.chain().focus().insertContent(borderedContent).run();
     toast.success(`${type} border applied`);
   };
@@ -1359,7 +1476,7 @@ export const EditorToolbar = ({
       toast.error('Editor not available');
       return;
     }
-    
+
     // Insert a proper section break with styling
     const sectionBreakHTML = `
       <div class="section-break" style="
@@ -1376,7 +1493,7 @@ export const EditorToolbar = ({
     editor.chain().focus().insertContent(sectionBreakHTML).run();
     toast.success('Section break inserted');
   };
-  
+
   // Page management functions are passed as props
   // addNewPage, addPageBreak, and insertPageNumber are received as props
 
@@ -1385,23 +1502,27 @@ export const EditorToolbar = ({
   // ========================
 
   const menuItems = [
-    { 
-      label: "File", 
+    {
+      label: "File",
       items: [
-        { label: "New", icon: FilePlus2, shortcut: "Ctrl+N", action: () => {
-          if (window.confirm('Create new document? Current changes will be lost.')) {
-            editor.commands.clearContent();
-            toast.success('New document created');
+        {
+          label: "New", icon: FilePlus2, shortcut: "Ctrl+N", action: () => {
+            if (window.confirm('Create new document? Current changes will be lost.')) {
+              editor.commands.clearContent();
+              toast.success('New document created');
+            }
           }
-        } },
-        { label: "Open...", icon: FolderOpen, shortcut: "Ctrl+O", action: () => {
-          fileInputRef.current?.click();
-        } },
+        },
+        {
+          label: "Open...", icon: FolderOpen, shortcut: "Ctrl+O", action: () => {
+            fileInputRef.current?.click();
+          }
+        },
 
         { label: "Print", icon: Printer, shortcut: "Ctrl+P", action: handlePrint },
         { type: "separator" },
-        { 
-          label: "Export", 
+        {
+          label: "Export",
           icon: Download,
           submenu: EXPORT_FORMATS.map(format => ({
             label: exportLoading && exportLoading[format.value] ? `Exporting as ${format.label}...` : `Export as ${format.label}`,
@@ -1422,17 +1543,19 @@ export const EditorToolbar = ({
         { label: "Document Settings", icon: Settings, action: () => toast.info('Document settings dialog') },
       ]
     },
-    { 
-      label: "Edit", 
+    {
+      label: "Edit",
       items: [
         { label: "Undo", icon: Undo, shortcut: "Ctrl+Z", action: () => editor.chain().focus().undo().run() },
         { label: "Redo", icon: Redo, shortcut: "Ctrl+Y", action: () => editor.chain().focus().redo().run() },
         { type: "separator" },
         { label: "Cut", icon: Scissors, shortcut: "Ctrl+X", action: () => document.execCommand('cut') },
-        { label: "Copy", icon: Copy, shortcut: "Ctrl+C", action: () => {
-          document.execCommand('copy');
-          toast.success('Copied to clipboard');
-        } },
+        {
+          label: "Copy", icon: Copy, shortcut: "Ctrl+C", action: () => {
+            document.execCommand('copy');
+            toast.success('Copied to clipboard');
+          }
+        },
         { label: "Paste", icon: Copy, shortcut: "Ctrl+V", action: () => document.execCommand('paste') },
         { label: "Paste Special", icon: Clipboard, action: () => toast.info('Paste special dialog') },
         { type: "separator" },
@@ -1442,58 +1565,66 @@ export const EditorToolbar = ({
         { label: "Go To", icon: Hash, shortcut: "Ctrl+G", action: () => toast.info('Go to dialog') },
         { type: "separator" },
         { label: "Spell Check", icon: SpellCheck, action: () => toast.info('Spell check started') },
-        { label: "Word Count", icon: Hash, action: () => {
-          const text = editor.getText();
-          const words = text.trim().split(/\s+/).filter(Boolean).length;
-          const chars = text.length;
-          toast.info(`Words: ${words}, Characters: ${chars}`);
-        } },
+        {
+          label: "Word Count", icon: Hash, action: () => {
+            const text = editor.getText();
+            const words = text.trim().split(/\s+/).filter(Boolean).length;
+            const chars = text.length;
+            toast.info(`Words: ${words}, Characters: ${chars}`);
+          }
+        },
       ]
     },
-    { 
-      label: "View", 
+    {
+      label: "View",
       items: [
-        { 
-          label: "Zoom", 
+        {
+          label: "Zoom",
           icon: ZoomIn,
           submenu: [
-            { label: "Zoom In", icon: ZoomIn, shortcut: "Ctrl++", action: () => {
-              console.log('Menu Zoom In clicked, current zoom:', zoom);
-              console.log('Effective zoom:', effectiveZoom);
-              if (onZoomChange && typeof onZoomChange === 'function') {
-                const currentZoom = zoom || 100;
-                const newZoom = Math.min(200, currentZoom + 10);
-                console.log('Zooming in from', currentZoom, 'to', newZoom);
-                onZoomChange(newZoom);
-              } else {
-                console.error('onZoomChange is not available');
-                toast.error('Zoom function not available');
+            {
+              label: "Zoom In", icon: ZoomIn, shortcut: "Ctrl++", action: () => {
+                console.log('Menu Zoom In clicked, current zoom:', zoom);
+                console.log('Effective zoom:', effectiveZoom);
+                if (onZoomChange && typeof onZoomChange === 'function') {
+                  const currentZoom = zoom || 100;
+                  const newZoom = Math.min(200, currentZoom + 10);
+                  console.log('Zooming in from', currentZoom, 'to', newZoom);
+                  onZoomChange(newZoom);
+                } else {
+                  console.error('onZoomChange is not available');
+                  toast.error('Zoom function not available');
+                }
               }
-            }},
-            { label: "Zoom Out", icon: ZoomOut, shortcut: "Ctrl+-", action: () => {
-              console.log('Menu Zoom Out clicked, current zoom:', zoom);
-              console.log('Effective zoom:', effectiveZoom);
-              if (onZoomChange && typeof onZoomChange === 'function') {
-                const currentZoom = zoom || 100;
-                const newZoom = Math.max(50, currentZoom - 10);
-                console.log('Zooming out from', currentZoom, 'to', newZoom);
-                onZoomChange(newZoom);
-              } else {
-                console.error('onZoomChange is not available');
-                toast.error('Zoom function not available');
+            },
+            {
+              label: "Zoom Out", icon: ZoomOut, shortcut: "Ctrl+-", action: () => {
+                console.log('Menu Zoom Out clicked, current zoom:', zoom);
+                console.log('Effective zoom:', effectiveZoom);
+                if (onZoomChange && typeof onZoomChange === 'function') {
+                  const currentZoom = zoom || 100;
+                  const newZoom = Math.max(50, currentZoom - 10);
+                  console.log('Zooming out from', currentZoom, 'to', newZoom);
+                  onZoomChange(newZoom);
+                } else {
+                  console.error('onZoomChange is not available');
+                  toast.error('Zoom function not available');
+                }
               }
-            }},
-            { label: "Zoom to 100%", icon: ZoomIn, shortcut: "Ctrl+0", action: () => {
-              console.log('Menu Zoom Reset clicked, current zoom:', zoom);
-              console.log('Effective zoom:', effectiveZoom);
-              if (onZoomChange && typeof onZoomChange === 'function') {
-                onZoomChange(100);
-                console.log('Zoom reset to 100%');
-              } else {
-                console.error('onZoomChange is not available');
-                toast.error('Zoom function not available');
+            },
+            {
+              label: "Zoom to 100%", icon: ZoomIn, shortcut: "Ctrl+0", action: () => {
+                console.log('Menu Zoom Reset clicked, current zoom:', zoom);
+                console.log('Effective zoom:', effectiveZoom);
+                if (onZoomChange && typeof onZoomChange === 'function') {
+                  onZoomChange(100);
+                  console.log('Zoom reset to 100%');
+                } else {
+                  console.error('onZoomChange is not available');
+                  toast.error('Zoom function not available');
+                }
               }
-            }},
+            },
             { type: "separator" },
             { label: "50%", action: () => onZoomChangeWithFeedback(50) },
             { label: "75%", action: () => onZoomChangeWithFeedback(75) },
@@ -1506,42 +1637,50 @@ export const EditorToolbar = ({
             { label: "Fit to Page", action: () => toast.info('Fit to page (coming soon)') },
           ]
         },
-        { label: "Full Screen", icon: Maximize2, shortcut: "F11", action: () => {
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-          } else {
-            document.exitFullscreen();
+        {
+          label: "Full Screen", icon: Maximize2, shortcut: "F11", action: () => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen();
+            } else {
+              document.exitFullscreen();
+            }
           }
-        } },
+        },
         { type: "separator" },
-        { 
-          label: "Show/Hide", 
+        {
+          label: "Show/Hide",
           icon: Eye,
           submenu: [
-            { label: "Ruler", icon: Ruler, checked: showRuler, action: () => {
-              setShowRuler(!showRuler);
-              toast.info(`Ruler ${showRuler ? 'hidden' : 'shown'}`);
-            } },
-            { label: "Grid", icon: Grid3x3, checked: showGrid, action: () => {
-              setShowGrid(!showGrid);
-              toast.info(`Grid ${showGrid ? 'hidden' : 'shown'}`);
-            } },
+            {
+              label: "Ruler", icon: Ruler, checked: showRuler, action: () => {
+                setShowRuler(!showRuler);
+                toast.info(`Ruler ${showRuler ? 'hidden' : 'shown'}`);
+              }
+            },
+            {
+              label: "Grid", icon: Grid3x3, checked: showGrid, action: () => {
+                setShowGrid(!showGrid);
+                toast.info(`Grid ${showGrid ? 'hidden' : 'shown'}`);
+              }
+            },
             { label: "Navigation Pane", icon: PanelLeft, action: () => toast.info('Navigation panel toggled') },
             { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel toggled') },
             { label: "Page Breaks", icon: Minus, action: () => toast.info('Page breaks visibility toggled') },
           ]
         },
         { type: "separator" },
-        { label: "Dark Mode", icon: Moon, checked: isDarkMode, action: () => {
-          setIsDarkMode(!isDarkMode);
-          document.documentElement.classList.toggle('dark');
-          toast.info(`Dark mode ${isDarkMode ? 'disabled' : 'enabled'}`);
-        } },
+        {
+          label: "Dark Mode", icon: Moon, checked: isDarkMode, action: () => {
+            setIsDarkMode(!isDarkMode);
+            document.documentElement.classList.toggle('dark');
+            toast.info(`Dark mode ${isDarkMode ? 'disabled' : 'enabled'}`);
+          }
+        },
         { label: "Layout View", icon: LayoutTemplate, action: () => toast.info('Switched to layout view') },
       ]
     },
-    { 
-      label: "Insert", 
+    {
+      label: "Insert",
       items: [
         { label: "Page Break", icon: Minus, action: () => handleInsertAction('page_break') },
         { label: "Section Break", icon: Split, action: insertSectionBreak },
@@ -1549,14 +1688,20 @@ export const EditorToolbar = ({
         { type: "separator" },
         { label: "Image", icon: ImageIcon, action: () => handleInsertAction('image') },
         { label: "Crop Image", icon: Crop, action: openImageCropper },
-        { label: "Table", icon: TableIcon, action: () => {
-          if (isInsideTable()) {
-            // Show table tools dropdown
-            toast.info('Inside table - use More Options menu for table tools');
-          } else {
-            addTable();
-          }
-        }},
+        {
+          label: "Table",
+          icon: TableIcon,
+          customSubmenu: (
+            <TableGridSelector onSelect={(rows, cols) => {
+              if (isInsideTable()) {
+                toast.info('Already inside a table');
+              } else {
+                addTable(rows, cols);
+              }
+            }} />
+          ),
+          action: () => { } // No-op for the trigger itself
+        },
         { label: "Advanced Table", icon: Table2, action: () => toast.info('Advanced table dialog') },
         { label: "Link", icon: Link, shortcut: "Ctrl+K", action: () => handleInsertAction('link') },
         { label: "Bookmark", icon: Bookmark, action: () => toast.info('Insert bookmark dialog') },
@@ -1573,16 +1718,18 @@ export const EditorToolbar = ({
         { label: "Equation", icon: Calculator, action: () => handleInsertAction('equation') },
         { label: "Field", icon: Hash, action: () => toast.info('Insert field dialog') },
         { type: "separator" },
-        { 
-          label: "Blocks", 
+        {
+          label: "Blocks",
           icon: Square,
           submenu: [
             { label: "Code Block", icon: Code, action: () => handleInsertAction('code_block') },
             { label: "Quote", icon: Quote, action: () => handleInsertAction('quote') },
-            { label: "Horizontal Line", icon: Minus, action: () => {
-              editor?.chain().focus().setHorizontalRule().run();
-              toast.success("Horizontal line inserted");
-            } },
+            {
+              label: "Horizontal Line", icon: Minus, action: () => {
+                editor?.chain().focus().setHorizontalRule().run();
+                toast.success("Horizontal line inserted");
+              }
+            },
             { label: "Text Box", icon: Circle, action: () => toast.info('Text box inserted') },
             { label: "Shape", icon: Circle, action: () => toast.info('Shape gallery') },
             { label: "Chart", icon: BarChart, action: () => toast.info('Chart dialog') },
@@ -1591,11 +1738,11 @@ export const EditorToolbar = ({
         },
       ]
     },
-    { 
-      label: "Format", 
+    {
+      label: "Format",
       items: [
-        { 
-          label: "Font", 
+        {
+          label: "Font",
           icon: Type,
           submenu: [
             { label: "Bold", icon: Bold, shortcut: "Ctrl+B", action: () => handleFormatAction('bold') },
@@ -1611,8 +1758,8 @@ export const EditorToolbar = ({
             { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearAllFormatting },
           ]
         },
-        { 
-          label: "Paragraph", 
+        {
+          label: "Paragraph",
           icon: Text,
           submenu: [
             { label: "Heading 1", icon: Heading, shortcut: "Ctrl+Alt+1", action: () => handleHeadingChange(1) },
@@ -1626,10 +1773,11 @@ export const EditorToolbar = ({
             { label: "Bullet List", icon: List, action: () => toggleBulletList() },
             { label: "Numbered List", icon: ListOrdered, action: () => toggleOrderedList() },
             { label: "Task List", icon: ListChecks, action: () => toggleTaskList() },
-            { label: "Multilevel List", icon: ListChecks, action: () => {
-              if (editor) {
-                // Create a sample multilevel list structure
-                const multilevelList = `
+            {
+              label: "Multilevel List", icon: ListChecks, action: () => {
+                if (editor) {
+                  // Create a sample multilevel list structure
+                  const multilevelList = `
                   <ol>
                     <li>First level item
                       <ol>
@@ -1644,10 +1792,11 @@ export const EditorToolbar = ({
                     <li>Another first level item</li>
                   </ol>
                 `;
-                editor.chain().focus().insertContent(multilevelList).run();
-                toast.success('Multilevel list inserted');
+                  editor.chain().focus().insertContent(multilevelList).run();
+                  toast.success('Multilevel list inserted');
+                }
               }
-            } },
+            },
             { type: "separator" },
             { label: "Align Left", icon: AlignLeft, action: () => setTextAlign('left') },
             { label: "Align Center", icon: AlignCenter, action: () => setTextAlign('center') },
@@ -1657,64 +1806,68 @@ export const EditorToolbar = ({
             { label: "Increase Indent", icon: IndentIncrease, action: indent },
             { label: "Decrease Indent", icon: IndentDecrease, action: outdent },
             { type: "separator" },
-            { label: "Line Spacing", icon: Rows, action: () => {
-              if (editor) {
-                // Show line spacing options
-                const spacingOptions = [
-                  { label: 'Single', value: 1 },
-                  { label: '1.15', value: 1.15 },
-                  { label: '1.5', value: 1.5 },
-                  { label: 'Double', value: 2 }
-                ];
-                
-                const selectedSpacing = prompt(
-                  'Select line spacing:\n' + 
-                  spacingOptions.map(opt => `${opt.label}: ${opt.value}`).join('\n') + 
-                  '\n\nEnter value (e.g., 1.5):',
-                  '1.15'
-                );
-                
-                if (selectedSpacing && !isNaN(parseFloat(selectedSpacing))) {
-                  const spacingValue = parseFloat(selectedSpacing);
-                  setLineSpacing(spacingValue);
-                  
-                  // Apply line height to current paragraph
-                  editor.chain().focus().setLineHeight(spacingValue).run();
-                  toast.success(`Line spacing set to ${spacingValue}`);
+            {
+              label: "Line Spacing", icon: Rows, action: () => {
+                if (editor) {
+                  // Show line spacing options
+                  const spacingOptions = [
+                    { label: 'Single', value: 1 },
+                    { label: '1.15', value: 1.15 },
+                    { label: '1.5', value: 1.5 },
+                    { label: 'Double', value: 2 }
+                  ];
+
+                  const selectedSpacing = prompt(
+                    'Select line spacing:\n' +
+                    spacingOptions.map(opt => `${opt.label}: ${opt.value}`).join('\n') +
+                    '\n\nEnter value (e.g., 1.5):',
+                    '1.15'
+                  );
+
+                  if (selectedSpacing && !isNaN(parseFloat(selectedSpacing))) {
+                    const spacingValue = parseFloat(selectedSpacing);
+                    setLineSpacing(spacingValue);
+
+                    // Apply line height to current paragraph
+                    editor.chain().focus().setLineHeight(spacingValue).run();
+                    toast.success(`Line spacing set to ${spacingValue}`);
+                  }
                 }
               }
-            } },
-            { label: "Paragraph Spacing", icon: Rows, action: () => {
-              if (editor) {
-                const beforeSpacing = prompt('Paragraph spacing before (points):', '0');
-                const afterSpacing = prompt('Paragraph spacing after (points):', '0');
-                
-                if (beforeSpacing !== null && afterSpacing !== null) {
-                  const beforeValue = parseInt(beforeSpacing) || 0;
-                  const afterValue = parseInt(afterSpacing) || 0;
-                  
-                  // Apply paragraph spacing using custom styles
-                  const spacingHTML = `
+            },
+            {
+              label: "Paragraph Spacing", icon: Rows, action: () => {
+                if (editor) {
+                  const beforeSpacing = prompt('Paragraph spacing before (points):', '0');
+                  const afterSpacing = prompt('Paragraph spacing after (points):', '0');
+
+                  if (beforeSpacing !== null && afterSpacing !== null) {
+                    const beforeValue = parseInt(beforeSpacing) || 0;
+                    const afterValue = parseInt(afterSpacing) || 0;
+
+                    // Apply paragraph spacing using custom styles
+                    const spacingHTML = `
                     <p style="margin-top: ${beforeValue}px; margin-bottom: ${afterValue}px;">
                       ${editor.state.doc.textBetween(
-                        editor.state.selection.from,
-                        editor.state.selection.to,
-                        ' '
-                      ) || 'Paragraph with custom spacing'}
+                      editor.state.selection.from,
+                      editor.state.selection.to,
+                      ' '
+                    ) || 'Paragraph with custom spacing'}
                     </p>
                   `;
-                  
-                  editor.chain().focus().insertContent(spacingHTML).run();
-                  toast.success(`Paragraph spacing set: ${beforeValue}pt before, ${afterValue}pt after`);
+
+                    editor.chain().focus().insertContent(spacingHTML).run();
+                    toast.success(`Paragraph spacing set: ${beforeValue}pt before, ${afterValue}pt after`);
+                  }
                 }
               }
-            } },
+            },
             { label: "Keep Lines Together", icon: AlignCenter, action: () => toast.info('Keep lines together toggled') },
             { label: "Page Break Before", icon: CornerDownLeft, action: () => toast.info('Page break before applied') },
           ]
         },
-        { 
-          label: "Styles", 
+        {
+          label: "Styles",
           icon: Type,
           submenu: [
             { label: "Clear All Formatting", icon: RemoveFormatting, action: clearAllFormatting },
@@ -1723,8 +1876,8 @@ export const EditorToolbar = ({
             { label: "Style Inspector", icon: Eye, action: () => toast.info('Style inspector panel') },
           ]
         },
-        { 
-          label: "Page Layout", 
+        {
+          label: "Page Layout",
           icon: LayoutTemplate,
           submenu: [
             { label: "Margins", icon: Columns, action: () => setShowFormatMenu('margins') },
@@ -1742,19 +1895,23 @@ export const EditorToolbar = ({
         { label: "Change Case", icon: Type, action: () => toast.info('Change case dialog') },
       ]
     },
-    { 
-      label: "Tools", 
+    {
+      label: "Tools",
       items: [
-        { label: "Spelling & Grammar", icon: SpellCheck, checked: spellCheckEnabled, action: () => {
-          setSpellCheckEnabled(!spellCheckEnabled);
-          toast.info(`Spell check ${spellCheckEnabled ? 'disabled' : 'enabled'}`);
-        } },
-        { label: "Word Count", icon: Hash, action: () => {
-          const text = editor.getText();
-          const words = text.trim().split(/\s+/).filter(Boolean).length;
-          const chars = text.length;
-          toast.info(`Words: ${words}, Characters: ${chars}`);
-        } },
+        {
+          label: "Spelling & Grammar", icon: SpellCheck, checked: spellCheckEnabled, action: () => {
+            setSpellCheckEnabled(!spellCheckEnabled);
+            toast.info(`Spell check ${spellCheckEnabled ? 'disabled' : 'enabled'}`);
+          }
+        },
+        {
+          label: "Word Count", icon: Hash, action: () => {
+            const text = editor.getText();
+            const words = text.trim().split(/\s+/).filter(Boolean).length;
+            const chars = text.length;
+            toast.info(`Words: ${words}, Characters: ${chars}`);
+          }
+        },
         { label: "Language", icon: Languages, action: () => toast.info('Language settings') },
         { label: "Thesaurus", icon: FileText, action: () => toast.info('Thesaurus panel') },
         { label: "Dictionary", icon: FileText, action: () => toast.info('Dictionary panel') },
@@ -1771,42 +1928,42 @@ export const EditorToolbar = ({
         { label: "AutoCorrect Options", icon: Wand2, action: () => toast.info('AutoCorrect options') },
       ]
     },
-    { 
-      label: "AI Assistant", 
+    {
+      label: "AI Assistant",
       items: [
-        { 
-          label: "Generate Document", 
+        {
+          label: "Generate Document",
           icon: Sparkles,
           action: () => setShowAIDocumentGenerator(true)
         },
-        { 
-          label: "Inline AI Actions", 
+        {
+          label: "Inline AI Actions",
           icon: Wand2,
           action: () => setShowAIInlineActions(true)
         },
-        { 
-          label: "Code Assistant", 
+        {
+          label: "Code Assistant",
           icon: Code,
           action: () => setShowCodeAssistant(true)
         },
         { type: "separator" },
-        { 
-          label: "AI Settings", 
+        {
+          label: "AI Settings",
           icon: Settings,
           action: () => toast.info('AI Settings dialog')
         },
-        { 
-          label: "AI History", 
+        {
+          label: "AI History",
           icon: History,
           action: () => toast.info('AI History panel')
         },
       ]
     },
-    { 
-      label: "Help", 
+    {
+      label: "Help",
       items: [
         { label: "Help Center", icon: HelpCircle, action: () => window.open('https://help.example.com', '_blank') },
-        { label: "Keyboard Shortcuts", icon: Keyboard, shortcut: "Ctrl+/", action: () => toast.info('Keyboard shortcuts dialog would appear here') },
+        { label: "Keyboard Shortcuts", icon: Keyboard, shortcut: "Ctrl+/", action: () => setShowShortcutsDialog(true) },
         { label: "Check for Updates", icon: Download, action: () => toast.info('Checking for updates...') },
         { label: "About", icon: Info, action: () => toast.info('Athena Editor v2.0.0\n© 2024 Athena Software') },
       ]
@@ -1832,7 +1989,21 @@ export const EditorToolbar = ({
                 if (menuItem.type === "separator") {
                   return <DropdownMenuSeparator key={`sep-${index}`} />
                 }
-                
+
+                if (menuItem.customSubmenu) {
+                  return (
+                    <DropdownMenuSub key={`sub-${index}`}>
+                      <DropdownMenuSubTrigger className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200">
+                        {menuItem.icon && <menuItem.icon className="w-4 h-4 mr-2" />}
+                        {menuItem.label}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="p-0 bg-white">
+                        {menuItem.customSubmenu}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  );
+                }
+
                 if (menuItem.submenu) {
                   return (
                     <DropdownMenuSub key={`sub-${index}`}>
@@ -1845,7 +2016,7 @@ export const EditorToolbar = ({
                           if (subItem.type === "separator") {
                             return <DropdownMenuSeparator key={`sub-sep-${subIndex}`} />
                           }
-                          
+
                           if ('checked' in subItem) {
                             return (
                               <DropdownMenuCheckboxItem
@@ -1862,7 +2033,7 @@ export const EditorToolbar = ({
                               </DropdownMenuCheckboxItem>
                             )
                           }
-                          
+
                           return (
                             <DropdownMenuItem
                               key={`sub-${subIndex}`}
@@ -1881,7 +2052,7 @@ export const EditorToolbar = ({
                     </DropdownMenuSub>
                   )
                 }
-                
+
                 if ('checked' in menuItem) {
                   return (
                     <DropdownMenuCheckboxItem
@@ -1898,7 +2069,7 @@ export const EditorToolbar = ({
                     </DropdownMenuCheckboxItem>
                   )
                 }
-                
+
                 return (
                   <DropdownMenuItem
                     key={index}
@@ -2013,8 +2184,8 @@ export const EditorToolbar = ({
             <Search className="w-5 h-5 text-blue-600" />
           </ToolbarButton>
 
-          <ToolbarButton 
-            onClick={handlePrint} 
+          <ToolbarButton
+            onClick={handlePrint}
             tooltip="Print (Ctrl+P)"
             className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
           >
@@ -2059,14 +2230,15 @@ export const EditorToolbar = ({
         >
           <Redo className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
 
         {/* Font Controls */}
-        <select 
+        <select
           value={currentFont}
           onChange={(e) => setFontFamily(e.target.value)}
           className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 min-w-[120px] hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
+          style={{ fontFamily: currentFont }}
         >
           {FONTS.map(font => (
             <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -2074,8 +2246,8 @@ export const EditorToolbar = ({
             </option>
           ))}
         </select>
-        
-        <select 
+
+        <select
           value={currentFontSize}
           onChange={(e) => setCurrentFontSize(parseInt(e.target.value))}
           className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 w-16 hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
@@ -2084,8 +2256,8 @@ export const EditorToolbar = ({
             <option key={size} value={size}>{size}</option>
           ))}
         </select>
-        
-        <select 
+
+        <select
           value={activeHeadingLevel || 0}
           onChange={(e) => handleHeadingChange(parseInt(e.target.value))}
           className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 w-20 hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
@@ -2098,7 +2270,7 @@ export const EditorToolbar = ({
           <option value={5}>H5</option>
           <option value={6}>H6</option>
         </select>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
 
         {/* Basic Formatting */}
@@ -2134,7 +2306,7 @@ export const EditorToolbar = ({
         >
           <Strikethrough className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
 
         {/* Text Color Dropdown */}
@@ -2165,7 +2337,7 @@ export const EditorToolbar = ({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-        
+
         {/* Highlight Color Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -2194,57 +2366,53 @@ export const EditorToolbar = ({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
 
         {/* Lists Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={`h-9 w-9 rounded-lg transition-all duration-300 ${
-                (editor.isActive("bulletList") || editor.isActive("orderedList") || editor.isActive("taskList")) 
-                  ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300" 
-                  : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
-              }`}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-9 w-9 rounded-lg transition-all duration-300 ${(editor.isActive("bulletList") || editor.isActive("orderedList") || editor.isActive("taskList"))
+                ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300"
+                : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+                }`}
             >
               <List className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48 bg-white z-[100] shadow-lg border border-gray-200 rounded-md p-1">
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Numbered list selected');
                 toggleOrderedList();
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive("orderedList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("orderedList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <ListOrdered className="w-4 h-4 mr-2" />
               Numbered List {editor.isActive("orderedList") && "✓"}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Bullet list selected');
                 toggleBulletList();
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive("bulletList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("bulletList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <List className="w-4 h-4 mr-2" />
               Bullet List {editor.isActive("bulletList") && "✓"}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Task list selected');
                 toggleTaskList();
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive("taskList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("taskList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <ListChecks className="w-4 h-4 mr-2" />
               Task List {editor.isActive("taskList") && "✓"}
@@ -2252,78 +2420,73 @@ export const EditorToolbar = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
-        
+
         {/* Text Alignment Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={`h-9 w-9 rounded-lg transition-all duration-300 ${
-                (editor.isActive({ textAlign: 'left' }) || editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }))
-                  ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300" 
-                  : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
-              }`}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-9 w-9 rounded-lg transition-all duration-300 ${(editor.isActive({ textAlign: 'left' }) || editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }))
+                ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300"
+                : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+                }`}
             >
               <AlignLeft className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48 bg-white z-[100] shadow-lg border border-gray-200 rounded-md p-1">
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Align left selected');
                 setTextAlign('left');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive({ textAlign: 'left' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'left' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <AlignLeft className="w-4 h-4 mr-2" />
               Align Left {editor.isActive({ textAlign: 'left' }) && "✓"}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Align center selected');
                 setTextAlign('center');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive({ textAlign: 'center' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'center' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <AlignCenter className="w-4 h-4 mr-2" />
               Align Center {editor.isActive({ textAlign: 'center' }) && "✓"}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Align right selected');
                 setTextAlign('right');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive({ textAlign: 'right' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'right' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <AlignRight className="w-4 h-4 mr-2" />
               Align Right {editor.isActive({ textAlign: 'right' }) && "✓"}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => {
                 console.log('Justify selected');
                 setTextAlign('justify');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${
-                editor.isActive({ textAlign: 'justify' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-              }`}
+              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'justify' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+                }`}
             >
               <AlignJustify className="w-4 h-4 mr-2" />
               Justify {editor.isActive({ textAlign: 'justify' }) && "✓"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
-        
+
         {/* Indentation */}
         <ToolbarButton
           onClick={indent}
@@ -2339,9 +2502,9 @@ export const EditorToolbar = ({
         >
           <ArrowLeftToLine className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
-        
+
         {/* Quick Insert */}
         <ToolbarButton
           onClick={() => {
@@ -2356,7 +2519,7 @@ export const EditorToolbar = ({
                 // Process each selected file
                 for (const file of files) {
                   const reader = new FileReader();
-                  
+
                   reader.onload = (readerEvent) => {
                     const imageDataUrl = readerEvent.target?.result;
                     if (imageDataUrl && typeof imageDataUrl === 'string') {
@@ -2366,7 +2529,7 @@ export const EditorToolbar = ({
                         editor
                           .chain()
                           .focus()
-                          .setResizableImage({ 
+                          .setResizableImage({
                             src: imageDataUrl,
                             alt: file.name,
                             title: file.name
@@ -2376,7 +2539,7 @@ export const EditorToolbar = ({
                         editor
                           .chain()
                           .focus()
-                          .setImage({ 
+                          .setImage({
                             src: imageDataUrl,
                             alt: file.name,
                             title: file.name
@@ -2386,11 +2549,11 @@ export const EditorToolbar = ({
                       toast.success(`Image ${file.name} inserted successfully`);
                     }
                   };
-                  
+
                   reader.onerror = () => {
                     toast.error(`Failed to read image ${file.name}`);
                   };
-                  
+
                   reader.readAsDataURL(file);
                 }
               }
@@ -2402,7 +2565,7 @@ export const EditorToolbar = ({
         >
           <ImageIcon className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <ToolbarButton
           onClick={() => {
             if (setIsTemplateSidebarOpen) {
@@ -2416,7 +2579,7 @@ export const EditorToolbar = ({
         >
           <LayoutTemplate className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <ToolbarButton
           onClick={() => handleInsertAction('link')}
           tooltip="Insert Link"
@@ -2424,19 +2587,36 @@ export const EditorToolbar = ({
         >
           <Link className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => handleInsertAction('table')}
-          tooltip={isInsideTable() ? "Table Tools (Click for options)" : "Insert Table"}
-          isActive={isInsideTable()}
-          className={`rounded-lg transition-all duration-300 ${
-            isInsideTable() 
-              ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700" 
-              : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
-          }`}
-        >
-          <TableIcon className={`w-4 h-4 ${isInsideTable() ? "text-white" : "text-blue-600"}`} />
-        </ToolbarButton>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`rounded-lg transition-all duration-300 h-9 w-9 p-0 ${isInsideTable()
+                ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+                : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+                }`}
+            >
+              <TableIcon className={`w-4 h-4 ${isInsideTable() ? "text-white" : "text-blue-600"}`} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="p-0 bg-white" align="start">
+            {isInsideTable() ? (
+              <div className="p-1 min-w-[180px]">
+                <DropdownMenuLabel className="text-xs">Table Tools</DropdownMenuLabel>
+                <DropdownMenuItem onClick={addTableRow} className="gap-2"><Rows className="w-4 h-4" /> Add Row</DropdownMenuItem>
+                <DropdownMenuItem onClick={addTableColumn} className="gap-2"><Columns className="w-4 h-4" /> Add Column</DropdownMenuItem>
+                <DropdownMenuItem onClick={deleteTableRow} className="gap-2 text-red-600"><Minus className="w-4 h-4" /> Delete Row</DropdownMenuItem>
+                <DropdownMenuItem onClick={deleteTableColumn} className="gap-2 text-red-600"><Minus className="w-4 h-4" /> Delete Column</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={deleteTable} className="gap-2 text-red-600"><Trash2 className="w-4 h-4" /> Delete Table</DropdownMenuItem>
+              </div>
+            ) : (
+              <TableGridSelector onSelect={(rows, cols) => addTable(rows, cols)} />
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Code Block with Configuration Dropdown */}
         <div className="relative">
@@ -2451,23 +2631,23 @@ export const EditorToolbar = ({
             </ToolbarButton>
             <DropdownMenu open={showCodeBlockMenu} onOpenChange={setShowCodeBlockMenu}>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="h-8 w-6 rounded-l-none bg-transparent hover:bg-blue-200 hover:text-blue-700 transition-all duration-200 border-l border-blue-300"
                   onClick={() => setShowCodeBlockMenu(!showCodeBlockMenu)}
                 >
                   <ChevronDown className="w-3 h-3 text-blue-600" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                className="w-64 bg-white border border-blue-200 rounded-lg shadow-lg p-2" 
+              <DropdownMenuContent
+                className="w-64 bg-white border border-blue-200 rounded-lg shadow-lg p-2"
                 align="start"
                 side="bottom"
               >
                 <div className="px-2 py-1">
                   <h3 className="text-sm font-semibold text-gray-800 mb-2">Code Block Configuration</h3>
-                  
+
                   {/* Language Selection */}
                   <div className="mb-3">
                     <label className="block text-xs font-medium text-gray-600 mb-1">Language</label>
@@ -2476,34 +2656,32 @@ export const EditorToolbar = ({
                         <button
                           key={lang}
                           onClick={() => insertCodeBlockWithLanguage(lang)}
-                          className={`text-xs px-2 py-1 rounded text-left transition-all duration-200 ${
-                            selectedCodeLanguage === lang
-                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-                              : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200 hover:border hover:border-blue-300'
-                          }`}
+                          className={`text-xs px-2 py-1 rounded text-left transition-all duration-200 ${selectedCodeLanguage === lang
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                            : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200 hover:border hover:border-blue-300'
+                            }`}
                         >
                           {lang.charAt(0).toUpperCase() + lang.slice(1)}
                         </button>
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Execution Controls */}
                   <div className="pt-2 border-t border-blue-200">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-medium text-gray-600">Execution Context</span>
                       <button
                         onClick={toggleCodeExecution}
-                        className={`text-xs px-2 py-1 rounded transition-all duration-200 ${
-                          codeExecutionEnabled
-                            ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-                            : 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700'
-                        }`}
+                        className={`text-xs px-2 py-1 rounded transition-all duration-200 ${codeExecutionEnabled
+                          ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                          : 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700'
+                          }`}
                       >
                         {codeExecutionEnabled ? 'ON' : 'OFF'}
                       </button>
                     </div>
-                    
+
                     {codeExecutionEnabled && (
                       <button
                         onClick={executeCodeBlock}
@@ -2514,10 +2692,10 @@ export const EditorToolbar = ({
                         Execute Code Block
                       </button>
                     )}
-                    
+
                     <p className="text-xs text-gray-500 mt-2 italic">
-                      {codeExecutionEnabled 
-                        ? 'Code execution enabled (simulated in dev mode)' 
+                      {codeExecutionEnabled
+                        ? 'Code execution enabled (simulated in dev mode)'
                         : 'Enable execution to run code snippets'
                       }
                     </p>
@@ -2536,9 +2714,9 @@ export const EditorToolbar = ({
         >
           <Quote className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
-        
+
         {/* AI Tools */}
         <ToolbarButton
           onClick={() => setShowAIDocumentGenerator(true)}
@@ -2563,9 +2741,9 @@ export const EditorToolbar = ({
         >
           <Code2 className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-        
+
         <Separator orientation="vertical" className="mx-2 h-5" />
-        
+
         {/* More Options */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -2683,10 +2861,10 @@ export const EditorToolbar = ({
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Hidden file input */}
       {hiddenFileInput}
-      
+
       {/* AI Document Generator Dialog */}
       <Dialog open={showAIDocumentGenerator} onOpenChange={setShowAIDocumentGenerator}>
         <DialogContent className="max-w-2xl bg-white">
@@ -2696,7 +2874,7 @@ export const EditorToolbar = ({
               Provide the details below and AI will generate a complete structured document.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="topic">Document Topic *</Label>
@@ -2707,7 +2885,7 @@ export const EditorToolbar = ({
                 onChange={(e) => setDocumentTopic(e.target.value)}
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pages">Number of Pages</Label>
@@ -2722,7 +2900,7 @@ export const EditorToolbar = ({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="tone">Tone</Label>
                 <Select value={documentTone} onValueChange={setDocumentTone}>
@@ -2737,7 +2915,7 @@ export const EditorToolbar = ({
                 </Select>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="type">Document Type</Label>
               <Select value={documentType} onValueChange={setDocumentType}>
@@ -2756,7 +2934,7 @@ export const EditorToolbar = ({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="additionalInstructions">Additional Instructions (Optional)</Label>
               <Textarea
@@ -2766,53 +2944,62 @@ export const EditorToolbar = ({
               />
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAIDocumentGenerator(false)}>
+            <Button variant="outline" onClick={() => setShowAIDocumentGenerator(false)} disabled={isGenerating}>
               Cancel
             </Button>
-            <Button onClick={handleGenerateDocument} className="bg-gradient-to-r from-purple-600 to-blue-600">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generate Document
+            <Button onClick={handleGenerateDocument} disabled={isGenerating} className="bg-gradient-to-r from-purple-600 to-blue-600">
+              {isGenerating ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Document
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* AI Inline Actions */}
-      <AIInlineActions 
-        open={showAIInlineActions} 
+      <AIInlineActions
+        open={showAIInlineActions}
         onOpenChange={setShowAIInlineActions}
         onAction={handleAIInlineAction}
         selectedText={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
       />
-      
+
       {/* Code Assistant */}
-      <CodeAssistant 
-        open={showCodeAssistant} 
+      <CodeAssistant
+        open={showCodeAssistant}
         onOpenChange={setShowCodeAssistant}
         onAction={handleCodeAssistant}
         selectedCode={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
       />
-      
+
       {/* Image Cropping Dialog */}
-      
+
       <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>Crop Image</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {selectedImage && (
               <div className="relative">
-                <img 
-                  src={selectedImage} 
-                  alt="Image to crop" 
+                <img
+                  src={selectedImage}
+                  alt="Image to crop"
                   className="max-w-full max-h-[50vh] block mx-auto"
                   style={{ maxWidth: '100%', maxHeight: '50vh' }}
                 />
-                
+
                 {/* Crop overlay - simplified visualization */}
                 <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-blue-500"
                   style={{
@@ -2825,7 +3012,7 @@ export const EditorToolbar = ({
                 </div>
               </div>
             )}
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">X Position</label>
@@ -2834,12 +3021,12 @@ export const EditorToolbar = ({
                   min="0"
                   max={imageDimensions.width}
                   value={cropArea.x}
-                  onChange={(e) => setCropArea({...cropArea, x: parseInt(e.target.value)})}
+                  onChange={(e) => setCropArea({ ...cropArea, x: parseInt(e.target.value) })}
                   className="w-full"
                 />
                 <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.x)}px</div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">Y Position</label>
                 <Input
@@ -2847,12 +3034,12 @@ export const EditorToolbar = ({
                   min="0"
                   max={imageDimensions.height}
                   value={cropArea.y}
-                  onChange={(e) => setCropArea({...cropArea, y: parseInt(e.target.value)})}
+                  onChange={(e) => setCropArea({ ...cropArea, y: parseInt(e.target.value) })}
                   className="w-full"
                 />
                 <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.y)}px</div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">Width</label>
                 <Input
@@ -2860,12 +3047,12 @@ export const EditorToolbar = ({
                   min="50"
                   max={imageDimensions.width - cropArea.x}
                   value={cropArea.width}
-                  onChange={(e) => setCropArea({...cropArea, width: parseInt(e.target.value)})}
+                  onChange={(e) => setCropArea({ ...cropArea, width: parseInt(e.target.value) })}
                   className="w-full"
                 />
                 <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.width)}px</div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">Height</label>
                 <Input
@@ -2873,31 +3060,31 @@ export const EditorToolbar = ({
                   min="50"
                   max={imageDimensions.height - cropArea.y}
                   value={cropArea.height}
-                  onChange={(e) => setCropArea({...cropArea, height: parseInt(e.target.value)})}
+                  onChange={(e) => setCropArea({ ...cropArea, height: parseInt(e.target.value) })}
                   className="w-full"
                 />
                 <div className="text-sm text-gray-500 mt-1">{Math.round(cropArea.height)}px</div>
               </div>
             </div>
-            
+
             <div className="text-sm text-gray-600">
               Selected area: {Math.round(cropArea.width)} × {Math.round(cropArea.height)} pixels
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={cancelCrop}>Cancel</Button>
             <Button onClick={applyCrop}>Apply Crop</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
         <DialogContent className="max-w-md bg-white">
           <DialogHeader>
             <DialogTitle>Insert Image</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div>
               <label className="block text-sm font-medium mb-2">Insert from Web</label>
@@ -2908,7 +3095,7 @@ export const EditorToolbar = ({
                   onChange={(e) => setLinkUrl(e.target.value)}
                   className="flex-1"
                 />
-                <Button 
+                <Button
                   onClick={() => {
                     if (linkUrl && editor) {
                       editor
@@ -2927,7 +3114,7 @@ export const EditorToolbar = ({
                 </Button>
               </div>
             </div>
-            
+
             <div className="relative">
               <label className="block text-sm font-medium mb-2">Upload from Local Storage</label>
               <Input
@@ -2937,12 +3124,12 @@ export const EditorToolbar = ({
                 className="cursor-pointer"
               />
             </div>
-            
+
             <div className="text-xs text-gray-500 mt-2">
               Supported formats: JPG, PNG, GIF, WEBP
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setShowImageDialog(false);
@@ -2953,7 +3140,7 @@ export const EditorToolbar = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="max-w-md bg-white">
@@ -2963,22 +3150,21 @@ export const EditorToolbar = ({
               Select the format to export your document
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <div className="text-center mb-4">
               <div className="text-lg font-semibold">{exportFormat ? exportFormat.toUpperCase() : 'SELECT FORMAT'}</div>
               <div className="text-sm text-gray-500">Ready to export</div>
             </div>
-            
+
             <div className="space-y-2">
               {EXPORT_FORMATS.map((format) => (
-                <div 
+                <div
                   key={format.value}
-                  className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${
-                    exportFormat === format.value 
-                      ? 'bg-blue-100 border-2 border-blue-500' 
-                      : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
-                  }`}
+                  className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${exportFormat === format.value
+                    ? 'bg-blue-100 border-2 border-blue-500'
+                    : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                    }`}
                   onClick={() => setExportFormat(format.value)}
                 >
                   <format.icon className="w-5 h-5 mr-3 text-blue-600" />
@@ -2987,10 +3173,10 @@ export const EditorToolbar = ({
               ))}
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowExportDialog(false);
                 setExportFormat('');
@@ -2998,7 +3184,7 @@ export const EditorToolbar = ({
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 // Trigger export based on the selected format
                 if (onExport && typeof onExport === 'function') {
@@ -3021,7 +3207,7 @@ export const EditorToolbar = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Code Block Configuration Dialog */}
       <Dialog open={showCodeBlockConfigDialog} onOpenChange={setShowCodeBlockConfigDialog}>
         <DialogContent className="max-w-md bg-white">
@@ -3034,7 +3220,7 @@ export const EditorToolbar = ({
               Configure advanced settings for your code blocks
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             {/* Language Selection */}
             <div className="space-y-2">
@@ -3052,7 +3238,7 @@ export const EditorToolbar = ({
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Theme Selection */}
             <div className="space-y-2">
               <Label>Code Theme</Label>
@@ -3068,75 +3254,73 @@ export const EditorToolbar = ({
                   <button
                     key={theme.value}
                     onClick={() => updateCodeBlockTheme(theme.value)}
-                    className={`text-xs px-3 py-2 rounded transition-all duration-200 ${
-                      codeTheme === theme.value 
-                        ? 'ring-2 ring-blue-500 ring-offset-2' 
-                        : ''
-                    } ${
-                      theme.value === 'default' ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200' :
-                      theme.value === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800' :
-                      theme.value === 'light' ? 'bg-gradient-to-r from-white to-gray-50 text-gray-800 hover:from-gray-50 hover:to-white border' :
-                      theme.value === 'monokai' ? 'bg-gradient-to-r from-purple-900 to-indigo-900 text-purple-200 hover:from-purple-800 hover:to-indigo-800' :
-                      theme.value === 'github' ? 'bg-gradient-to-r from-gray-100 to-white text-gray-800 hover:from-gray-200 hover:to-gray-50' :
-                      theme.value === 'solarized' ? 'bg-gradient-to-r from-amber-50 to-yellow-100 text-amber-800 hover:from-amber-100 hover:to-yellow-200' :
-                      'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'
-                    }`}
+                    className={`text-xs px-3 py-2 rounded transition-all duration-200 ${codeTheme === theme.value
+                      ? 'ring-2 ring-blue-500 ring-offset-2'
+                      : ''
+                      } ${theme.value === 'default' ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200' :
+                        theme.value === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800' :
+                          theme.value === 'light' ? 'bg-gradient-to-r from-white to-gray-50 text-gray-800 hover:from-gray-50 hover:to-white border' :
+                            theme.value === 'monokai' ? 'bg-gradient-to-r from-purple-900 to-indigo-900 text-purple-200 hover:from-purple-800 hover:to-indigo-800' :
+                              theme.value === 'github' ? 'bg-gradient-to-r from-gray-100 to-white text-gray-800 hover:from-gray-200 hover:to-gray-50' :
+                                theme.value === 'solarized' ? 'bg-gradient-to-r from-amber-50 to-yellow-100 text-amber-800 hover:from-amber-100 hover:to-yellow-200' :
+                                  'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'
+                      }`}
                   >
                     {theme.label}
                   </button>
                 ))}
               </div>
             </div>
-            
+
             {/* Display Options */}
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-gray-700">Display Options</h4>
-              
+
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2">
                   <span className="text-sm">Show Line Numbers</span>
                 </Label>
-                <Switch 
-                  checked={showLineNumbers} 
+                <Switch
+                  checked={showLineNumbers}
                   onCheckedChange={toggleLineNumbers}
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2">
                   <span className="text-sm">Wrap Long Lines</span>
                 </Label>
-                <Switch 
-                  checked={codeWrapEnabled} 
+                <Switch
+                  checked={codeWrapEnabled}
                   onCheckedChange={toggleCodeWrap}
                 />
               </div>
             </div>
-            
+
             {/* Execution Context */}
             <div className="space-y-3 pt-3 border-t border-gray-200">
               <h4 className="text-sm font-semibold text-gray-700">Execution Context</h4>
-              
+
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2">
                   <span className="text-sm">Enable Code Execution</span>
                   <span className="text-xs text-gray-500">(Development Mode)</span>
                 </Label>
-                <Switch 
-                  checked={codeExecutionEnabled} 
+                <Switch
+                  checked={codeExecutionEnabled}
                   onCheckedChange={toggleCodeExecution}
                 />
               </div>
-              
+
               <p className="text-xs text-gray-500">
-                {codeExecutionEnabled 
-                  ? 'Code execution is enabled for testing and development purposes' 
+                {codeExecutionEnabled
+                  ? 'Code execution is enabled for testing and development purposes'
                   : 'Enable to execute code snippets directly in the editor'
                 }
               </p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={resetCodeBlockConfiguration}>
               Reset Defaults
@@ -3150,7 +3334,7 @@ export const EditorToolbar = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Export Progress Toast */}
       <AnimatePresence>
         {exportProgressMessage && (
@@ -3162,7 +3346,7 @@ export const EditorToolbar = ({
           >
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
             <span>{exportProgressMessage}</span>
-            <button 
+            <button
               onClick={() => setExportProgressMessage('')}
               className="ml-2 text-white hover:text-gray-200"
             >
@@ -3171,6 +3355,36 @@ export const EditorToolbar = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Keyboard Shortcuts</DialogTitle>
+            <DialogDescription>
+              Boost your productivity with these shortcuts
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-900">Essentials</h4>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Save</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+S</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Print</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+P</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Find</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+F</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">New Doc</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+Alt+N</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Open</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+O</kbd></div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-900">Formatting</h4>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Bold</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+B</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Italic</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+I</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Underline</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+U</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Undo</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+Z</kbd></div>
+              <div className="text-sm flex justify-between"><span className="text-gray-600">Redo</span> <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300">Ctrl+Y</kbd></div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
