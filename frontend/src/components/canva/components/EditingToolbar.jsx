@@ -31,7 +31,12 @@ const EditingToolbar = ({
     onEraser,
     onFlip,
     onEffects,
-    onPosition
+
+    onPosition,
+    onToggleBackground,
+    isBgRemoved,
+    onStartCrop,
+    isCropping
 }) => {
     const [showFontDropdown, setShowFontDropdown] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -165,6 +170,15 @@ const EditingToolbar = ({
                         <FiCopy size={15} /> <span className="hidden lg:inline text-xs">Duplicate</span>
                     </button>
 
+                    <button
+                        onClick={onToggleBackground}
+                        className={`${btnOutline} ${isBgRemoved ? 'bg-red-50 border-red-200 text-red-600' : ''}`}
+                        title={isBgRemoved ? "Restore Background" : "Remove Background"}
+                    >
+                        <FiTrash2 size={15} />
+                        <span className="hidden lg:inline text-xs">{isBgRemoved ? "Restore BG" : "Remove BG"}</span>
+                    </button>
+
                     {isTextLayer && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                             {verticalDivider}
@@ -262,10 +276,8 @@ const EditingToolbar = ({
                     {isImageLayer && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                             {verticalDivider}
-                            <button onClick={onEdit} className={btnOutline}><FiEdit3 size={15} /><span className="text-xs">Edit</span></button>
-                            <button onClick={onEraser} className={btnOutline}><FiTrash2 size={15} /><span className="text-xs">Remove BG</span></button>
                             <button onClick={onFlip} className={btnOutline}><FiRotateCw size={15} /><span className="text-xs">Flip</span></button>
-                            <button onClick={() => handleToolSelect('crop')} className={selectedTool === 'crop' ? btnActive : btnOutline}><FiCrop size={15} /><span className="text-xs">Crop</span></button>
+                            <button onClick={onStartCrop} className={isCropping ? btnActive : btnOutline}><FiCrop size={15} /><span className="text-xs">Crop</span></button>
                         </div>
                     )}
 

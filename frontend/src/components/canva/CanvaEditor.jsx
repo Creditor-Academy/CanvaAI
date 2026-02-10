@@ -60,6 +60,7 @@ const CanvaEditor = () => {
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
   const [isHeading, setIsHeading] = useState(false);
+  const [tempBgState, setTempBgState] = useState(null);
 
   // Save/Export modal state
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -75,6 +76,7 @@ const CanvaEditor = () => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [cropState, setCropState] = useState(null);
 
   // Refs - store refs per page
   const canvasAreaRefs = useRef({});
@@ -1170,6 +1172,70 @@ const CanvaEditor = () => {
     setCanvasBgColor('transparent');
   }, [setCanvasBgImage, setCanvasBgColor]);
 
+  // Handle toggle background (Remove BG)
+  const handleToggleBackground = useCallback(() => {
+    if (tempBgState) {
+      // Restore previous background
+      setCanvasBgColor(tempBgState.color);
+      setCanvasBgImage(tempBgState.image);
+      setTempBgState(null);
+    } else {
+      // Save current background and set to white
+      setTempBgState({
+        color: canvasBgColor,
+        image: canvasBgImage
+      });
+      setCanvasBgColor('#ffffff');
+      setCanvasBgImage(null);
+    }
+  }, [canvasBgColor, canvasBgImage, tempBgState]);
+
+  // Crop handlers
+  const handleStartCrop = useCallback(() => {
+    if (!selectedLayer) return;
+    const layer = layers.find(l => l.id === selectedLayer);
+    if (layer && layer.type === 'image') {
+      setCropState({ layerId: selectedLayer });
+    }
+  }, [selectedLayer, layers]);
+
+  const handleApplyCrop = useCallback((cropRect) => {
+    if (!cropState) return;
+
+    const layer = layers.find(l => l.id === cropState.layerId);
+    if (!layer) return;
+
+    // Update layer with cropped dimensions
+    const newLayers = layers.map(l => {
+      if (l.id === cropState.layerId) {
+        return {
+          ...l,
+          x: l.x + cropRect.x,
+          y: l.y + cropRect.y,
+          width: cropRect.width,
+          height: cropRect.height
+        };
+      }
+      return l;
+    });
+
+    setLayers(newLayers);
+    saveToHistory(newLayers);
+
+    const layerId = cropState.layerId;
+    setCropState(null);
+    setSelectedLayer(null); // Explicitly clear selection first
+
+    // Re-select after a brief delay to force UI components to remount/refresh
+    setTimeout(() => {
+      setSelectedLayer(layerId);
+    }, 50);
+  }, [cropState, layers, setLayers, saveToHistory, setSelectedLayer]);
+
+  const handleCancelCrop = useCallback(() => {
+    setCropState(null);
+  }, []);
+
   // Return JSX
   return (
     <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden touch-none">
@@ -1274,6 +1340,10 @@ const CanvaEditor = () => {
           handleToolSelect={handleToolSelect}
           drawingSettings={drawingSettings}
           handleDrawingSettingsChange={handleDrawingSettingsChange}
+          onToggleBackground={handleToggleBackground}
+          isBgRemoved={!!tempBgState}
+          onStartCrop={handleStartCrop}
+          isCropping={!!cropState}
         />
 
         {/* Canvas Area - scrollable container with all pages */}
@@ -1339,6 +1409,9 @@ const CanvaEditor = () => {
                     onPageRemove={handlePageRemove}
                     canRemovePage={pages.length > 1}
                     alignmentGuides={isActivePage ? alignmentGuides : { x: [], y: [] }}
+                    cropState={isActivePage ? cropState : null}
+                    onApplyCrop={isActivePage ? handleApplyCrop : () => { }}
+                    onCancelCrop={isActivePage ? handleCancelCrop : () => { }}
                   />
                 </div>
               </div>

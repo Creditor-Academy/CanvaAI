@@ -3,6 +3,7 @@ import { FiRotateCw } from 'react-icons/fi'
 import { getFilterCSS, getShadowCSS, hexToRgba } from '../../../utils/styleUtils'
 import FloatingToolbar from '../FloatingToolbar'
 import { MdDeleteOutline } from "react-icons/md";
+import CropOverlay from './CropOverlay';
 
 const LayerComponent = memo(({
   layer, isSelected, selectedTool, getShapeDisplayProps, onLayerSelect,
@@ -330,7 +331,8 @@ const CanvasArea = ({
   getShapeDisplayProps, handleQuickColorChange, handleLayerDuplicate, handleLayerDelete,
   handleEnhanceText, isEnhancingText, getLayerPrimaryColor, setSelectedLayer,
   canvasBgColor = '#ffffff', canvasBgImage = null, handleUndo, handleRedo,
-  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] }
+  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] },
+  cropState = null, onApplyCrop, onCancelCrop
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -540,6 +542,19 @@ const CanvasArea = ({
               }}
             />
           )}
+
+          {/* Crop Overlay */}
+          {cropState !== null && cropState && selectedLayer && (() => {
+            const layer = layers.find(l => l.id === selectedLayer);
+            return layer && layer.type === 'image' && cropState.layerId === selectedLayer ? (
+              <CropOverlay
+                layer={layer}
+                onApply={onApplyCrop}
+                onCancel={onCancelCrop}
+                zoom={zoom}
+              />
+            ) : null;
+          })()}
         </div>
       </div>
     </div>
