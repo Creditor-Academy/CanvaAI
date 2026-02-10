@@ -37,6 +37,18 @@ const applyStylesToNodes = (nodes, styles) => {
   });
 };
 
+const applyMarkToAllLeaves = (content, property, value) => {
+  if (!content) return content;
+
+  return content.map(block => ({
+    ...block,
+    children: block.children ? block.children.map(child => ({
+      ...child,
+      [property]: value
+    })) : []
+  }));
+};
+
 /* =========================
    DEFAULT LAYOUT
 ========================= */
@@ -433,29 +445,33 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    applyGlobalTextStyle: (layerId, styles) => {
+    applyGlobalTextStyle: (layerId, style) => {
       get().saveToHistory();
-      const { slides, activeSlideId } = get();
 
-      set({
-        slides: slides.map((slide) =>
-          slide.id === activeSlideId
-            ? {
-              ...slide,
-              layers: slide.layers.map((layer) => {
-                if (layer.id === layerId && layer.type === "text") {
-                  // Merge styles into layer defaults AND content nodes
-                  return {
-                    ...layer,
-                    ...styles,
-                    content: applyStylesToNodes(layer.content || [], styles),
-                  };
-                }
-                return layer;
-              }),
+      set((state) => {
+        const slides = state.slides.map(slide => ({
+          ...slide,
+          layers: slide.layers.map(layer => {
+            if (layer.id !== layerId) return layer;
+
+            let updatedLayer = { ...layer, ...style };
+
+            // If it's text and has content → sync leaves
+            if (layer.type === "text" && layer.content) {
+              Object.entries(style).forEach(([key, value]) => {
+                updatedLayer.content = applyMarkToAllLeaves(
+                  updatedLayer.content,
+                  key,
+                  value
+                );
+              });
             }
-            : slide
-        ),
+
+            return updatedLayer;
+          })
+        }));
+
+        return { slides };
       });
     },
 

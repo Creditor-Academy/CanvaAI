@@ -7,16 +7,19 @@ const TextLayer = ({ layer, isEditing }) => {
   const { updateTextLayer } = usePresentationStore();
 
   const handleSlateChange = (newValue) => {
-    updateTextLayer(layer.id, { content: newValue, hasBeenEdited: true }, false);
+    updateTextLayer(
+      layer.id,
+      { content: newValue, hasBeenEdited: true },
+      false
+    );
   };
 
   const isPlaceholderVisible =
     !layer.hasBeenEdited &&
     (!layer.content ||
       (layer.content.length === 1 &&
-        layer.content[0].children[0].text === ""));
+        layer.content[0]?.children?.[0]?.text === ""));
 
-  // Base container styles, removing conflicting text styles
   const containerStyle = {
     width: "100%",
     height: "100%",
@@ -27,7 +30,7 @@ const TextLayer = ({ layer, isEditing }) => {
     cursor: isEditing ? "text" : "move",
   };
 
-  // Styles to be passed down to the editor/renderer for inheritance
+  // ONLY block-level styles here
   const textBlockStyle = {
     fontFamily: layer.fontFamily,
     fontSize: `${layer.fontSize}px`,
@@ -39,10 +42,12 @@ const TextLayer = ({ layer, isEditing }) => {
       <div style={containerStyle}>
         <SlateTextEditor
           value={
-            layer.content || [{ type: "paragraph", children: [{ text: "" }] }]
+            layer.content || [
+              { type: "paragraph", children: [{ text: "" }] },
+            ]
           }
           onChange={handleSlateChange}
-          style={textBlockStyle} // Pass the correct inheritable styles
+          style={textBlockStyle}
         />
       </div>
     );
