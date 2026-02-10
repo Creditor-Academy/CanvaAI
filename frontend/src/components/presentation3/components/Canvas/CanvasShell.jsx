@@ -29,6 +29,7 @@ const CanvasShell = () => {
     setEditingLayer,
     clearEditingLayer,
     migrateTextLayers,
+    editingCell, // Add editingCell
   } = usePresentationStore();
 
   /* =========================
@@ -211,9 +212,10 @@ const CanvasShell = () => {
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
               clearSelection();
-              if (editingLayerId) {
+              if (editingLayerId || editingCell) {
                 saveToHistory();
                 clearEditingLayer();
+                setEditingCell(null);
               }
             }
           }}
@@ -368,6 +370,9 @@ const CanvasShell = () => {
                     transformOrigin: "center center",
                   }}
                   onMouseDown={(e) => {
+                    // Prevent dragging if a cell is being edited
+                    if (editingCell && editingCell.tableId === layer.id) return;
+
                     e.stopPropagation();
                     saveToHistory();
                     setSelectedLayer(layer.id);

@@ -171,8 +171,11 @@ const PropertiesPanel = () => {
     saveToHistory,
     updateLayerStyle,
     applyGlobalTextStyle,
+    selectedLayerId, // Add selectedLayerId
     editingLayerId,
     selectionMarks,
+    editingCell, // Add editingCell
+    updateTableCell, // Add updateTableCell
   } = usePresentationStore();
 
   const [collapsed, setCollapsed] = useState(false);
@@ -519,26 +522,35 @@ const PropertiesPanel = () => {
 
 
         {/* ========================= */}
-        {/* TEXT PROPERTIES */}
+        {/* TEXT PROPERTIES (Also for Table Cells when editing) */}
         {/* ========================= */}
-        {selectedLayer?.type === "text" && (
+        {(selectedLayer?.type === "text" || (selectedLayer?.type === "table" && editingCell)) && (
           <>
-            <h3 style={styles.heading}>Text</h3>
+            <h3 style={styles.heading}>
+              {selectedLayer.type === "table" ? "Cell Text" : "Text"}
+            </h3>
 
             {/* Font Size */}
             <div style={styles.control}>
               <label style={styles.label}>Font Size</label>
               <input
                 type="number"
-                value={editingLayerId ? (selectionMarks.fontSize || selectedLayer.fontSize) : selectedLayer.fontSize}
+                value={
+                  editingLayerId || editingCell
+                    ? (selectionMarks.fontSize || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.fontSize : selectedLayer.fontSize))
+                    : selectedLayer.fontSize
+                }
                 min={8}
                 max={200}
                 onChange={(e) => {
                   const val = Number(e.target.value);
                   if (editingLayerId) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
-                    // Update layer default for responsive UI, no history
                     updateTextLayer(selectedLayer.id, { fontSize: val }, false);
+                  } else if (editingCell) {
+                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
+                    // Also update cell prop directly for container style
+                    updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontSize: val });
                   } else {
                     applyGlobalTextStyle(selectedLayer.id, { fontSize: val });
                   }
@@ -550,8 +562,8 @@ const PropertiesPanel = () => {
             <PaletteColorControl
               label="Text Color"
               value={
-                editingLayerId
-                  ? selectionMarks.color || selectedLayer.color
+                editingLayerId || editingCell
+                  ? (selectionMarks.color || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.color : selectedLayer.color))
                   : selectedLayer.color
               }
               onHistorySave={saveToHistory}
@@ -562,8 +574,14 @@ const PropertiesPanel = () => {
                       detail: { format: "color", value: color },
                     })
                   );
-                  // Update layer default for responsive UI, no history
                   updateTextLayer(selectedLayer.id, { color }, false);
+                } else if (editingCell) {
+                  window.dispatchEvent(
+                    new CustomEvent("slate-apply-mark", {
+                      detail: { format: "color", value: color },
+                    })
+                  );
+                  updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { color: color });
                 } else {
                   applyGlobalTextStyle(selectedLayer.id, { color });
                 }
@@ -573,13 +591,19 @@ const PropertiesPanel = () => {
             <div style={styles.control}>
               <label style={styles.label}>Font</label>
               <select
-                value={editingLayerId ? (selectionMarks.fontFamily || selectedLayer.fontFamily) : selectedLayer.fontFamily}
+                value={
+                  editingLayerId || editingCell
+                    ? (selectionMarks.fontFamily || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.fontFamily : selectedLayer.fontFamily))
+                    : selectedLayer.fontFamily
+                }
                 onChange={(e) => {
                   const val = e.target.value;
                   if (editingLayerId) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
-                    // Update layer default for responsive UI, no history
                     updateTextLayer(selectedLayer.id, { fontFamily: val }, false);
+                  } else if (editingCell) {
+                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
+                    updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontFamily: val });
                   } else {
                     applyGlobalTextStyle(selectedLayer.id, { fontFamily: val });
                   }
@@ -595,26 +619,28 @@ const PropertiesPanel = () => {
 
 
             {/* Link */}
-            <div style={styles.control}>
-              <label style={styles.label}>Link</label>
-              <input
-                type="text"
-                placeholder="https://example.com"
-                value={selectedLayer.link || ""}
-                onChange={(e) => {
-                  const url = e.target.value;
-                  const updates = { link: url };
+            {selectedLayer.type !== "table" && (
+              <div style={styles.control}>
+                <label style={styles.label}>Link</label>
+                <input
+                  type="text"
+                  placeholder="https://example.com"
+                  value={selectedLayer.link || ""}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    const updates = { link: url };
 
-                  // Auto-style if adding a link
-                  if (url && !selectedLayer.link) {
-                    updates.color = "#2563eb";
-                    updates.textDecoration = "underline";
-                  }
+                    // Auto-style if adding a link
+                    if (url && !selectedLayer.link) {
+                      updates.color = "#2563eb";
+                      updates.textDecoration = "underline";
+                    }
 
-                  updateTextLayer(selectedLayer.id, updates);
-                }}
-              />
-            </div>
+                    updateTextLayer(selectedLayer.id, updates);
+                  }}
+                />
+              </div>
+            )}
 
 
             {/* Bold / Italic / Underline */}
@@ -625,6 +651,8 @@ const PropertiesPanel = () => {
                   onClick={() => {
                     if (editingLayerId) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
+                    } else if (editingCell) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
                     } else {
                       const newVal = selectedLayer.fontWeight === "bold" ? "normal" : "bold";
                       applyGlobalTextStyle(selectedLayer.id, { fontWeight: newVal });
@@ -634,11 +662,11 @@ const PropertiesPanel = () => {
                   style={{
                     ...styles.btn,
                     background:
-                      (editingLayerId ? selectionMarks.bold : selectedLayer.fontWeight === "bold")
+                      (editingLayerId ? selectionMarks.bold : (editingCell && selectionMarks.bold) || selectedLayer.fontWeight === "bold")
                         ? "#2563eb"
                         : "#f3f4f6",
                     color:
-                      (editingLayerId ? selectionMarks.bold : selectedLayer.fontWeight === "bold")
+                      (editingLayerId ? selectionMarks.bold : (editingCell && selectionMarks.bold) || selectedLayer.fontWeight === "bold")
                         ? "#fff"
                         : "#000",
                   }}
@@ -650,6 +678,8 @@ const PropertiesPanel = () => {
                   onClick={() => {
                     if (editingLayerId) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
+                    } else if (editingCell) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
                     } else {
                       const newVal = selectedLayer.fontStyle === "italic" ? "normal" : "italic";
                       applyGlobalTextStyle(selectedLayer.id, { fontStyle: newVal });
@@ -659,11 +689,11 @@ const PropertiesPanel = () => {
                   style={{
                     ...styles.btn,
                     background:
-                      (editingLayerId ? selectionMarks.italic : selectedLayer.fontStyle === "italic")
+                      (editingLayerId ? selectionMarks.italic : (editingCell && selectionMarks.italic) || selectedLayer.fontStyle === "italic")
                         ? "#2563eb"
                         : "#f3f4f6",
                     color:
-                      (editingLayerId ? selectionMarks.italic : selectedLayer.fontStyle === "italic")
+                      (editingLayerId ? selectionMarks.italic : (editingCell && selectionMarks.italic) || selectedLayer.fontStyle === "italic")
                         ? "#fff"
                         : "#000",
                   }}
@@ -675,6 +705,8 @@ const PropertiesPanel = () => {
                   onClick={() => {
                     if (editingLayerId) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
+                    } else if (editingCell) {
+                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
                     } else {
                       const newVal = selectedLayer.textDecoration === "underline" ? "none" : "underline";
                       applyGlobalTextStyle(selectedLayer.id, { textDecoration: newVal });
@@ -684,11 +716,11 @@ const PropertiesPanel = () => {
                   style={{
                     ...styles.btn,
                     background:
-                      (editingLayerId ? selectionMarks.underline : selectedLayer.textDecoration === "underline")
+                      (editingLayerId ? selectionMarks.underline : (editingCell && selectionMarks.underline) || selectedLayer.textDecoration === "underline")
                         ? "#2563eb"
                         : "#f3f4f6",
                     color:
-                      (editingLayerId ? selectionMarks.underline : selectedLayer.textDecoration === "underline")
+                      (editingLayerId ? selectionMarks.underline : (editingCell && selectionMarks.underline) || selectedLayer.textDecoration === "underline")
                         ? "#fff"
                         : "#000",
                   }}
@@ -708,19 +740,21 @@ const PropertiesPanel = () => {
                     style={{
                       ...styles.btn,
                       background:
-                        selectedLayer.textAlign === align
+                        (editingCell && selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.textAlign === align) || selectedLayer.textAlign === align
                           ? "#2563eb"
                           : "#f3f4f6",
                       color:
-                        selectedLayer.textAlign === align
+                        (editingCell && selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.textAlign === align) || selectedLayer.textAlign === align
                           ? "#fff"
                           : "#000",
                     }}
                     onClick={() => {
                       if (editingLayerId) {
                         window.dispatchEvent(new CustomEvent('slate-set-block-style', { detail: { properties: { textAlign: align } } }));
-                        // Update layer default for responsive UI, no history
                         updateTextLayer(selectedLayer.id, { textAlign: align }, false);
+                      } else if (editingCell) {
+                        window.dispatchEvent(new CustomEvent('slate-set-block-style', { detail: { properties: { textAlign: align } } }));
+                        updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { textAlign: align });
                       } else {
                         applyGlobalTextStyle(selectedLayer.id, { textAlign: align });
                       }
@@ -742,21 +776,10 @@ const PropertiesPanel = () => {
           <>
             <h3 style={styles.heading}>Table</h3>
 
-            {/* Font Size */}
-            <div style={styles.control}>
-              <label style={styles.label}>Font Size</label>
-              <input
-                type="number"
-                value={selectedLayer.fontSize}
-                min={8}
-                max={100}
-                onChange={(e) =>
-                  updateTextLayer(selectedLayer.id, {
-                    fontSize: Number(e.target.value),
-                  })
-                }
-              />
-            </div>
+            {/* Font Size - REMOVED, now covered in Text section */}
+            {/* <div style={styles.control}>
+               ... 
+            </div> */}
 
             {/* Border Color */}
             <div style={styles.control}>
@@ -772,84 +795,11 @@ const PropertiesPanel = () => {
               />
             </div>
 
-            {/* Text Color */}
-            <div style={styles.control}>
-              <label style={styles.label}>Text Color</label>
-              <ColorPicker
-                value={selectedLayer.color || "#000000"}
-                onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateTextLayer(selectedLayer.id, {
-                    color: val,
-                  }, saveHistory)
-                }
-              />
-            </div>
+            {/* Text Color - REMOVED, covered in Text section */}
 
-            {/* Alignment */}
-            <div style={styles.control}>
-              <label style={styles.label}>Alignment</label>
-              <div style={styles.row}>
-                {["left", "center", "right"].map((align) => (
-                  <button
-                    key={align}
-                    style={{
-                      ...styles.btn,
-                      background:
-                        selectedLayer.textAlign === align
-                          ? "#2563eb"
-                          : "#f3f4f6",
-                      color:
-                        selectedLayer.textAlign === align
-                          ? "#fff"
-                          : "#000",
-                    }}
-                    onClick={() =>
-                      setTextAlignment(selectedLayer.id, align)
-                    }
-                  >
-                    {align}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Alignment - REMOVED, covered in Text section */}
 
-            {/* Style Controls (Bold, Italic, Underline) - Reuse logic from text */}
-            <div style={styles.control}>
-              <label style={styles.label}>Style</label>
-              <div style={styles.row}>
-                <button
-                  onClick={() => toggleBold(selectedLayer.id)}
-                  style={{
-                    ...styles.btn,
-                    background: selectedLayer.fontWeight === "bold" ? "#2563eb" : "#f3f4f6",
-                    color: selectedLayer.fontWeight === "bold" ? "#fff" : "#000",
-                  }}
-                >
-                  B
-                </button>
-                <button
-                  onClick={() => toggleItalic(selectedLayer.id)}
-                  style={{
-                    ...styles.btn,
-                    background: selectedLayer.fontStyle === "italic" ? "#2563eb" : "#f3f4f6",
-                    color: selectedLayer.fontStyle === "italic" ? "#fff" : "#000",
-                  }}
-                >
-                  I
-                </button>
-                <button
-                  onClick={() => toggleUnderline(selectedLayer.id)}
-                  style={{
-                    ...styles.btn,
-                    background: selectedLayer.textDecoration === "underline" ? "#2563eb" : "#f3f4f6",
-                    color: selectedLayer.textDecoration === "underline" ? "#fff" : "#000",
-                  }}
-                >
-                  U
-                </button>
-              </div>
-            </div>
+            {/* Style Controls - REMOVED, individual cell styling via Slate */}\n
 
             {/* Link support for Table (Simplified) */}
             <div style={styles.control}>

@@ -248,11 +248,11 @@ const usePresentationStore = create((set, get) => {
     selectedLayerId: null,
 
     setSelectedLayer: (layerId) => {
-      set({ selectedLayerId: layerId, editingLayerId: null });
+      set({ selectedLayerId: layerId, editingLayerId: null, editingCell: null });
     },
 
     clearSelection: () => {
-      set({ selectedLayerId: null, editingLayerId: null });
+      set({ selectedLayerId: null, editingLayerId: null, editingCell: null });
     },
 
     /* =========================
@@ -272,6 +272,9 @@ const usePresentationStore = create((set, get) => {
     setSelectionMarks: (marks) => {
       set({ selectionMarks: marks });
     },
+
+    editingCell: null,
+    setEditingCell: (cell) => set({ editingCell: cell }),
 
     getSelectedLayer: () => {
       const { slides, activeSlideId, selectedLayerId } = get();
@@ -749,12 +752,19 @@ const usePresentationStore = create((set, get) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
 
+      // Initialize cells with Slate structure
       const cells = Array.from({ length: rows }, () =>
-        Array.from({ length: cols }, () => "")
+        Array.from({ length: cols }, () => ({
+          content: createInitialValue(), // [{ type: 'paragraph', children: [{ text: '' }] }]
+          fontFamily: "Arial",
+          fontSize: 14,
+          color: "#000000",
+          textAlign: "center",
+        }))
       );
 
       const newLayer = {
-        id: crypto.randomUUID(),
+        id: nanoid(), // Use nanoid for consistency
         type: "table",
         x: 200,
         y: 150,
@@ -766,6 +776,7 @@ const usePresentationStore = create((set, get) => {
         tableBgColor: "transparent",
         borderColor: "#e5e7eb",
         borderWidth: 1,
+        // Global defaults (optional, but keep for container checks)
         fontSize: 14,
         color: "#000000",
         textAlign: "center",
@@ -782,32 +793,35 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTableCell: (layerId, row, col, value, saveHistory = true) => {
-      // Modified to support optional history save
-      if (saveHistory) get().saveToHistory();
-      const { slides, activeSlideId } = get();
-
-      set({
-        slides: slides.map((slide) =>
-          slide.id === activeSlideId
-            ? {
+    updateTableCell: (tableId, row, col, updates) => {
+      // NOTE: History saving should be handled by the caller (e.g. onBlur) to avoid spam
+      // OR we can add a flag like in other methods if needed. 
+      // For now, prompt implies purely state update here.
+      set((state) => ({
+        slides: state.slides.map((slide) =>
+          slide.id !== state.activeSlideId
+            ? slide
+            : {
               ...slide,
               layers: slide.layers.map((layer) =>
-                layer.id === layerId
-                  ? {
+                layer.id !== tableId
+                  ? layer
+                  : {
                     ...layer,
-                    cells: layer.cells.map((r, ri) =>
-                      r.map((c, ci) =>
-                        ri === row && ci === col ? value : c
-                      )
+                    cells: layer.cells.map((rArr, rIndex) =>
+                      rIndex !== row
+                        ? rArr
+                        : rArr.map((cell, cIndex) =>
+                          cIndex !== col
+                            ? cell
+                            : { ...cell, ...updates }
+                        )
                     ),
                   }
-                  : layer
               ),
             }
-            : slide
         ),
-      });
+      }));
     },
 
     addTableRow: (layerId) => {
@@ -826,9 +840,15 @@ const usePresentationStore = create((set, get) => {
                     rows: layer.rows + 1,
                     cells: [
                       ...layer.cells,
-                      Array.from({ length: layer.cols }, () => ""),
+                      Array.from({ length: layer.cols }, () => ({
+                        content: createInitialValue(),
+                        fontFamily: "Arial",
+                        fontSize: 14,
+                        color: "#000000",
+                        textAlign: "center",
+                      })),
                     ],
-                    height: layer.height + (layer.height / layer.rows), // Heuristic: increase height proportionally
+                    height: layer.height + (layer.height / layer.rows),
                   }
                   : layer
               ),
@@ -852,8 +872,17 @@ const usePresentationStore = create((set, get) => {
                   ? {
                     ...layer,
                     cols: layer.cols + 1,
-                    cells: layer.cells.map((row) => [...row, ""]),
-                    width: layer.width + (layer.width / layer.cols), // Heuristic: increase width proportionally
+                    cells: layer.cells.map((row) => [
+                      ...row,
+                      {
+                        content: createInitialValue(),
+                        fontFamily: "Arial",
+                        fontSize: 14,
+                        color: "#000000",
+                        textAlign: "center",
+                      }
+                    ]),
+                    width: layer.width + (layer.width / layer.cols),
                   }
                   : layer
               ),
