@@ -3,17 +3,20 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useState, useRef, useEffect } from 'react';
 
 // Resizable Image View Component
-const ResizableImageView = ({ node, updateAttributes, editor }) => {
+const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
   const [isResizing, setIsResizing] = useState(false);
+  const [activeHandle, setActiveHandle] = useState(null);
   const [dimensions, setDimensions] = useState({
     width: node.attrs.width || 300,
     height: node.attrs.height || 200
   });
-  
+
   const containerRef = useRef(null);
   const imgRef = useRef(null);
+  const startPos = useRef({ x: 0, y: 0 });
+  const startDims = useRef({ width: 0, height: 0 });
+  const aspectRatio = useRef(1);
 
-  // Update dimensions when node attributes change
   useEffect(() => {
     setDimensions({
       width: node.attrs.width || 300,
@@ -21,107 +24,198 @@ const ResizableImageView = ({ node, updateAttributes, editor }) => {
     });
   }, [node.attrs.width, node.attrs.height]);
 
-  const handleMouseDown = (e) => {
+  const onResizeStart = (e, handle) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsResizing(true);
-  };
 
-  const handleMouseMove = (e) => {
-    if (!isResizing) return;
-    
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const newWidth = Math.max(100, e.clientX - rect.left); // Minimum width of 100px
-      
-      setDimensions(prev => ({
-        ...prev,
-        width: newWidth
-      }));
+    setIsResizing(true);
+    setActiveHandle(handle);
+
+    startPos.current = { x: e.clientX, y: e.clientY };
+    startDims.current = { width: dimensions.width, height: dimensions.height };
+
+    if (imgRef.current) {
+      aspectRatio.current = imgRef.current.naturalWidth / imgRef.current.naturalHeight;
     }
   };
 
-  const handleMouseUp = () => {
+  const onResize = (e) => {
+    if (!isResizing || !activeHandle) return;
+
+    const dx = e.clientX - startPos.current.x;
+    const dy = e.clientY - startPos.current.y;
+
+    let newWidth = startDims.current.width;
+    let newHeight = startDims.current.height;
+
+    const isShiftPressed = e.shiftKey;
+
+    switch (activeHandle) {
+      case 'bottom-right':
+        newWidth = startDims.current.width + dx;
+        newHeight = isShiftPressed ? startDims.current.height + dy : newWidth / aspectRatio.current;
+        break;
+      case 'bottom-left':
+        newWidth = startDims.current.width - dx;
+        newHeight = isShiftPressed ? startDims.current.height + dy : newWidth / aspectRatio.current;
+        break;
+      case 'top-right':
+        newWidth = startDims.current.width + dx;
+        newHeight = isShiftPressed ? startDims.current.height - dy : newWidth / aspectRatio.current;
+        break;
+      case 'top-left':
+        newWidth = startDims.current.width - dx;
+        newHeight = isShiftPressed ? startDims.current.height - dy : newWidth / aspectRatio.current;
+        break;
+      case 'right':
+        newWidth = startDims.current.width + dx;
+        if (!isShiftPressed) newHeight = newWidth / aspectRatio.current;
+        break;
+      case 'left':
+        newWidth = startDims.current.width - dx;
+        if (!isShiftPressed) newHeight = newWidth / aspectRatio.current;
+        break;
+      case 'bottom':
+        newHeight = startDims.current.height + dy;
+        if (!isShiftPressed) newWidth = newHeight * aspectRatio.current;
+        break;
+      case 'top':
+        newHeight = startDims.current.height - dy;
+        if (!isShiftPressed) newWidth = newHeight * aspectRatio.current;
+        break;
+    }
+
+    newWidth = Math.max(50, newWidth);
+    newHeight = Math.max(50, newHeight);
+
+    setDimensions({ width: Math.round(newWidth), height: Math.round(newHeight) });
+  };
+
+  const onResizeStop = () => {
     if (isResizing) {
       setIsResizing(false);
-      // Update the node attributes with new dimensions
+      setActiveHandle(null);
       updateAttributes({
-        width: Math.round(dimensions.width),
-        height: Math.round(dimensions.height)
+        width: dimensions.width,
+        height: dimensions.height
       });
     }
   };
 
   useEffect(() => {
     if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
+      window.addEventListener('mousemove', onResize);
+      window.addEventListener('mouseup', onResizeStop);
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', onResize);
+        window.removeEventListener('mouseup', onResizeStop);
       };
     }
-  }, [isResizing, dimensions.width]);
+  }, [isResizing, dimensions]);
 
   const handleImageLoad = () => {
-    // Calculate aspect ratio preserving height if width changes
-    if (imgRef.current && !node.attrs.width && !node.attrs.height) {
-      setDimensions({
-        width: imgRef.current.naturalWidth > 400 ? 400 : imgRef.current.naturalWidth,
-        height: imgRef.current.naturalHeight > 300 ? 300 : imgRef.current.naturalHeight
-      });
+    if (imgRef.current && !node.attrs.width) {
+      const naturalWidth = imgRef.current.naturalWidth;
+      const naturalHeight = imgRef.current.naturalHeight;
+      const initialWidth = Math.min(naturalWidth, 600);
+      const initialHeight = Math.round(initialWidth * (naturalHeight / naturalWidth));
+
+      setDimensions({ width: initialWidth, height: initialHeight });
+      updateAttributes({ width: initialWidth, height: initialHeight });
     }
   };
 
+  const alignment = node.attrs.align || 'left';
+
   const containerStyle = {
-    display: 'inline-block',
-    position: 'relative',
-    maxWidth: '100%',
-    userSelect: 'none',
+    display: alignment === 'center' ? 'flex' : 'inline-block',
+    justifyContent: alignment === 'center' ? 'center' : 'none',
+    width: alignment === 'center' ? '100%' : 'auto',
+    float: alignment === 'center' ? 'none' : alignment,
+    margin: alignment === 'center' ? '1rem 0' : '0.5rem',
+    clear: alignment === 'center' ? 'both' : 'none',
+    verticalAlign: 'bottom'
   };
 
-  const imageStyle = {
+  const wrapperStyle = {
+    position: 'relative',
+    display: 'inline-block',
+    lineHeight: 0,
+    outline: selected ? '2px solid #3b82f6' : 'none',
+    transition: 'outline 0.1s ease-in-out',
+    borderRadius: `${node.attrs.borderRadius || 0}px`,
+  };
+
+  const imgStyle = {
     width: `${dimensions.width}px`,
-    height: dimensions.height ? `${dimensions.height}px` : 'auto',
+    height: `${dimensions.height}px`,
     maxWidth: '100%',
     objectFit: 'contain',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
+    display: 'block',
+    borderRadius: `${node.attrs.borderRadius || 0}px`,
+    border: node.attrs.borderWidth ? `${node.attrs.borderWidth}px solid ${node.attrs.borderColor || '#000'}` : 'none',
+    opacity: (node.attrs.opacity || 100) / 100,
+    transform: `rotate(${node.attrs.rotation || 0}deg)`,
   };
 
-  const resizeHandleStyle = {
-    position: 'absolute',
-    bottom: '4px',
-    right: '4px',
-    width: '12px',
-    height: '12px',
-    backgroundColor: '#4a90e2',
-    cursor: 'nw-resize',
-    borderRadius: '2px',
-    zIndex: 10,
-  };
+  // Helper for handles
+  const renderHandle = (type, positionStyle) => (
+    <div
+      onMouseDown={(e) => onResizeStart(e, type)}
+      style={{
+        position: 'absolute',
+        width: '10px',
+        height: '10px',
+        backgroundColor: '#3b82f6',
+        border: '1px solid white',
+        borderRadius: '50%',
+        zIndex: 100,
+        cursor: type.includes('-') ? `${type.replace('top', 'nw').replace('bottom', 'se').replace('left', 'sw').replace('right', 'ne')}-resize` : `${type === 'left' || type === 'right' ? 'ew' : 'ns'}-resize`,
+        ...positionStyle,
+        display: selected || isResizing ? 'block' : 'none'
+      }}
+    />
+  );
 
   return (
-    <NodeViewWrapper>
-      <div
-        ref={containerRef}
-        style={containerStyle}
-        className="resizable-image-container"
-      >
+    <NodeViewWrapper style={containerStyle}>
+      <div style={wrapperStyle} className="resizable-image-wrapper">
         <img
           ref={imgRef}
           src={node.attrs.src}
-          alt={node.attrs.alt || ''}
-          style={imageStyle}
+          alt={node.attrs.alt}
+          style={imgStyle}
           onLoad={handleImageLoad}
           draggable={false}
         />
-        <div
-          style={resizeHandleStyle}
-          onMouseDown={handleMouseDown}
-          className="resize-handle"
-        />
+
+        {/* Corner Handles */}
+        {renderHandle('top-left', { top: '-5px', left: '-5px' })}
+        {renderHandle('top-right', { top: '-5px', right: '-5px' })}
+        {renderHandle('bottom-left', { bottom: '-5px', left: '-5px' })}
+        {renderHandle('bottom-right', { bottom: '-5px', right: '-5px' })}
+
+        {/* Edge Handles */}
+        {renderHandle('top', { top: '-5px', left: '50%', marginLeft: '-5px' })}
+        {renderHandle('bottom', { bottom: '-5px', left: '50%', marginLeft: '-5px' })}
+        {renderHandle('left', { left: '-5px', top: '50%', marginTop: '-5px' })}
+        {renderHandle('right', { right: '-5px', top: '50%', marginTop: '-5px' })}
+
+        {isResizing && (
+          <div style={{
+            position: 'absolute',
+            top: '5px',
+            left: '5px',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            color: 'white',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontSize: '10px',
+            pointerEvents: 'none'
+          }}>
+            {dimensions.width} x {dimensions.height}
+          </div>
+        )}
       </div>
     </NodeViewWrapper>
   );
@@ -201,9 +295,9 @@ export const ResizableImage = Node.create({
       align: {
         default: 'left',
         parseHTML: element => {
-          const align = element.getAttribute('data-align') || 
-                       element.style.float || 
-                       element.style.textAlign;
+          const align = element.getAttribute('data-align') ||
+            element.style.float ||
+            element.style.textAlign;
           return align || 'left';
         },
         renderHTML: attributes => ({
@@ -271,36 +365,36 @@ export const ResizableImage = Node.create({
           const src = dom.getAttribute('src');
           const alt = dom.getAttribute('alt') || '';
           const title = dom.getAttribute('title') || alt;
-          
+
           // Try to extract width and height from various sources
-          let width = dom.getAttribute('width') || 
-                     dom.getAttribute('data-width') || 
-                     dom.style.width;
-          let height = dom.getAttribute('height') || 
-                      dom.getAttribute('data-height') || 
-                      dom.style.height;
-          
+          let width = dom.getAttribute('width') ||
+            dom.getAttribute('data-width') ||
+            dom.style.width;
+          let height = dom.getAttribute('height') ||
+            dom.getAttribute('data-height') ||
+            dom.style.height;
+
           // Parse numeric values
           if (width && typeof width === 'string') {
             const num = parseInt(width.replace('px', ''), 10);
             width = isNaN(num) ? 400 : num;
           }
-          
+
           if (height && typeof height === 'string') {
             const num = parseInt(height.replace('px', ''), 10);
             height = isNaN(num) ? 300 : num;
           }
-          
+
           return {
             src,
             alt,
             title,
             width: width || 400,
             height: height || 300,
-            align: dom.getAttribute('data-align') || 
-                  dom.style.float || 
-                  dom.style.textAlign || 
-                  'left',
+            align: dom.getAttribute('data-align') ||
+              dom.style.float ||
+              dom.style.textAlign ||
+              'left',
             class: dom.getAttribute('class'),
             style: dom.getAttribute('style'),
           };
@@ -312,54 +406,59 @@ export const ResizableImage = Node.create({
   renderHTML({ HTMLAttributes }) {
     // Ensure all required attributes are present
     const attrs = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes);
-    
+
     // Ensure src is always present
     if (!attrs.src) {
       return ['div', {}, '⚠️ Missing image source'];
     }
-    
+
     // Build style string
     let style = 'max-width: 100%; height: auto; cursor: pointer;';
-    
+
     if (attrs.width) {
       style += ` width: ${attrs.width}px;`;
     }
-    
+
     if (attrs.height) {
       style += ` height: ${attrs.height}px;`;
     }
-    
-    if (attrs.align) {
-      style += ` float: ${attrs.align};`;
+
+    if (attrs.align === 'center') {
+      style += ` display: block; margin-left: auto; margin-right: auto; float: none;`;
+    } else if (attrs.align) {
+      style += ` float: ${attrs.align}; margin: 0.5rem;`;
     }
-    
+
     if (attrs.borderColor && attrs.borderWidth) {
       style += ` border: ${attrs.borderWidth}px solid ${attrs.borderColor};`;
     }
-    
+
     if (attrs.borderRadius) {
       style += ` border-radius: ${attrs.borderRadius}px;`;
     }
-    
+
     if (attrs.rotation) {
       style += ` transform: rotate(${attrs.rotation}deg);`;
     }
-    
+
     if (attrs.opacity && attrs.opacity !== 100) {
       style += ` opacity: ${attrs.opacity / 100};`;
     }
-    
+
     // Add custom style if provided
     if (attrs.style) {
       style += ` ${attrs.style}`;
     }
-    
+
     // Build class string
     let className = 'resizable-image';
+    if (attrs.align) {
+      className += ` align-${attrs.align}`;
+    }
     if (attrs.class) {
       className += ` ${attrs.class}`;
     }
-    
+
     return ['img', {
       ...attrs,
       class: className,
@@ -383,13 +482,13 @@ export const ResizableImage = Node.create({
           align: options.align || 'left',
           ...options,
         };
-        
+
         return commands.insertContent({
           type: this.name,
           attrs,
         });
       },
-      
+
       updateResizableImage: (options) => ({ commands }) => {
         return commands.updateAttributes(this.name, options);
       },
@@ -412,12 +511,12 @@ export const ResizableImage = Node.create({
         width: 400,
         height: 300,
       }),
-      
+
       'Delete': ({ editor }) => {
         const { state } = editor;
         const { selection } = state;
         const node = state.doc.nodeAt(selection.from);
-        
+
         if (node && node.type.name === this.name) {
           editor.commands.deleteSelection();
           return true;

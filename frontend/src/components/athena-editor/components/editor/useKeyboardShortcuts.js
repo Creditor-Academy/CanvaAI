@@ -38,6 +38,7 @@ export const useKeyboardShortcuts = (editor, handlers = {}) => {
                 e.preventDefault();
                 if (onPrint) {
                     onPrint();
+                    toast.success('Print initiated (Ctrl+P)');
                 }
             }
 

@@ -2,6 +2,7 @@ import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, Drawing, TextWrappingType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, ShadingType } from 'docx';
 import { toast } from 'sonner';
+import JSZip from 'jszip';
 
 export class DocumentExporter {
   static async exportToPDF(editor, options = {}) {
@@ -253,50 +254,52 @@ export class DocumentExporter {
                 img.onload = () => {
                   clearTimeout(timeoutId);
                   try {
-                    // Calculate image dimensions to maintain aspect ratio
-                    let width = img.width;
-                    let height = img.height;
+                    // Use dimensions from content if available, otherwise use natural size
+                    const pxToMm = 0.264583;
+                    let width = (content.width * pxToMm) || (img.width * pxToMm);
+                    let height = (content.height * pxToMm) || (img.height * pxToMm);
+                    const alignment = content.align || 'center';
 
-                    // Handle very small images
-                    if (width < 10 || height < 10) {
-                      width = Math.max(width, 50);
-                      height = Math.max(height, 50);
+                    // Maintain aspect ratio if specific dimensions are missing
+                    const ratio = img.width / img.height;
+                    if (content.width && !content.height) {
+                      height = width / ratio;
+                    } else if (!content.width && content.height) {
+                      width = height * ratio;
                     }
 
+                    // Constrain to usable page area
                     if (width > maxImageWidth) {
-                      const ratio = maxImageWidth / width;
+                      const scale = maxImageWidth / width;
                       width = maxImageWidth;
-                      height = height * ratio;
+                      height = height * scale;
                     }
 
-                    if (height > maxImageHeight) {
-                      const ratio = maxImageHeight / height;
-                      height = maxImageHeight;
-                      width = width * ratio;
+                    // Calculate X position based on alignment
+                    let imageX = margin.left;
+                    if (alignment === 'center') {
+                      imageX = margin.left + (usableWidth - width) / 2;
+                    } else if (alignment === 'right') {
+                      imageX = margin.left + (usableWidth - width);
                     }
 
-                    // Ensure minimum size
-                    if (width < 20) width = 20;
-                    if (height < 20) height = 20;
+                    ensureSpace(height + 20);
 
-                    // Center the image
-                    const imageX = margin.left + (usableWidth - width) / 2;
-
-                    // Add image to PDF with better format detection
+                    // Add image to PDF
                     const imageFormat = this.detectImageFormat(finalImageSrc);
                     pdf.addImage(img, imageFormat, imageX, currentY, width, height);
 
                     // Add caption if alt text exists
-                    if (alt) {
+                    if (alt && alt !== 'Image' && alt !== 'Embedded image') {
                       currentY += height + 8;
                       pdf.setFontSize(fontSize - 1);
                       setTextColor(80, 80, 80);
-                      pdf.text(alt, pageWidth / 2, currentY, { align: "center" });
+                      pdf.text(alt, alignment === 'center' ? pageWidth / 2 : alignment === 'right' ? pageWidth - margin.right : margin.left, currentY, { align: alignment });
+                      currentY += 12;
+                    } else {
+                      currentY += height + 10;
                     }
-
-                    currentY += height + 20;
-                    console.log(`✅ Image added successfully: ${alt || 'Image'} (${width}x${height})`);
-
+                    resolve();
                   } catch (imgError) {
                     console.error('❌ Error adding image to PDF:', imgError);
                     clearTimeout(timeoutId);
@@ -642,6 +645,11 @@ export class DocumentExporter {
                     }
 
                     // Add image to document
+                    const emuPerPx = 9525;
+                    const widthEmu = (section.content.width || 400) * emuPerPx;
+                    const heightEmu = (section.content.height || 300) * emuPerPx;
+                    const alignment = section.content.align || 'center';
+
                     children.push(
                       new Paragraph({
                         children: [
@@ -658,8 +666,8 @@ export class DocumentExporter {
                               layoutInCell: true,
                             },
                             extent: {
-                              cx: 400000, // Width in EMUs (approx 2.8 inches)
-                              cy: 300000, // Height in EMUs (approx 2.1 inches)
+                              cx: widthEmu,
+                              cy: heightEmu,
                             },
                             drawing: {
                               inline: {
@@ -674,12 +682,13 @@ export class DocumentExporter {
                             },
                             buffer: bytes,
                             transformation: {
-                              width: 400000,
-                              height: 300000,
+                              width: widthEmu,
+                              height: heightEmu,
                             },
                           }),
                         ],
-                        alignment: AlignmentType.CENTER,
+                        alignment: alignment === 'center' ? AlignmentType.CENTER :
+                          alignment === 'right' ? AlignmentType.RIGHT : AlignmentType.LEFT,
                         spacing: { before: 200, after: 200 },
                       })
                     );
@@ -776,6 +785,248 @@ export class DocumentExporter {
     } catch (error) {
       console.error('HTML export error:', error);
       toast.error('Failed to export HTML');
+    }
+  }
+
+  static async exportToEPUB(editor, options = {}) {
+    let toastId = null;
+
+    try {
+      const {
+        filename = 'document.epub',
+        title = 'Document',
+        author = 'Athena Editor',
+        publisher = 'Athena AI',
+        description = 'Exported from Athena Editor',
+        language = 'en'
+      } = options;
+
+      toastId = toast.loading('Generating EPUB document...');
+
+      const zip = new JSZip();
+
+      // 1. mimetype (MUST be the first file and uncompressed)
+      zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+      // 2. META-INF/container.xml
+      zip.folder('META-INF').file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+    <rootfiles>
+        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+    </rootfiles>
+</container>`);
+
+      // 3. OEBPS structure
+      const oebps = zip.folder('OEBPS');
+
+      // Get content
+      const htmlContent = this.getHTMLContent(editor);
+
+      // Extract images and replace paths in HTML
+      const { processedHtml, images } = await this.processImagesForEPUB(htmlContent);
+
+      // Add stylesheet
+      oebps.file('style.css', `
+        body { font-family: serif; margin: 5%; line-height: 1.5; color: #333; }
+        h1, h2, h3, h4, h5, h6 { font-family: sans-serif; text-align: center; margin-top: 1.5em; margin-bottom: 0.5em; }
+        p { margin: 1em 0; text-align: justify; }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        img.align-center { display: block; margin: 1em auto; }
+        img.align-left { float: left; margin: 0 1em 1em 0; }
+        img.align-right { float: right; margin: 0 0 1em 1em; }
+        blockquote { border-left: 4px solid #ccc; padding-left: 1em; margin: 1em 0; font-style: italic; color: #666; }
+        pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 0.9em; }
+        code { background: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+        table { border-collapse: collapse; width: 100%; margin: 1.5em 0; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #f6f8fa; font-weight: bold; }
+        ul, ol { margin: 1em 0; padding-left: 2em; }
+        li { margin: 0.5em 0; }
+      `);
+
+      // Content XHTML
+      const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="${language}">
+<head>
+    <title>${this.escapeXml(title)}</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+<body>
+    <section>
+        <h1>${this.escapeXml(title)}</h1>
+        ${processedHtml}
+    </section>
+</body>
+</html>`;
+      oebps.file('content.xhtml', contentXhtml);
+
+      // Metadata & Manifest (content.opf)
+      const uuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+      let manifestItems = `
+        <item id="style" href="style.css" media-type="text/css" />
+        <item id="content" href="content.xhtml" media-type="application/xhtml+xml" />
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
+      `;
+
+      const imagesFolder = oebps.folder('images');
+      images.forEach((img, index) => {
+        manifestItems += `<item id="img${index}" href="images/${img.name}" media-type="${img.type}" />\n`;
+        imagesFolder.file(img.name, img.data, { base64: true });
+      });
+
+      const opf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="pub-id" version="3.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:identifier id="pub-id">urn:uuid:${uuid}</dc:identifier>
+        <dc:title>${this.escapeXml(title)}</dc:title>
+        <dc:creator>${this.escapeXml(author)}</dc:creator>
+        <dc:publisher>${this.escapeXml(publisher)}</dc:publisher>
+        <dc:description>${this.escapeXml(description)}</dc:description>
+        <dc:language>${language}</dc:language>
+        <meta property="dcterms:modified">${new Date().toISOString().split('.')[0] + 'Z'}</meta>
+    </metadata>
+    <manifest>
+        ${manifestItems}
+    </manifest>
+    <spine toc="ncx">
+        <itemref idref="content" />
+    </spine>
+</package>`;
+      oebps.file('content.opf', opf);
+
+      // TOC NCX (for compatibility)
+      const ncx = `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+    <head>
+        <meta name="dtb:uid" content="urn:uuid:${uuid}"/>
+        <meta name="dtb:depth" content="1"/>
+        <meta name="dtb:totalPageCount" content="0"/>
+        <meta name="dtb:maxPageNumber" content="0"/>
+    </head>
+    <docTitle><text>${this.escapeXml(title)}</text></docTitle>
+    <navMap>
+        <navPoint id="navpoint-1" playOrder="1">
+            <navLabel><text>Content</text></navLabel>
+            <content src="content.xhtml"/>
+        </navPoint>
+    </navMap>
+</ncx>`;
+      oebps.file('toc.ncx', ncx);
+
+      // Generate binary data
+      const contentBinary = await zip.generateAsync({
+        type: 'blob',
+        mimeType: 'application/epub+zip',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 9 }
+      });
+
+      saveAs(contentBinary, filename);
+      toast.dismiss(toastId);
+      toast.success('EPUB exported successfully');
+
+    } catch (error) {
+      console.error('EPUB export error:', error);
+      if (toastId) toast.dismiss(toastId);
+      toast.error('Failed to export EPUB: ' + error.message);
+    }
+  }
+
+  static async processImagesForEPUB(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const imgs = doc.querySelectorAll('img');
+    const imageFiles = [];
+
+    for (let i = 0; i < imgs.length; i++) {
+      const img = imgs[i];
+      const src = img.getAttribute('src');
+      if (!src) continue;
+
+      try {
+        const base64Data = await this.convertImageToBase64(src);
+        if (!base64Data) continue;
+
+        const format = this.detectImageFormat(src).toLowerCase();
+        const fileName = `image_${i}.${format === 'jpeg' ? 'jpg' : format}`;
+        const mimeType = base64Data.split(';')[0].split(':')[1];
+        const dataBase64 = base64Data.split(',')[1];
+
+        imageFiles.push({
+          name: fileName,
+          type: mimeType,
+          data: dataBase64
+        });
+
+        // Update src in HTML to internal EPUB path
+        img.setAttribute('src', `images/${fileName}`);
+      } catch (e) {
+        console.warn('Failed to process image for EPUB:', src, e);
+      }
+    }
+
+    // Convert doc back to XHTML-compliant string
+    const serializer = new XMLSerializer();
+    const serialized = serializer.serializeToString(doc.body);
+    // serializeToString adds xmlns if not present, but for body we might need careful extraction
+    const xhtmlContent = serialized.replace(/^<body[^>]*>/, '').replace(/<\/body>$/, '');
+
+    return { processedHtml: xhtmlContent, images: imageFiles };
+  }
+
+  static escapeXml(unsafe) {
+    if (!unsafe || typeof unsafe !== 'string') return '';
+    return unsafe.replace(/[<>&'"]/g, function (c) {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '\'': return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
+  }
+
+  static async exportToJSON(editor, options = {}) {
+    let toastId = null;
+
+    try {
+      const {
+        filename = 'document.json',
+        title = 'Document',
+        author = 'Athena Editor'
+      } = options;
+
+      toastId = toast.loading('Generating JSON data...');
+
+      const sections = this.extractContentSections(editor);
+      const jsonContent = {
+        metadata: {
+          title,
+          author,
+          exportedAt: new Date().toISOString(),
+          version: "1.0"
+        },
+        stats: {
+          wordCount: editor.storage.characterCount?.words() || 0,
+          charCount: editor.storage.characterCount?.characters() || 0,
+          readingTime: Math.ceil((editor.storage.characterCount?.words() || 0) / 200)
+        },
+        content: sections
+      };
+
+      const blob = new Blob([JSON.stringify(jsonContent, null, 2)], { type: 'application/json' });
+      saveAs(blob, filename);
+
+      toast.dismiss(toastId);
+      toast.success('Document exported to JSON');
+
+    } catch (error) {
+      console.error('JSON export error:', error);
+      if (toastId) toast.dismiss(toastId);
+      toast.error('Failed to export JSON: ' + error.message);
     }
   }
 
@@ -1014,10 +1265,20 @@ export class DocumentExporter {
             break;
 
           case 'image':
+          case 'resizableImage':
+            section.type = 'image'; // Map both to 'image' for export logic consistency
             section.content = {
               src: node.attrs.src || '',
               alt: node.attrs.alt || 'Image',
-              title: node.attrs.title || ''
+              title: node.attrs.title || '',
+              width: node.attrs.width,
+              height: node.attrs.height,
+              align: node.attrs.align || 'left',
+              borderRadius: node.attrs.borderRadius,
+              borderWidth: node.attrs.borderWidth,
+              borderColor: node.attrs.borderColor,
+              rotation: node.attrs.rotation,
+              opacity: node.attrs.opacity
             };
             break;
 
@@ -1470,6 +1731,15 @@ export class DocumentExporter {
           includeMetadata: { type: 'boolean', default: true }
         }
       },
+      epub: {
+        name: 'EPUB eBook',
+        description: 'Standard eBook format for e-readers',
+        icon: '📚',
+        options: {
+          publisher: { type: 'string', default: 'Athena AI' },
+          language: { type: 'string', default: 'en' }
+        }
+      },
       html: {
         name: 'Web Page',
         description: 'HTML file for web browsers',
@@ -1492,6 +1762,14 @@ export class DocumentExporter {
         icon: '📃',
         options: {
           includeHeader: { type: 'boolean', default: true }
+        }
+      },
+      json: {
+        name: 'JSON Data',
+        description: 'Structured document data for developers',
+        icon: '💻',
+        options: {
+          prettyPrint: { type: 'boolean', default: true }
         }
       },
       print: {

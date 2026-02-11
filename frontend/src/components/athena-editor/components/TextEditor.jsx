@@ -58,6 +58,7 @@ import {
   Minimize2,
   ZoomIn,
   ZoomOut,
+  Book,
   Layout,
   Plus,
   FilePlus,
@@ -225,38 +226,19 @@ const FontSize = Extension.create({
   },
 });
 
-// React component for page break
-const PageBreakComponent = ({ node, updateAttributes }) => {
-  return (
-    <div
-      className="relative my-10"
-      contentEditable={false}
-    >
-      <div className="absolute inset-0 flex items-center">
-        <div className="w-full border-t border-dashed border-gray-300"></div>
-      </div>
-      <div className="relative flex justify-center">
-        <span className="bg-white px-3 py-1 text-xs text-gray-400 rounded-lg border border-gray-200">
-          Page Break
-        </span>
-      </div>
-    </div>
-  );
-};
+
 
 // Custom Page Break Extension
 const PageBreak = Node.create({
   name: 'pageBreak',
 
-  addOptions() {
-    return {
-      HTMLAttributes: {},
-    }
-  },
+  group: 'block',
 
-  content: 'inline*',
+  selectable: true,
 
-  marks: '',
+  draggable: true,
+
+  atom: true, // Crucial: treats the node as a single unit
 
   parseHTML() {
     return [
@@ -266,21 +248,12 @@ const PageBreak = Node.create({
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-      'data-type': 'page-break',
-      style: 'page-break-after: always; border-top: 1px dashed #e5e7eb; margin: 40px 0; text-align: center; height: 1px;',
-    }), [
-        'span',
-        { style: 'background: white; padding: 0 12px; color: #9ca3af; font-size: 12px; position: relative; top: -12px;' },
-        'Page Break'
-      ]];
-  },
-
-  addNodeView() {
-    return ReactNodeViewRenderer(PageBreakComponent);
+  renderHTML() {
+    return ['div', { 'data-type': 'page-break' }];
   },
 });
+
+
 
 // Constants
 const FONTS = [
@@ -591,13 +564,14 @@ const TextEditorContent = () => {
   const { state: imageState = {}, actions: imageActions = {} } = useImageContext() || {};
 
   // Use export state hook
-  const { exportToPDF, exportToDOCX, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
+  const { exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
 
   // Destructure state from contexts with defaults
   const {
     isAISidebarOpen = false,
     showReferencesPanel = false,
     showExportDialog = false,
+    showTemplateSidebar = false,
     exportFormat = 'pdf',
     exportOptions = {
       includePageNumbers: true,
@@ -639,7 +613,7 @@ const TextEditorContent = () => {
   const [readingTime, setReadingTime] = useState(0);
   const [isStarred, setIsStarred] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
-  const [isTemplateSidebarOpen, setIsTemplateSidebarOpen] = useState(false);
+
 
   // Document management states
   const [documentVersions, setDocumentVersions] = useState([
@@ -734,6 +708,10 @@ const TextEditorContent = () => {
   const [pageContents, setPageContents] = useState(['']);
   const [isPageCalculationLocked, setIsPageCalculationLocked] = useState(false);
 
+  // Pagination memoization refs
+  const lastPaginationContentRef = useRef('');
+  const paragraphHeightCacheRef = useRef(new Map());
+
   // Create refs
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
@@ -742,6 +720,11 @@ const TextEditorContent = () => {
   const calculateContentHeight = useCallback((htmlContent) => {
     if (!htmlContent || htmlContent.trim() === '') return 0;
 
+    // Check cache first to avoid expensive DOM measurements
+    if (paragraphHeightCacheRef.current.has(htmlContent)) {
+      return paragraphHeightCacheRef.current.get(htmlContent);
+    }
+
     const tempDiv = document.createElement('div');
     tempDiv.style.cssText = `
       position: absolute;
@@ -749,17 +732,21 @@ const TextEditorContent = () => {
       width: ${PAGE_WIDTH - 144}px; 
       font-family: var(--athena-font-body);
       font-size: 11pt;
-      line-height: ${LINE_HEIGHT};
+      line-height: 1.5;
       padding: 0;
       margin: 0;
       white-space: pre-wrap;
       word-wrap: break-word;
     `;
+
     tempDiv.innerHTML = htmlContent;
     document.body.appendChild(tempDiv);
 
     const height = tempDiv.offsetHeight;
     document.body.removeChild(tempDiv);
+
+    // Store in cache for future use
+    paragraphHeightCacheRef.current.set(htmlContent, height);
 
     return height;
   }, []); // EMPTY dependency array to prevent re-creation
@@ -823,36 +810,55 @@ const TextEditorContent = () => {
     return pages;
   }, [calculateContentHeight]); // Only depends on calculateContentHeight
 
-  // Update pages when content changes - FIXED: Added proper dependency management
-  const updatePages = useCallback((content) => {
-    if (!content || isPageCalculationLocked) return;
+  // Update pages when content changes - FIXED: Count physical page breaks
+  const updatePages = useCallback((editorInstance) => {
+    if (!editorInstance || isPageCalculationLocked) return;
+
+    // Additional guard: check if editor is ready and has state
+    if (!editorInstance.state || !editorInstance.state.doc) {
+      // Silently return when editor isn't ready - this is normal during initialization
+      return;
+    }
 
     setIsPageCalculationLocked(true);
 
     try {
-      const newPages = splitContentIntoPages(content);
+      let pageBreakCount = 0;
+      // Additional safety check
+      if (!editorInstance.state.doc) {
+        console.warn('Editor doc not available');
+        return;
+      }
+      editorInstance.state.doc.descendants((node) => {
+        if (node.type.name === 'pageBreak') pageBreakCount++;
+      });
 
-      // Only update if pages actually changed
-      if (JSON.stringify(newPages) !== JSON.stringify(pages)) {
+      const totalPages = pageBreakCount + 1;
+
+      if (totalPages !== pages.length) {
+        // Create dummy pages array just for the length/indicator
+        const newPages = Array.from({ length: totalPages }, (_, i) => ({
+          id: i + 1,
+          content: '', // Not needed for single-view editor
+          height: 1122.5
+        }));
+
         setPages(newPages);
 
-        // Update document stats
         if (setDocumentStats) {
           setDocumentStats(prev => ({
             ...prev,
-            pages: newPages.length
+            pages: totalPages
           }));
         }
-
-        // Update page contents for rendering
-        setPageContents(newPages.map(page => page.content));
       }
     } catch (error) {
       console.error('Error updating pages:', error);
     } finally {
       setTimeout(() => setIsPageCalculationLocked(false), 100);
     }
-  }, [splitContentIntoPages, isPageCalculationLocked, pages, setDocumentStats]);
+  }, [isPageCalculationLocked, pages.length, setDocumentStats]);
+
 
   // Main editor instance
   const editor = useEditor({
@@ -995,14 +1001,67 @@ const TextEditorContent = () => {
           }));
         }
 
+        // --- Automatic Pagination Logic ---
+        // Check if cursor has reached the end of the current page
+        const { state, view } = editorInstance;
+        const { selection } = state;
+        const { $from } = selection;
+
+        // Use a timeout to avoid calculation errors during rapid typing
+        if (window.paginationTimeout) clearTimeout(window.paginationTimeout);
+        window.paginationTimeout = setTimeout(() => {
+          try {
+            const coords = view.coordsAtPos($from.pos);
+            const editorElement = view.dom;
+            const editorRect = editorElement.getBoundingClientRect();
+            // Calculate relative position within the editor
+            // Calculate relative position within the editor, adjusted for zoom
+            const zoomFactor = (zoom || 100) / 100;
+            const relativeTop = (coords.top - editorRect.top + editorElement.scrollTop) / zoomFactor;
+
+            // A4 height is exactly 1122.5px at 96DPI
+            const pageHeight = 1122.5;
+            const gapHeight = 40;
+            const totalPageHeight = pageHeight + gapHeight;
+
+            const positionInPage = relativeTop % totalPageHeight;
+
+            // Threshold is bottom margin (72px) + a small buffer
+            const threshold = pageHeight - 72 - 20;
+
+
+            if (positionInPage > threshold && positionInPage < pageHeight) {
+              // Check if there is already a page break ahead or nearby
+              let hasPageBreakAhead = false;
+              state.doc.nodesBetween($from.pos, Math.min($from.pos + 50, state.doc.content.size), (node) => {
+
+                if (node.type.name === 'pageBreak') hasPageBreakAhead = true;
+              });
+
+              if (!hasPageBreakAhead) {
+                // Automatically insert a page break
+                editorInstance.chain().focus().insertContentAt($from.pos, { type: 'pageBreak' }).run();
+                toast.info('New page created');
+              }
+            }
+          } catch (e) {
+            // Coords might not be available yet
+          }
+        }, 300);
+
         // Update pages with new content - use debounce to prevent excessive updates
         if (window.pagesUpdateTimeout) {
           clearTimeout(window.pagesUpdateTimeout);
         }
 
         window.pagesUpdateTimeout = setTimeout(() => {
-          updatePages(content);
+          // Additional guard to ensure editor is ready
+          if (editorInstance && editorInstance.state && editorInstance.state.doc) {
+            updatePages(editorInstance);
+          }
         }, 500); // Debounce page calculation
+
+
 
         // Update save status
         setSaveStatus('modified');
@@ -1019,6 +1078,7 @@ const TextEditorContent = () => {
         console.error('Error in onUpdate:', error);
       }
     },
+
     onSelectionUpdate: ({ editor: editorInstance }) => {
       const { from, to } = editorInstance.state.selection;
       if (from !== to) {
@@ -1690,104 +1750,18 @@ const TextEditorContent = () => {
     }
   }, [editor, documentTitle, wordCount, characterCount, setLastSaved, setSaveStatus]);
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
     if (!editor) return;
 
     try {
-      // Get all page content
-      const allContent = pages.map(page => page.content).join('');
-
-      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-
-      if (!printWindow) {
-        toast.error('Could not open print window. Please check your popup blocker.');
-        return;
-      }
-
-      const printContent = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${documentTitle || 'Document'}</title>
-          <style>
-            @page {
-              margin: 20mm;
-              size: A4;
-            }
-            @media print {
-              body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-              .page-break { page-break-before: always; }
-            }
-            body {
-              font-family: Arial, sans-serif;
-              font-size: 12pt;
-              line-height: 1.5;
-              color: #000;
-              max-width: 210mm;
-              margin: 0 auto;
-              padding: 15mm;
-              background: white;
-            }
-            .document-header {
-              border-bottom: 2px solid #333;
-              padding-bottom: 10px;
-              margin-bottom: 20px;
-            }
-            .document-title {
-              font-size: 18pt;
-              font-weight: bold;
-              margin: 0 0 10px 0;
-            }
-            .document-meta {
-              font-size: 10pt;
-              color: #666;
-              margin: 0;
-            }
-            .page-content {
-              margin-bottom: 20px;
-            }
-            img {
-              max-width: 100%;
-              height: auto;
-            }
-            h1 { font-size: 16pt; font-weight: bold; margin: 20px 0 10px 0; }
-            h2 { font-size: 14pt; font-weight: bold; margin: 18px 0 8px 0; }
-            h3 { font-size: 13pt; font-weight: bold; margin: 16px 0 6px 0; }
-            p { margin: 8px 0; }
-            ul, ol { margin: 8px 0 8px 20px; }
-            li { margin: 4px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-            th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-          </style>
-        </head>
-        <body>
-          <div class="document-header">
-            <h1 class="document-title">${documentTitle || 'Untitled Document'}</h1>
-            <p class="document-meta">Printed on ${new Date().toLocaleString()}</p>
-          </div>
-          <div class="page-content">${allContent}</div>
-          <script>
-            setTimeout(() => {
-              window.print();
-              setTimeout(() => {
-                window.close();
-              }, 1000);
-            }, 1000);
-          </script>
-        </body>
-        </html>
-      `;
-
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-
+      await DocumentExporter.printDocument(editor, {
+        title: documentTitle || 'Document'
+      });
     } catch (error) {
       console.error('Print error:', error);
       toast.error('Failed to print document');
     }
-  }, [editor, documentTitle, pages]);
+  }, [editor, documentTitle]);
 
   const handleExport = useCallback(async () => {
     if (!editor) {
@@ -1827,6 +1801,13 @@ const TextEditorContent = () => {
           }
           await exportToDOCX(editor, options);
           break;
+        case 'epub':
+          if (exportLoading.epub) {
+            toast.info('EPUB export is already in progress');
+            return;
+          }
+          await exportToEPUB(editor, options);
+          break;
         case 'md':
           if (exportLoading.md) {
             toast.info('Markdown export is already in progress');
@@ -1848,6 +1829,13 @@ const TextEditorContent = () => {
           }
           await exportToHTML(editor, options);
           break;
+        case 'json':
+          if (exportLoading.json) {
+            toast.info('JSON export is already in progress');
+            return;
+          }
+          await exportToJSON(editor, options);
+          break;
         default:
           toast.error(`Unsupported export format: ${exportFormat}`);
       }
@@ -1858,7 +1846,7 @@ const TextEditorContent = () => {
       // Close export dialog after processing
       updateEditorFeatures({ showExportDialog: false });
     }
-  }, [editor, documentTitle, exportFormat, exportOptions, exportLoading, updateEditorFeatures, exportToPDF, exportToDOCX, exportToMarkdown, exportToPlainText, exportToHTML]);
+  }, [editor, documentTitle, exportFormat, exportOptions, exportLoading, updateEditorFeatures, exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToMarkdown, exportToPlainText, exportToHTML]);
 
   const handleAIGenerate = useCallback(async (content) => {
     if (!editor) return;
@@ -2379,8 +2367,25 @@ const TextEditorContent = () => {
     return () => {
       clearTimeout(window.autoSaveTimer);
       clearTimeout(window.pagesUpdateTimeout);
+      clearTimeout(window.paginationTimeout);
     };
   }, []);
+
+  // Clear pagination cache when layout changes
+  useEffect(() => {
+    if (paragraphHeightCacheRef.current) {
+      paragraphHeightCacheRef.current.clear();
+    }
+    lastPaginationContentRef.current = '';
+
+    // Trigger update if editor exists
+    if (editor) {
+      const content = editor.getHTML();
+      if (content) {
+        updatePages(content);
+      }
+    }
+  }, [pageSize, pageOrientation, pageMargins, editor, updatePages]);
 
   // Render the editor content
   return (
@@ -2490,9 +2495,11 @@ const TextEditorContent = () => {
         toggleTaskList={toggleTaskList}
         toggleUnderline={toggleUnderline}
         toggleBlockquote={toggleBlockquote}
-        setIsTemplateSidebarOpen={setIsTemplateSidebarOpen}
+
         openExportDialog={openExportDialog}
         exportLoading={exportLoading}
+        setIsTemplateSidebarOpen={(open) => updateEditorFeatures({ showTemplateSidebar: open })}
+        isTemplateSidebarOpen={showTemplateSidebar}
       />
 
       {/* Main Content Area */}
@@ -2511,42 +2518,43 @@ const TextEditorContent = () => {
         {/* Editor Area - Single editor for all pages */}
         <div
           ref={contentContainerRef}
-          className="flex-1 overflow-auto bg-secondary/30"
+          className="flex-1 overflow-auto bg-slate-100/50 custom-scrollbar hidden-scrollbar"
           onPaste={handlePaste}
           onCopy={handleCopy}
         >
-          <div className="flex flex-col items-center py-6 px-4 min-h-full">
-            {/* Single editor that spans all pages */}
+          <div className="editor-pages-container">
+            {/* Single editor that spans all pages and fits into a repeating CSS background */}
             {editor && (
               <div
-                className="bg-background shadow-lg rounded-sm w-full max-w-204 min-h-264 mb-8 relative"
+                className="editor-workspace-scaled"
                 style={{
                   transform: `scale(${zoom / 100})`,
                   transformOrigin: 'top center',
-                  backgroundColor: pageColor,
-                  minHeight: '297mm', // A4 height
-                  width: '210mm', // A4 width
                 }}
               >
+                {/* Editor Content Overlay */}
                 <div
-                  className="p-16"
+                  className="relative z-10 w-full"
                   style={{
-                    minHeight: `calc(297mm - ${pageMargins.top + pageMargins.bottom}px)`,
-                    padding: `${pageMargins.top}px ${pageMargins.right}px ${pageMargins.bottom}px ${pageMargins.left}px`
+                    paddingTop: `${pageMargins.top}px`,
+                    paddingLeft: `${pageMargins.left}px`,
+                    paddingRight: `${pageMargins.right}px`,
+                    paddingBottom: `${pageMargins.bottom}px`,
                   }}
                 >
                   <EditorContent
                     editor={editor}
-                    className="min-h-[calc(297mm-144px)]"
+                    className="min-h-[1122.5px] tip-tap-editor w-full max-w-full overflow-x-hidden"
                   />
+
                 </div>
               </div>
             )}
 
             {/* Render page indicators for multi-page content */}
             {pages.length > 1 && (
-              <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                {pages.map((page, index) => (
+              <div className="mt-8 flex flex-wrap gap-2 justify-center pb-20">
+                {pages.map((page) => (
                   <Button
                     key={page.id}
                     variant={currentPage === page.id ? "default" : "outline"}
@@ -2574,7 +2582,9 @@ const TextEditorContent = () => {
 
       {/* Status Bar */}
       <footer className="flex items-center justify-between px-4 py-1.5 border-t border-border bg-background text-xs text-muted-foreground">
+
         <div className="flex items-center gap-4">
+
           <span>{wordCount} words</span>
           <span>{characterCount} characters</span>
           <span>{readingTime} min read</span>
@@ -2612,17 +2622,17 @@ const TextEditorContent = () => {
           </div>
           <span>Zoom: {zoom}%</span>
         </div>
-      </footer>
+      </footer >
 
       {/* Template Sidebar */}
-      <TemplateSidebar
-        isOpen={isTemplateSidebarOpen}
-        onClose={() => setIsTemplateSidebarOpen(false)}
+      < TemplateSidebar
+        isOpen={showTemplateSidebar}
+        onClose={() => updateEditorFeatures({ showTemplateSidebar: false })}
         onSelectTemplate={handleTemplateSelect}
       />
 
       {/* Export Dialog */}
-      <Dialog open={showExportDialog} onOpenChange={(open) => updateEditorFeatures({ showExportDialog: open })}>
+      < Dialog open={showExportDialog} onOpenChange={(open) => updateEditorFeatures({ showExportDialog: open })}>
         <DialogContent className="max-w-md bg-white" aria-describedby="export-dialog-description">
           <DialogHeader>
             <div className="flex justify-between items-start">
@@ -2655,10 +2665,22 @@ const TextEditorContent = () => {
                       DOCX
                     </div>
                   </SelectItem>
+                  <SelectItem value="epub">
+                    <div className="flex items-center gap-2">
+                      <Book className="w-4 h-4" />
+                      EPUB eBook
+                    </div>
+                  </SelectItem>
                   <SelectItem value="md">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
                       Markdown
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="json">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-4 h-4" />
+                      JSON Data
                     </div>
                   </SelectItem>
                   <SelectItem value="txt">
@@ -2781,10 +2803,10 @@ const TextEditorContent = () => {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Version History Modal */}
-      <AnimatePresence>
+      < AnimatePresence >
         {showVersionHistory && (
           <>
             <motion.div
@@ -2843,10 +2865,10 @@ const TextEditorContent = () => {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence >
 
       {/* Heading Styles Modal */}
-      <AnimatePresence>
+      < AnimatePresence >
         {showHeadingStyles && (
           <>
             <motion.div
@@ -2949,10 +2971,10 @@ const TextEditorContent = () => {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence >
 
       {/* Page Setup Modal */}
-      <AnimatePresence>
+      < AnimatePresence >
         {showPageSetup && (
           <>
             <motion.div
@@ -3124,10 +3146,10 @@ const TextEditorContent = () => {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence >
 
       {/* Media Panel Modal */}
-      <AnimatePresence>
+      < AnimatePresence >
         {showMediaPanel && (
           <>
             <motion.div
@@ -3434,10 +3456,10 @@ const TextEditorContent = () => {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence >
 
       {/* Image Insertion Modal */}
-      <AnimatePresence>
+      < AnimatePresence >
         {showImageModal && (
           <>
             <motion.div
@@ -3730,8 +3752,8 @@ const TextEditorContent = () => {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
-    </div>
+      </AnimatePresence >
+    </div >
   );
 };
 

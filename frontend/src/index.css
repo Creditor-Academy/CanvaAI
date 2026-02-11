@@ -1,10 +1,13 @@
 @import "tailwindcss";
 @import "./styles/athena-variables.css";
 
-/* Hide native scrollbars for the canvas working area only */
+/* Base reset and selection */
 * {
+  box-sizing: border-box;
   -webkit-user-select: none;
+  user-select: none;
 }
+
 
 .canvas-scroll {
   -ms-overflow-style: none;
@@ -87,6 +90,16 @@ body {
   background: transparent;
 }
 
+/* Hidden Scrollbar */
+.hidden-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* Resizable Image Styles */
 .resizable-image-wrapper {
   position: relative;
@@ -118,12 +131,36 @@ body {
   -webkit-user-drag: none;
 }
 
+/* ProseMirror Editor Core Styles */
+.ProseMirror {
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-family: inherit;
+  font-size: 11pt;
+  /* Crucial for height calculation sync */
+  line-height: 1.5;
+  color: #1a1a1a;
+  min-height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+.ProseMirror p {
+  margin-top: 0;
+  margin-bottom: 0;
+  /* Let line-height handle spacing or add small margin */
+}
+
 /* Ensure images in editor are properly displayed */
 .ProseMirror img.resizable-image {
   max-width: 100%;
   height: auto;
   display: block;
 }
+
 
 .ProseMirror .resizable-image-wrapper[data-align='left'] {
   float: left;
@@ -240,4 +277,69 @@ body {
 .ProseMirror .blockquote p {
   margin: 0 !important;
   line-height: 1.6 !important;
+}
+
+/* Pagination & A4 Styles */
+.editor-pages-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  background-color: #f1f5f9;
+  min-height: 100%;
+  width: 100%;
+}
+
+.editor-workspace-scaled {
+  position: relative;
+  width: 210mm;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+
+
+  /* Robust repeating A4 background */
+  background-color: #f1f5f9;
+  background-image: linear-gradient(white 0px,
+      white 1122.5px,
+      transparent 1122.5px,
+      transparent 1162.5px);
+  background-size: 210mm 1162.5px;
+  background-repeat: repeat-y;
+}
+
+
+/* Page Break Node Style */
+.ProseMirror div[data-type="page-break"] {
+  height: 184px;
+  /* 72px (bottom margin) + 40px (gap) + 72px (top margin) */
+  margin: 0 -72px;
+  /* Pull out to edges of the A4 width */
+  background-color: #f3f4f6;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.ProseMirror div[data-type="page-break"]::after {
+  content: "PAGE BREAK / MARGIN GAP";
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  letter-spacing: 0.1em;
+}
+
+
+/* Hide the page break visual when printing */
+@media print {
+  .ProseMirror div[data-type="page-break"] {
+    display: none;
+    page-break-after: always;
+  }
 }

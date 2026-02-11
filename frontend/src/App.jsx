@@ -1,8 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
-
-import SideBar from "./components/SideBar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 
 import { Home } from './pages/Home';
@@ -57,19 +55,20 @@ const AppContent = () => {
   const { isCollapsed, isMobile } = useSidebar();
   const location = useLocation();
 
-  // Check if current route is a canva-clone route
+  // Check if current route is a canva-clone route or editor route
   const isCanvaCloneRoute = location.pathname.startsWith('/canva-clone');
+  const isEditorRoute = location.pathname.startsWith('/editor');
 
   const getContentMargin = () => {
-    // No margin for canva-clone routes
-    if (isCanvaCloneRoute) return "0";
+    // No margin for canva-clone routes and editor routes
+    if (isCanvaCloneRoute || isEditorRoute) return "0";
     if (isMobile) return "0";
     return isCollapsed ? "60px" : "260px";
   };
 
   return (
     <div>
-      {!isCanvaCloneRoute && <SideBar />}
+      {!(isCanvaCloneRoute || isEditorRoute) && <SideBar />}
       <div
         className="app-content"
         style={{

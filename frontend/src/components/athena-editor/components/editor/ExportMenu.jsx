@@ -5,6 +5,8 @@ import {
   File,
   FileCode,
   ChevronDown,
+  Book,
+  BookOpen,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -54,7 +56,7 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
   ${html}
 </body>
 </html>`;
-    
+
     const blob = new Blob([fullHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -108,7 +110,7 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
   const exportAsText = () => {
     const html = getHTML();
     const text = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
-    
+
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -141,9 +143,17 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
           <File className="w-4 h-4 mr-2" />
           Markdown
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => toast.info('EPUB export is available in the main Export dialog')} className="cursor-pointer">
+          <Book className="w-4 h-4 mr-2" />
+          EPUB eBook
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={exportAsText} className="cursor-pointer">
           <FileText className="w-4 h-4 mr-2" />
           Plain Text
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => toast.info('JSON export is available in the main Export dialog')} className="cursor-pointer">
+          <FileCode className="w-4 h-4 mr-2" />
+          JSON Data
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -8,9 +8,11 @@ function useExportState() {
     docx: false,
     html: false,
     md: false,
-    txt: false
+    txt: false,
+    epub: false,
+    json: false
   });
-  
+
   const [exportProgress, setExportProgress] = useState({
     currentStep: '',
     totalSteps: 0,
@@ -41,7 +43,7 @@ function useExportState() {
     try {
       updateExportState('pdf', true);
       updateProgress('Preparing', 3, 0);
-      
+
       // Call the actual export function which handles its own toasts
       await DocumentExporter.exportToPDF(editor, options);
     } catch (error) {
@@ -121,11 +123,47 @@ function useExportState() {
     }
   }, [updateExportState]);
 
+  const exportToEPUB = useCallback(async (editor, options = {}) => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+
+    try {
+      updateExportState('epub', true);
+      await DocumentExporter.exportToEPUB(editor, options);
+    } catch (error) {
+      console.error('EPUB export error:', error);
+      toast.error(`EPUB export failed: ${error.message}`);
+    } finally {
+      updateExportState('epub', false);
+    }
+  }, [updateExportState]);
+
+  const exportToJSON = useCallback(async (editor, options = {}) => {
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
+    }
+
+    try {
+      updateExportState('json', true);
+      await DocumentExporter.exportToJSON(editor, options);
+    } catch (error) {
+      console.error('JSON export error:', error);
+      toast.error(`JSON export failed: ${error.message}`);
+    } finally {
+      updateExportState('json', false);
+    }
+  }, [updateExportState]);
+
   return {
     exportLoading,
     exportProgress,
     exportToPDF,
     exportToDOCX,
+    exportToEPUB,
+    exportToJSON,
     exportToHTML,
     exportToMarkdown,
     exportToPlainText,
