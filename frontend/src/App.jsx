@@ -50,6 +50,7 @@ import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
+import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 
 
@@ -153,6 +154,7 @@ function App() {
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
             <Route path="/verify" element={<VerifyUserPage />} />
+            <Route path="/forget-password" element={<ForgetPassword />} />
 
             {/* Full-screen Presentation Editor - No sidebar */}
             <Route

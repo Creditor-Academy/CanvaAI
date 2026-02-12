@@ -382,6 +382,14 @@ class ApiService {
     });
   }
 
+  async forgetPassword(email) {
+    return this.request(`/api/auth/forget-password?email=${encodeURIComponent(email)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
   // ============= TEMPLATE MANAGEMENT (ADMIN & USER) =============
 
   // 1. Upload Thumbnail Image
