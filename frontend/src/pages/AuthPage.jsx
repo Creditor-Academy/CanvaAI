@@ -98,8 +98,26 @@ const AuthPage = () => {
       let response;
       if (isSignup) {
         response = await api.register(formData);
+
+        await api.sendOTP(formData.email);
+        localStorage.setItem("email", formData.email);
+
+        navigate('/verify', { state: { email: formData.email } });
+        return;
       } else {
         response = await api.login(formData);
+        console.log(response);
+
+        if (response.unverified) {
+
+          localStorage.setItem("email", formData.email);
+
+          navigate("/verify", {
+            state: { email: formData.email }
+          });
+
+          return;
+        }
       }
 
       await login(response.token);
