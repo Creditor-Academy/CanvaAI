@@ -459,15 +459,50 @@ const usePresentationStore = create((set, get) => {
 
             let updatedLayer = { ...layer, ...style };
 
-            // If it's text and has content → sync leaves
+            // If it's text and has content → sync Slate nodes
             if (layer.type === "text" && layer.content) {
+              let updatedContent = [...layer.content];
+
               Object.entries(style).forEach(([key, value]) => {
-                updatedLayer.content = applyMarkToAllLeaves(
-                  updatedLayer.content,
-                  key,
-                  value
-                );
+                let slateKey = key;
+                let slateValue = value;
+
+                // Map CSS properties to Slate marks
+                if (key === "fontWeight") {
+                  slateKey = "bold";
+                  slateValue = value === "bold" ? true : undefined;
+                } else if (key === "fontStyle") {
+                  slateKey = "italic";
+                  slateValue = value === "italic" ? true : undefined;
+                } else if (key === "textDecoration") {
+                  slateKey = "underline";
+                  slateValue = value === "underline" ? true : undefined;
+                }
+
+                if (["bold", "italic", "underline", "fontSize", "color", "fontFamily"].includes(slateKey)) {
+                  // Apply as marks to all leaves
+                  updatedContent = updatedContent.map(block => ({
+                    ...block,
+                    children: block.children ? block.children.map(child => {
+                      const newChild = { ...child };
+                      if (slateValue === undefined) {
+                        delete newChild[slateKey];
+                      } else {
+                        newChild[slateKey] = slateValue;
+                      }
+                      return newChild;
+                    }) : []
+                  }));
+                } else if (slateKey === "textAlign") {
+                  // Apply as block-level property
+                  updatedContent = updatedContent.map(block => ({
+                    ...block,
+                    textAlign: slateValue
+                  }));
+                }
               });
+
+              updatedLayer.content = updatedContent;
             }
 
             return updatedLayer;

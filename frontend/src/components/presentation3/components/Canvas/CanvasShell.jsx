@@ -29,7 +29,8 @@ const CanvasShell = () => {
     setEditingLayer,
     clearEditingLayer,
     migrateTextLayers,
-    editingCell, // Add editingCell
+    editingCell,
+    setEditingCell,
   } = usePresentationStore();
 
   /* =========================
