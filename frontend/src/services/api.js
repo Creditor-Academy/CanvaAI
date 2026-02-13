@@ -166,34 +166,34 @@ class ApiService {
   }
 
   // Favorites
-  async getFavorites() {
-    return this.request('/api/user-data/favorites', {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getFavorites() {
+  //   return this.request('/api/user-data/favorites', {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async createFavorite(favoriteData) {
-    return this.request('/api/user-data/favorites', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(favoriteData),
-    });
-  }
+  // async createFavorite(favoriteData) {
+  //   return this.request('/api/user-data/favorites', {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify(favoriteData),
+  //   });
+  // }
 
-  async deleteFavorite(id) {
-    return this.request(`/api/user-data/favorites/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async deleteFavorite(id) {
+  //   return this.request(`/api/user-data/favorites/${id}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async toggleFavorite({ itemId, type, favorite }) {
-    return this.request('/api/user-data/favorites/toggle', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ itemId, type, favorite }),
-    });
-  }
+  // async toggleFavorite({ itemId, type, favorite }) {
+  //   return this.request('/api/user-data/favorites/toggle', {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify({ itemId, type, favorite }),
+  //   });
+  // }
 
   // ============= USER FILES (S3 uploads) =============
   async getUserFiles() {
@@ -210,136 +210,136 @@ class ApiService {
   }
 
   // ============= BRAND KITS =============
-  async getBrandKits() {
-    return this.request('/api/user-data/brandkits', {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getBrandKits() {
+  //   return this.request('/api/user-data/brandkits', {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async getBrandKitFolders() {
-    return this.request('/api/brandkit-list', {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getBrandKitFolders() {
+  //   return this.request('/api/brandkit-list', {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async createBrandKit(brandKitData) {
-    return this.request('/api/user-data/brandkits', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(brandKitData),
-    });
-  }
+  // async createBrandKit(brandKitData) {
+  //   return this.request('/api/user-data/brandkits', {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify(brandKitData),
+  //   });
+  // }
 
-  async updateBrandKit(id, brandKitData) {
-    return this.request(`/api/user-data/brandkits/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(brandKitData),
-    });
-  }
+  // async updateBrandKit(id, brandKitData) {
+  //   return this.request(`/api/user-data/brandkits/${id}`, {
+  //     method: 'PUT',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify(brandKitData),
+  //   });
+  // }
 
-  async deleteBrandKit(id) {
-    return this.request(`/api/user-data/brandkits/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async deleteBrandKit(id) {
+  //   return this.request(`/api/user-data/brandkits/${id}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  // Brand kit collaborators
-  async addBrandKitCollaborator(brandKitId, userId) {
-    return this.request(`/api/user-data/brandkits/${brandKitId}/collaborators`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ userId }),
-    });
-  }
+  // // Brand kit collaborators
+  // async addBrandKitCollaborator(brandKitId, userId) {
+  //   return this.request(`/api/user-data/brandkits/${brandKitId}/collaborators`, {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify({ userId }),
+  //   });
+  // }
 
-  async removeBrandKitCollaborator(brandKitId, collabUserId) {
-    return this.request(`/api/user-data/brandkits/${brandKitId}/collaborators/${collabUserId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async removeBrandKitCollaborator(brandKitId, collabUserId) {
+  //   return this.request(`/api/user-data/brandkits/${brandKitId}/collaborators/${collabUserId}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async deleteBrandKitFolder(kitFolder) {
-    const encodedKitFolder = encodeURIComponent(kitFolder);
-    return this.request(`/api/brandkit/${encodedKitFolder}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async deleteBrandKitFolder(kitFolder) {
+  //   const encodedKitFolder = encodeURIComponent(kitFolder);
+  //   return this.request(`/api/brandkit/${encodedKitFolder}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async addImageToBrandKit(kitFolder, imageUrl, category, fileName) {
-    const encodedKitFolder = encodeURIComponent(kitFolder);
-    return this.request(`/api/brandkit/${encodedKitFolder}/add-image`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ imageUrl, category, fileName }),
-    });
-  }
+  // async addImageToBrandKit(kitFolder, imageUrl, category, fileName) {
+  //   const encodedKitFolder = encodeURIComponent(kitFolder);
+  //   return this.request(`/api/brandkit/${encodedKitFolder}/add-image`, {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify({ imageUrl, category, fileName }),
+  //   });
+  // }
 
-  async deleteImageFromBrandKit(kitFolder, fileName) {
-    const encodedKitFolder = encodeURIComponent(kitFolder);
-    const encodedFileName = encodeURIComponent(fileName);
-    return this.request(`/api/brandkit/${encodedKitFolder}/image/${encodedFileName}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async deleteImageFromBrandKit(kitFolder, fileName) {
+  //   const encodedKitFolder = encodeURIComponent(kitFolder);
+  //   const encodedFileName = encodeURIComponent(fileName);
+  //   return this.request(`/api/brandkit/${encodedKitFolder}/image/${encodedFileName}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
   // ============= TEAM MANAGEMENT =============
-  async getTeamMembers() {
-    return this.request('/api/team/members', {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getTeamMembers() {
+  //   return this.request('/api/team/members', {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async getMemberProjects(memberId) {
-    return this.request(`/api/team/members/${memberId}/projects`, {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getMemberProjects(memberId) {
+  //   return this.request(`/api/team/members/${memberId}/projects`, {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async inviteTeamMember(email, role = 'member') {
-    return this.request('/api/team/invite', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ email, role }),
-    });
-  }
+  // async inviteTeamMember(email, role = 'member') {
+  //   return this.request('/api/team/invite', {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify({ email, role }),
+  //   });
+  // }
 
-  async getTeamInvites() {
-    return this.request('/api/team/invites', {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getTeamInvites() {
+  //   return this.request('/api/team/invites', {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async acceptInvite(token) {
-    return this.request(`/api/team/invites/accept/${token}`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async acceptInvite(token) {
+  //   return this.request(`/api/team/invites/accept/${token}`, {
+  //     method: 'POST',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async removeTeamMember(memberId) {
-    return this.request(`/api/team/members/${memberId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async removeTeamMember(memberId) {
+  //   return this.request(`/api/team/members/${memberId}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async cancelInvite(inviteId) {
-    return this.request(`/api/team/invites/${inviteId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-  }
+  // async cancelInvite(inviteId) {
+  //   return this.request(`/api/team/invites/${inviteId}`, {
+  //     method: 'DELETE',
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
-  async getTeamStats() {
-    return this.request('/api/team/stats', {
-      headers: getAuthHeaders(),
-    });
-  }
+  // async getTeamStats() {
+  //   return this.request('/api/team/stats', {
+  //     headers: getAuthHeaders(),
+  //   });
+  // }
 
   // ============= AUTH METHODS =============
   async login(credentials) {

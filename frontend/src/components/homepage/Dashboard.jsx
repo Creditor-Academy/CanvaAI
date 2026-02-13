@@ -42,18 +42,18 @@ const Dashboard = () => {
   const isCodeMode = selectedButton === "generate-code";
 
   return (
-    <div className="min-h-screen w-full bg-[linear-gradient(135deg,#f7f7fb_0%,#f3f4f8_40%,#eef2ff_100%)] px-3 sm:px-4 py-8 sm:py-10">
+    <div className="min-h-screen w-full bg-[linear-gradient(135deg,#f9fafb_0%,#e5e7eb_40%,#dbeafe_100%)] px-3 sm:px-4 py-8 sm:py-10">
 
       {/* ===== Header ===== */}
       <div className="max-w-4xl pt-4 mx-auto text-center px-2">
         <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">
           Create your{" "}
-          <span className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-[#1e40af] to-[#60a5fa] bg-clip-text text-transparent">
             next big idea
           </span>
         </h1>
         <p className="mt-3 text-slate-600 text-sm sm:text-lg">
-          Design, write, code, and create - powered by Athena AI
+          Design, write and create - powered by Athena AI
         </p>
       </div>
 
@@ -66,7 +66,7 @@ const Dashboard = () => {
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition
                 ${activeTab === tab.key
-                  ? "bg-slate-900 text-white shadow"
+                  ? "bg-[#3b82f6] text-white shadow"
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
                 }
               `}
@@ -102,7 +102,7 @@ const Dashboard = () => {
               placeholder="Describe your idea…"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-200 text-sm sm:text-base"
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#60a5fa] text-sm sm:text-base"
             />
           </div>
 
@@ -110,7 +110,7 @@ const Dashboard = () => {
             disabled={!selectedButton || loading}
             className={`w-full sm:w-auto px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition
               ${selectedButton
-                ? "bg-slate-900 text-white hover:bg-slate-800"
+                ? "bg-[#3b82f6] text-white hover:bg-[#1e40af]"
                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
               }
             `}
@@ -152,7 +152,7 @@ const Dashboard = () => {
             text-[10px] sm:text-xs md:text-sm lg:text-base
 
             ${active
-                      ? "bg-slate-900 text-white shadow"
+                      ? "bg-[#3b82f6] text-white shadow"
                       : "bg-white border border-slate-200 text-slate-700 hover:shadow"
                     }
           `}
@@ -172,7 +172,7 @@ const Dashboard = () => {
                 ml-1 sm:ml-2
                 px-1 py-[1px]
                 rounded-full
-                bg-indigo-100 text-indigo-600
+                bg-[#dbeafe]  text-[#1e40af]
                 text-[9px] sm:text-[4px] md:text-[11px]
                 font-semibold
                 whitespace-nowrap
@@ -198,13 +198,13 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row justify-end gap-3">
             <button
               onClick={() => setBrandKitOpen(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold shadow hover:bg-indigo-700"
+              className="px-4 py-2 rounded-xl bg-[#1e40af] text-white font-semibold shadow hover:bg-[#3b82f6]"
             >
               Brand Kit
             </button>
             <button
               onClick={() => navigate("/image-editor")}
-              className="px-4 py-2 rounded-xl bg-green-600 text-white font-semibold shadow hover:bg-green-700"
+              className="px-4 py-2 rounded-xl bg-[#0ea5e9] text-white font-semibold shadow hover:bg-[#3b82f6]"
             >
               Smart Edit
             </button>
