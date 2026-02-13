@@ -362,6 +362,16 @@ class ApiService {
     });
   }
 
+  async sendOTP(email) {
+    return this.request('/api/auth/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async verifyToken(token) {
     return this.request('/api/auth/verify', {
       method: 'POST',
@@ -372,6 +382,14 @@ class ApiService {
     });
   }
 
+  async forgetPassword(email) {
+    return this.request(`/api/auth/forget-password?email=${encodeURIComponent(email)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
   // ============= TEMPLATE MANAGEMENT (ADMIN & USER) =============
 
   // 1. Upload Thumbnail Image
