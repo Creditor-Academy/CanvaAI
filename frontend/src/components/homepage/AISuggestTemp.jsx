@@ -52,11 +52,23 @@ const FEATURES = [
 
 const AISuggestTemp = () => {
   const navigate = useNavigate();
-  const visible = 5;
+  const [visible, setVisible] = useState(
+    window.innerWidth < 768 ? 1 : 5
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setVisible(window.innerWidth < 768 ? 1 : 5);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const autoRef = useRef();
   const transitionRef = useRef(true);
   const sliderRef = useRef(null);
-const offsetRef = useRef(0);
+  const offsetRef = useRef(0);
 
 
   /* CLONE SETUP FOR TRUE INFINITE */
@@ -67,58 +79,42 @@ const offsetRef = useRef(0);
   ];
 
   const [index, setIndex] = useState(visible);
+
+  useEffect(() => {
+    setIndex(visible);
+  }, [visible]);
+
   const [hover, setHover] = useState(false);
-  
+
 
   /* AUTO SCROLL */
-  /* SPLIDE STYLE SMOOTH INFINITE AUTO SCROLL */
-useEffect(() => {
-  if (!sliderRef.current) return;
+  useEffect(() => {
+    if (hover) return;
 
-  let position = 0;
-  let animation;
+    autoRef.current = setInterval(() => {
+      setIndex((prev) => prev + 1);
+    }, 2500);
 
-  const speed = 0.4; // smooth speed
+    return () => clearInterval(autoRef.current);
+  }, [hover]);
 
-  const animate = () => {
-    if (!hover) {
-      position += speed;
-
-      // When half width reached → reset invisibly
-      if (position >= sliderRef.current.scrollWidth / 2) {
-        position = 0;
-      }
-
-      sliderRef.current.style.transform = `translateX(-${position}px)`;
-    }
-
-    animation = requestAnimationFrame(animate);
-  };
-
-  animate();
-
-  return () => cancelAnimationFrame(animation);
-}, [hover]);
 
 
 
 
   /* TRUE LOOP RESET (NO JUMP) */
   useEffect(() => {
-    if (index === clones.length - visible) {
-      setTimeout(() => {
-        transitionRef.current = false;
-        setIndex(visible);
-      }, 500);
+    if (index === FEATURES.length + visible) {
+      transitionRef.current = false;
+      setIndex(visible);
     }
 
-    if (index === 0) {
-      setTimeout(() => {
-        transitionRef.current = false;
-        setIndex(FEATURES.length);
-      }, 500);
+    if (index === visible - 1) {
+      transitionRef.current = false;
+      setIndex(FEATURES.length + visible - 1);
     }
-  }, [index, clones.length]);
+  }, [index]);
+
 
   /* ENABLE TRANSITION AGAIN */
   useEffect(() => {
@@ -129,7 +125,7 @@ useEffect(() => {
   }, [index]);
 
   return (
-    <section className="py-20" style={{ background: COLORS.bg }}>
+    <section className="py-20" >
       <div className="max-w-7xl mx-auto px-6">
 
         <h2 className="text-4xl font-bold text-center mb-12" style={{ color: COLORS.text }}>
@@ -143,15 +139,22 @@ useEffect(() => {
         >
           {/* ARROWS */}
           <button
-            onClick={() => setIndex((i) => i - 1)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white shadow p-3 rounded-full"
+            onClick={() => {
+              transitionRef.current = true;
+              setIndex((i) => i - 1);
+            }}
+            className="absolute left-0 hidden md:block  top-1/2 -translate-y-1/2 z-20 bg-white shadow p-3 rounded-full"
           >
             <FiChevronLeft />
           </button>
 
           <button
-            onClick={() => setIndex((i) => i + 1)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white shadow p-3 rounded-full"
+            onClick={() => {
+              transitionRef.current = true;
+              setIndex((i) => i + 1);
+            }}
+
+            className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white shadow p-3 rounded-full"
           >
             <FiChevronRight />
           </button>
@@ -160,7 +163,18 @@ useEffect(() => {
           <div className="overflow-hidden">
             <div
               ref={sliderRef}
-              className="flex gap-6"
+              onTransitionEnd={() => {
+                if (index === clones.length - visible) {
+                  transitionRef.current = false;
+                  setIndex(visible);
+                }
+
+                if (index === 0) {
+                  transitionRef.current = false;
+                  setIndex(FEATURES.length);
+                }
+              }}
+              className="flex "
               style={{
                 transition: transitionRef.current ? "transform 0.5s ease" : "none",
                 transform: `translateX(-${index * (100 / visible)}%)`,
@@ -169,7 +183,7 @@ useEffect(() => {
               {clones.map((item, i) => (
                 <div
                   key={i}
-                  style={{ width: `${100 / visible}%` }}
+                  style={{ width: `${100 / visible}%`, padding: "0 12px" }}
                   className="flex-shrink-0"
                 >
                   {/* CARD */}

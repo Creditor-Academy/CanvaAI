@@ -368,26 +368,27 @@ const SideBar = () => {
             padding: isCollapsed && !isMobile ? "28px 12px 12px 12px" : "28px 20px 12px 20px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
             justifyContent: isCollapsed && !isMobile ? "center" : "flex-start"
           }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: "12px",
-                background: "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <span style={{ color: "#ffffff", fontWeight: 700, fontSize: "1.35rem" }}>🧭</span>
-            </div>
+
             {(!isCollapsed || isMobile) && (
-              <span style={{ fontWeight: 700, fontSize: "1.12rem", color: "#ffffff" }}>Athena AI</span>
+              <span style={{
+                fontSize: "1.4rem",
+                fontWeight: 700,
+                 fontFamily: "'Orbitron', sans-serif",
+                fontStyle: "italic",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+                background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent"
+              }}>
+                Athena AI
+              </span>
             )}
+
           </div>
+
 
           {/* Sections */}
           <div style={{
@@ -401,77 +402,77 @@ const SideBar = () => {
               >
 
 
-                
-                  <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
 
-                    {navItems.filter((item) => item.section === section 
-                    ).map((item) => {
-                      const isActive = activePath === item.path;
-                      return (
-                        <li key={item.key}>
-                          <button
-                            onClick={() => {
-                              // Open canva-clone in a new tab
-                              if (item.key === 'canvaClone') {
-                                const baseUrl = window.location.origin;
-                                window.open(`${baseUrl}${item.path}`, '_blank');
-                              } else {
-                                navigate(item.path);
-                              }
-                              if (isMobile) setIsOpen(false);
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#2563eb";
-                              e.currentTarget.style.transform = "scale(1.02)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = isActive ? activeBg : "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                            }}
+                <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
+
+                  {navItems.filter((item) => item.section === section
+                  ).map((item) => {
+                    const isActive = activePath === item.path;
+                    return (
+                      <li key={item.key}>
+                        <button
+                          onClick={() => {
+                            // Open canva-clone in a new tab
+                            if (item.key === 'canvaClone') {
+                              const baseUrl = window.location.origin;
+                              window.open(`${baseUrl}${item.path}`, '_blank');
+                            } else {
+                              navigate(item.path);
+                            }
+                            if (isMobile) setIsOpen(false);
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#2563eb";
+                            e.currentTarget.style.transform = "scale(1.02)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = isActive ? activeBg : "transparent";
+                            e.currentTarget.style.transform = "scale(1)";
+                          }}
 
 
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            width: "100%",
+                            border: "none",
+                            outline: "none",
+                            padding: isCollapsed && !isMobile ? "11px 12px" : "11px 20px",
+                            cursor: "pointer",
+                            backgroundColor: isActive ? activeBg : "transparent",
+                            color: isActive ? activeTextColor : textColor,
+                            fontWeight: isActive ? 600 : 500,
+                            fontSize: "1rem",
+                            transition: "all 0.25s ease",
+                            transform: "scale(1)",
+                            justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
+                          }}
+                          title={isCollapsed && !isMobile ? item.label : undefined}
+                        >
+                          <span
                             style={{
+                              color: iconColor,
                               display: "flex",
                               alignItems: "center",
-                              width: "100%",
-                              border: "none",
-                              outline: "none",
-                              padding: isCollapsed && !isMobile ? "11px 12px" : "11px 20px",
-                              cursor: "pointer",
-                              backgroundColor: isActive ? activeBg : "transparent",
-                              color: isActive ? activeTextColor : textColor,
-                              fontWeight: isActive ? 600 : 500,
-                              fontSize: "1rem",
-                              transition: "all 0.25s ease",
-                              transform: "scale(1)",
-                              justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
+                              marginRight: isCollapsed && !isMobile ? "0" : "14px",
                             }}
-                            title={isCollapsed && !isMobile ? item.label : undefined}
                           >
-                            <span
-                              style={{
-                                color: iconColor,
-                                display: "flex",
-                                alignItems: "center",
-                                marginRight: isCollapsed && !isMobile ? "0" : "14px",
-                              }}
-                            >
-                              {item.icon}
-                            </span>
-                            {(!isCollapsed || isMobile) && (
-                              <>
-                                <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-                              </>
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                            {item.icon}
+                          </span>
+                          {(!isCollapsed || isMobile) && (
+                            <>
+                              <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+                            </>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             ))}
           </div>
-          
+
 
           {/* Footer */}
           <div
