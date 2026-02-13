@@ -128,9 +128,16 @@ const AISuggestTemp = () => {
     <section className="py-20" >
       <div className="max-w-7xl mx-auto px-6">
 
-        <h2 className="text-4xl font-bold text-center mb-12" style={{ color: COLORS.text }}>
+        <h2
+          className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
+          style={{
+            backgroundImage:
+              "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#fbbf24 100%)",
+          }}
+        >
           What would you like to create?
         </h2>
+
 
         <div
           className="relative"

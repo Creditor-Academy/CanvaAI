@@ -1,233 +1,438 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiPenTool,
-  FiImage,
-  FiFileText,
-  FiCode,
-  FiVideo,
   FiPlus,
   FiZap,
   FiLayout,
+  FiImage,
+  FiFileText,
+  FiSearch,
+  FiX,
 } from "react-icons/fi";
+import { RiPresentationFill } from "react-icons/ri";
+import { HiOutlinePresentationChartLine } from "react-icons/hi2";
+import { IoDocument } from "react-icons/io5";
+import { MdOutlineDocumentScanner } from "react-icons/md";
+import { CiImageOn } from "react-icons/ci";   // ✅ correct
+import { FaRegImages } from "react-icons/fa";
 
 import Creation from "./Creation";
 import AISuggestTemp from "./AISuggestTemp";
 import Recents from "./Recents";
-import BrandKitModal from "../BrandKitModal";
 
-const BUTTONS = [
-  { key: "design", label: "Design for me", icon: FiPenTool, tag: "Popular" },
-  { key: "create-image", label: "Create image", icon: FiImage, tag: "New" },
-  { key: "draft-document", label: "Draft document", icon: FiFileText },
-  { key: "generate-code", label: "Generate code", icon: FiCode },
-  { key: "create-video", label: "Create video", icon: FiVideo, tag: "Pro" },
-  { key: "create-presentation", label: "Presentation", icon: FiLayout, tag: "New" },
-];
+/* ===== BRAND COLORS ===== */
+const COLORS = {
+  deepBlue: "#1e40af",
+  primaryBlue: "#3b82f6",
+  skyBlue: "#60a5fa",
+  brightSky: "#0ea5e9",
+  gold: "#fbbf24",
+  navyText: "#0c4a6e",
+  bgLight: "#f9fafb",
+};
 
 const TABS = [
   { key: "your-designs", label: "Your designs" },
   { key: "templates", label: "Templates" },
-  { key: "athena-ai", label: "Athena AI" },
+  { key: "ai", label: "AI" },
 ];
+const QUICK_CREATE = [
+  {
+    label: "Presentation",
+    defaultIcon: HiOutlinePresentationChartLine,
+    hoverIcon: RiPresentationFill,
+    route: "/presentation",
+    color1: "#3b82f6",
+    color2: "#60a5fa",
+  },
+  {
+    label: "Document",
+    defaultIcon: IoDocument,
+    hoverIcon: MdOutlineDocumentScanner,
+    route: "/editor",
+    color1: "#fbbf24",
+    color2: "#f59e0b",
+  },
+  {
+    label: "Image Editing",
+    defaultIcon: CiImageOn,
+    hoverIcon: FaRegImages,
+    route: "/canva-clone",
+    color1: "#1e40af",
+    color2: "#0ea5e9",
+  },
+];
+
+
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("your-designs");
-  const [selectedButton, setSelectedButton] = useState(null);
   const [inputText, setInputText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [brandKitOpen, setBrandKitOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedDate, setSelectedDate] = useState("all");
+  const [uploadType, setUploadType] = useState(null);
+  const [appliedSearch, setAppliedSearch] = useState("");
 
-  const isCodeMode = selectedButton === "generate-code";
+
+
+  const getPlaceholder = () => {
+    if (activeTab === "your-designs") return "Search your designs...";
+    if (activeTab === "templates") return "Search templates...";
+    return "Create your design...";
+  };
 
   return (
-    <div className="min-h-screen w-full bg-[linear-gradient(135deg,#f9fafb_0%,#e5e7eb_40%,#dbeafe_100%)] px-3 sm:px-4 py-8 sm:py-10">
+    <div
+      className="min-h-screen w-full overflow-x-hidden px-4 py-12"
+      style={{
+        background:
+          "linear-gradient(135deg,#f9fafb 0%,#e0f2fe 40%,#dbeafe 100%)",
+      }}
+    >
+      {/* ================= HEADER ================= */}
+      <div className="max-w-5xl mx-auto text-center">
 
-      {/* ===== Header ===== */}
-      <div className="max-w-4xl pt-4 mx-auto text-center px-2">
-        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">
-          Create your{" "}
-          <span className="bg-gradient-to-r from-[#1e40af] to-[#60a5fa] bg-clip-text text-transparent">
-            next big idea
+        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
+          <span
+            className="bg-gradient-to-r bg-clip-text text-transparent"
+            style={{
+              backgroundImage:
+                "linear-gradient(90deg,#1e40af,#3b82f6,#60a5fa,#0ea5e9)",
+              backgroundSize: "200% auto",
+            }}
+          >
+            {activeTab === "templates" && "Create using templates"}
+            {activeTab === "ai" && "Create with AI"}
+            {activeTab === "your-designs" && "Create your next big idea"}
           </span>
         </h1>
-        <p className="mt-3 text-slate-600 text-sm sm:text-lg">
-          Design, write and create - powered by Athena AI
+
+        <p className="mt-4 text-slate-600 text-sm sm:text-lg">
+          Design presentations, documents and images effortlessly
         </p>
+
+        <div className="mt-8 flex justify-center gap-4 flex-wrap relative">
+          {TABS.map((tab) => {
+            const active = activeTab === tab.key;
+
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`relative px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300
+                  ${active
+                    ? "text-white shadow-lg"
+                    : "bg-white border border-slate-200 text-slate-600 hover:text-[#1e40af] hover:shadow"
+                  }
+                `}
+                style={
+                  active
+                    ? {
+                      background:
+                        "#0c4a6e",
+                    }
+                    : {}
+                }
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ===== Tabs ===== */}
-      {!isCodeMode && (
-        <div className="mt-6 flex justify-center gap-2 sm:gap-3 flex-wrap">
-          {TABS.map((tab) => (
+      {/* ================= MAIN BOX ================= */}
+      <div className="max-w-4xl mx-auto mt-12">
+        <div
+          className="rounded-3xl shadow-xl overflow-hidden border"
+          style={{
+            background: "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(12px)",
+            borderColor: "#dbeafe",
+          }}
+        >
+          {/* ===== INPUT ROW ===== */}
+          <div className="flex items-center gap-3 px-5 py-5">
+
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition
-                ${activeTab === tab.key
-                  ? "bg-[#3b82f6] text-white shadow"
-                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+              onClick={() => {
+                if (activeTab === "ai") {
+                  setUploadType("choose");
                 }
-              `}
+              }}
+              className="w-10 h-10 rounded-full border border-dashed flex items-center justify-center text-slate-500 hover:bg-[#f5f5f5] transition"
             >
-              {tab.label}
+              {activeTab === "ai" ? <FiPlus /> : <FiSearch />}
             </button>
-          ))}
-        </div>
-      )}
 
-      {/* ===== Main Card ===== */}
-      <div
-        className={`
-          mt-8 mx-auto bg-white/80 backdrop-blur border border-slate-200 rounded-2xl shadow-sm
-          p-4 sm:p-6 transition-all
-          w-full
-          ${isCodeMode ? "max-w-4xl min-h-[70vh]" : "max-w-3xl"}
-        `}
-      >
-        {/* ===== Prompt Row (Responsive) ===== */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-6">
-          <div className="flex gap-4 w-full">
-
-            <button
-              className="w-10 h-10 self-start sm:self-auto rounded-xl border border-dashed flex items-center justify-center text-slate-500 hover:bg-slate-50"
-              onClick={() => setSelectedButton(null)}
-            >
-              <FiPlus />
-            </button>
 
             <input
               type="text"
-              placeholder="Describe your idea…"
+              placeholder={getPlaceholder()}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#60a5fa] text-sm sm:text-base"
+              className="flex-1 outline-none text-sm sm:text-base bg-transparent"
             />
+
+            <button
+              onClick={() => {
+                if (activeTab !== "ai") {
+                  setAppliedSearch(inputText);
+                }
+              }}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-white transition transform hover:scale-105"
+              style={{
+                background:
+                  "#0c4a6e"
+              }}
+            >
+              <FiZap />
+            </button>
+
           </div>
 
-          <button
-            disabled={!selectedButton || loading}
-            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition
-              ${selectedButton
-                ? "bg-[#3b82f6] text-white hover:bg-[#1e40af]"
-                : "bg-slate-200 text-slate-400 cursor-not-allowed"
-              }
-            `}
-          >
-            <FiZap />
-            Create
-          </button>
-        </div>
+          {/* YOUR DESIGNS */}
+          {activeTab === "your-designs" && (
+            <div className="bg-[#f5f5f5] px-5 py-4 flex flex-col gap-4">
 
-        {/* ===== Action Buttons ===== */}
-        {!isCodeMode && (
-          <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
-            {BUTTONS.map((btn) => {
-              const Icon = btn.icon;
-              const active = selectedButton === btn.key;
+              <div className="flex flex-wrap gap-6">
 
-              return (
-                <button
-                  key={btn.key}
-                  onClick={() => {
-                    if (btn.key === "create-presentation") {
-                      navigate("/presentation");
-                      return;
-                    }
+                <div className="flex py-4 gap-4">
 
-                    // toggle select / unselect
-                    setSelectedButton((prev) =>
-                      prev === btn.key ? null : btn.key
-                    );
-                  }}
-                  className={`
-            cursor-pointer
-            flex items-center gap-2 sm:gap-3
-            px-2 sm:px-2 py-2
-            rounded-xl font-semibold
-            transition-all duration-150
-            w-[45%]
-
-            text-[10px] sm:text-xs md:text-sm lg:text-base
-
-            ${active
-                      ? "bg-[#3b82f6] text-white shadow"
-                      : "bg-white border border-slate-200 text-slate-700 hover:shadow"
-                    }
-          `}
-                >
-                  {/* Icon */}
-                  <Icon className="text-[12px] sm:text-sm md:text-base lg:text-lg shrink-0" />
-
-                  {/* Label */}
-                  <span className="truncate">
-                    {btn.label}
-                  </span>
-
-                  {/* Tag */}
-                  {btn.tag && (
-                    <span
-                      className="
-                ml-1 sm:ml-2
-                px-1 py-[1px]
-                rounded-full
-                bg-[#dbeafe]  text-[#1e40af]
-                text-[9px] sm:text-[4px] md:text-[11px]
-                font-semibold
-                whitespace-nowrap
-              "
-                    >
-                      {btn.tag}
-                    </span>
+                  {(selectedCategory !== "all" || selectedDate !== "all") && (
+                    <div className="px-3 py-1 bg-white border border-[#60a5fa] rounded-full shadow">
+                      <FiX
+                        className="cursor-pointer text-slate-600"
+                        onClick={() => {
+                          setSelectedCategory("all");
+                          setSelectedDate("all");
+                        }}
+                      />
+                    </div>
                   )}
-                </button>
-              );
-            })}
-          </div>
-        )}
+
+
+                </div>
+                {/* Category */}
+
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="mt-1 px-5 py-2 rounded-full text-sm border border-[#60a5fa]"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="presentation">Presentation</option>
+                  <option value="document">Document</option>
+                  <option value="image">Image</option>
+                </select>
+
+
+                {/* Date */}
+
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="mt-1 px-5 py-2 rounded-full text-sm border border-[#60a5fa]"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                </select>
+
+              
+
+
+              </div>
 
 
 
+            </div>
+          )}
 
+          {/* TEMPLATES */}
+          {activeTab === "templates" && (
+            <div className="bg-[#f5f5f5] px-5 py-4 flex flex-wrap gap-4">
+              {[
+                "Modern PPT",
+                "Simple PPT",
+                "Creative Slides",
+                "Minimal Layout",
+                "Clean Design",
+              ].map((tag) => (
+                <span
+                  key={tag}
+                  className="px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition cursor-pointer"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* AI OPTIONS */}
+          {activeTab === "ai" && (
+            <div className="bg-[#f5f5f5] px-5 py-4 flex flex-wrap gap-4">
+
+              <button
+                onClick={() => navigate("/presentation")}
+                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
+              >
+                <FiLayout /> Design PPT
+              </button>
+
+              <button
+                onClick={() => navigate("/image-editor")}
+                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
+              >
+                <FiImage /> Generate Image
+              </button>
+
+              <button
+                onClick={() => navigate("/editor")}
+                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
+              >
+                <FiFileText /> Generate Document
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ===== Your Designs ===== */}
-      {!isCodeMode && activeTab === "your-designs" && (
-        <div className="max-w-6xl mx-auto mt-10 space-y-8 px-1 sm:px-0">
-          <div className="flex flex-col sm:flex-row justify-end gap-3">
-            <button
-              onClick={() => setBrandKitOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#1e40af] text-white font-semibold shadow hover:bg-[#3b82f6]"
-            >
-              Brand Kit
-            </button>
-            <button
-              onClick={() => navigate("/image-editor")}
-              className="px-4 py-2 rounded-xl bg-[#0ea5e9] text-white font-semibold shadow hover:bg-[#3b82f6]"
-            >
-              Smart Edit
-            </button>
+      {activeTab === "your-designs" && (
+        <div className="max-w-6xl mx-auto mt-14 space-y-10">
+
+          {/* ===== QUICK CREATE ICON ROW ===== */}
+          <div className="flex flex-wrap justify-center gap-10">
+
+            {QUICK_CREATE.map((item, index) => {
+              const DefaultIcon = item.defaultIcon;
+              const HoverIcon = item.hoverIcon;
+
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => navigate(item.route)}
+                  className="flex -mb-12 flex-col items-center cursor-pointer group transition-all duration-500"
+                >
+                  {/* Circle */}
+                  <div
+                    className="relative w-15 h-15 flex items-center justify-center rounded-full text-white text-3xl transition-all duration-500 group-hover:scale-110"
+                    style={{
+                      background: `linear-gradient(135deg, ${item.color1}, ${item.color2})`,
+                      boxShadow: "0 8px 25px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    {/* Default Icon */}
+                    <DefaultIcon className="absolute transition-all duration-300 opacity-100 group-hover:opacity-0 scale-100 group-hover:scale-0" />
+
+                    {/* Hover Icon */}
+                    <HoverIcon className="absolute transition-all duration-300 opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100" />
+                  </div>
+
+                  {/* Label */}
+                  <span className="mt-3 text-sm font-semibold text-slate-800 group-hover:text-[#1e293b] transition">
+                    {item.label}
+                  </span>
+
+                  {/* Subtitle */}
+                  <span className="text-xs font-medium text-slate-500 group-hover:text-[#0c4a6e] transition">
+                    Create
+                  </span>
+                </div>
+              );
+            })}
+
           </div>
 
-          <AISuggestTemp />
-          <Recents />
+
+          {/* Show Suggested ONLY when no filter active */}
+          {selectedCategory === "all" &&
+            selectedDate === "all" &&
+            appliedSearch.trim() === "" && (
+              <AISuggestTemp />
+            )}
+
+
+          {/* Recents always visible */}
+          <Recents
+            selectedCategory={selectedCategory}
+            selectedDate={selectedDate}
+            searchQuery={appliedSearch}
+          />
+
+
         </div>
       )}
 
-      {/* ===== Templates ===== */}
-      {!isCodeMode && activeTab === "templates" && (
-        <div className="max-w-6xl mx-auto mt-10">
-          <Creation />
+
+      {activeTab === "templates" && (
+        <div className="max-w-6xl mx-auto mt-14">
+          <Creation searchQuery={inputText} />
         </div>
       )}
 
-      {/* ===== Footer ===== */}
-      <p className="mt-10 text-center text-xs sm:text-sm text-slate-400 px-4">
-        Athena AI may generate inaccurate results. Please verify important information.
+      <p className="mt-16 text-center text-xs text-slate-500">
+        AI generated results may contain inaccuracies. Please verify important information.
       </p>
+      {uploadType && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl shadow-xl w-80">
 
-      <BrandKitModal isOpen={brandKitOpen} onClose={() => setBrandKitOpen(false)} />
+            {uploadType === "choose" && (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Upload Media</h3>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setUploadType("image")}
+                    className="px-4 py-2 border rounded-xl hover:bg-gray-50"
+                  >
+                    Upload Image
+                  </button>
+
+                  <button
+                    onClick={() => setUploadType("document")}
+                    className="px-4 py-2 border rounded-xl hover:bg-gray-50"
+                  >
+                    Upload Document
+                  </button>
+                </div>
+              </>
+            )}
+
+            {(uploadType === "image" || uploadType === "document") && (
+              <>
+                <input
+                  type="file"
+                  accept={
+                    uploadType === "image"
+                      ? "image/*"
+                      : ".pdf,.doc,.docx,.txt"
+                  }
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    console.log("Selected File:", file);
+                    setUploadType(null);
+                  }}
+                />
+              </>
+            )}
+
+            <button
+              onClick={() => setUploadType(null)}
+              className="mt-4 text-sm text-red-500"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

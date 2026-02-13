@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiGrid, FiPlus, FiFolder, FiStar, FiZap, FiImage, FiFileText, FiVideo, FiUsers, FiBarChart, FiHelpCircle, FiSettings, FiMenu, FiX, FiShield, FiLayout, FiArrowLeft } from 'react-icons/fi';
+import { FiGrid, FiPlus, FiFolder, FiFileText, FiHelpCircle, FiSettings, FiMenu, FiX, FiShield, FiLayout, FiArrowLeft } from 'react-icons/fi';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -273,7 +273,7 @@ const SideBar = () => {
 
     transform: isMobile ? (isOpen ? "translateX(0)" : "translateX(-100%)") : "none",
     willChange: isMobile ? "transform" : "width",
-    zIndex: 1000,
+    zIndex: 2000,
     boxShadow: isMobile && isOpen ? "4px 0 25px rgba(30,64,175,0.25)" : "none",
     backdropFilter: "blur(6px)",
     animation: !isMobile ? "slideIn 0.4s ease" : "none",
@@ -292,7 +292,8 @@ const SideBar = () => {
           style={{
             position: "fixed",
             top: 12,
-            left: 12,
+            left: "auto",
+            right: 16,
             zIndex: 1100,
             width: 40,
             height: 40,
@@ -375,7 +376,7 @@ const SideBar = () => {
               <span style={{
                 fontSize: "1.4rem",
                 fontWeight: 700,
-                 fontFamily: "'Orbitron', sans-serif",
+                fontFamily: "'Orbitron', sans-serif",
                 fontStyle: "italic",
                 letterSpacing: "1px",
                 textTransform: "uppercase",
