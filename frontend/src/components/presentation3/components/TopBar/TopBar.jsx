@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Upload,
   Link,
-  Trash2
+  Trash2,
+  Save
 } from "lucide-react";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
@@ -62,6 +63,16 @@ const TopBar = ({ onPresent, onAgentClick }) => {
     };
   }, []);
 
+  const handleDebugSave = () => {
+    const presentationData = usePresentationStore.getState();
+    const dataToLog = {
+      slides: presentationData.slides,
+      // You can add other relevant top-level data here if needed, like presentation ID or title
+    };
+    console.log("--- DEBUG SAVE: Current Presentation JSON ---");
+    console.log(JSON.stringify(dataToLog, null, 2)); // null, 2 for pretty printing
+  };
+
   return (
     <div className="topbar-wrapper">
 
@@ -80,6 +91,10 @@ const TopBar = ({ onPresent, onAgentClick }) => {
         {/* Right: Theme / Share / Agent / Present aligned in one line */}
         <div className="topbar-right">
           <div className="topbar-links">
+            {/* Temporary Debug Save Button */}
+            <button className="nav-btn" onClick={handleDebugSave} data-tooltip="Debug Save (Console Log)">
+              <Save size={18} /> Debug Save
+            </button>
             <div className="dropdown" ref={themeRef}>
               <button
                 className="nav-btn"
