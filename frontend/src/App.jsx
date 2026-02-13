@@ -38,6 +38,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AuthPage from "./pages/AuthPage";
+import VerifyUserPage from "./pages/VerifyUserPage";
 import AdminDash from "./pages/AdminDash";
 import BrandKitResult from "./pages/BrandKitResult";
 import DocumentGenerator from "./components/aigenerator/DocumentGenerator";
@@ -49,6 +50,7 @@ import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
+import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 
 
@@ -151,6 +153,8 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
+            <Route path="/verify" element={<VerifyUserPage />} />
+            <Route path="/forget-password" element={<ForgetPassword />} />
 
             {/* Full-screen Presentation Editor - No sidebar */}
             <Route
