@@ -55,7 +55,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState('#ffffff');
+  const [canvasBgColor, setCanvasBgColor] = useState('#DDB4B4');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -822,12 +822,24 @@ const CanvaEditor = () => {
   };
 
   // Shape settings handler
-  const handleShapeSettingsChange = useCallback((property, value) => {
+  // Shape settings handler
+  const handleShapeSettingsChange = useCallback((propertyOrUpdates, value) => {
     if (!selectedLayer) return;
     const layer = layers.find(l => l.id === selectedLayer);
+
     if (layer && layer.type === 'shape') {
+      let updates = {};
+
+      // Check if first argument is an object (for batch updates)
+      if (typeof propertyOrUpdates === 'object' && propertyOrUpdates !== null) {
+        updates = propertyOrUpdates;
+      } else {
+        // Handle single property update
+        updates = { [propertyOrUpdates]: value };
+      }
+
       const newLayers = layers.map(l =>
-        l.id === selectedLayer ? { ...l, [property]: value } : l
+        l.id === selectedLayer ? { ...l, ...updates } : l
       );
       setLayers(newLayers);
       saveToHistory(newLayers);

@@ -473,7 +473,7 @@ const LeftCanvasSidebar = memo(({
             />
           </div>
 
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+
 
           {uploadedImages.length > 0 && (
             <div className="mt-6">
@@ -542,6 +542,7 @@ const LeftCanvasSidebar = memo(({
           </div>
         </ExpandedSectionPortal>
       </div>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
     </div>
   )
 });

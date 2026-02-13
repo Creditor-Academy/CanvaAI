@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { FiArrowLeft, FiArrowRight, FiEye, FiEyeOff, FiCopy, FiTrash2, FiType, FiSquare, FiImage, FiEdit3, FiAlignLeft, FiAlignCenter, FiAlignRight, FiBold, FiItalic, FiUnderline, FiMove } from 'react-icons/fi';
 import { BrightnessControl, ContrastControl, BlurControl, ShadowsControl, OpacityControl } from '../controls';
 import TextEnhanceButton from '../TextEnhanceButton';
@@ -50,6 +50,28 @@ const RightSidebar = ({
   const selectedTextLayer = layers.find(
     (l) => l.id === selectedLayer && l.type === 'text'
   );
+
+  // Ref for shape image upload
+  const shapeImgInputRef = useRef(null);
+
+  // Handle shape image upload
+  const handleShapeImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        handleShapeSettingsChange({
+          fillImageSrc: event.target.result,
+          fillType: 'image'
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset value so same file can be selected again
+    e.target.value = '';
+  };
 
   return (
     <div>
@@ -335,62 +357,91 @@ const RightSidebar = ({
 
             {layers.find(l => l.id === selectedLayer)?.type === 'shape' && (
               <>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Fill Type</span>
-                  <select
-                    value={shapeSettings.fillType}
-                    onChange={(e) => handleShapeSettingsChange('fillType', e.target.value)}
-                    className="py-1.5 px-2 border border-gray-300 rounded text-sm w-20"
-                  >
-                    <option value="color">Color</option>
-                    <option value="image">Image</option>
-                  </select>
-                </div>
-                {shapeSettings.fillType === 'image' && (
-                  <>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-gray-700">Image Fit</span>
-                      <select
-                        value={shapeSettings.fillImageFit}
-                        onChange={(e) => handleShapeSettingsChange('fillImageFit', e.target.value)}
-                        className="py-1.5 px-2 border border-gray-300 rounded text-sm w-20"
-                      >
-                        <option value="cover">Cover</option>
-                        <option value="contain">Contain</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <button
-                          className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50 cursor-pointer"
-                          onClick={() => fileInputRef.current?.click()}
-                          title="Upload image to use as fill"
-                        >
-                          Upload image
-                        </button>
-                        {shapeSettings.fillImageSrc && (
-                          <img src={shapeSettings.fillImageSrc} alt="fill" className="w-10 h-10 object-cover rounded border border-gray-200" />
-                        )}
+                {/* Image Fill Section */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-700">Image Fill</span>
+                    <button
+                      className="px-3 py-1.5 text-xs border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+                      onClick={() => shapeImgInputRef.current?.click()}
+                      title="Upload image"
+                    >
+                      Upload Image
+                    </button>
+                  </div>
+
+                  {/* Hidden Input */}
+                  <input
+                    type="file"
+                    ref={shapeImgInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleShapeImageUpload}
+                  />
+
+                  {/* Image Fit & Preview */}
+                  {shapeSettings.fillType === 'image' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-gray-50 p-2 rounded-md border border-gray-100">
+                        <span className="text-xs font-medium text-gray-600">Fit</span>
+                        <div className="flex bg-white rounded border border-gray-200 p-0.5">
+                          <button
+                            className={`px-3 py-1 text-xs rounded-sm transition-all ${shapeSettings.fillImageFit === 'cover' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                            onClick={() => handleShapeSettingsChange('fillImageFit', 'cover')}
+                          >
+                            Cover
+                          </button>
+                          <div className="w-px bg-gray-200 mx-0.5 my-1"></div>
+                          <button
+                            className={`px-3 py-1 text-xs rounded-sm transition-all ${shapeSettings.fillImageFit === 'contain' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                            onClick={() => handleShapeSettingsChange('fillImageFit', 'contain')}
+                          >
+                            Contain
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Recent Images Grid */}
                       {uploadedImages.length > 0 && (
-                        <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
-                          {uploadedImages.map(ui => (
-                            <button key={ui.id} onClick={() => handleShapeSettingsChange('fillImageSrc', ui.src)} title={ui.name} className={`p-0 rounded overflow-hidden bg-white ${shapeSettings.fillImageSrc === ui.src ? 'border-2 border-blue-600' : 'border border-gray-200'
-                              }`}>
-                              <img src={ui.src} alt={ui.name} className="w-full h-10 object-cover block" />
-                            </button>
-                          ))}
+                        <div>
+                          <div className="grid grid-cols-5 gap-2">
+                            {/* Current Image */}
+                            {shapeSettings.fillImageSrc && (
+                              <div className="relative rounded overflow-hidden border-2 border-blue-500 aspect-square group">
+                                <img src={shapeSettings.fillImageSrc} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                              </div>
+                            )}
+
+                            {/* Other Recents */}
+                            {uploadedImages.slice(0, 9).map(ui => (
+                              (ui.src !== shapeSettings.fillImageSrc) && (
+                                <button
+                                  key={ui.id}
+                                  onClick={() => handleShapeSettingsChange({ fillImageSrc: ui.src, fillType: 'image' })}
+                                  title={ui.name}
+                                  className="p-0 rounded overflow-hidden border border-gray-200 hover:border-blue-400 aspect-square transition-colors"
+                                >
+                                  <img src={ui.src} alt={ui.name} className="w-full h-full object-cover block" />
+                                </button>
+                              )
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
+
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">Fill Color</span>
                   <input
                     type="color"
                     value={shapeSettings.fillColor}
-                    onChange={(e) => handleShapeSettingsChange('fillColor', e.target.value)}
+                    onChange={(e) => {
+                      handleShapeSettingsChange('fillColor', e.target.value);
+                      handleShapeSettingsChange('fillType', 'color');
+                    }}
                     className="w-10 h-8 border border-gray-300 rounded cursor-pointer"
                   />
                 </div>
@@ -551,9 +602,10 @@ const RightSidebar = ({
               </>
             )}
           </div>
-        )}
-      </div>
-    </div>
+        )
+        }
+      </div >
+    </div >
   )
 }
 

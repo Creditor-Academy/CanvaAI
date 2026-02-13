@@ -164,21 +164,80 @@ const LayerComponent = memo(({
         );
 
       case 'shape':
-        return (
-          <div
-            className="w-full h-full"
-            style={{
-              ...commonStyle,
-              backgroundColor: layer.fillType === 'image' ? 'transparent' : layer.fillColor,
-              backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
-              backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
-              border: `${layer.strokeWidth}px solid ${layer.strokeColor}`,
-              borderRadius: displayProps?.borderRadius,
-              clipPath: displayProps?.clipPath,
-              boxShadow: getShadowCSS(layer.shadows),
-            }}
-          />
-        );
+        {
+          const strokeW = (layer.strokeWidth == null) ? 1 : Math.max(1, layer.strokeWidth);
+          const strokeC = layer.strokeColor || '#000000';
+
+          const baseBoxShadow = getShadowCSS(layer.shadows) || 'none';
+
+          // If a clipPath is present (polygon/path), CSS border may not follow
+          // the clipped shape. Render an SVG overlay with the same polygon/path
+          // and stroke so the border is always visible.
+          const clip = displayProps?.clipPath;
+
+          const renderClipStroke = () => {
+            if (!clip || clip === 'none') return null;
+
+            // polygon(...) => extract points
+            if (clip.startsWith('polygon(')) {
+              const inner = clip.slice('polygon('.length, -1);
+              const points = inner.split(',').map(pt => {
+                const [x, y] = pt.trim().split(/\s+/);
+                return `${x.replace('%', '')},${y.replace('%', '')}`;
+              }).join(' ');
+
+              return (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  <polygon points={points} fill="none" stroke={strokeC} strokeWidth={strokeW} vectorEffect="non-scaling-stroke" />
+                </svg>
+              );
+            }
+
+            // path("M...") or path('M...') => extract path d
+            const pathMatch = clip.match(/path\((?:"|'?)(.+?)(?:"|'?)\)/);
+            if (pathMatch) {
+              const d = pathMatch[1];
+              return (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  <path d={d} fill="none" stroke={strokeC} strokeWidth={strokeW} vectorEffect="non-scaling-stroke" />
+                </svg>
+              );
+            }
+
+            return null;
+          };
+
+          const showSvgStroke = clip && clip !== 'none';
+
+          return (
+            <div className="w-full h-full relative" style={{ ...commonStyle }}>
+              <div
+                className="w-full h-full"
+                style={{
+                  backgroundColor: layer.fillType === 'image' ? 'transparent' : layer.fillColor,
+                  backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
+                  backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
+                  borderRadius: displayProps?.borderRadius,
+                  clipPath: displayProps?.clipPath,
+                  boxShadow: baseBoxShadow,
+                }}
+              />
+
+              {showSvgStroke && renderClipStroke()}
+              {!showSvgStroke && (
+                <div style={{ position: 'absolute', inset: 0, border: `${strokeW}px solid ${strokeC}`, borderRadius: displayProps?.borderRadius, pointerEvents: 'none' }} />
+              )}
+            </div>
+          );
+        }
 
       case 'image':
         return (

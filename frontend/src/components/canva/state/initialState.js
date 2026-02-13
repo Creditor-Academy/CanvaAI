@@ -26,7 +26,7 @@ export const initialTextSettings = {
 };
 
 export const initialShapeSettings = {
-  fillColor: '#3182ce',
+  fillColor: 'transparent',
   strokeColor: '#000000',
   strokeWidth: 1,
   fillType: 'color', // 'color' | 'image'
