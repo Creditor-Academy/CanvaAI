@@ -1,6 +1,7 @@
 import React from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 
+
 const TopBar = ({ onPresent }) => {
   const {
     addTextLayer,

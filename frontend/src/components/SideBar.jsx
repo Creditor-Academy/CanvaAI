@@ -139,12 +139,13 @@ const NAV_ITEMS = [
 
 const SECTIONS = ["Navigation", "AI Tools", "Workspace"];
 
-const sidebarBg = "#1e40af";
+const sidebarBg = "#0c496e";
 const activeBg = "#3b82f6";
 const iconColor = "#60a5fa";
 const textColor = "#e0e7ff";
 const sectionColor = "#93c5fd";
 const activeTextColor = "#ffffff";
+const logocolor = "#fabf23"
 
 
 
@@ -374,17 +375,15 @@ const SideBar = () => {
 
             {(!isCollapsed || isMobile) && (
               <span style={{
-                fontSize: "1.4rem",
-                fontWeight: 700,
-                fontFamily: "'Orbitron', sans-serif",
-                fontStyle: "italic",
+                fontSize: "25px",
+                fontWeight: 400,
+                fontFamily: "'Georgia', times new roman, serif",
                 letterSpacing: "1px",
                 textTransform: "uppercase",
-                background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent"
+                color: logocolor,
+                lineHeight: "1.1"
               }}>
-                Athena AI
+                Designova AI
               </span>
             )}
 

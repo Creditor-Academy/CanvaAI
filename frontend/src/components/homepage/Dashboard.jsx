@@ -15,19 +15,18 @@ import { IoDocument } from "react-icons/io5";
 import { MdOutlineDocumentScanner } from "react-icons/md";
 import { CiImageOn } from "react-icons/ci";   // ✅ correct
 import { FaRegImages } from "react-icons/fa";
-
 import Creation from "./Creation";
 import AISuggestTemp from "./AISuggestTemp";
 import Recents from "./Recents";
 
 /* ===== BRAND COLORS ===== */
 const COLORS = {
-  deepBlue: "#1e40af",
+  deepBlue: "#1d3fAf",
   primaryBlue: "#3b82f6",
   skyBlue: "#60a5fa",
   brightSky: "#0ea5e9",
-  gold: "#fbbf24",
-  navyText: "#0c4a6e",
+  gold: "#fabf23",
+  navyText: "#0c496e",
   bgLight: "#f9fafb",
 };
 
