@@ -38,7 +38,7 @@ body {
 
 /* App content responsive layout aligned with fixed sidebar */
 .app-content {
-  margin-left: 260px;
+  
   padding: 0;
   min-height: 100vh;
 }
@@ -46,10 +46,10 @@ body {
 @media (max-width: 768px) {
   .app-content {
     margin-left: 0;
-    padding-top: 56px;
-    /* space for mobile hamburger */
+    padding-top: 0;
   }
 }
+
 
 
 /* Custom scrollbar (cross-browser with Firefox-like styling) */

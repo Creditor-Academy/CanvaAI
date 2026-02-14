@@ -1,187 +1,241 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FiChevronLeft,
-  FiChevronRight,
-  FiInstagram,
-  FiVideo,
-  FiBriefcase,
-  FiImage,
-  FiFileText,
-  FiGlobe,
-  FiMail,
-  FiMaximize2,
-} from "react-icons/fi";
-import { FaFacebook, FaLinkedin, FaTwitter, FaPinterest } from "react-icons/fa";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
-import BussinessCard from "../../assets/bussiness.png";
-import Facebook from "../../assets/facebook.png";
-import Instagram from "../../assets/insta.png";
-import Social from "../../assets/socialMedia.png";
-import Poster from "../../assets/poster.png";
-import Youtube from "../../assets/youtube.png";
-import api from "../../services/api";
+/* BRAND COLORS */
+const COLORS = {
+  primary: "#3b82f6",
+  gold: "#fbbf24",
+  text: "#0c4a6e",
+  bg: "#f9fafb",
+};
 
-const TEMPLATES = [
-  { id: 1, name: "Social Media Post", width: 1080, height: 1080, category: "Social", thumbnail: Social, description: "Perfect for engaging social content" },
-  { id: 2, name: "Instagram Story", width: 1080, height: 1920, category: "Social", thumbnail: Instagram, description: "Full-screen stories that captivate" },
-  { id: 3, name: "Facebook Cover", width: 1200, height: 630, category: "Social", thumbnail: Facebook, description: "Professional cover photos" },
-  { id: 4, name: "YouTube Thumbnail", width: 1280, height: 720, category: "Video", thumbnail: Youtube, description: "Click-worthy video thumbnails" },
-  { id: 5, name: "Business Card", width: 1050, height: 600, category: "Business", thumbnail: BussinessCard, description: "Professional networking cards" },
-  { id: 6, name: "Poster", width: 1080, height: 1350, category: "Print", thumbnail: Poster, description: "Eye-catching promotional posters" },
+/* FEATURES WITH REAL UNSPLASH IMAGES */
+const FEATURES = [
+  {
+    title: "Create AI Presentations",
+    desc: "Generate slides instantly",
+    route: "/presentation",
+    img: "https://images.unsplash.com/photo-1557804506-669a67965ba0",
+  },
+  {
+    title: "Design Stunning Images",
+    desc: "Create social media visuals",
+    route: "/canva-clone",
+    img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
+  },
+  {
+    title: "Write Documents Easily",
+    desc: "Create notes & reports",
+    route: "/editor",
+    img: "https://images.unsplash.com/photo-1455390582262-044cdead277a",
+  },
+  {
+    title: "Generate AI Graphics",
+    desc: "Create images using AI",
+    route: "/canva-clone",
+    img: "https://images.unsplash.com/photo-1504639725590-34d0984388bd",
+  },
+  {
+    title: "Build Smart Slides",
+    desc: "Automated presentation maker",
+    route: "/presentation",
+    img: "https://images.unsplash.com/photo-1531496730074-83b638c0a7ac",
+  },
+  {
+    title: "Generate AI Content",
+    desc: "Reports & writing assistant",
+    route: "/editor",
+    img: "https://images.unsplash.com/photo-1499750310107-5fef28a66643",
+  },
 ];
 
 const AISuggestTemp = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [suggestedTemplates, setSuggestedTemplates] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const isPhone = window.innerWidth <= 768;
-  const isSmallMobile = window.innerWidth <= 360;
-
-  const cardsPerView = isSmallMobile ? 1 : isPhone ? 2 : 3;
+  const [visible, setVisible] = useState(
+    window.innerWidth < 768 ? 1 : 5
+  );
 
   useEffect(() => {
-    const fetchTemplates = async () => {
-      try {
-        const projects = await api.getProjects();
-        setSuggestedTemplates(TEMPLATES.slice(0, 6));
-      } catch {
-        setSuggestedTemplates(TEMPLATES.slice(0, 6));
-      } finally {
-        setLoading(false);
-      }
+    const handleResize = () => {
+      setVisible(window.innerWidth < 768 ? 1 : 5);
     };
-    fetchTemplates();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const maxIndex = Math.max(0, suggestedTemplates.length - cardsPerView);
+  const autoRef = useRef();
+  const transitionRef = useRef(true);
+  const sliderRef = useRef(null);
+  const offsetRef = useRef(0);
 
-  const getIcon = (category, name) => {
-    const cls = "text-indigo-500";
-    if (category === "Social") {
-      if (name.includes("Instagram")) return <FiInstagram className={cls} />;
-      if (name.includes("Facebook")) return <FaFacebook className={cls} />;
-      return <FiInstagram className={cls} />;
+
+  /* CLONE SETUP FOR TRUE INFINITE */
+  const clones = [
+    ...FEATURES.slice(-visible),
+    ...FEATURES,
+    ...FEATURES.slice(0, visible),
+  ];
+
+  const [index, setIndex] = useState(visible);
+
+  useEffect(() => {
+    setIndex(visible);
+  }, [visible]);
+
+  const [hover, setHover] = useState(false);
+
+
+  /* AUTO SCROLL */
+  useEffect(() => {
+    if (hover) return;
+
+    autoRef.current = setInterval(() => {
+      setIndex((prev) => prev + 1);
+    }, 2500);
+
+    return () => clearInterval(autoRef.current);
+  }, [hover]);
+
+
+
+
+
+  /* TRUE LOOP RESET (NO JUMP) */
+  useEffect(() => {
+    if (index === FEATURES.length + visible) {
+      transitionRef.current = false;
+      setIndex(visible);
     }
-    if (category === "Video") return <FiVideo className={cls} />;
-    if (category === "Business") return <FiBriefcase className={cls} />;
-    if (category === "Print") return <FiFileText className={cls} />;
-    return <FiMaximize2 className={cls} />;
-  };
+
+    if (index === visible - 1) {
+      transitionRef.current = false;
+      setIndex(FEATURES.length + visible - 1);
+    }
+  }, [index]);
+
+
+  /* ENABLE TRANSITION AGAIN */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      transitionRef.current = true;
+    }, 50);
+    return () => clearTimeout(t);
+  }, [index]);
 
   return (
-    <section className="w-full py-6 sm:py-8 from-indigo-50 to-indigo-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <section className="py-20" >
+      <div className="max-w-7xl mx-auto px-6">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-              Suggested For You
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 mt-1">
-              Templates tailored to your activity
-            </p>
-          </div>
+        <h2
+          className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
+          style={{
+            backgroundImage:
+              "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#fbbf24 100%)",
+          }}
+        >
+          What would you like to create?
+        </h2>
+
+
+        <div
+          className="relative"
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+        >
+          {/* ARROWS */}
+          <button
+            onClick={() => {
+              transitionRef.current = true;
+              setIndex((i) => i - 1);
+            }}
+            className="absolute left-0 hidden md:block  top-1/2 -translate-y-1/2 z-20 bg-white shadow p-3 rounded-full"
+          >
+            <FiChevronLeft />
+          </button>
 
           <button
-            onClick={() => navigate("/ai-suggest-templates")}
-            className="flex items-center gap-1 text-indigo-600 text-sm font-semibold px-4 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 transition cursor-pointer"
+            onClick={() => {
+              transitionRef.current = true;
+              setIndex((i) => i + 1);
+            }}
+
+            className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white shadow p-3 rounded-full"
           >
-            View All <FiChevronRight />
+            <FiChevronRight />
           </button>
-        </div>
 
-        {/* Loading */}
-        {loading ? (
-          <div className="text-center py-20 text-slate-500">
-            Loading templates…
-          </div>
-        ) : (
-          <div className="relative">
+          {/* CAROUSEL */}
+          <div className="overflow-hidden">
+            <div
+              ref={sliderRef}
+              onTransitionEnd={() => {
+                if (index === clones.length - visible) {
+                  transitionRef.current = false;
+                  setIndex(visible);
+                }
 
-            {/* Left Arrow */}
-            {currentIndex > 0 && (
-              <button
-                onClick={() => setCurrentIndex((p) => Math.max(0, p - 1))}
-                className="absolute left-[-12px] top-1/2 -translate-y-1/2 z-10
-                           w-10 h-10 rounded-full bg-white border
-                           flex items-center justify-center shadow
-                           hover:scale-110 transition cursor-pointer"
-              >
-                <FiChevronLeft className="text-indigo-600" />
-              </button>
-            )}
-
-            {/* Carousel */}
-            <div className="overflow-hidden">
-              <div
-                className="flex transition-transform duration-500 ease-out gap-4"
-                style={{
-                  transform: `translateX(-${currentIndex * (100 / cardsPerView)}%)`,
-                }}
-              >
-                {suggestedTemplates.map((t) => (
+                if (index === 0) {
+                  transitionRef.current = false;
+                  setIndex(FEATURES.length);
+                }
+              }}
+              className="flex "
+              style={{
+                transition: transitionRef.current ? "transform 0.5s ease" : "none",
+                transform: `translateX(-${index * (100 / visible)}%)`,
+              }}
+            >
+              {clones.map((item, i) => (
+                <div
+                  key={i}
+                  style={{ width: `${100 / visible}%`, padding: "0 12px" }}
+                  className="flex-shrink-0"
+                >
+                  {/* CARD */}
                   <div
-                    key={t.id}
-                    onClick={() => navigate("/canva-clone", { state: { selectedTemplate: t } })}
-                    className="cursor-pointer bg-white rounded-2xl shadow
-                               overflow-hidden group flex-shrink-0
-                               w-full sm:w-[48%] lg:w-[32%]"
+                    onClick={() => navigate(item.route)}
+                    className="group relative h-[260px] rounded-2xl overflow-hidden cursor-pointer shadow-lg"
                   >
-                    {/* Image */}
-                    <div className="relative h-56 sm:h-64 overflow-hidden">
-                      <img
-                        src={t.thumbnail}
-                        alt={t.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition"
-                      />
+                    {/* IMAGE */}
+                    <img
+                      src={item.img}
+                      className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
+                    />
 
-                      {/* Badge */}
-                      <div className="absolute top-3 left-3 bg-white/90 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                        {getIcon(t.category, t.name)}
-                        {t.category}
-                      </div>
-                    </div>
+                    {/* DARK OVERLAY */}
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition" />
 
-                    {/* Content */}
-                    <div className="p-4">
-                      <h3 className="text-slate-900 font-bold text-lg mb-1 drop-shadow">
-                        {t.name}
+                    {/* BLUR BG ON HOVER */}
+                    <div className="absolute inset-0 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition" />
+
+                    {/* CONTENT */}
+                    <div className="absolute bottom-0 p-6 text-white">
+                      <h3 className="text-lg font-semibold mb-2">
+                        {item.title}
                       </h3>
-                      <p className="text-slate-600 text-sm mb-3">
-                        {t.description}
+
+                      <p className="text-sm opacity-80">
+                        {item.desc}
                       </p>
 
-                      <div className="flex justify-between items-center bg-indigo-50 rounded-xl px-3 py-2 text-sm font-semibold text-indigo-700">
-                        <span>{t.width} × {t.height}</span>
-                        <span className="flex items-center gap-1">
-                          Use <FiChevronRight />
-                        </span>
-                      </div>
+                      {/* CTA */}
+                      <button
+                        className="mt-4 opacity-0 group-hover:opacity-100 transition
+                        bg-[#fbbf24] text-black px-4 py-2 rounded-lg font-semibold text-sm"
+                      >
+                        Get Started →
+                      </button>
                     </div>
 
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-
-            {/* Right Arrow */}
-            {currentIndex < maxIndex && (
-              <button
-                onClick={() => setCurrentIndex((p) => Math.min(maxIndex, p + 1))}
-                className="absolute right-[-12px] top-1/2 -translate-y-1/2 z-10
-                           w-10 h-10 rounded-full bg-white border
-                           flex items-center justify-center shadow
-                           hover:scale-110 transition cursor-pointer"
-              >
-                <FiChevronRight className="text-indigo-600" />
-              </button>
-            )}
           </div>
-        )}
+
+        </div>
       </div>
     </section>
   );

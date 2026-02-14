@@ -60,25 +60,41 @@ const AppContent = () => {
   const location = useLocation();
 
   // Check if current route is a canva-clone route
-  const isCanvaCloneRoute = location.pathname.startsWith('/canva-clone');
+  const isFullScreenRoute =
+  location.pathname.startsWith('/canva-clone') ||
+  location.pathname.startsWith('/presentation-editor') ||
+  location.pathname.startsWith('/presentation-editor-v3');
+
 
   const getContentMargin = () => {
-    // No margin for canva-clone routes
-    if (isCanvaCloneRoute) return "0";
-    if (isMobile) return "0";
-    return isCollapsed ? "60px" : "260px";
-  };
+  if (isFullScreenRoute) return "0";
+  if (isMobile) return "0";
+  return isCollapsed ? "60px" : "260px";
+};
+React.useEffect(() => {
+  window.dispatchEvent(new Event("resize"));
+}, [location.pathname]);
+
 
   return (
-    <div>
-      {!isCanvaCloneRoute && <SideBar />}
-      <div
-        className="app-content"
-        style={{
-          marginLeft: getContentMargin(),
-          transition: "margin-left 0.25s ease",
-        }}
-      >
+  <div style={{ display: "flex" }}>
+    {!isFullScreenRoute && <SideBar />}
+
+    <div
+      className="app-content"
+      style={{
+        flex: 1,
+        marginLeft: isFullScreenRoute
+          ? "0"
+          : isMobile
+          ? "0"
+          : isCollapsed
+          ? "60px"
+          : "260px",
+        transition: "margin-left 0.25s ease",
+      }}
+    >
+
         <Routes>
           <Route path="/home" element={<Home />} />
           <Route path="/ai-suggest-templates" element={<AISuggestTemp />} />

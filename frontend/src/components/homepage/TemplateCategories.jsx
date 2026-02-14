@@ -1,62 +1,127 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import businessImg from '../../assets/bussiness.png';
-import socialImg from '../../assets/socialMedia.png';
-import youtubeImg from '../../assets/youtube.png';
-import instaImg from '../../assets/insta.png';
-import posterImg from '../../assets/poster.png';
-import storyImg from '../../assets/story.png';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
-const categories = [
-  { name: 'Business', path: '/templates/business', image: businessImg },
-  { name: 'Social Media', path: '/templates/social-media', image: socialImg },
-  { name: 'Youtube', path: '/templates/youtube', image: youtubeImg },
-  { name: 'Instagram Post', path: '/templates/instagram-post', image: instaImg },
-  { name: 'Poster', path: '/templates/poster', image: posterImg },
-  { name: 'Story', path: '/templates/story', image: storyImg },
+const templateTypes = [
+  {
+    name: "Presentation",
+    type: "presentation",
+    bg: "#84b0f6",
+    image:
+      "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000",
+  },
+  {
+    name: "Document",
+    type: "document",
+    bg: "#fde097",
+    image:
+      "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1000",
+  },
+  {
+    name: "Image Editor",
+    type: "image",
+    bg: "#b8e2fd",
+    image:
+      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1000",
+  },
 ];
 
-const CategoryCard = ({ category }) => {
-  const [hover, setHover] = useState(false);
-
-  const cardStyle = {
-    display: 'block',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    textDecoration: 'none',
-    color: 'inherit',
-    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-    transform: hover ? 'translateY(-5px)' : 'translateY(0)',
-    boxShadow: hover ? '0 8px 16px rgba(0,0,0,0.1)' : 'none',
-  };
+export default function TemplateTypes() {
+  const navigate = useNavigate();
 
   return (
-    <Link
-      to={category.path}
-      style={cardStyle}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <img src={category.image} alt={category.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
-      <div style={{ padding: '1rem' }}>
-        <h3>{category.name}</h3>
-      </div>
-    </Link>
-  );
-};
+    <div style={{ padding: "50px 40px",  }}>
+      
+      {/* Heading */}
+      <h2
+          className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
+          style={{
+            backgroundImage:
+              "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#fbbf24 100%)",
+          }}
+        >
+        Explore templates
+      </h2>
 
-const TemplateCategories = () => {
-  return (
-    <div style={{ padding: '2rem' }}>
-      <h2>Explore Templates</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
-        {categories.map((category) => (
-          <CategoryCard key={category.name} category={category} />
+      {/* Grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "24px",
+        }}
+      >
+        {templateTypes.map((item) => (
+          <div
+            key={item.type}
+            onClick={() => navigate(`/templates/${item.type}`)}
+            style={{
+              background: item.bg,
+              borderRadius: "18px",
+              padding: "24px",
+              position: "relative",
+              cursor: "pointer",
+              overflow: "hidden",
+              transition: "all 0.3s ease",
+              height: "130px",
+              display: "flex",
+              alignItems: "center",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-5px)";
+              e.currentTarget.style.boxShadow =
+                "0 15px 30px rgba(0,0,0,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            {/* Text */}
+            <div
+              style={{
+                fontSize: "20px",
+                fontWeight: "600",
+                color: "#0f172a",
+                zIndex: 2,
+              }}
+            >
+              {item.name}
+            </div>
+
+            {/* Blended Image */}
+            <img
+              src={item.image}
+              alt={item.name}
+              style={{
+                position: "absolute",
+                right: "0",
+                bottom: "0",
+                height: "100%",
+                width: "55%",
+                objectFit: "cover",
+                borderTopRightRadius: "18px",
+                borderBottomRightRadius: "18px",
+                opacity: 0.55,
+              }}
+            />
+
+            {/* Soft Fade Overlay */}
+            <div
+              style={{
+                position: "absolute",
+                right: "0",
+                bottom: "0",
+                height: "100%",
+                width: "55%",
+                background:
+                  "linear-gradient(to left, rgba(255,255,255,0) 0%, " +
+                  item.bg +
+                  " 85%)",
+              }}
+            />
+          </div>
         ))}
       </div>
     </div>
   );
-};
-
-export default TemplateCategories;
+}
