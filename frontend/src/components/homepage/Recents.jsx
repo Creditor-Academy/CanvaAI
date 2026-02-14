@@ -7,15 +7,17 @@ import {
 
 /* ===== BRAND COLORS ===== */
 const COLORS = {
-  deepBlue: "#1e40af",
-  primaryBlue: "#3b82f6",
-  skyBlue: "#60a5fa",
-  gold: "#fbbf24",
-  amber: "#f59e0b",
-  navyText: "#0c4a6e",
-  slate: "#1e293b",
-  lightGray: "#f9fafb",
+  deepBlue: "#1d3fAf",
+  Grey: "#455469",
+  navyText: "#0c496e",
+  bgLight: "#f9fafb",
 };
+const {
+  deepBlue,
+  Grey,
+  navyText,
+  bgLight,
+} = COLORS;
 
 /* ===== DEMO DATA ===== */
 const DEMO_PROJECTS = [
@@ -100,10 +102,10 @@ const Recents = ({
 
   const getIcon = (type) => {
     if (type === "presentation")
-      return <FiLayout size={22} color={COLORS.deepBlue} />;
+      return <FiLayout size={22} color={deepBlue} />;
     if (type === "document")
-      return <FiFileText size={22} color={COLORS.navyText} />;
-    return <FiImage size={22} color={COLORS.amber} />;
+      return <FiFileText size={22} color={navyText} />;
+    return <FiImage size={22} color={Grey} />;
   };
 
   return (
@@ -114,7 +116,7 @@ const Recents = ({
           className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
           style={{
             backgroundImage:
-              "linear-gradient(90deg, #2563eb 0%,#3b82f6 40%,#fbbf24 100%)",
+             "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
           }}
         >
           Recent Designs
@@ -124,10 +126,10 @@ const Recents = ({
           <div
             className="text-center py-16 rounded-2xl"
             style={{
-              background: "rgba(255,255,255,0.4)",
+              background: "#f9fafb",
               backdropFilter: "blur(8px)",
-              border: `1px solid ${COLORS.skyBlue}`,
-              color: COLORS.navyText,
+              border: `1px solid ${navyText}`,
+              color: Grey,
             }}
           >
             No matching results found.
@@ -140,9 +142,8 @@ const Recents = ({
                 key={project.id}
                 className="rounded-2xl p-5 transition-all duration-300 cursor-pointer"
                 style={{
-                  background:
-                    "linear-gradient(135deg,#ffffff 0%,#f9fafb 100%)",
-                  border: `1px solid ${COLORS.skyBlue}`,
+                  background: bgLight,
+                  border: `1px solid ${deepBlue}`,
                   boxShadow: "0 4px 18px rgba(0,0,0,0.05)",
                 }}
                 onMouseEnter={(e) => {
@@ -162,14 +163,14 @@ const Recents = ({
 
                 <div
                   className="font-semibold text-sm mb-1 truncate"
-                  style={{ color: COLORS.slate }}
+                  style={{ color: navyText }}
                 >
                   {project.title}
                 </div>
 
                 <div
                   className="text-xs line-clamp-2"
-                  style={{ color: COLORS.navyText }}
+                  style={{ color: Grey }}
                 >
                   {project.desc}
                 </div>
@@ -179,10 +180,10 @@ const Recents = ({
                   style={{
                     background:
                       project.type === "presentation"
-                        ? COLORS.primaryBlue
+                        ? navyText
                         : project.type === "document"
-                          ? COLORS.deepBlue
-                          : COLORS.gold,
+                          ? deepBlue
+                          : Grey,
                     color: "#fff",
                   }}
                 >

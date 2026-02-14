@@ -22,13 +22,23 @@ import Recents from "./Recents";
 /* ===== BRAND COLORS ===== */
 const COLORS = {
   deepBlue: "#1d3fAf",
-  primaryBlue: "#3b82f6",
-  skyBlue: "#60a5fa",
-  brightSky: "#0ea5e9",
+  primaryBlue: "#60a5fa",
+  Grey: "#455469",
   gold: "#fabf23",
+  lightGold: "#f8d77d",
   navyText: "#0c496e",
   bgLight: "#f9fafb",
 };
+const {
+  deepBlue,
+  primaryBlue,
+  Grey,
+  gold,
+  lightGold,
+  navyText,
+  bgLight,
+} = COLORS;
+
 
 const TABS = [
   { key: "your-designs", label: "Your designs" },
@@ -41,24 +51,24 @@ const QUICK_CREATE = [
     defaultIcon: HiOutlinePresentationChartLine,
     hoverIcon: RiPresentationFill,
     route: "/presentation",
-    color1: "#1d3faf",
-    color2: "#60a5fa",
+    color1: deepBlue,
+    color2: primaryBlue,
   },
   {
     label: "Document",
     defaultIcon: IoDocument,
     hoverIcon: MdOutlineDocumentScanner,
     route: "/editor",
-    color1: "#fabf23",
-    color2: "#f8d77d",
+    color1: gold,
+    color2: lightGold,
   },
   {
     label: "Image Editing",
     defaultIcon: CiImageOn,
     hoverIcon: FaRegImages,
     route: "/canva-clone",
-    color1: "#0c496e",
-    color2: "#60a5fa",
+    color1: navyText,
+    color2: primaryBlue,
   },
 ];
 
@@ -87,7 +97,7 @@ const Dashboard = () => {
       className="min-h-screen w-full overflow-x-hidden px-4 py-12"
       style={{
         background:
-          "linear-gradient(135deg,#f9fafb 0%,#e0f2fe 40%,#dbeafe 100%)",
+          "linear-gradient(135deg,#e0f2ff 0%,#eff6ff 40%,#ffffff 100%)",
       }}
     >
       {/* ================= HEADER ================= */}
@@ -98,7 +108,7 @@ const Dashboard = () => {
             className="bg-gradient-to-r bg-clip-text text-transparent"
             style={{
               backgroundImage:
-                "linear-gradient(90deg,#1e40af,#3b82f6,#60a5fa,#0ea5e9)",
+                "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
               backgroundSize: "200% auto",
             }}
           >
@@ -121,22 +131,22 @@ const Dashboard = () => {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={`relative px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300
-                  ${active
+    ${active
                     ? "text-white shadow-lg"
-                    : "bg-white border border-slate-200 text-slate-600 hover:text-[#1e40af] hover:shadow"
+                    : "bg-white border border-slate-200 text-slate-600 hover:bg-[#f5f5f5] hover:shadow-md"
                   }
-                `}
+  `}
                 style={
                   active
                     ? {
-                      background:
-                        "#0c4a6e",
+                      background: navyText,
                     }
                     : {}
                 }
               >
                 {tab.label}
               </button>
+
             );
           })}
         </div>
@@ -147,9 +157,9 @@ const Dashboard = () => {
         <div
           className="rounded-3xl shadow-xl overflow-hidden border"
           style={{
-            background: "rgba(255,255,255,0.85)",
+            background: "#ffffff",
             backdropFilter: "blur(12px)",
-            borderColor: "#dbeafe",
+            borderColor: Grey,
           }}
         >
           {/* ===== INPUT ROW ===== */}
@@ -183,8 +193,7 @@ const Dashboard = () => {
               }}
               className="w-11 h-11 rounded-full flex items-center justify-center text-white transition transform hover:scale-105"
               style={{
-                background:
-                  "#0c4a6e"
+                background:navyText
               }}
             >
               <FiZap />
@@ -201,7 +210,7 @@ const Dashboard = () => {
                 <div className="flex py-4 gap-4">
 
                   {(selectedCategory !== "all" || selectedDate !== "all") && (
-                    <div className="px-3 py-1 bg-white border border-[#60a5fa] rounded-full shadow">
+                    <div className="px-3 py-1 bg-white border  rounded-full shadow">
                       <FiX
                         className="cursor-pointer text-slate-600"
                         onClick={() => {
@@ -219,7 +228,7 @@ const Dashboard = () => {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="mt-1 px-5 py-2 rounded-full text-sm border border-[#60a5fa]"
+                  className="mt-1 px-5 py-2 rounded-full text-sm border border=[#0c496e]"
                 >
                   <option value="all">All Categories</option>
                   <option value="presentation">Presentation</option>
@@ -233,7 +242,7 @@ const Dashboard = () => {
                 <select
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="mt-1 px-5 py-2 rounded-full text-sm border border-[#60a5fa]"
+                  className="mt-1 px-5 py-2 rounded-full text-sm border border-[#0c496e]"
                 >
                   <option value="all">All Time</option>
                   <option value="today">Today</option>
@@ -242,7 +251,7 @@ const Dashboard = () => {
                   <option value="90">Last 90 days</option>
                 </select>
 
-              
+
 
 
               </div>
@@ -264,7 +273,7 @@ const Dashboard = () => {
               ].map((tag) => (
                 <span
                   key={tag}
-                  className="px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition cursor-pointer"
+                  className="px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition cursor-pointer"
                 >
                   {tag}
                 </span>
@@ -278,21 +287,21 @@ const Dashboard = () => {
 
               <button
                 onClick={() => navigate("/presentation")}
-                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
+                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
               >
                 <FiLayout /> Design PPT
               </button>
 
               <button
                 onClick={() => navigate("/image-editor")}
-                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
+                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
               >
                 <FiImage /> Generate Image
               </button>
 
               <button
                 onClick={() => navigate("/editor")}
-                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#60a5fa] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
+                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-semibold hover:shadow-lg hover:-translate-y-1 transition"
               >
                 <FiFileText /> Generate Document
               </button>
@@ -334,12 +343,12 @@ const Dashboard = () => {
                   </div>
 
                   {/* Label */}
-                  <span className="mt-3 text-sm font-semibold text-slate-800 group-hover:text-[#1e293b] transition">
+                  <span className="mt-3 text-sm font-semibold text-slate-800 group-hover:text-[#0c496e] transition">
                     {item.label}
                   </span>
 
                   {/* Subtitle */}
-                  <span className="text-xs font-medium text-slate-500 group-hover:text-[#0c4a6e] transition">
+                  <span className="text-xs font-medium text-slate-500 group-hover:text-[#0c496e] transition">
                     Create
                   </span>
                 </div>
@@ -389,14 +398,14 @@ const Dashboard = () => {
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => setUploadType("image")}
-                    className="px-4 py-2 border rounded-xl hover:bg-gray-50"
+                    className="px-4 py-2 border rounded-xl hover:[#f5f5f5]"
                   >
                     Upload Image
                   </button>
 
                   <button
                     onClick={() => setUploadType("document")}
-                    className="px-4 py-2 border rounded-xl hover:bg-gray-50"
+                    className="px-4 py-2 border rounded-xl hover:[#f5f5f5]"
                   >
                     Upload Document
                   </button>
@@ -424,7 +433,7 @@ const Dashboard = () => {
 
             <button
               onClick={() => setUploadType(null)}
-              className="mt-4 text-sm text-red-500"
+              className="mt-4 text-sm text-[#0c496e]"
             >
               Cancel
             </button>

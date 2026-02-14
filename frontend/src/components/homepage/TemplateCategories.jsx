@@ -1,25 +1,37 @@
+import { greasemonkey } from "globals";
 import React from "react";
 import { useNavigate } from "react-router-dom";
+
+const COLORS = {
+  primaryBlue: "#60a5fa",
+  lightGold: "#f8d77d",
+  lightNavy: "#3c82ad",
+};
+const {
+  primaryBlue,
+  lightGold,
+  lightNavy,
+} = COLORS;
 
 const templateTypes = [
   {
     name: "Presentation",
     type: "presentation",
-    bg: "#84b0f6",
+    bg: primaryBlue,
     image:
       "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000",
   },
   {
     name: "Document",
     type: "document",
-    bg: "#fde097",
+    bg: lightGold,
     image:
       "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1000",
   },
   {
     name: "Image Editor",
     type: "image",
-    bg: "#b8e2fd",
+    bg: lightNavy,
     image:
       "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1000",
   },
@@ -36,7 +48,7 @@ export default function TemplateTypes() {
           className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
           style={{
             backgroundImage:
-              "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#fbbf24 100%)",
+              "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
           }}
         >
         Explore templates
