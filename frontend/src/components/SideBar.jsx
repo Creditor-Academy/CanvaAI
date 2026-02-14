@@ -140,10 +140,9 @@ const NAV_ITEMS = [
 const SECTIONS = ["Navigation", "AI Tools", "Workspace"];
 
 const sidebarBg = "#0c496e";
-const activeBg = "#3b82f6";
+const activeBg = "#455469";
 const iconColor = "#60a5fa";
-const textColor = "#e0e7ff";
-const sectionColor = "#93c5fd";
+const textColor = "#ffffff";
 const activeTextColor = "#ffffff";
 const logocolor = "#fabf23"
 
@@ -422,7 +421,7 @@ const SideBar = () => {
                             if (isMobile) setIsOpen(false);
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#2563eb";
+                            e.currentTarget.style.background = activeBg;
                             e.currentTarget.style.transform = "scale(1.02)";
                           }}
                           onMouseLeave={(e) => {
@@ -478,8 +477,8 @@ const SideBar = () => {
           <div
             style={{
               padding: isCollapsed && !isMobile ? "16px 12px" : "16px 20px",
-              borderTop: "1px solid #1e3a8a",
-              background: "#1e3a8a",
+              borderTop: "1px solid #1d3faf",
+              background: sidebarBg,
               position: "relative"
             }}
           >

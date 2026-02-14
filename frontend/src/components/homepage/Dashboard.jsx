@@ -41,7 +41,7 @@ const QUICK_CREATE = [
     defaultIcon: HiOutlinePresentationChartLine,
     hoverIcon: RiPresentationFill,
     route: "/presentation",
-    color1: "#3b82f6",
+    color1: "#1d3faf",
     color2: "#60a5fa",
   },
   {
@@ -49,16 +49,16 @@ const QUICK_CREATE = [
     defaultIcon: IoDocument,
     hoverIcon: MdOutlineDocumentScanner,
     route: "/editor",
-    color1: "#fbbf24",
-    color2: "#f59e0b",
+    color1: "#fabf23",
+    color2: "#f8d77d",
   },
   {
     label: "Image Editing",
     defaultIcon: CiImageOn,
     hoverIcon: FaRegImages,
     route: "/canva-clone",
-    color1: "#1e40af",
-    color2: "#0ea5e9",
+    color1: "#0c496e",
+    color2: "#60a5fa",
   },
 ];
 
