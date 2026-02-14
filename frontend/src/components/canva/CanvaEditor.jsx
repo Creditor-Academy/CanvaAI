@@ -1356,6 +1356,10 @@ const CanvaEditor = () => {
           isBgRemoved={!!tempBgState}
           onStartCrop={handleStartCrop}
           isCropping={!!cropState}
+          layers={layers}
+          canvasSize={canvasSize}
+          zoom={zoom}
+          pan={pan}
         />
 
         {/* Canvas Area - scrollable container with all pages */}

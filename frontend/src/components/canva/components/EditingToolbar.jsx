@@ -36,7 +36,11 @@ const EditingToolbar = ({
     onToggleBackground,
     isBgRemoved,
     onStartCrop,
-    isCropping
+    isCropping,
+    layers,
+    canvasSize,
+    zoom,
+    pan
 }) => {
     const [showFontDropdown, setShowFontDropdown] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -112,6 +116,51 @@ const EditingToolbar = ({
         { id: 'slide', label: 'Slide' },
         { id: 'tools', label: 'Tools' }
     ];
+
+    const handleSaveButton = () => {
+        try {
+            console.log('Debug: Checking if props are available');
+            console.log('Layers:', layers);
+            console.log('CanvasSize:', canvasSize);
+            console.log('Zoom:', zoom);
+            console.log('Pan:', pan);
+
+            // Check if required props are available
+            if (!layers || !canvasSize) {
+                console.error('Missing required props for save functionality');
+                return;
+            }
+
+            // Format layers to ensure they have all required properties
+            const formattedLayers = layers.map(layer => {
+                if (layer.type === 'text') {
+                    return {
+                        ...layer,
+                        textValue: layer.text || '',
+                        placeholder: layer.placeholder || layer.text || ''
+                    };
+                }
+                return layer;
+            });
+
+            const designData = {
+                id: `new_${Date.now()}`,
+                title: "Untitled Design",
+                design: {
+                    layers: formattedLayers,
+                    canvasSize: canvasSize || { width: 800, height: 600 },
+                    zoom: zoom || 80,
+                    pan: pan || { x: 0, y: 0 }
+                },
+                savedAt: new Date().toISOString(),
+                savedMethod: "localStorage"
+            };
+            console.log('Saving design data...');
+            console.log(JSON.stringify(designData, null, 2));
+        } catch (error) {
+            console.error('Error in save functionality:', error);
+        }
+    };
 
     return (
         <div className="bg-white border-b border-gray-200 w-full sticky top-0 z-[100] flex flex-col antialiased">
@@ -352,7 +401,10 @@ const EditingToolbar = ({
 
                     <div className="flex items-center gap-4">
                         {/* Saving Status */}
-                        <button className="flex items-center cursor-pointer gap-2 text-sm mr-2">
+                        <button
+                            className="flex items-center cursor-pointer gap-2 text-sm mr-2"
+                            onClick={handleSaveButton}
+                        >
                             <FiSave className="animate-pulse text-gray-400" />
                             <span>Save</span>
                         </button>

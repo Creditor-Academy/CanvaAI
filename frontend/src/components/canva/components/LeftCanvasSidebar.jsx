@@ -208,36 +208,47 @@ const LeftCanvasSidebar = memo(({
   }, []);
 
   const handleSectionToggleInternal = useCallback((sectionKey, buttonElement) => {
+    // Determine the new state after toggle
     const isCurrentlyOpen = openSections[sectionKey];
-    if (expandedSection && expandedSection !== sectionKey) setExpandedSection(null);
 
+    // Close any other open expanded sections
+    if (expandedSection && expandedSection !== sectionKey) {
+      setExpandedSection(null);
+    }
+
+    // Toggle the section in the parent component
     toggleSection(sectionKey);
 
-    if (!isCurrentlyOpen && buttonElement) {
-      const portalWidth = 300;
-      let position;
+    // Since state is asynchronous, the new state will be the opposite of current state
+    if (isCurrentlyOpen) {
+      // If it was open, it will now be closed, so hide the expanded view
+      setExpandedSection(null);
+    } else {
+      // If it was closed, it will now be open, so show the expanded view
+      if (buttonElement) {
+        const portalWidth = 300;
+        let position;
 
-      if (sectionKey === 'background') {
-        const rect = buttonElement.getBoundingClientRect();
-        const spacing = 12;
-        const x = rect.right + spacing;
-        const y = Math.max(20, rect.top);
-        position = { x, y, width: portalWidth };
-        setReferencePosition(position);
-      } else {
-        position = referencePosition || (() => {
+        if (sectionKey === 'background') {
           const rect = buttonElement.getBoundingClientRect();
           const spacing = 12;
           const x = rect.right + spacing;
           const y = Math.max(20, rect.top);
-          return { x, y, width: portalWidth };
-        })();
-      }
+          position = { x, y, width: portalWidth };
+          setReferencePosition(position);
+        } else {
+          position = referencePosition || (() => {
+            const rect = buttonElement.getBoundingClientRect();
+            const spacing = 12;
+            const x = rect.right + spacing;
+            const y = Math.max(20, rect.top);
+            return { x, y, width: portalWidth };
+          })();
+        }
 
-      setExpandedSectionPosition(position);
-      setExpandedSection(sectionKey);
-    } else {
-      setExpandedSection(null);
+        setExpandedSectionPosition(position);
+        setExpandedSection(sectionKey);
+      }
     }
   }, [expandedSection, openSections, toggleSection, referencePosition]);
 
