@@ -27,16 +27,16 @@ const SlateTextEditor = ({ value, onChange, style }) => {
   );
 
   const handleSlateChange = (val) => {
-  
 
-  onChange(val);
 
-  if (editor.selection) {
-    const marks = Editor.marks(editor) || {};
-    setSelectionMarks(marks);
-  }
-};
-  
+    onChange(val);
+
+    if (editor.selection) {
+      const marks = Editor.marks(editor) || {};
+      setSelectionMarks(marks);
+    }
+  };
+
 
   // ✅ Sync external value safely
   useEffect(() => {
@@ -82,7 +82,7 @@ const SlateTextEditor = ({ value, onChange, style }) => {
       window.removeEventListener("slate-set-block-style", handleSetBlockStyle);
     };
   }, [editor]);
-  
+
 
   return (
     <Slate editor={editor} initialValue={value} onChange={handleSlateChange}>
@@ -116,7 +116,7 @@ const SlateTextEditor = ({ value, onChange, style }) => {
           }
         }}
       />
-      
+
     </Slate>
   );
 };

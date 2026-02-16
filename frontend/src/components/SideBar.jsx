@@ -23,7 +23,7 @@ const NAV_ITEMS = [
     path: "/create"
   },
   {
-    label: "Presentation",
+    label: "My Presentations",
     key: "presentation",
     icon: <FiLayout size={18} />,
     section: "Navigation",
@@ -314,21 +314,21 @@ const SideBar = () => {
               transition: 'transform 0.25s ease',
             }}
           >
-            <FiArrowLeft 
-              size={20} 
-              style={{ 
+            <FiArrowLeft
+              size={20}
+              style={{
                 transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 0.25s ease'
-              }} 
+              }}
             />
           </button>
         )}
 
         {/* Header */}
-        <div style={{ 
-          padding: isCollapsed && !isMobile ? "28px 12px 12px 12px" : "28px 20px 12px 20px", 
-          display: "flex", 
-          alignItems: "center", 
+        <div style={{
+          padding: isCollapsed && !isMobile ? "28px 12px 12px 12px" : "28px 20px 12px 20px",
+          display: "flex",
+          alignItems: "center",
           gap: 10,
           justifyContent: isCollapsed && !isMobile ? "center" : "flex-start"
         }}>
@@ -351,9 +351,9 @@ const SideBar = () => {
         </div>
 
         {/* Sections */}
-        <div style={{ 
-          flex: 1, 
-          minHeight: 0, 
+        <div style={{
+          flex: 1,
+          minHeight: 0,
           overflowY: "auto",
         }} className="custom-scrollbar">
           {SECTIONS.map((section) => (
@@ -441,14 +441,14 @@ const SideBar = () => {
             position: "relative"
           }}
         >
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
             gap: 10,
             justifyContent: isCollapsed && !isMobile ? "center" : "flex-start"
           }}
-          onMouseEnter={() => setIsHoveringProfile(true)}
-          onMouseLeave={() => setIsHoveringProfile(false)}
+            onMouseEnter={() => setIsHoveringProfile(true)}
+            onMouseLeave={() => setIsHoveringProfile(false)}
           >
             <div
               style={{

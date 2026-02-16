@@ -53,6 +53,8 @@ import PresentationWorkspace from "./components/presentation3/PresentationWorksp
 
 
 
+
+
 const AppContent = () => {
   const { isCollapsed, isMobile } = useSidebar();
   const location = useLocation();
@@ -124,6 +126,9 @@ const AppContent = () => {
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
 
+          {/* New Dashboard Route */}
+
+
           <Route
             path="/admin-dash"
             element={
@@ -172,23 +177,23 @@ function App() {
 
 
             {/* Presentation Editor v3 (new canvas-based editor) */}
-<Route
-  path="/presentation-editor-v3"
-  element={
-    <ProtectedRoute>
-      <PresentationWorkspace />
-    </ProtectedRoute>
-  }
-/>
+            <Route
+              path="/presentation-editor-v3"
+              element={
+                <ProtectedRoute>
+                  <PresentationWorkspace />
+                </ProtectedRoute>
+              }
+            />
 
-<Route
-  path="/presentation-editor-v3/:id"
-  element={
-    <ProtectedRoute>
-      <PresentationWorkspace />
-    </ProtectedRoute>
-  }
-/>
+            <Route
+              path="/presentation-editor-v3/:id"
+              element={
+                <ProtectedRoute>
+                  <PresentationWorkspace />
+                </ProtectedRoute>
+              }
+            />
 
 
             {/* PROTECTED ROUTES */}

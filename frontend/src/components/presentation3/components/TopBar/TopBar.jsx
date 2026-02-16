@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import usePresentationStore from "../../store/usePresentationStore";
 import "./topbar.css";
 import {
@@ -18,8 +19,11 @@ import {
   Trash2,
   Save
 } from "lucide-react";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     addTextLayer,
     addShapeLayer,
@@ -32,9 +36,16 @@ const TopBar = ({ onPresent, onAgentClick }) => {
     copySelectedLayer,
     deleteSelectedLayer,
     selectedLayerId,
-    pastCount,
+    slides,
+    activeSlideId,
     futureCount,
+    presentationId,
+    title,
+    setTitle,
+    pastCount,
   } = usePresentationStore();
+
+  const activeSlide = slides.find((s) => s.id === activeSlideId);
 
   const [showShapes, setShowShapes] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
@@ -83,6 +94,8 @@ const TopBar = ({ onPresent, onAgentClick }) => {
         <div className="topbar-left">
           <input
             type="text"
+            value={title || ""}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Untitled Project"
             className="project-input"
           />
@@ -91,9 +104,54 @@ const TopBar = ({ onPresent, onAgentClick }) => {
         {/* Right: Theme / Share / Agent / Present aligned in one line */}
         <div className="topbar-right">
           <div className="topbar-links">
-            {/* Temporary Debug Save Button */}
-            <button className="nav-btn" onClick={handleDebugSave} data-tooltip="Debug Save (Console Log)">
-              <Save size={18} /> Debug Save
+            {/* Save Button */}
+            <button
+              className="nav-btn"
+              disabled={pastCount === 0}
+              style={{ opacity: pastCount === 0 ? 0.5 : 1, cursor: pastCount === 0 ? 'not-allowed' : 'pointer' }}
+              onClick={async () => {
+                try {
+                  const state = usePresentationStore.getState();
+                  const { presentationId, slides, title, setPresentationId } = state;
+
+                  // Prepare payload
+                  const payload = {
+                    userId: user?._id,
+                    title: title || "Untitled Presentation",
+                    data: {
+                      slides,
+                    }
+                  };
+
+                  const service = await import("../../../../services/presentation");
+
+                  if (presentationId) {
+                    // Update existing
+                    await service.updatePresentation(presentationId, payload);
+                    alert("Presentation updated successfully!");
+                  } else {
+                    // Create new
+                    const res = await service.savePresentation(payload);
+
+                    const newId = res.presentationId || res._id || res.id || (res.data && (res.data._id || res.data.id));
+
+                    if (newId) {
+                      setPresentationId(newId);
+                      // Update URL via navigate
+                      navigate(`/presentation-editor-v3/${newId}`, { replace: true });
+                      alert("Presentation saved successfully!");
+                    } else {
+                      alert("Presentation saved, but could not retrieve ID. Please refresh.");
+                    }
+                  }
+                } catch (error) {
+                  console.error("Save failed:", error);
+                  alert("Failed to save presentation.");
+                }
+              }}
+              data-tooltip={presentationId ? "Save Changes" : "Save"}
+            >
+              <Save size={18} /> {presentationId ? "Save Changes" : "Save"}
             </button>
             <div className="dropdown" ref={themeRef}>
               <button

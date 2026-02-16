@@ -5,7 +5,7 @@
 /* Wrapper */
 .topbar-wrapper {
   background: linear-gradient(135deg, #6b9aff 0%, #a8cfff 50%, #6b9aff 100%);
-;
+  ;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
@@ -123,6 +123,7 @@
     opacity: 0;
     transform: translateX(-50%) translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);

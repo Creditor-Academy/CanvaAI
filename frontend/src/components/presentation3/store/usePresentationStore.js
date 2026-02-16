@@ -123,6 +123,63 @@ const usePresentationStore = create((set, get) => {
       },
     ],
 
+    /* =========================
+       PRESENTATION METADATA
+    ========================= */
+    presentationId: null,
+    title: "Untitled Presentation",
+    isSaving: false,
+
+    setPresentationId: (id) => set({ presentationId: id }),
+    setTitle: (title) => set({ title }),
+
+    updatePresentationState: (updates) => set(updates),
+
+    /* =========================
+       LOAD / RESET
+    ========================= */
+    setPresentation: (data) => {
+      // Expect data to match store shape: { id, title, slides: [...] }
+      // Or backend shape: { _id, title, data: { slides: [...] } }
+      const rawSlides = data.slides || (data.data && data.data.slides) || [];
+      const slides = rawSlides.map(slide => ({
+        ...slide
+        // Title removed
+      }));
+
+      const id = data.presentationId || data._id || data.id || (data.data && (data.data._id || data.data.id));
+      console.log("--- Store: setPresentation data:", data);
+      console.log("--- Store: Extracted ID:", id);
+      set({
+        presentationId: id,
+        title: data.title || (data.data && data.data.title) || "Untitled Presentation",
+        slides: slides,
+        activeSlideId: slides.length > 0 ? slides[0].id : null,
+        selectedLayerId: null,
+      });
+      // Clear history when loading new presentation
+      useHistoryStore.getState().clear();
+    },
+
+    resetPresentation: () => {
+      const newSlideId = nanoid();
+      const defaultSlides = [{
+        id: newSlideId,
+        background: "#ffffff",
+        layers: createDefaultTextLayers(),
+      }];
+
+      set({
+        presentationId: null,
+        title: "Untitled Presentation",
+        slides: defaultSlides,
+        activeSlideId: newSlideId,
+        selectedLayerId: null,
+      });
+      useHistoryStore.getState().clear();
+    },
+
+
     activeSlideId: initialSlideId,
     canvasZoom: 1.0,
 
@@ -151,9 +208,14 @@ const usePresentationStore = create((set, get) => {
     get past() {
       return useHistoryStore.getState().past;
     },
-
     get future() {
       return useHistoryStore.getState().future;
+    },
+    get pastCount() {
+      return useHistoryStore.getState().past.length;
+    },
+    get futureCount() {
+      return useHistoryStore.getState().future.length;
     },
 
     setActiveSlide: (slideId) => {
@@ -196,6 +258,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
+    // updateSlideTitle removed
+
     duplicateSlide: (slideId) => {
       get().saveToHistory();
       const { slides } = get();
@@ -208,6 +272,7 @@ const usePresentationStore = create((set, get) => {
       const duplicatedSlide = {
         ...slideToDuplicate,
         id: nanoid(),
+        // Title removed
         layers: slideToDuplicate.layers.map((layer) => ({
           ...layer,
           id: nanoid(),
