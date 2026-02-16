@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
+import SideBar from './components/SideBar';
 
 import { Home } from './pages/Home';
 import { Create } from './pages/Create';
@@ -171,23 +172,23 @@ function App() {
 
 
             {/* Presentation Editor v3 (new canvas-based editor) */}
-<Route
-  path="/presentation-editor-v3"
-  element={
-    <ProtectedRoute>
-      <PresentationWorkspace />
-    </ProtectedRoute>
-  }
-/>
+            <Route
+              path="/presentation-editor-v3"
+              element={
+                <ProtectedRoute>
+                  <PresentationWorkspace />
+                </ProtectedRoute>
+              }
+            />
 
-<Route
-  path="/presentation-editor-v3/:id"
-  element={
-    <ProtectedRoute>
-      <PresentationWorkspace />
-    </ProtectedRoute>
-  }
-/>
+            <Route
+              path="/presentation-editor-v3/:id"
+              element={
+                <ProtectedRoute>
+                  <PresentationWorkspace />
+                </ProtectedRoute>
+              }
+            />
 
 
             {/* PROTECTED ROUTES */}

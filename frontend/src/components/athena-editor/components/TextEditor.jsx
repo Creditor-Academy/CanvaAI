@@ -716,6 +716,12 @@ const TextEditorContent = () => {
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
 
+  // Debounce refs for performance
+  const statsTimeoutRef = useRef(null);
+  const paginationTimeoutRef = useRef(null);
+  const pagesUpdateTimeoutRef = useRef(null);
+  const autoSaveTimeoutRef = useRef(null);
+
   // Function to calculate content height for a page - FIXED: removed dependencies that cause loops
   const calculateContentHeight = useCallback((htmlContent) => {
     if (!htmlContent || htmlContent.trim() === '') return 0;
@@ -956,122 +962,116 @@ const TextEditorContent = () => {
     autofocus: true,
     onUpdate: ({ editor: editorInstance }) => {
       try {
-        const content = editorInstance.getHTML();
+        // Mark as modified immediately
+        setSaveStatus('modified');
 
-        // Update word count
-        const text = editorInstance.state.doc.textContent;
-        const words = text.trim().split(/\s+/).filter(Boolean).length;
-        const characters = text.length;
-        const readingTimeMinutes = Math.ceil(words / 200);
+        // 1. Debounced Stats Update (Word count, Headings, Doc stats)
+        if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
 
-        setWordCount(words);
-        setCharacterCount(characters);
-        setReadingTime(readingTimeMinutes);
+        statsTimeoutRef.current = setTimeout(() => {
+          if (!editorInstance || !editorInstance.state || !editorInstance.state.doc) return;
 
-        // Update headings
-        const newHeadings = [];
-        editorInstance.state.doc.descendants((node, pos) => {
-          if (node.type.name === 'heading') {
-            newHeadings.push({
-              level: node.attrs.level,
-              text: node.textContent,
-              id: `heading-${pos}`,
-            });
+          // Word Count & Reading Time
+          const text = editorInstance.state.doc.textContent;
+          const words = text.trim().split(/\s+/).filter(Boolean).length;
+          const characters = text.length;
+          const readingTimeMinutes = Math.ceil(words / 200);
+
+          setWordCount(words);
+          setCharacterCount(characters);
+          setReadingTime(readingTimeMinutes);
+
+          // Combined Descendant Iteration
+          const newHeadings = [];
+          let paragraphs = 0;
+          let images = 0;
+          let tables = 0;
+
+          editorInstance.state.doc.descendants((node, pos) => {
+            const type = node.type.name;
+            if (type === 'heading') {
+              newHeadings.push({
+                level: node.attrs.level,
+                text: node.textContent,
+                id: `heading-${pos}`,
+              });
+            } else if (type === 'paragraph') {
+              paragraphs++;
+            } else if (type === 'image') {
+              images++;
+            } else if (type === 'table') {
+              tables++;
+            }
+          });
+
+          setHeadings(newHeadings);
+
+          if (updateDocumentStatsAction) {
+            updateDocumentStatsAction(prev => ({
+              ...prev,
+              paragraphs,
+              images,
+              tables
+            }));
           }
-        });
-        setHeadings(newHeadings);
+        }, 500);
 
-        // Update document stats
-        let paragraphs = 0;
-        let images = 0;
-        let tables = 0;
+        // 2. Automatic Pagination Logic
+        if (paginationTimeoutRef.current) clearTimeout(paginationTimeoutRef.current);
 
-        editorInstance.state.doc.descendants((node) => {
-          if (node.type.name === 'paragraph') paragraphs++;
-          if (node.type.name === 'image') images++;
-          if (node.type.name === 'table') tables++;
-        });
+        paginationTimeoutRef.current = setTimeout(() => {
+          if (!editorInstance || !editorInstance.view) return;
 
-        if (updateDocumentStatsAction) {
-          updateDocumentStatsAction(prev => ({
-            ...prev,
-            paragraphs,
-            images,
-            tables
-          }));
-        }
-
-        // --- Automatic Pagination Logic ---
-        // Check if cursor has reached the end of the current page
-        const { state, view } = editorInstance;
-        const { selection } = state;
-        const { $from } = selection;
-
-        // Use a timeout to avoid calculation errors during rapid typing
-        if (window.paginationTimeout) clearTimeout(window.paginationTimeout);
-        window.paginationTimeout = setTimeout(() => {
           try {
+            const { state, view } = editorInstance;
+            const { selection } = state;
+            const { $from } = selection;
+
             const coords = view.coordsAtPos($from.pos);
+            if (!coords) return;
+
             const editorElement = view.dom;
             const editorRect = editorElement.getBoundingClientRect();
-            // Calculate relative position within the editor
-            // Calculate relative position within the editor, adjusted for zoom
+
             const zoomFactor = (zoom || 100) / 100;
             const relativeTop = (coords.top - editorRect.top + editorElement.scrollTop) / zoomFactor;
 
-            // A4 height is exactly 1122.5px at 96DPI
             const pageHeight = 1122.5;
             const gapHeight = 40;
             const totalPageHeight = pageHeight + gapHeight;
-
             const positionInPage = relativeTop % totalPageHeight;
-
-            // Threshold is bottom margin (72px) + a small buffer
             const threshold = pageHeight - 72 - 20;
 
-
             if (positionInPage > threshold && positionInPage < pageHeight) {
-              // Check if there is already a page break ahead or nearby
               let hasPageBreakAhead = false;
               state.doc.nodesBetween($from.pos, Math.min($from.pos + 50, state.doc.content.size), (node) => {
-
                 if (node.type.name === 'pageBreak') hasPageBreakAhead = true;
               });
 
               if (!hasPageBreakAhead) {
-                // Automatically insert a page break
                 editorInstance.chain().focus().insertContentAt($from.pos, { type: 'pageBreak' }).run();
                 toast.info('New page created');
               }
             }
           } catch (e) {
-            // Coords might not be available yet
+            // Coords might not be available yet or other view issues
           }
         }, 300);
 
-        // Update pages with new content - use debounce to prevent excessive updates
-        if (window.pagesUpdateTimeout) {
-          clearTimeout(window.pagesUpdateTimeout);
-        }
+        // 3. Page Structure Update
+        if (pagesUpdateTimeoutRef.current) clearTimeout(pagesUpdateTimeoutRef.current);
 
-        window.pagesUpdateTimeout = setTimeout(() => {
-          // Additional guard to ensure editor is ready
+        pagesUpdateTimeoutRef.current = setTimeout(() => {
           if (editorInstance && editorInstance.state && editorInstance.state.doc) {
             updatePages(editorInstance);
           }
-        }, 500); // Debounce page calculation
+        }, 500);
 
+        // 4. Auto Save
+        if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
 
-
-        // Update save status
-        setSaveStatus('modified');
-
-        // Auto-save after 3 seconds of inactivity
-        clearTimeout(window.autoSaveTimer);
-        window.autoSaveTimer = setTimeout(() => {
-          if (saveStatus === 'modified') {
-            handleAutoSave();
-          }
+        autoSaveTimeoutRef.current = setTimeout(() => {
+          handleAutoSave();
         }, 3000);
 
       } catch (error) {
