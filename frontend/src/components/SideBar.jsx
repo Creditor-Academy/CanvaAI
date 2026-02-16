@@ -261,20 +261,24 @@ const SideBar = () => {
     width: drawerWidth,
     background: sidebarBg,
     color: textColor,
-    height: "100vh",
-    position: "fixed",
+    position: "sticky",
     top: 0,
-    left: 0,
+    height: "100vh",
+    flexShrink: 0,
+    zIndex: 50,
     borderRight: "1px solid #1e3a8a",
     display: "flex",
     flexDirection: "column",
     transition: isMobile
       ? "transform 0.35s cubic-bezier(.4,0,.2,1)"
       : "width 0.25s ease",
-
+    flexBasis: drawerWidth,
+    maxWidth: drawerWidth,
+    minWidth: drawerWidth,
     transform: isMobile ? (isOpen ? "translateX(0)" : "translateX(-100%)") : "none",
+    position: isMobile ? "fixed" : "sticky",
+    left: isMobile ? 0 : "auto",
     willChange: isMobile ? "transform" : "width",
-    zIndex: 2000,
     boxShadow: isMobile && isOpen ? "4px 0 25px rgba(30,64,175,0.25)" : "none",
     backdropFilter: "blur(6px)",
     animation: !isMobile ? "slideIn 0.4s ease" : "none",
@@ -295,7 +299,7 @@ const SideBar = () => {
             top: 12,
             left: "auto",
             right: 16,
-            zIndex: 1100,
+            zIndex: 60,
             width: 40,
             height: 40,
             borderRadius: 12,
@@ -322,7 +326,7 @@ const SideBar = () => {
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.15)",
-            zIndex: 900,
+            zIndex: 40,
           }}
         />
       )}
