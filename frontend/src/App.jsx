@@ -71,27 +71,26 @@ const AppContent = () => {
   if (isMobile) return "0";
   return isCollapsed ? "60px" : "260px";
 };
-React.useEffect(() => {
-  window.dispatchEvent(new Event("resize"));
-}, [location.pathname]);
+// React.useEffect(() => {
+//   window.dispatchEvent(new Event("resize"));
+// }, [location.pathname]);
 
 
   return (
-  <div style={{ display: "flex" }}>
+  <div
+  style={{
+    display: "flex",
+    minHeight: "100vh",
+    background: "#f8fafc"
+  }}
+>
+
     {!isFullScreenRoute && <SideBar />}
 
     <div
       className="app-content"
       style={{
         flex: 1,
-        marginLeft: isFullScreenRoute
-          ? "0"
-          : isMobile
-          ? "0"
-          : isCollapsed
-          ? "60px"
-          : "260px",
-        transition: "margin-left 0.25s ease",
       }}
     >
 

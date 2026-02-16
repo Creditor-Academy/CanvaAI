@@ -2,14 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
-/* BRAND COLORS */
-const COLORS = {
-  primary: "#3b82f6",
-  gold: "#fbbf24",
-  text: "#0c4a6e",
-  bg: "#f9fafb",
-};
-
 /* FEATURES WITH REAL UNSPLASH IMAGES */
 const FEATURES = [
   {
@@ -132,7 +124,7 @@ const AISuggestTemp = () => {
           className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
           style={{
             backgroundImage:
-              "linear-gradient(90deg,#2563eb 0%,#3b82f6 40%,#fbbf24 100%)",
+             "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
           }}
         >
           What would you like to create?
@@ -223,7 +215,7 @@ const AISuggestTemp = () => {
                       {/* CTA */}
                       <button
                         className="mt-4 opacity-0 group-hover:opacity-100 transition
-                        bg-[#fbbf24] text-black px-4 py-2 rounded-lg font-semibold text-sm"
+                        bg-[#fabf23] text-black px-4 py-2 rounded-lg font-semibold text-sm"
                       >
                         Get Started →
                       </button>
