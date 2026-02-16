@@ -62,7 +62,7 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
             return (
               <img
                 key={layer.id}
-                src={layer.src}
+                src={layer.imageUrl || layer.src}
                 alt=""
                 style={{
                   position: "absolute",

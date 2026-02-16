@@ -441,7 +441,7 @@ class ApiService {
       headers: getAuthHeaders(),
     });
   }
-  
+
 
   async deleteTemplate(id) {
     return this.request(`/api/templates/${id}`, {
@@ -528,6 +528,17 @@ class ApiService {
         'Authorization': getAuthHeaders().Authorization
       },
       body: formData,
+    });
+  }
+
+  // ============= IMAGE UPLOAD =============
+  async uploadTemporaryImage({ userId, serviceId, base64Image }) {
+    return this.request('/api/image/upload-image/temperary', {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ userId, serviceId, base64Image }),
     });
   }
 }

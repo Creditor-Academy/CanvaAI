@@ -298,11 +298,18 @@ const usePresentationStore = create((set, get) => {
       }));
     },
 
-    setSlideBackgroundImage: (slideId, imageSrc, saveHistory = true) => {
+    setSlideBackgroundImage: (slideId, imageSrc, imageKey, saveHistory = true) => {
       if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
-          slide.id === slideId ? { ...slide, backgroundImage: imageSrc } : slide
+          slide.id === slideId
+            ? {
+              ...slide,
+              backgroundImage: imageSrc,
+              backgroundKey: imageKey,
+              backgroundType: imageSrc ? "image" : undefined
+            }
+            : slide
         ),
       }));
     },
@@ -709,7 +716,7 @@ const usePresentationStore = create((set, get) => {
     /* =========================
        IMAGE LAYERS
     ========================= */
-    addImageLayer: (src) => {
+    addImageLayer: (src, imageUrl, imageKey) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
       set({
@@ -717,7 +724,7 @@ const usePresentationStore = create((set, get) => {
           slide.id === activeSlideId
             ? {
               ...slide,
-              layers: [...slide.layers, createImageLayer(src)],
+              layers: [...slide.layers, createImageLayer(src, imageUrl, imageKey)],
             }
             : slide
         ),

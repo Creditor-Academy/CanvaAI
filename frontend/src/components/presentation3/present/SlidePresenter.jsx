@@ -105,7 +105,7 @@ const SlidePresenter = ({ slide, onClose }) => {
                         return (
                             <img
                                 key={layer.id}
-                                src={layer.src}
+                                src={layer.imageUrl || layer.src}
                                 alt=""
                                 style={{
                                     ...commonStyle,

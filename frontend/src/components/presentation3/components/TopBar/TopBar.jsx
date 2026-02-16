@@ -20,6 +20,7 @@ import {
   Save
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
+import useImageUpload from "../../hooks/useImageUpload";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
   const { user } = useAuth();
@@ -44,6 +45,8 @@ const TopBar = ({ onPresent, onAgentClick }) => {
     setTitle,
     pastCount,
   } = usePresentationStore();
+
+  const { uploadFile, isUploading } = useImageUpload();
 
   const activeSlide = slides.find((s) => s.id === activeSlideId);
 
@@ -263,16 +266,24 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             accept="image/*"
             id="image-upload"
             className="hidden-input"
-            onChange={(e) => {
+            disabled={isUploading}
+            onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
 
-              const reader = new FileReader();
-              reader.onload = () => {
-                addImageLayer(reader.result);
+              try {
+                // presentationId might be null for new presentations
+                const pptId = presentationId || "new";
+                const { url, key } = await uploadFile(file, user?._id, pptId);
+
+                // Add the image layer with S3 URL and Key
+                // We don't store base64 in the store
+                addImageLayer(null, url, key);
+
                 e.target.value = "";
-              };
-              reader.readAsDataURL(file);
+              } catch (error) {
+                alert("Failed to upload image.");
+              }
             }}
           />
 

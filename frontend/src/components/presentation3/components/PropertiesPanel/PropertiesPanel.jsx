@@ -1,6 +1,8 @@
 import React, { useState, useRef } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 import { debounce } from "lodash";
+import { useAuth } from "../../../../contexts/AuthContext";
+import useImageUpload from "../../hooks/useImageUpload";
 import "./properties-panel.css";
 
 const ColorPicker = ({ value, onChange, onHistorySave }) => {
@@ -176,7 +178,11 @@ const PropertiesPanel = () => {
     selectionMarks,
     editingCell, // Add editingCell
     updateTableCell, // Add updateTableCell
+    presentationId,
   } = usePresentationStore();
+
+  const { user } = useAuth();
+  const { uploadFile, isUploading } = useImageUpload();
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -257,15 +263,19 @@ const PropertiesPanel = () => {
                     const input = document.createElement("input");
                     input.type = "file";
                     input.accept = "image/*";
-                    input.onchange = (e) => {
+                    input.onchange = async (e) => {
                       const file = e.target.files[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        setSlideBackgroundImage(activeSlideId, reader.result);
+
+                      try {
+                        const pptId = presentationId || "new";
+                        const { url, key } = await uploadFile(file, user?._id, pptId);
+
+                        setSlideBackgroundImage(activeSlideId, url, key);
                         e.target.value = ""; // Reset input
-                      };
-                      reader.readAsDataURL(file);
+                      } catch (error) {
+                        alert("Failed to upload background image.");
+                      }
                     };
                     input.click();
                   }}

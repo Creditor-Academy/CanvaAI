@@ -26,10 +26,12 @@ export const createShapeLayer = (shapeType) => ({
   locked: false,
 });
 
-export const createImageLayer = (src) => ({
+export const createImageLayer = (src, imageUrl, imageKey) => ({
   id: crypto.randomUUID(),
   type: "image",
-  src,
+  src, // Keep for backward compatibility or direct URL addition
+  imageUrl,
+  imageKey,
   x: 200,
   y: 150,
   width: 240,
