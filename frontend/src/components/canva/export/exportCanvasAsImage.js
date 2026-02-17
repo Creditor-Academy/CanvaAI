@@ -386,27 +386,22 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     ctx.restore();
   };
 
-  // Draw all layers
-  const imageDrawPromises = [];
+  // Draw all layers in order
   for (const layer of layers) {
     if (!layer || layer.visible === false) continue;
     if (layer.type === 'shape') {
       if (layer.fillType === 'image' && layer.fillImageSrc) {
-        imageDrawPromises.push(drawShapeLayerWithImage(layer));
+        await drawShapeLayerWithImage(layer);
       } else {
         drawShape(layer);
       }
     } else if (layer.type === 'text') {
       drawTextLayer(ctx, layer);
     } else if (layer.type === 'image') {
-      imageDrawPromises.push(drawImageLayer(layer));
+      await drawImageLayer(layer);
     } else if (layer.type === 'drawing') {
       drawDrawingLayer(layer);
     }
-  }
-
-  if (imageDrawPromises.length) {
-    await Promise.all(imageDrawPromises);
   }
 
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';

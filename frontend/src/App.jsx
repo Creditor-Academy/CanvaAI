@@ -38,6 +38,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AuthPage from "./pages/AuthPage";
+import VerifyUserPage from "./pages/VerifyUserPage";
 import AdminDash from "./pages/AdminDash";
 import BrandKitResult from "./pages/BrandKitResult";
 import DocumentGenerator from "./components/aigenerator/DocumentGenerator";
@@ -49,7 +50,10 @@ import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
+import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
+
+
 
 
 
@@ -58,25 +62,40 @@ const AppContent = () => {
   const location = useLocation();
 
   // Check if current route is a canva-clone route
-  const isCanvaCloneRoute = location.pathname.startsWith('/canva-clone');
+  const isFullScreenRoute =
+  location.pathname.startsWith('/canva-clone') ||
+  location.pathname.startsWith('/presentation-editor') ||
+  location.pathname.startsWith('/presentation-editor-v3');
+
 
   const getContentMargin = () => {
-    // No margin for canva-clone routes
-    if (isCanvaCloneRoute) return "0";
-    if (isMobile) return "0";
-    return isCollapsed ? "60px" : "260px";
-  };
+  if (isFullScreenRoute) return "0";
+  if (isMobile) return "0";
+  return isCollapsed ? "60px" : "260px";
+};
+// React.useEffect(() => {
+//   window.dispatchEvent(new Event("resize"));
+// }, [location.pathname]);
+
 
   return (
-    <div>
-      {!isCanvaCloneRoute && <SideBar />}
-      <div
-        className="app-content"
-        style={{
-          marginLeft: getContentMargin(),
-          transition: "margin-left 0.25s ease",
-        }}
-      >
+  <div
+  style={{
+    display: "flex",
+    minHeight: "100vh",
+    background: "#f8fafc"
+  }}
+>
+
+    {!isFullScreenRoute && <SideBar />}
+
+    <div
+      className="app-content"
+      style={{
+        flex: 1,
+      }}
+    >
+
         <Routes>
           <Route path="/home" element={<Home />} />
           <Route path="/ai-suggest-templates" element={<AISuggestTemp />} />
@@ -124,6 +143,9 @@ const AppContent = () => {
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
 
+          {/* New Dashboard Route */}
+
+
           <Route
             path="/admin-dash"
             element={
@@ -151,6 +173,8 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
+            <Route path="/verify" element={<VerifyUserPage />} />
+            <Route path="/forget-password" element={<ForgetPassword />} />
 
             {/* Full-screen Presentation Editor - No sidebar */}
             <Route
@@ -172,23 +196,23 @@ function App() {
 
 
             {/* Presentation Editor v3 (new canvas-based editor) */}
-<Route
-  path="/presentation-editor-v3"
-  element={
-    <ProtectedRoute>
-      <PresentationWorkspace />
-    </ProtectedRoute>
-  }
-/>
+            <Route
+              path="/presentation-editor-v3"
+              element={
+                <ProtectedRoute>
+                  <PresentationWorkspace />
+                </ProtectedRoute>
+              }
+            />
 
-<Route
-  path="/presentation-editor-v3/:id"
-  element={
-    <ProtectedRoute>
-      <PresentationWorkspace />
-    </ProtectedRoute>
-  }
-/>
+            <Route
+              path="/presentation-editor-v3/:id"
+              element={
+                <ProtectedRoute>
+                  <PresentationWorkspace />
+                </ProtectedRoute>
+              }
+            />
 
 
             {/* PROTECTED ROUTES */}

@@ -3,7 +3,7 @@ import React from "react";
 const ImageLayer = ({ layer }) => {
     return (
         <img
-            src={layer.src}
+            src={layer.imageUrl || layer.src}
             alt="User Layer"
             draggable={false}
             style={{

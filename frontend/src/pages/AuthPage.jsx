@@ -20,7 +20,34 @@ const AuthPage = () => {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState("");
+
   const processedTokenRef = useRef(null);
+
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setForgotMsg("❌ Please enter your email first");
+      return;
+    }
+
+    try {
+      setForgotLoading(true);
+      setForgotMsg("");
+
+      await api.forgetPassword(formData.email);
+
+      setForgotMsg("Reset link sent to your email");
+
+    } catch (err) {
+      setForgotMsg(
+        err.response?.data?.msg || "❌ Failed to send reset link"
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
 
   // Handle token-based authentication from LMS
   useEffect(() => {
@@ -98,8 +125,26 @@ const AuthPage = () => {
       let response;
       if (isSignup) {
         response = await api.register(formData);
+
+        await api.sendOTP(formData.email);
+        localStorage.setItem("email", formData.email);
+
+        navigate('/verify', { state: { email: formData.email } });
+        return;
       } else {
         response = await api.login(formData);
+        console.log(response);
+
+        if (response.unverified) {
+
+          localStorage.setItem("email", formData.email);
+
+          navigate("/verify", {
+            state: { email: formData.email }
+          });
+
+          return;
+        }
       }
 
       await login(response.token);
@@ -253,6 +298,26 @@ const AuthPage = () => {
               </button>
             </div>
           </div>
+
+          {/* Forgot Password */}
+          {!isSignup && (
+            <div className="flex justify-end -mt-3">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={forgotLoading}
+                className="text-sm text-indigo-500 hover:text-indigo-700 font-medium transition disabled:opacity-70"
+              >
+                {forgotLoading ? "Sending..." : "Forgot Password?"}
+              </button>
+              {forgotMsg && (
+                <span className="ml-4 text-sm font-medium text-gray-600">
+                  {forgotMsg}
+                </span>
+              )}
+            </div>
+          )}
+
 
           <button
             type="submit"

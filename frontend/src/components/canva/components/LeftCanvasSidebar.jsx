@@ -116,6 +116,20 @@ const LeftCanvasSidebar = memo(({
   const [expandedSectionPosition, setExpandedSectionPosition] = useState({ x: 0, y: 0, width: 0 });
   const [referencePosition, setReferencePosition] = useState(null);
   const buttonRefs = useRef({});
+  const bgFileInputRef = useRef(null);
+
+  const handleBgFileChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (onCanvasBgImageChange) {
+        onCanvasBgImageChange(event.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
+  }, [onCanvasBgImageChange]);
 
   const sidebarContainerStyle = "pb-10 flex-[0_0_100px] border-r border-slate-800 flex flex-col items-center py-6 gap-2 z-[10] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-full";
   const childButtonStyle = (isSelected, isHovered) => `
@@ -549,12 +563,22 @@ const LeftCanvasSidebar = memo(({
                 {uploadedImages.map(img => (
                   <div
                     key={img.id}
-                    onClick={() => handleAddUploadedImage ? handleAddUploadedImage(img) : handleLayerDuplicate(img.id)}
                     className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-blue-500 transition-all"
                   >
                     <img src={img.src} alt={img.name || 'Uploaded image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <FiArrowUp className="text-white" size={20} />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleAddUploadedImage ? handleAddUploadedImage(img) : handleLayerDuplicate(img.id); }}
+                        className="w-full py-1.5 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
+                      >
+                        <FiArrowUp size={12} /> Add to Page
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onCanvasBgImageChange ? onCanvasBgImageChange(img.src) : null; }}
+                        className="w-full py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
+                      >
+                        <FiImage size={12} /> Set as BG
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -568,11 +592,16 @@ const LeftCanvasSidebar = memo(({
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("stockImages")}
         >
+          <div
+            onClick={() => bgFileInputRef.current?.click()}
+            className="w-full py-6 px-4 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-300 group mb-6 cursor-pointer text-slate-200"
+          >
+            Upload Stock Images
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {stockImages.map(image => (
               <div
                 key={image.id}
-                onClick={() => onCanvasBgImageChange ? onCanvasBgImageChange(image.src) : null}
                 className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-blue-500 transition-all"
               >
                 <img
@@ -580,8 +609,19 @@ const LeftCanvasSidebar = memo(({
                   alt={image.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <FiArrowUp className="text-white" size={20} />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleAddUploadedImage ? handleAddUploadedImage({ src: image.src, name: image.name }) : null; }}
+                    className="w-full py-1.5 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
+                  >
+                    <FiArrowUp size={12} /> Add to Page
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onCanvasBgImageChange ? onCanvasBgImageChange(image.src) : null; }}
+                    className="w-full py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
+                  >
+                    <FiImage size={12} /> Set as BG
+                  </button>
                 </div>
               </div>
             ))}
@@ -696,6 +736,7 @@ const LeftCanvasSidebar = memo(({
 
       </div>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+      <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgFileChange} className="hidden" />
     </div>
   )
 });

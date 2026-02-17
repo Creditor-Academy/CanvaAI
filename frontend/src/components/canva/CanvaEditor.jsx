@@ -157,6 +157,7 @@ const CanvaEditor = () => {
     handleQuickColorChange
   } = useLayerActions(layers, setLayers, saveToHistory);
 
+  
   const {
     drawingSettings,
     setDrawingSettings,
