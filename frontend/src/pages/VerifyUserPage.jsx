@@ -62,10 +62,11 @@ const VerifyUserPage = () => {
       setLoading(true);
 
       const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/verify-otp`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/auth/verify-otp`,
         { email, otp }
       );
 
+      console.log(res);
       setMsg({
         text: res.data.message,
         type: "success"
@@ -93,7 +94,7 @@ const VerifyUserPage = () => {
       setResendLoading(true);
 
       await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/resend-otp`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/auth/resend-otp`,
         {email}
       );
 
