@@ -2,28 +2,35 @@ import React from 'react';
 import { FiSettings, FiRefreshCw } from 'react-icons/fi';
 import { MdAutoAwesome } from 'react-icons/md';
 
-const PromptSection = ({ 
-  prompt, 
-  setPrompt, 
-  tone, 
-  setTone, 
-  length, 
-  setLength, 
-  mediaStyle, 
-  setMediaStyle, 
-  useBrandStyle, 
-  setUseBrandStyle, 
-  showAdvanced, 
-  setShowAdvanced, 
-  outlineText, 
-  setOutlineText, 
-  handleGenerate, 
-  isGenerating, 
-  generationStep 
+const PromptSection = ({
+  prompt,
+  setPrompt,
+  tone,
+  setTone,
+  length,
+  setLength,
+  mediaStyle,
+  setMediaStyle,
+  useBrandStyle,
+  setUseBrandStyle,
+  showAdvanced,
+  setShowAdvanced,
+  outlineText,
+  setOutlineText,
+  handleGenerate,
+  isGenerating,
+  generationStep
 }) => {
   const tones = ['Professional', 'Friendly', 'Minimal', 'Corporate', 'Creative'];
   const lengths = ['2', '3', '5', '7', '10'];
   const mediaStyles = ['AI Images', 'No Media'];
+  // default values (jab page open ho)
+  React.useEffect(() => {
+    if (!tone) setTone("Professional");
+    if (!length) setLength("5");
+    if (!mediaStyle) setMediaStyle("AI Images");
+  }, []);
+
 
   return (
     <div className="presentation-studio-creation-hub">
@@ -35,202 +42,145 @@ const PromptSection = ({
           </p>
         </div> */}
 
-        <div className="presentation-studio-form">
-          {/* Prompt Input */}
-          <div className="presentation-studio-form-group">
-            <label className="presentation-studio-label">
-              Presentation Topic
-            </label>
+        <div className="ai-hero">
+          <h1 className="ai-title">AI Presentation Studio</h1>
+          <p className="ai-subtitle">
+            Create your stunning presentations with AI in seconds.
+          </p>
+
+          <div className="ai-input-box">
+            <label className="presentation-studio-label"> Title </label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., 'Annual Marketing Strategy for 2024' or 'Introduction to Machine Learning'"
-              className="presentation-studio-textarea"
+              placeholder="Write your presentation title..."
+              className="ai-main-input"
             />
-          </div>
+            <hr className='horizontal-line'></hr>
+            <label className="presentation-studio-label"> Outline (Optional) </label>
+            <textarea
+              value={outlineText || ""}
+              onChange={(e) => setOutlineText(e.target.value)}
+              placeholder="Provide a structured outline for your presentation..."
+              className="ai-main-input"
+            />
 
-          {/* Options Grid (Cards Instead of Dropdowns) */}
-          <div className="presentation-studio-card-options">
-            {/* Tone Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Tone</label>
-              <div className="presentation-studio-card-grid">
-                {tones.map(t => (
-                  <div
-                    key={t}
-                    className={`presentation-studio-card-option ${tone === t ? "selected" : ""}`}
-                    onClick={() => setTone(t)}
-                    data-tone={t}
-                  >
-                    {t !== 'Professional' && t !== 'Friendly' && t !== 'Minimal' && t !== 'Corporate' && (
-                      <img 
-                        src={`/assets/tone/${t.toLowerCase()}.png`} 
-                        alt={t} 
-                        className="presentation-studio-card-image"
-                      />
-                    )}
-                    <span>{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Length Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Length</label>
-              <div className="presentation-studio-card-grid">
-                {lengths.map(l => (
-                  <div
-                    key={l}
-                    className={`presentation-studio-card-option ${length === l ? "selected" : ""}`}
-                    onClick={() => setLength(l)}
-                    data-length={l}
-                  >
-                    <span>{l} slides</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Media Style Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Media Style</label>
-              <div className="presentation-studio-card-grid">
-                {mediaStyles.map(s => (
-                  <div
-                    key={s}
-                    className={`presentation-studio-card-option ${mediaStyle === s ? "selected" : ""} ${s === 'AI Images' ? 'ai-images-card' : ''} ${s === 'No Media' ? 'no-media-card' : ''}`}
-                    onClick={() => setMediaStyle(s)}
-                    {...(s === 'AI Images' ? { 'data-media': 'ai-images' } : {})}
-                    {...(s === 'No Media' ? { 'data-media': 'no-media' } : {})}
-                  >
-                    <span>{s}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* <div className="ai-controls">
 
-            {/* Brand Style Checkbox */}
-            {/* <div className="presentation-studio-checkbox-group" style={{ marginTop: "1rem" }}>
-              <input
-                type="checkbox"
-                id="brandStyle"
-                checked={useBrandStyle}
-                onChange={(e) => setUseBrandStyle(e.target.checked)}
-                className="presentation-studio-checkbox"
-              />
-              <label htmlFor="brandStyle" className="presentation-studio-checkbox-label">
-                Use Brand Style
-              </label>
+              <select value={tone} onChange={(e) => setTone(e.target.value)}>
+                <option>Professional</option>
+                <option>Friendly</option>
+                <option>Creative</option>
+                <option>Corporate</option>
+              </select>
+
+              <select value={length} onChange={(e) => setLength(e.target.value)}>
+                <option value="5">5 Slides</option>
+                <option value="8">8 Slides</option>
+                <option value="12">12 Slides</option>
+              </select>
+
+              <select value={mediaStyle} onChange={(e) => setMediaStyle(e.target.value)}>
+                <option>AI Images</option>
+                <option>No Media</option>
+              </select> */}
+
+            {/* outline selector */}
+            {/* <select
+                value={outlineText ? "yes" : "no"}
+                onChange={(e) => {
+                  if (e.target.value === "yes") {
+                    setOutlineText(" ");
+                  } else {
+                    setOutlineText("");
+                  }
+                }}
+              >
+                <option value="no">Outline (Optional)</option>
+                <option value="yes">Add Outline</option>
+              </select>
+
             </div> */}
-          </div>
 
-          {/* Advanced Options */}
-          <div className="presentation-studio-advanced-options">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="presentation-studio-advanced-toggle"
-            >
-              <span>{showAdvanced ? 'Hide' : 'Show'} Advanced Options</span>
-              <FiSettings className={`presentation-studio-advanced-icon ${showAdvanced ? 'presentation-studio-advanced-icon-open' : ''}`} />
-            </button>
-
-            {showAdvanced && (
-              <div className="presentation-studio-advanced-content">
-                <div className="presentation-studio-form-group">
-                  <label className="presentation-studio-label">
-                    Outline (Optional)
-                  </label>
-                  <textarea
-                    value={outlineText}
-                    onChange={(e) => setOutlineText(e.target.value)}
-                    placeholder="Provide a structured outline for your presentation..."
-                    className="presentation-studio-textarea presentation-studio-textarea-small"
-                  />
-                </div>
-                {/* <div className="presentation-studio-form-group">
-                  <label className="presentation-studio-label">
-                    Reference Document
-                  </label>
-                  <div className="presentation-studio-file-upload">
-                    <label className="presentation-studio-file-upload-label">
-                      <div className="presentation-studio-file-upload-content">
-                        <svg className="presentation-studio-file-upload-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg>
-                        <p className="presentation-studio-file-upload-text">
-                          <span className="presentation-studio-file-upload-bold">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="presentation-studio-file-upload-subtext">
-                          PDF, DOC, DOCX (MAX. 10MB)
-                        </p>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="presentation-studio-file-input" 
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            // Handle file upload
-                            alert(`File selected: ${e.target.files[0].name}`);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div> */}
-              </div>
+            {/* OUTLINE INPUT APPEARS ONLY IF YES */}
+            {/* {outlineText && (
+              <textarea
+                value={outlineText}
+                onChange={(e) => setOutlineText(e.target.value)}
+                placeholder="Write slide structure: intro, problem, solution, conclusion..."
+                className="ai-outline-box"
+              />
             )}
+
+
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || !prompt.trim()}
+              className="ai-generate-btn"
+            >
+              {isGenerating ? "Generating..." : "Generate Presentation"}
+            </button> */}
+            <div className="ai-toolbar">
+
+              <div className="ai-left-controls">
+
+                <select value={tone} onChange={(e) => setTone(e.target.value)}>
+                  <option>Professional</option>
+                  <option>Friendly</option>
+                  <option>Creative</option>
+                  <option>Corporate</option>
+                </select>
+
+                <select value={length} onChange={(e) => setLength(e.target.value)}>
+                  <option value="2">2 Slides</option>
+                  <option value="3">3 Slides</option>
+                  <option value="4">4 Slides</option>
+                  <option value="5">5 Slides</option>
+                  <option value="6">6 Slides</option>
+                  <option value="7">7 Slides</option>
+                  <option value="8">8 Slides</option>
+                  <option value="9">9 Slides</option>
+                  <option value="10">10 Slides</option>
+                </select>
+
+
+                <select value={mediaStyle} onChange={(e) => setMediaStyle(e.target.value)}>
+                  <option>AI Images</option>
+                  <option>No Media</option>
+                </select>
+
+
+
+              </div>
+
+              <button
+                onClick={() => {
+                  const finalMedia = mediaStyle === "AI Images";
+
+                  handleGenerate({
+                    prompt: prompt.trim(),
+                    tone: tone.toLowerCase(),
+                    length: Number(length),
+                    media: finalMedia,
+                    outline: outlineText?.trim() || null
+                  });
+                }}
+                disabled={isGenerating || !prompt.trim()}
+                className="ai-generate-top"
+              >
+                {isGenerating ? "Generating..." : "Generate"}
+              </button>
+
+
+            </div>
+
           </div>
 
-          {/* Generate Button */}
-          <div className="presentation-studio-generate-container">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isGenerating && prompt.trim()) {
-                  handleGenerate();
-                }
-              }}
-              disabled={isGenerating || !prompt.trim()}
-              className={`presentation-studio-generate-button ${isGenerating || !prompt.trim() ? 'presentation-studio-generate-button-disabled' : ''}`}
-            >
-              {isGenerating ? (
-                <>
-                  <FiRefreshCw className="presentation-studio-spinner" />
-                  {[
-                    'Structuring story...',
-                    'Visualizing content...',
-                    'Designing slides...',
-                    'Finalizing presentation...'
-                  ][generationStep] || 'Generating...'}
-                </>
-              ) : (
-                <>
-                  <MdAutoAwesome className="presentation-studio-generate-icon" />
-                  Generate Outline
-                </>
-              )}
-            </button>
-          </div>
-          
-          {/* Progress bar during generation */}
-          {isGenerating && (
-            <div className="presentation-studio-progress-container">
-              <div className="presentation-studio-progress-bar">
-                <div 
-                  className="presentation-studio-progress-fill" 
-                  style={{ width: `${((generationStep + 1) / 4) * 100}%` }}
-                ></div>
-              </div>
-              <div className="presentation-studio-progress-labels">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-            </div>
-          )}
+
         </div>
+
       </div>
     </div>
   );

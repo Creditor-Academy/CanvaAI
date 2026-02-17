@@ -43,12 +43,12 @@ const Header = ({
             <FiArrowLeft size={20} />
           </button>
         )}
-       <div className="header-center">
+       {/* <div className="header-center">
           <h1 className="presentation-studio-title">AI Presentation Studio</h1>
           <p className="presentation-studio-subtitle">
             Create stunning presentations with AI in seconds
           </p>
-        </div>
+        </div> */}
       </div>
       {/* <div className="presentation-studio-header-actions">
         <button 
