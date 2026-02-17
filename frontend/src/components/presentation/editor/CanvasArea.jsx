@@ -216,10 +216,10 @@ const CanvasArea = ({
           cursor: isPanning
             ? 'grabbing'
             : selectedTool === 'select' && !selectedPreset && !selectedLayerId
-            ? 'grab'
-            : selectedPreset
-            ? 'crosshair'
-            : 'default',
+              ? 'grab'
+              : selectedPreset
+                ? 'crosshair'
+                : 'default',
         }}
         className="custom-scrollbar"
       >
@@ -244,7 +244,32 @@ const CanvasArea = ({
         >
           {/* Stage content is rendered via render prop */}
           {renderStageContent && renderStageContent()}
-          
+
+          {/* GIF Overlay Layer (for animated GIF support) */}
+          {activeSlide?.layers?.map(layer => {
+            if (layer.type === 'image' && layer.isGif) {
+              return (
+                <img
+                  key={layer.id}
+                  src={layer.src}
+                  alt=""
+                  style={{
+                    position: 'absolute',
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    pointerEvents: 'none',
+                    zIndex: 50
+                  }}
+                  draggable={false}
+                />
+              );
+            }
+            return null;
+          })}
+
+
           {/* Layer action bar */}
           {renderLayerActionBar && renderLayerActionBar()}
         </div>

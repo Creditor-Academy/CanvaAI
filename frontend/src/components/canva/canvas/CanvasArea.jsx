@@ -250,7 +250,12 @@ const LayerComponent = memo(({
               transform: layer.flipped ? 'scaleX(-1)' : 'none'
             }}
           >
-            <img src={layer.src} alt={layer.name} className="w-full h-full object-contain block bg-no-repeat " draggable={false} />
+            <img
+              src={layer.src}
+              alt={layer.name}
+              className="w-full h-full object-cover block"
+              draggable={false}
+            />
           </div>
         );
 

@@ -9,6 +9,7 @@ import {
 import AIImageGenerator from '../AIImageGenerator'
 import BackgroundColor from './BackgroundColor'
 import { MdDisabledVisible } from 'react-icons/md'
+import DesignLibrary from './DesignLibrary';
 
 // --- Sub-components moved outside to prevent unmounting on parent re-renders ---
 
@@ -105,6 +106,9 @@ const LeftCanvasSidebar = memo(({
   handleTemplateSelect,
   drawingSettings,
   handleDrawingSettingsChange,
+  handleAddSticker,
+  handleApplyDesignTemplate
+
 }) => {
   const [hoveredButtonTooltip, setHoveredButtonTooltip] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -131,8 +135,10 @@ const LeftCanvasSidebar = memo(({
     'media': 'Images & AI',
     'templates': 'mas',
     'canvas': 'Dimensions',
-    'stockImages': 'Stock Images'
+    'stockImages': 'Stock Images',
+    'design': 'Design Presets'   // NEW
   };
+
 
   const shapeConfigs = [
     { key: 'rectangle', label: 'Rectangle', icon: <FiSquare size={18} />, size: [120, 120] },
@@ -192,6 +198,31 @@ const LeftCanvasSidebar = memo(({
       src: 'https://images.unsplash.com/photo-1692902288471-4beec045f56d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cmFrc2hhYmFuZGhhbnxlbnwwfHwwfHx8MA%3D%3D',
       name: 'Raksha Bandhan Card'
     }
+  ];
+
+
+  const emojiImages = [
+    {
+      id: 'emoji1',
+      src: 'https://cdn.pixabay.com/photo/2017/08/17/15/39/love-2651743_1280.png',
+      name: 'Love'
+    },
+    {
+      id: 'emoji2',
+      src: 'https://cdn.pixabay.com/photo/2022/07/15/05/48/hairy-cartoon-7322434_1280.png',
+      name: 'Cartoon'
+    },
+    {
+      id: 'emoji3',
+      src: 'https://cdn.pixabay.com/photo/2022/09/28/23/41/emotions-7486199_1280.png',
+      name: 'Emotions'
+    },
+    {
+      id: 'emoji4',
+      src: 'https://cdn.pixabay.com/photo/2020/08/27/16/26/face-5522356_1280.png',
+      name: 'Face'
+    }
+
   ];
 
 
@@ -360,6 +391,31 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
+        <ParentButton
+          sectionKey="emoji" icon={<FiStar size={16} />} label="Emoji"
+          isActive={expandedSection === "emoji"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["emoji"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+        <ParentButton
+          sectionKey="design"
+          icon={<FiMaximize size={16} />}
+          label="Design"
+          isActive={expandedSection === "design"}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
+          onClick={handleSectionToggleInternal}
+          buttonRef={(el) => buttonRefs.current["design"] = el}
+          tooltipTexts={tooltipTexts}
+          hoveredButtonTooltip={hoveredButtonTooltip}
+          tooltipPosition={tooltipPosition}
+        />
+
 
         {/* Portals */}
         <ExpandedSectionPortal
@@ -552,6 +608,92 @@ const LeftCanvasSidebar = memo(({
             ))}
           </div>
         </ExpandedSectionPortal>
+
+        <ExpandedSectionPortal
+          sectionKey="emoji"
+          title="Stickers"
+          expandedSection={expandedSection}
+          position={expandedSectionPosition}
+          onClose={() => handleCloseSection("emoji")}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            {emojiImages.map(emoji => (
+              <div
+                key={emoji.id}
+                onClick={() => handleAddSticker(emoji.src)}   // 👈 USE HERE
+                className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-blue-500 transition-all"
+              >
+                <img
+                  src={emoji.src}
+                  alt={emoji.name}
+                  className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-300"
+                />
+              </div>
+            ))}
+          </div>
+        </ExpandedSectionPortal>
+
+        <ExpandedSectionPortal
+          sectionKey="design"
+          title="Design Presets"
+          expandedSection={expandedSection}
+          position={expandedSectionPosition}
+          onClose={() => handleCloseSection("design")}
+        >
+          <div className="space-y-4">
+
+            <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
+              <p className="text-sm text-white font-semibold mb-2">Quick Backgrounds</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  '#ff6b6b',
+                  '#4f46e5',
+                  '#22c55e',
+                  '#f59e0b'
+                ].map(color => (
+                  <div
+                    key={color}
+                    onClick={() => onCanvasBgColorChange(color)}
+                    className="h-14 rounded-lg cursor-pointer border border-slate-700 hover:scale-105 transition"
+                    style={{ background: color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
+              <p className="text-sm text-white font-semibold mb-2">Quick Layout</p>
+              <button
+                onClick={() => handleAddElement(100, 100, 'heading')}
+                className="w-full py-2 bg-blue-600 rounded-lg text-sm font-medium hover:bg-blue-500 transition"
+              >
+                Add Title Layout
+              </button>
+            </div>
+
+          </div>
+        </ExpandedSectionPortal>
+
+
+
+        <ExpandedSectionPortal
+          sectionKey="design"
+          title="Design"
+          expandedSection={expandedSection}
+          position={expandedSectionPosition}
+          onClose={() => handleCloseSection("design")}
+        >
+          <DesignLibrary
+            onSelect={(template) => {
+              handleApplyDesignTemplate(template);
+              setExpandedSection(null);
+            }}
+          />
+
+        </ExpandedSectionPortal>
+
+
+
       </div>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
     </div>

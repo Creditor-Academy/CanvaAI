@@ -24,9 +24,9 @@ const generateDiceBearCatalog = () => {
     'samuel', 'frank', 'gregory', 'raymond', 'alexander', 'patrick', 'jack', 'dennis', 'jerry', 'tyler',
     'aaron', 'jose', 'henry', 'adam', 'douglas', 'nathan', 'zachary', 'peter', 'kyle', 'noah',
     'alan', 'ethan', 'wayne', 'jordan', 'harold', 'dylan', 'sean', 'billy', 'jesse', 'ralph'
-  ];
+  ]; 
   
-  // Seeds that tend to produce more feminine appearances
+  // Seeds that tend to produce more feminine appearances 
   const femaleSeeds = [
     'emily', 'sarah', 'jessica', 'jennifer', 'amanda', 'lisa', 'michelle', 'melissa', 'ashley', 'nicole',
     'stephanie', 'elizabeth', 'heather', 'kimberly', 'amy', 'angela', 'rebecca', 'samantha', 'megan', 'rachel',

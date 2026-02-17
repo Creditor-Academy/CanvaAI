@@ -31,7 +31,6 @@ const EditingToolbar = ({
     onEraser,
     onFlip,
     onEffects,
-
     onPosition,
     onToggleBackground,
     isBgRemoved,
@@ -40,7 +39,9 @@ const EditingToolbar = ({
     layers,
     canvasSize,
     zoom,
-    pan
+    pan,
+    canvasBgColor,
+    canvasBgImage,
 }) => {
     const [showFontDropdown, setShowFontDropdown] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -150,7 +151,9 @@ const EditingToolbar = ({
                     layers: formattedLayers,
                     canvasSize: canvasSize || { width: 800, height: 600 },
                     zoom: zoom || 80,
-                    pan: pan || { x: 0, y: 0 }
+                    pan: pan || { x: 0, y: 0 },
+                    canvasBgColor: canvasBgColor || '#82c787ff',
+                    canvasBgImage: canvasBgImage || null
                 },
                 savedAt: new Date().toISOString(),
                 savedMethod: "localStorage"
@@ -167,45 +170,45 @@ const EditingToolbar = ({
 
 
             {/* 2. MENU BAR (File, Insert, etc) */}
-            <div className="flex items-center h-9 px-4 border-b border-gray-100" ref={menuRef}>
-                {menuItems.map((item) => (
-                    <div key={item.id} className="relative">
-                        <button
-                            onClick={() => setActiveMenu(activeMenu === item.id ? null : item.id)}
-                            className={`px-3 h-7 flex items-center text-sm font-normal text-gray-700 hover:bg-gray-100 rounded transition-colors ${activeMenu === item.id ? 'bg-gray-100 text-gray-900' : ''
-                                }`}
-                        >
-                            {item.label}
-                        </button>
-                        {activeMenu === item.id && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[110] py-1 min-w-[200px]">
-                                <div className="px-3 py-2 text-xs text-gray-400 font-bold uppercase tracking-wider">
-                                    {item.label} Options
+            <div className='flex justify-between px-6 items-center'>
+                <div className="flex items-center h-9 border-b border-gray-100" ref={menuRef}>
+                    {menuItems.map((item) => (
+                        <div key={item.id} className="relative">
+                            <button
+                                onClick={() => setActiveMenu(activeMenu === item.id ? null : item.id)}
+                                className={`px-3 h-7 flex items-center text-sm font-normal text-gray-700 hover:bg-gray-100 rounded transition-colors ${activeMenu === item.id ? 'bg-gray-100 text-gray-900' : ''
+                                    }`}
+                            >
+                                {item.label}
+                            </button>
+                            {activeMenu === item.id && (
+                                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[110] py-1 min-w-[200px]">
+                                    <div className="px-3 py-2 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                                        {item.label} Options
+                                    </div>
+                                    <div className="border-t border-gray-100"></div>
+                                    <div className="px-1 py-1">
+                                        {['New', 'Open', 'Download', 'History'].map(opt => (
+                                            <div key={opt}
+                                                onClick={() => opt === 'Download' && onDownload()}
+                                                className="px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded cursor-pointer transition-colors">
+                                                {opt}...
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="border-t border-gray-100"></div>
-                                <div className="px-1 py-1">
-                                    {['New', 'Open', 'Download', 'History'].map(opt => (
-                                        <div key={opt}
-                                            onClick={() => opt === 'Download' && onDownload()}
-                                            className="px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded cursor-pointer transition-colors">
-                                            {opt}...
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <div>Your Name</div>
             </div>
-
             <div className="h-14 px-4 flex items-center justify-between border-b border-gray-100">
                 <div className="flex items-center gap-3">
                     {/* App Icon */}
                     <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center shadow-sm">
                         <FiFile className="text-white" size={18} />
                     </div>
-                    {/* Title & Icons */}
-                    <div>Untitled Image</div>
                 </div>
 
                 <div className="max-w-[1600px] w-full mx-auto px-4 h-12 flex items-center gap-3 overflow-x-visible overflow-y-visible no-scrollbar">
@@ -216,7 +219,7 @@ const EditingToolbar = ({
                     </div>
 
                     <button onClick={onDuplicate} disabled={!hasSelection} className={btnGhost}>
-                        <FiCopy size={15} /> <span className="hidden lg:inline text-xs">Duplicate</span>
+                        <FiCopy size={15} />
                     </button>
 
                     <button

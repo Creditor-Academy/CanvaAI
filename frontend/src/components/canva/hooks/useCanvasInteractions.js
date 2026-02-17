@@ -20,6 +20,7 @@ export const useCanvasInteractions = (
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialLayers, setInitialLayers] = useState([]);
 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({
@@ -54,8 +55,9 @@ export const useCanvasInteractions = (
 
     setIsDragging(true);
     setDragStart({ x, y });
+    setInitialLayers([...layers]); // Store current state of all layers
     setSelectedLayer(layerId);
-  }, [selectedTool, getCanvasPoint, setSelectedLayer]);
+  }, [selectedTool, getCanvasPoint, setSelectedLayer, layers]);
 
   /* ===================== RESIZE ===================== */
 
@@ -198,16 +200,16 @@ export const useCanvasInteractions = (
       const dx = x - dragStart.x;
       const dy = y - dragStart.y;
 
-      // Find the current layer to snap
-      const currentLayer = layers.find(l => l.id === selectedLayer);
+      // Find the initial layer to calculate new position from
+      const initialLayer = initialLayers.find(l => l.id === selectedLayer);
 
-      if (currentLayer) {
-        // Calculate raw new position based on delta
-        const rawX = currentLayer.x + dx;
-        const rawY = currentLayer.y + dy;
+      if (initialLayer) {
+        // Calculate raw new position based on total delta from start
+        const rawX = initialLayer.x + dx;
+        const rawY = initialLayer.y + dy;
 
         // Snap the candidate position
-        const { x: finalX, y: finalY, guides } = snap({ ...currentLayer, x: rawX, y: rawY });
+        const { x: finalX, y: finalY, guides } = snap({ ...initialLayer, x: rawX, y: rawY });
 
         // Set alignment guides for visualization
         setAlignmentGuides(guides);
@@ -217,8 +219,6 @@ export const useCanvasInteractions = (
           prev.map(l => l.id === selectedLayer ? { ...l, x: finalX, y: finalY } : l)
         );
       }
-
-      setDragStart({ x, y });
     }
   }, [
     isDragging,
@@ -226,13 +226,13 @@ export const useCanvasInteractions = (
     isRotating,
     selectedLayer,
     dragStart,
+    initialLayers,
     resizeStart,
     rotateStart,
     getCanvasPoint,
     setLayers,
-    layers, // Add layers to dependency
-    snap, // Add snap to dependency
-    setAlignmentGuides // Add setter to dependency
+    snap,
+    setAlignmentGuides
   ]);
 
   /* ===================== MOUSE UP ===================== */

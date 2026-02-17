@@ -55,7 +55,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState('#DDB4B4');
+  const [canvasBgColor, setCanvasBgColor] = useState('#82c787ff');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -769,6 +769,42 @@ const CanvaEditor = () => {
   }, [layers, currentPageIndex]); // Save layers whenever they change
 
 
+
+  const handleApplyDesignTemplate = (template) => {
+    // Set canvas size
+    const newSize = {
+      width: template.width,
+      height: template.height
+    };
+    setCanvasSize(newSize);
+
+    // Add layers with unique IDs
+    const newLayers = template.layers.map(layer => ({
+      ...layer,
+      id: Date.now() + Math.random(),
+      visible: true,
+      locked: false,
+      rotation: 0
+    }));
+
+    setLayers(newLayers);
+    saveToHistory(newLayers);
+
+    setSelectedLayer(null);
+    setHasChosenTemplate(true);
+    hasInitializedRef.current = true;
+
+    // Auto-fit to screen after small delay to allow DOM to catch up
+    setTimeout(() => {
+      const pageId = pages[currentPageIndex]?.id || 1;
+      const ref = canvasAreaRefs.current[pageId];
+      if (ref) {
+        handleFitToScreen(ref, newSize);
+      }
+    }, 50);
+  };
+
+
   const handlePageChange = useCallback((index) => {
     if (index >= 0 && index < pages.length && index !== currentPageIndex) {
       // Save current page layers
@@ -992,6 +1028,43 @@ const CanvaEditor = () => {
     setSelectedLayer(newImage.id);
   };
 
+  // -----------------------------
+  // GIF Emoji Handler (NEW)
+
+
+  const handleAddSticker = useCallback((src) => {
+    const newLayer = {
+      id: Date.now().toString(),
+      type: 'image',
+      src: src,
+      x: canvasSize.width / 2 - 60,
+      y: canvasSize.height / 2 - 60,
+      width: 120,
+      height: 120,
+      opacity: 100,
+      rotation: 0,
+      brightness: 100,
+      contrast: 100,
+      blur: 0,
+      cornerRadius: 0,
+      strokeWidth: 0,
+      strokeColor: '#000000',
+      shadows: { enabled: false },
+      visible: true,
+      locked: false,
+      name: 'Sticker'
+    };
+
+    setLayers(prev => {
+      const newLayers = [...prev, newLayer];
+      saveToHistory(newLayers);
+      return newLayers;
+    });
+
+    setSelectedLayer(newLayer.id);
+  }, [canvasSize, saveToHistory]);
+
+
   // Handler to add uploaded image from "Recently Uploaded" section to canvas
   const handleAddUploadedImage = useCallback((uploadedImage) => {
     if (!uploadedImage || !uploadedImage.src) {
@@ -1076,14 +1149,27 @@ const CanvaEditor = () => {
       return;
     }
 
-    // Normal template behavior
-    setCanvasSize({ width: template.width, height: template.height });
-    setLayers([]);
+    // Only change canvas size
+    const newSize = {
+      width: template.width,
+      height: template.height
+    };
+    setCanvasSize(newSize);
+
     setSelectedLayer(null);
     setHasChosenTemplate(true);
     hasInitializedRef.current = false;
-    saveToHistory([]);
+
+    // Auto-fit to screen
+    setTimeout(() => {
+      const pageId = pages[currentPageIndex]?.id || 1;
+      const ref = canvasAreaRefs.current[pageId];
+      if (ref) {
+        handleFitToScreen(ref, newSize);
+      }
+    }, 50);
   };
+
 
 
   // Fit to screen wrapper
@@ -1296,6 +1382,9 @@ const CanvaEditor = () => {
             handleDrawingSettingsChange={handleDrawingSettingsChange}
             onCanvasBgColorChange={onCanvasBgColorChange}
             onCanvasBgImageChange={onCanvasBgImageChange}
+            handleAddSticker={handleAddSticker}
+            handleApplyDesignTemplate={handleApplyDesignTemplate}
+
           />
         </div>
         {/* Close button for mobile */}
@@ -1360,6 +1449,8 @@ const CanvaEditor = () => {
           canvasSize={canvasSize}
           zoom={zoom}
           pan={pan}
+          canvasBgColor={canvasBgColor}
+          canvasBgImage={canvasBgImage}
         />
 
         {/* Canvas Area - scrollable container with all pages */}
@@ -1374,7 +1465,7 @@ const CanvaEditor = () => {
 
             return (
               <div key={page.id} className="w-full flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
-                <div className="flex justify-center items-center">
+                <div className="flex justify-center items-center mr-40">
                   <CanvasArea
                     canvasAreaRef={pageRefs.canvasAreaRef}
                     contentWrapperRef={pageRefs.contentWrapperRef}
