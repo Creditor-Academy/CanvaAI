@@ -28,12 +28,12 @@ const PromptSection = ({
   return (
     <div className="presentation-studio-creation-hub">
       <div className="presentation-studio-creation-container">
-        <div className="presentation-studio-creation-header">
+        {/* <div className="presentation-studio-creation-header">
           <h2 className="presentation-studio-creation-title">Create Your Presentation</h2>
           <p className="presentation-studio-creation-subtitle">
             Describe what you need and let AI generate a beautiful presentation for you
           </p>
-        </div>
+        </div> */}
 
         <div className="presentation-studio-form">
           {/* Prompt Input */}
@@ -111,7 +111,7 @@ const PromptSection = ({
             </div>
 
             {/* Brand Style Checkbox */}
-            <div className="presentation-studio-checkbox-group" style={{ marginTop: "1rem" }}>
+            {/* <div className="presentation-studio-checkbox-group" style={{ marginTop: "1rem" }}>
               <input
                 type="checkbox"
                 id="brandStyle"
@@ -122,7 +122,7 @@ const PromptSection = ({
               <label htmlFor="brandStyle" className="presentation-studio-checkbox-label">
                 Use Brand Style
               </label>
-            </div>
+            </div> */}
           </div>
 
           {/* Advanced Options */}
@@ -148,7 +148,7 @@ const PromptSection = ({
                     className="presentation-studio-textarea presentation-studio-textarea-small"
                   />
                 </div>
-                <div className="presentation-studio-form-group">
+                {/* <div className="presentation-studio-form-group">
                   <label className="presentation-studio-label">
                     Reference Document
                   </label>
@@ -177,7 +177,7 @@ const PromptSection = ({
                       />
                     </label>
                   </div>
-                </div>
+                </div> */}
               </div>
             )}
           </div>

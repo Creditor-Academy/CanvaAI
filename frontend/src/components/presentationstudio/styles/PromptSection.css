@@ -1,11 +1,11 @@
 /* ===== Creation Hub | Athena Theme ===== */
 .presentation-studio-creation-hub {
-  background: var(--ps-bg-card);
-  border-radius: var(--ps-radius-xl);
-  box-shadow: var(--ps-shadow-lg);
+  /* background: var(--ps-bg-card); */
+  /* border-radius: var(--ps-radius-xl);
+  box-shadow: var(--ps-shadow-lg); */
   padding: 2rem;
-  border: 1px solid var(--ps-border);
-  backdrop-filter: blur(10px);
+  /* border: 1px solid var(--ps-border);
+  backdrop-filter: blur(10px); */
 }
 
 @media (max-width: 768px) {
@@ -31,16 +31,13 @@
   margin-bottom: 2rem;
 }
 
-.presentation-studio-creation-title {
+/* .presentation-studio-creation-title {
   font-size: 1.75rem;
   font-weight: 800;
-  color: var(--ps-text-primary);
+  color: var( --athena-text-primary);
   margin: 0 0 0.75rem 0;
   letter-spacing: -0.02em;
-  background: linear-gradient(90deg, var(--ps-accent-primary), var(--ps-accent-secondary));
-  -webkit-background-clip: text;
-  color: transparent;
-}
+} */
 
 @media (max-width: 768px) {
   .presentation-studio-creation-title {
@@ -637,3 +634,4 @@
     font-size: 0.95rem;
   }
 }
+

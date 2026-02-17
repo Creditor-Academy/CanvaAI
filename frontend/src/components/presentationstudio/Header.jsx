@@ -13,7 +13,7 @@ const Header = ({
 
   return (
     <div className="presentation-studio-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div className="header-left">
         {onBack && (
           <button
             onClick={onBack}
@@ -43,7 +43,7 @@ const Header = ({
             <FiArrowLeft size={20} />
           </button>
         )}
-        <div>
+       <div className="header-center">
           <h1 className="presentation-studio-title">AI Presentation Studio</h1>
           <p className="presentation-studio-subtitle">
             Create stunning presentations with AI in seconds

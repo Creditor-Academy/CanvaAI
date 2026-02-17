@@ -62,7 +62,7 @@
 
 .presentation-studio {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--ps-bg-secondary) 0%, var(--ps-bg-primary) 50%, var(--ps-bg-secondary) 100%);
+  background: var( --athena-bg-gradient);
   padding: 1rem;
   font-family: var(--athena-font-body);
   color: var(--ps-text-primary);
