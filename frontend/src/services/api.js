@@ -390,6 +390,20 @@ class ApiService {
       },
     });
   }
+
+ async resetpassword(email, password) {
+  return this.request(
+    `/api/auth/change-password?email=${encodeURIComponent(email)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ newPassword: password }), // 👈 FIX
+    }
+  );
+}
+
   // ============= TEMPLATE MANAGEMENT (ADMIN & USER) =============
 
   // 1. Upload Thumbnail Image

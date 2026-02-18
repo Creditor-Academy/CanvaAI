@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 
 const ForgetPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Get email from URL
   const email = searchParams.get("email");
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Check if email exists in URL
   useEffect(() => {
     if (!email) {
       setError("Invalid reset link ❌");
@@ -42,37 +39,34 @@ const ForgetPassword = () => {
       setLoading(true);
       setError("");
 
-      await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/change-password`, {
-        email,
-        password,
-      });
+      // ✅ API SERVICE FUNCTION CALL
+      const res = await api.resetpassword(email, password);
 
-      setSuccess("Password changed successfully ✅");
+      if (res.success) {
+        setSuccess("Password changed successfully ✅");
 
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
+      } else {
+        setError(res.message || "Something went wrong");
+      }
 
     } catch (err) {
-      setError(
-        err.response?.data?.msg ||
-          "Something went wrong. Try again."
-      );
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br  px-4">
-
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="bg-white w-full max-w-md p-8 rounded-xl shadow-xl">
 
         <h2 className="text-2xl font-bold text-center mb-6">
           Change Password
         </h2>
 
-        {/* Show Email */}
         {email && (
           <p className="text-center text-sm text-gray-600 mb-4">
             Resetting password for:{" "}
@@ -84,41 +78,36 @@ const ForgetPassword = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* New Password */}
           <input
             type="password"
             placeholder="New Password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border px-4 py-2 rounded focus:ring-2 focus:ring-indigo-500"
+            className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Confirm Password */}
           <input
             type="password"
             placeholder="Confirm Password"
             required
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full border px-4 py-2 rounded focus:ring-2 focus:ring-indigo-500"
+            className="w-full border px-4 py-2 rounded"
           />
 
-          {/* Error */}
           {error && (
             <p className="text-red-600 text-center text-sm">
               {error}
             </p>
           )}
 
-          {/* Success */}
           {success && (
             <p className="text-green-600 text-center text-sm">
               {success}
             </p>
           )}
 
-          {/* Button */}
           <button
             disabled={loading}
             className="w-full bg-indigo-600 text-white py-2 rounded font-semibold disabled:opacity-70"
