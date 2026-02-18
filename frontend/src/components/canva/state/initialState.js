@@ -13,8 +13,6 @@ export const initialTemplates = [
   { id: 11, name: 'Flyer', width: 850, height: 1100, category: 'Print' },
 ];
 
-
-
 export const initialTextSettings = {
   fontSize: 16,
   fontFamily: 'Arial',

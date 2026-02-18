@@ -52,6 +52,7 @@ import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
+import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 
 
 
@@ -129,6 +130,7 @@ const AppContent = () => {
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
           <Route path="/bgremove" element={<BackgroundRemover />} />
           <Route path="/imageeditor" element={<ImageEditor />} />
+          <Route path="/create-image" element={<ImageLayout />} />
           <Route path="/canva-clone" element={<CanvaClone />} />
           <Route path="/canva-clone/:id" element={<CanvaClone />} />
           <Route path="/brand-kit" element={<Brandkit />} />

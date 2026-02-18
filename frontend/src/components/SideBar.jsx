@@ -74,13 +74,13 @@ const NAV_ITEMS = [
   //   path: "/image-editor"
   // },
   {
-    label: "Canva Clone",
+    label: "Image Editor",
     key: "canvaClone",
     icon: <FiGrid size={18} />,
     section: "AI Tools",
     sublabel: "New",
     sublabelClass: "new",
-    path: "/canva-clone"
+    path: "/create-image"
   },
   // {
   //   label: "Content Writer",
@@ -415,15 +415,10 @@ const SideBar = () => {
                       <li key={item.key}>
                         <button
                           onClick={() => {
-                            // Open canva-clone in a new tab
-                            if (item.key === 'canvaClone') {
-                              const baseUrl = window.location.origin;
-                              window.open(`${baseUrl}${item.path}`, '_blank');
-                            } else {
-                              navigate(item.path);
-                            }
+                            navigate(item.path); 
                             if (isMobile) setIsOpen(false);
                           }}
+
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = "#2563eb";
                             e.currentTarget.style.transform = "scale(1.02)";
