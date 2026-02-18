@@ -1,35 +1,53 @@
 /* ===== Presentation Header | Athena Theme ===== */
 
 .presentation-studio-header {
-  /* background: var(--athena-bg-light); */
-  padding: 1.5rem 2rem;
-  /* border-radius: var(--ps-radius-xl);
-  border: 1px solid var(--ps-border); */
-  display: flex;
-  /* justify-content: space-between; */
-  align-items: center;
-  margin-bottom: 2rem;
   position: relative;
-  /* box-shadow: var(--ps-shadow-lg);
-  backdrop-filter: blur(10px); */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* center content */
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
 }
 .header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  z-index: 2; /* always above center text */
+  position: absolute;
+  left: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .header-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   text-align: center;
-  pointer-events: none; /* clicks back button pe hi jayenge */
+}
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.back-button:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.2);
+}
+@media (max-width: 768px) {
+  .presentation-studio-header {
+    padding: 1.25rem;
+  }
+
+  .header-left {
+    left: 1.25rem;
+  }
+
+  .presentation-studio-title {
+    font-size: 2rem;
+  }
 }
 
-
-
-/* Gradient Title */
 .presentation-studio-title {
   background: var(--athena-hero-gradient);
   -webkit-background-clip: text;
@@ -150,38 +168,19 @@
 } */
 
 /* Animation */
-@keyframes fadeIn {
+/* @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
-}
+} */
 
 /* Responsive */
 @media (max-width: 768px) {
-  .presentation-studio-header {
-    flex-direction: column;
-    gap: 1.25rem;
-    align-items: flex-start;
-    padding: 1.25rem;
-  }
-  
-  .presentation-studio-title {
-    font-size: 2rem;
-  }
   .header-center {
-    position: static;
     transform: none;
     text-align: left;
-    margin-top: 8px;
+    margin-top: 30px;
   }
 
-  .presentation-studio-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  /* .presentation-studio-header-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }*/
 } 
 
 /* Enhanced mobile styles for smaller screens */

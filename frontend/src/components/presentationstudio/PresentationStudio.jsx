@@ -12,9 +12,9 @@ const PresentationStudio = ({ onBack }) => {
 
   // Form data (Step 1: Input)
   const [prompt, setPrompt] = useState('');
-  const [tone, setTone] = useState('Professional');
-  const [length, setLength] = useState('5');
-  const [mediaStyle, setMediaStyle] = useState('AI Images');
+  const [tone, setTone] = useState(null);
+  const [length, setLength] = useState(null);
+  const [mediaStyle, setMediaStyle] = useState(null);
   const [useBrandStyle, setUseBrandStyle] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [outlineText, setOutlineText] = useState('');
@@ -107,38 +107,62 @@ const PresentationStudio = ({ onBack }) => {
       slides: transformedSlides
     };
   };
+const simulateGenerationSteps = () => {
+  let step = 0;
+
+  const interval = setInterval(() => {
+    step++;
+
+    setGenerationStep(step);
+
+    // stop at step 4 (before final response)
+    if (step >= 4) clearInterval(interval);
+  }, 900);
+
+  return interval;
+};
 
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
-    if (!prompt.trim()) return;
-    setIsGenerating(true);
-    setGenerationStep(0);
-    setError(null);
+  if (!prompt.trim()) return;
 
-    try {
-      // Call the service
-      const response = await generateOutline({
-        topic: prompt,
-        tone: tone.toLowerCase(),
-        length: parseInt(length) || 5,
-        mediaStyle: mediaStyle,
-        outlineText: outlineText
-      });
+  setIsGenerating(true);
+  setGenerationStep(0);
+  setError(null);
 
-      // Transform the response to OutlineEditor format
-      const transformedOutline = transformOutlineResponse(response);
-      if (transformedOutline) {
+  const stepInterval = simulateGenerationSteps();
+
+  try {
+    const response = await generateOutline({
+      topic: prompt,
+      tone: tone?.toLowerCase(),
+      length: parseInt(length) || 5,
+      mediaStyle: mediaStyle,
+      outlineText: outlineText
+    });
+
+    clearInterval(stepInterval);
+    setGenerationStep(5); // final step completed
+
+    const transformedOutline = transformOutlineResponse(response);
+
+    if (transformedOutline) {
+      setTimeout(() => {
         setOutlineData(transformedOutline);
-      } else {
-        throw new Error('Invalid response format from server');
-      }
-    } catch (error) {
-      console.error('Error generating outline:', error);
-      setError(error.message || 'Failed to generate outline. Please try again.');
-    } finally {
-      setIsGenerating(false);
+      }, 400); // smooth transition
+    } else {
+      throw new Error('Invalid response format from server');
     }
-  };
+
+  } catch (error) {
+    clearInterval(stepInterval);
+    console.error('Error generating outline:', error);
+    setError(error.message || 'Failed to generate outline. Please try again.');
+  } finally {
+    setIsGenerating(false);
+  }
+};
+
 
   // Step 3: Handle final presentation from OutlineEditor
   const handleFinalize = (finalPresentation) => {
