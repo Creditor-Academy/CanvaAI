@@ -17,9 +17,12 @@
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
-  flex-direction: column;   /* ⭐ MOST IMPORTANT */
-  gap: 32px;                /* spacing between sections */
-  align-items: stretch;     /* full width sections */
+  flex-direction: column;
+  /* ⭐ MOST IMPORTANT */
+  gap: 32px;
+  /* spacing between sections */
+  align-items: stretch;
+  /* full width sections */
 }
 
 
@@ -110,8 +113,8 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
 }
 
-.btn-second{
-   border-radius: 10px;
+.btn-second {
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: #5da4fa;
   color: #0f172a;
@@ -287,8 +290,8 @@
 }
 
 .modal-card--green {
- 
-    background: linear-gradient(135deg, #6488fc 0%, #6ea4fc 30%, #ffffff 100%);
+
+  background: linear-gradient(135deg, #6488fc 0%, #6ea4fc 30%, #ffffff 100%);
   border-color: #c4e5c8;
 }
 
@@ -300,7 +303,7 @@
 }
 
 .modal-card--teal {
- background: linear-gradient(135deg, #6488fc 0%, #6ea4fc 30%, #ffffff 100%);
+  background: linear-gradient(135deg, #6488fc 0%, #6ea4fc 30%, #ffffff 100%);
   border-color: #bae6fd;
   position: relative;
 }
@@ -345,6 +348,7 @@
     font-size: 18px;
   }
 }
+
 /* ================= RECENT SECTION ================= */
 
 .admin-recents {
@@ -447,6 +451,73 @@
   font-weight: 600;
   color: #1d3fAf;
   line-height: 1.4;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-info__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.recent-info__mid {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.card-action-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.publish-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.publish-toggle-btn.is-published {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.publish-toggle-btn.is-unpublished {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.publish-toggle-btn:hover {
+  filter: brightness(0.95);
 }
 
 /* Category badge */

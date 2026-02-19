@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { listPresentations, deletePresentation } from '../services/presentation/presentation.service';
+import { Trash2, Globe, Lock } from 'lucide-react';
 // import TempUpload from '../components/admin/TempUpload';
 // import TemplateManager from '../components/admin/TemplateManager';
 import './AdminDash.css';
@@ -39,6 +41,65 @@ const AdminDash = () => {
   // filters
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (categoryFilter === "presentation" && user?._id) {
+      const fetchPresentations = async () => {
+        setLoading(true);
+        try {
+          const res = await listPresentations(user._id);
+          const list = Array.isArray(res) ? res : (res.data || []);
+
+          // Map presentations to template structure
+          const mappedPresentations = list.map(ppt => ({
+            id: ppt._id,
+            title: ppt.title || "Untitled Presentation",
+            category: "presentation",
+            createdAt: ppt.createdAt || ppt.updatedAt || new Date().toISOString(),
+            preview: ppt.preview || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI6kyGvk51WegGvlf-MdBLorUpRaZ8KfnaEg&s", // Default placeholder
+            url: `/presentation-editor-v3/${ppt._id}`,
+            isPublished: false // Default to unpublished
+          }));
+
+          setTemplates(mappedPresentations);
+        } catch (error) {
+          console.error("Failed to fetch presentations:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchPresentations();
+    } else if (categoryFilter === "all" || categoryFilter === "document" || categoryFilter === "image") {
+      // If switching away from presentation, we might want to clear or keep?
+      // For now, let's just clear templates if it's not presentation to reflect "empty" for others
+      // unless they also have fetching logic.
+      if (templates.some(t => t.category === "presentation")) {
+        setTemplates([]);
+      }
+    }
+  }, [categoryFilter, user?._id]);
+
+  const togglePublish = (id, e) => {
+    e.stopPropagation();
+    setTemplates(prev => prev.map(t =>
+      t.id === id ? { ...t, isPublished: !t.isPublished } : t
+    ));
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this presentation?")) return;
+
+    try {
+      await deletePresentation(id);
+      setTemplates(prev => prev.filter(t => t.id !== id));
+    } catch (error) {
+      console.error("Failed to delete presentation:", error);
+      alert("Failed to delete presentation. Please try again.");
+    }
+  };
 
   // const [selectedTemplateType, setSelectedTemplateType] = useState('');
 
@@ -54,9 +115,9 @@ const AdminDash = () => {
   //   []
   // );
 
-  
 
-  
+
+
 
   const filteredTemplates = useMemo(() => {
 
@@ -128,11 +189,9 @@ const AdminDash = () => {
                 </select>
 
                 <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="30">Last 30 Days</option>
-                  <option value="90">Last 90 Days</option>
+                  <option value="all">All</option>
+                  <option value="published">Published</option>
+                  <option value="unpublished">Unpuclished</option>
                 </select>
 
               </div>
@@ -140,21 +199,47 @@ const AdminDash = () => {
 
             <div className="admin-recents__grid">
 
-              {filteredTemplates.length === 0 ? (
+              {loading ? (
+                <p>Loading presentations...</p>
+              ) : filteredTemplates.length === 0 ? (
                 <p>No templates created yet</p>
               ) : (
                 filteredTemplates.map(temp => (
-                  <div key={temp.id} className="recent-card">
+                  <div
+                    key={temp.id}
+                    className="recent-card"
+                    onClick={() => temp.url && window.open(temp.url, '_blank')}
+                    style={{ cursor: temp.url ? 'pointer' : 'default' }}
+                  >
+
 
                     <div className="recent-thumb">
                       <img src={temp.preview} alt="preview" />
                     </div>
 
                     <div className="recent-info">
-                      <h4>{temp.title}</h4>
+                      <div className="recent-info__top">
+                        <h4>{temp.title}</h4>
+                        <button
+                          className="card-action-btn delete-btn"
+                          onClick={(e) => handleDelete(temp.id, e)}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
 
-                      <div className={`badge badge-${temp.category}`}>
-                        {temp.category}
+                      <div className="recent-info__mid">
+                        <div className={`badge badge-${temp.category}`}>
+                          {temp.category}
+                        </div>
+                        <button
+                          className={`publish-toggle-btn ${temp.isPublished ? 'is-published' : 'is-unpublished'}`}
+                          onClick={(e) => togglePublish(temp.id, e)}
+                        >
+                          {temp.isPublished ? <Globe size={12} /> : <Lock size={12} />}
+                          {temp.isPublished ? "Published" : "Unpublished"}
+                        </button>
                       </div>
 
                       <span className="recent-date">
@@ -212,9 +297,9 @@ const AdminDash = () => {
                 </p>
                 <button
                   className="btn  btn-secondary"
-                  // onClick={() => handleTemplateSelect("Presentation")}
+                // onClick={() => handleTemplateSelect("Presentation")}
                 >
-                  Create Presentation 
+                  Create Presentation
                 </button>
 
               </div>
