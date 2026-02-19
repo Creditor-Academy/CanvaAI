@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiPlus, FiEdit2 } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { finalizePresentation } from '../../services/OutlineEditorService';
 import './styles/OutlineEditor.css';
 
@@ -55,13 +55,26 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     const updated = slides.filter((_, i) => i !== index);
     setSlides(updated);
   };
+  const handleInsertSlide = (index) => {
+    const newSlide = {
+      slideId: `slide-${Date.now()}`,
+      source: 'user',
+      title: '',
+      content: { mode: 'raw', rawText: '' }
+    };
+
+    const updated = [...slides];
+    updated.splice(index + 1, 0, newSlide);
+    setSlides(updated);
+  };
+
 
   const handleFinalize = async () => {
     if (isGenerating) return;
-    
+
     setIsGenerating(true);
     setError(null);
-    
+
     try {
       // Prepare the updated outline JSON
       const updatedOutline = {
@@ -79,7 +92,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 
       // Call finalize API using service
       const finalPresentation = await finalizePresentation(updatedOutline);
-      
+
       // Pass final presentation to parent
       onFinalize(finalPresentation);
     } catch (error) {
@@ -112,77 +125,82 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   return (
     <div className="outline-editor">
       <div className="outline-editor-container">
-        <div className="outline-editor-header">
-          <h2 className="outline-editor-title">Edit Outline</h2>
-          <p className="outline-editor-subtitle">
-            Review and edit your presentation outline. You can modify titles and content.
-          </p>
-        </div>
+
 
         <div className="outline-editor-content">
           <div className="outline-editor-slides">
             {slides.map((slide, index) => (
-              <div key={slide.slideId || index} className="outline-editor-slide">
-                <div className="outline-editor-slide-header">
-                  <div className="outline-editor-slide-number">
-                    Slide {index + 1}
+              <React.Fragment key={slide.slideId || index}>
+
+                <div className="outline-editor-slide">
+                  <div className="outline-editor-slide-header">
+                    <div className="outline-editor-slide-number">
+                      {index + 1}
+                    </div>
+
+                    <div className="outline-editor-field title-field">
+                      <input
+                        type="text"
+                        value={slide.title}
+                        onChange={(e) => handleTitleChange(index, e.target.value)}
+                        className="outline-editor-input"
+                        placeholder="Enter slide title"
+                      />
+                    </div>
+
+                    <div className="slide-header-actions">
+                      {slide.source === 'user' && (
+                        <span className="outline-editor-slide-badge">Custom</span>
+                      )}
+
+                      <button
+                        onClick={() => handleDeleteSlide(index)}
+                        className="outline-editor-slide-delete"
+                        disabled={slides.length <= 1}
+                        title="Delete Slide"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  {slide.source === 'user' && (
-                    <span className="outline-editor-slide-badge">Custom</span>
-                  )}
+
+                  <div className="outline-editor-slide-body">
+                    <div className="outline-editor-field">
+                      <textarea
+                        value={getContentText(slide.content)}
+                        onChange={(e) => handleContentChange(index, e.target.value)}
+                        className="outline-editor-textarea"
+                        placeholder="Enter slide content (bullets, paragraph, or raw text)"
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* + BUTTON AFTER EVERY SLIDE */}
+                <div className="slide-insert-wrapper">
                   <button
-                    onClick={() => handleDeleteSlide(index)}
-                    className="outline-editor-slide-delete"
-                    disabled={slides.length <= 1}
+                    className="slide-insert-btn"
+                    onClick={() => handleInsertSlide(index)}
                   >
-                    Delete
+                    +
                   </button>
                 </div>
-                
-                <div className="outline-editor-slide-body">
-                  <div className="outline-editor-field">
-                    <label className="outline-editor-label">Title</label>
-                    <input
-                      type="text"
-                      value={slide.title}
-                      onChange={(e) => handleTitleChange(index, e.target.value)}
-                      className="outline-editor-input"
-                      placeholder="Enter slide title"
-                    />
-                  </div>
 
-                  <div className="outline-editor-field">
-                    <label className="outline-editor-label">Content</label>
-                    <textarea
-                      value={getContentText(slide.content)}
-                      onChange={(e) => handleContentChange(index, e.target.value)}
-                      className="outline-editor-textarea"
-                      placeholder="Enter slide content (bullets, paragraph, or raw text)"
-                      rows={4}
-                    />
-                  </div>
-                </div>
-              </div>
+              </React.Fragment>
             ))}
+
           </div>
 
-          <div className="outline-editor-actions">
-            <button
-              onClick={handleAddSlide}
-              className="outline-editor-add-button"
-            >
-              <FiPlus size={18} />
-              Add Slide
-            </button>
-          </div>
+          
 
           <div className="outline-editor-finalize">
             {error && (
-              <div style={{ 
-                marginBottom: '1rem', 
-                padding: '1rem', 
-                background: '#fee2e2', 
-                border: '1px solid #fecaca', 
+              <div style={{
+                marginBottom: '1rem',
+                padding: '1rem',
+                background: '#fee2e2',
+                border: '1px solid #fecaca',
                 borderRadius: '8px',
                 color: '#991b1b'
               }}>

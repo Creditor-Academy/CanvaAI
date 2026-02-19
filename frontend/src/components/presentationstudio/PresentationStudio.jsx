@@ -19,7 +19,8 @@ const PresentationStudio = ({ onBack }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [outlineText, setOutlineText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+
 
   // Step 2: Outline data
   const [outlineData, setOutlineData] = useState(null);
@@ -44,14 +45,14 @@ const PresentationStudio = ({ onBack }) => {
         content = { mode: 'raw', rawText: typeof slide.content === 'string' ? slide.content : String(slide.content || '') };
       } else if (slide.contentType === 'bullets') {
         if (Array.isArray(slide.content)) {
-          content = { 
-            mode: 'bullets', 
-            bullets: slide.content 
+          content = {
+            mode: 'bullets',
+            bullets: slide.content
           };
         } else if (typeof slide.content === 'string') {
           // Convert string to array of bullets
-          content = { 
-            mode: 'bullets', 
+          content = {
+            mode: 'bullets',
             bullets: slide.content.split('\n').filter(line => line.trim())
           };
         } else {
@@ -59,8 +60,8 @@ const PresentationStudio = ({ onBack }) => {
         }
       } else if (slide.contentType === 'comparison') {
         if (typeof slide.content === 'object' && slide.content !== null && !Array.isArray(slide.content)) {
-          content = { 
-            mode: 'comparison', 
+          content = {
+            mode: 'comparison',
             left: Array.isArray(slide.content.left) ? slide.content.left : [],
             right: Array.isArray(slide.content.right) ? slide.content.right : []
           };
@@ -75,8 +76,8 @@ const PresentationStudio = ({ onBack }) => {
           content = { mode: 'bullets', bullets: slide.content };
         } else if (typeof slide.content === 'object' && slide.content !== null) {
           if (slide.content.left && slide.content.right) {
-            content = { 
-              mode: 'comparison', 
+            content = {
+              mode: 'comparison',
               left: Array.isArray(slide.content.left) ? slide.content.left : [],
               right: Array.isArray(slide.content.right) ? slide.content.right : []
             };
@@ -107,61 +108,91 @@ const PresentationStudio = ({ onBack }) => {
       slides: transformedSlides
     };
   };
-const simulateGenerationSteps = () => {
-  let step = 0;
+  const startFakeProgress = () => {
+    return new Promise(resolve => {
+      let current = 0;
 
-  const interval = setInterval(() => {
-    step++;
+      const interval = setInterval(() => {
+        current += Math.random() * 7;
 
-    setGenerationStep(step);
+        if (current >= 95) {
+          current = 95;
+          clearInterval(interval);
+          resolve();
+        }
 
-    // stop at step 4 (before final response)
-    if (step >= 4) clearInterval(interval);
-  }, 900);
+        setProgress(Math.floor(current));
+      }, 350);
+    });
+  };
 
-  return interval;
-};
+
+  const finishProgress = () => {
+    return new Promise(resolve => {
+      let current = 95;
+
+      const interval = setInterval(() => {
+        current += 1.5;
+
+        if (current >= 100) {
+          current = 100;
+          clearInterval(interval);
+          resolve();
+        }
+
+        setProgress(Math.floor(current));
+      }, 20);
+    });
+  };
+
+
+
 
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
-  if (!prompt.trim()) return;
+    if (!prompt.trim()) return;
 
-  setIsGenerating(true);
-  setGenerationStep(0);
-  setError(null);
+    setIsGenerating(true);
+    setError(null);
+    setProgress(0);
 
-  const stepInterval = simulateGenerationSteps();
+    try {
 
-  try {
-    const response = await generateOutline({
-      topic: prompt,
-      tone: tone?.toLowerCase(),
-      length: parseInt(length) || 5,
-      mediaStyle: mediaStyle,
-      outlineText: outlineText
-    });
+      // start both together
+      const progressPromise = startFakeProgress();
 
-    clearInterval(stepInterval);
-    setGenerationStep(5); // final step completed
+      const apiPromise = generateOutline({
+        topic: prompt,
+        tone: tone?.toLowerCase(),
+        length: parseInt(length),
+        mediaStyle: mediaStyle,
+        outlineText: outlineText
+      });
 
-    const transformedOutline = transformOutlineResponse(response);
+      // wait until loader reaches 95
+      await progressPromise;
 
-    if (transformedOutline) {
-      setTimeout(() => {
-        setOutlineData(transformedOutline);
-      }, 400); // smooth transition
-    } else {
-      throw new Error('Invalid response format from server');
+      // wait api (if not completed yet)
+      const response = await apiPromise;
+
+      // now finish 95 → 100 instantly smooth
+      await finishProgress();
+
+      const transformedOutline = transformOutlineResponse(response);
+
+      if (!transformedOutline) throw new Error('Invalid response format from server');
+
+      // 🔥 EXACT moment loader hits 100 → screen change
+      setOutlineData(transformedOutline);
+
+    } catch (error) {
+      setError(error.message || 'Failed to generate outline. Please try again.');
+    } finally {
+      setIsGenerating(false);
     }
+  };
 
-  } catch (error) {
-    clearInterval(stepInterval);
-    console.error('Error generating outline:', error);
-    setError(error.message || 'Failed to generate outline. Please try again.');
-  } finally {
-    setIsGenerating(false);
-  }
-};
+
 
 
   // Step 3: Handle final presentation from OutlineEditor
@@ -170,16 +201,28 @@ const simulateGenerationSteps = () => {
   };
 
   // Reset to start over
-  const handleReset = () => {
+  const handleResetAll = () => {
     setOutlineData(null);
     setFinalPresentationData(null);
     setPrompt('');
-    setTone('Professional');
-    setLength('5');
-    setMediaStyle('AI Images');
+    setTone(null);
+    setLength(null);
+    setMediaStyle(null);
     setUseBrandStyle(false);
     setOutlineText('');
     setError(null);
+    setProgress(0);
+  };
+
+  // back from outline → prompt (keep filled data)
+  const handleBackToPrompt = () => {
+    setOutlineData(null);
+    setFinalPresentationData(null);
+  };
+
+  // back from workspace → outline
+  const handleBackToOutline = () => {
+    setFinalPresentationData(null);
   };
 
 
@@ -187,31 +230,53 @@ const simulateGenerationSteps = () => {
   const renderCurrentStep = () => {
     // Step 3: Final Presentation Workspace
     if (finalPresentationData) {
-      // Convert final PPT JSON to PresentationWorkspace format
-      // Default to 16:9 widescreen layout (1920x1080)
       const layout = { width: 1920, height: 1080 };
       return (
-        <PresentationWorkspace
-          layout={layout}
-          initialData={finalPresentationData}
-          onBack={handleReset}
-        />
+        <>
+          <Header
+            onBack={handleBackToOutline}
+            title="Presentation Editor"
+            subtitle="Design and customize your slides"
+          />
+
+          <PresentationWorkspace
+            layout={layout}
+            initialData={finalPresentationData}
+            onBack={handleReset}
+          />
+        </>
       );
     }
+
 
     // Step 2: Outline Editor
     if (outlineData) {
       return (
-        <OutlineEditor
-          outlineData={outlineData}
-          onFinalize={handleFinalize}
-        />
+        <>
+          <Header
+            onBack={handleBackToPrompt}
+            title="Edit Outline"
+            subtitle="Review and edit your presentation outline. You can modify titles and content."
+          />
+
+          <OutlineEditor
+            outlineData={outlineData}
+            onFinalize={handleFinalize}
+          />
+        </>
       );
     }
+
 
     // Step 1: Presentation Studio (Input)
     return (
       <>
+        <Header
+          onBack={() => navigate('/presentation')}
+          title="AI Presentation Studio"
+          subtitle="Create stunning presentations with AI in seconds"
+        />
+
         <PromptSection
           prompt={prompt}
           setPrompt={setPrompt}
@@ -229,14 +294,15 @@ const simulateGenerationSteps = () => {
           setOutlineText={setOutlineText}
           handleGenerate={handleGenerateOutline}
           isGenerating={isGenerating}
-          generationStep={generationStep}
+          generationStep={progress}
         />
+
         {error && (
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '1rem', 
-            background: '#fee2e2', 
-            border: '1px solid #fecaca', 
+          <div style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
             borderRadius: '8px',
             color: '#991b1b',
             textAlign: 'center'
@@ -251,15 +317,7 @@ const simulateGenerationSteps = () => {
   return (
     <div className="presentation-studio">
       <div className="presentation-studio-container">
-        {!finalPresentationData && (
-          <Header
-            handleSavePresentation={() => {}}
-            handleExport={() => {}}
-            handleSharePresentation={() => {}}
-            isExporting={false}
-            onBack={onBack}
-          />
-        )}
+
 
         {renderCurrentStep()}
       </div>

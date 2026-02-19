@@ -12,7 +12,6 @@ const Presentation = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedLayout, setSelectedLayout] = useState(null);
-  const [showAIStudio, setShowAIStudio] = useState(false);
   const [presentations, setPresentations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,13 +64,7 @@ const Presentation = () => {
   };
 
   // If AI Studio is active, show it
-  if (showAIStudio) {
-    return (
-      <div style={{ minHeight: '100vh' }}>
-        <PresentationStudio onBack={() => setShowAIStudio(false)} />
-      </div>
-    );
-  }
+  
 
   // If layout is selected, show workspace
   if (selectedLayout) {
@@ -275,18 +268,29 @@ const Presentation = () => {
               <span style={{ opacity: 0.72 }}>
                 1920 × 1080px
               </span>
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                  color: '#ffffff',
-                  padding: '10px 18px',
-                  borderRadius: '12px',
-                  fontSize: '0.95rem',
-                  lineHeight: 1,
-                }}
-              >
-                Use layout
-              </span>
+              <button
+  onClick={(e) => {
+    e.stopPropagation();
+    navigate('/ai-presentation');
+  }}
+  style={{
+    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+    color: '#ffffff',
+    padding: '10px 18px',
+    borderRadius: '12px',
+    fontSize: '0.95rem',
+    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    border: 'none',
+    cursor: 'pointer'
+  }}
+>
+  <FiZap size={16} />
+  Create with AI
+</button>
+
             </div>
           </button>
 
@@ -412,8 +416,8 @@ const Presentation = () => {
           </button>
 
           {/* AI Button Card */}
-          <button
-            onClick={() => setShowAIStudio(true)}
+          <div
+            onClick={() => navigate('/ai-presentation')}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -527,7 +531,7 @@ const Presentation = () => {
                 Create with AI
               </span>
             </div>
-          </button>
+          </div>
         </div>
 
         {/* Previous Work Section */}
