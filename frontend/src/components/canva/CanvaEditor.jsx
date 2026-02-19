@@ -157,7 +157,7 @@ const CanvaEditor = () => {
     handleQuickColorChange
   } = useLayerActions(layers, setLayers, saveToHistory);
 
-  
+
   const {
     drawingSettings,
     setDrawingSettings,
@@ -1181,16 +1181,21 @@ const CanvaEditor = () => {
   // Image settings handler
   const handleImageSettingsChange = (property, value) => {
     if (!selectedLayer) return;
-    const layer = layers.find(l => l.id === selectedLayer);
-    if (layer && layer.type === 'image') {
-      const newLayers = layers.map(l =>
-        l.id === selectedLayer ? { ...l, [property]: value } : l
-      );
-      setLayers(newLayers);
-      saveToHistory(newLayers);
-    }
-  };
 
+    setLayers(prevLayers => {
+      const updatedLayers = prevLayers.map(layer =>
+        layer.id === selectedLayer && layer.type === 'image'
+          ? { ...layer, [property]: value }
+          : layer
+      );
+
+      // ⚠️ IMPORTANT: call history AFTER state calculation
+      saveToHistory(updatedLayers);
+
+      return updatedLayers;
+    });
+  };
+  
   // Generic effects handler
   const handleEffectChange = (property, value) => {
     if (!selectedLayer) return;
@@ -1204,7 +1209,6 @@ const CanvaEditor = () => {
     }
   };
 
-  // Canvas click handler
   // Canvas click handler
   const handleCanvasClick = (e) => {
     e.stopPropagation();

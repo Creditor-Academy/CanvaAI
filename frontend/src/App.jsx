@@ -54,10 +54,6 @@ import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 
-
-
-
-
 const AppContent = () => {
   const { isCollapsed, isMobile } = useSidebar();
   const location = useLocation();

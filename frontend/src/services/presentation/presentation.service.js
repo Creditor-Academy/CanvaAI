@@ -37,4 +37,3 @@ export const deletePresentation = async (id) => {
     const res = await axios.delete(`${API_URL}/delete/${id}`, getAuthHeaders());
     return res.data;
 };
-

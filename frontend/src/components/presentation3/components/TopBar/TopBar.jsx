@@ -116,8 +116,9 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                 try {
                   const state = usePresentationStore.getState();
                   const { presentationId, slides, title, setPresentationId } = state;
-
-                  // Prepare payload
+                  const user = JSON.parse(localStorage.getItem("user"));
+                  console.log(user);
+                  // Prepare payload  
                   const payload = {
                     userId: user?._id,
                     title: title || "Untitled Presentation",

@@ -196,11 +196,11 @@ const designTemplates = [
         name: "Instagram Post",
         width: 800,
         height: 600,
-        preview: "https://images.unsplash.com/photo-1529336953121-ad5a0d43d0d2?w=400",
+        preview: "https://cdn.pixabay.com/photo/2025/03/30/13/01/fairy-tale-9502808_1280.jpg",
         layers: [
             {
                 type: "image",
-                src: "https://images.unsplash.com/photo-1529336953121-ad5a0d43d0d2?w=1200",
+                src: "https://cdn.pixabay.com/photo/2025/03/30/13/01/fairy-tale-9502808_1280.jpg",
                 x: 0,
                 y: 0,
                 width: 800,

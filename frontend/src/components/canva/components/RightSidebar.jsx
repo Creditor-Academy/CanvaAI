@@ -50,6 +50,9 @@ const RightSidebar = ({
   const selectedTextLayer = layers.find(
     (l) => l.id === selectedLayer && l.type === 'text'
   );
+  const selectedImageLayer = layers.find(
+    (l) => l.id === selectedLayer && l.type === 'image'
+  );
 
   // Ref for shape image upload
   const shapeImgInputRef = useRef(null);
@@ -506,22 +509,35 @@ const RightSidebar = ({
                     <option value="dashed">Dashed</option>
                   </select>
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Corner Radius</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={imageSettings.cornerRadius}
-                      onChange={(e) => handleImageSettingsChange('cornerRadius', parseInt(e.target.value))}
-                      className="w-[100px]"
-                    />
-                    <span className="text-xs text-gray-600 min-w-[30px]">
-                      {imageSettings.cornerRadius}px
+                <div className="flex flex-col gap-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      Corner Radius
+                    </span>
+                    <span className="text-xs text-gray-600 font-medium">
+                    {selectedImageLayer?.cornerRadius ?? 0}px
+
                     </span>
                   </div>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="300"
+                    step="1"
+                    value={selectedImageLayer?.cornerRadius ?? 0}
+
+                    onChange={(e) =>
+                      handleImageSettingsChange(
+                        'cornerRadius',
+                        Number(e.target.value)
+                      )
+                    }
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
+               accent-blue-600 transition-all duration-200"
+                  />
                 </div>
+
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">Saturation</span>
                   <div className="flex items-center gap-2">

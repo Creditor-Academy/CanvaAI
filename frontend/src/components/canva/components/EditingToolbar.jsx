@@ -110,14 +110,6 @@ const EditingToolbar = ({
     const toolGroup = "flex items-center gap-1 bg-gray-50/80 p-1 rounded-lg border border-gray-100";
     const verticalDivider = <div className="w-px h-5 bg-gray-200 mx-2" />;
 
-    const menuItems = [
-        { id: 'file', label: 'File' },
-        { id: 'insert', label: 'Insert' },
-        { id: 'format', label: 'Format' },
-        { id: 'slide', label: 'Slide' },
-        { id: 'tools', label: 'Tools' }
-    ];
-
     const handleSaveButton = () => {
         try {
             console.log('Debug: Checking if props are available');
@@ -168,41 +160,6 @@ const EditingToolbar = ({
     return (
         <div className="bg-white border-b border-gray-200 w-full sticky top-0 z-[100] flex flex-col antialiased">
 
-
-            {/* 2. MENU BAR (File, Insert, etc) */}
-            <div className='flex justify-between px-6 items-center'>
-                <div className="flex items-center h-9 border-b border-gray-100" ref={menuRef}>
-                    {menuItems.map((item) => (
-                        <div key={item.id} className="relative">
-                            <button
-                                onClick={() => setActiveMenu(activeMenu === item.id ? null : item.id)}
-                                className={`px-3 h-7 flex items-center text-sm font-normal text-gray-700 hover:bg-gray-100 rounded transition-colors ${activeMenu === item.id ? 'bg-gray-100 text-gray-900' : ''
-                                    }`}
-                            >
-                                {item.label}
-                            </button>
-                            {activeMenu === item.id && (
-                                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[110] py-1 min-w-[200px]">
-                                    <div className="px-3 py-2 text-xs text-gray-400 font-bold uppercase tracking-wider">
-                                        {item.label} Options
-                                    </div>
-                                    <div className="border-t border-gray-100"></div>
-                                    <div className="px-1 py-1">
-                                        {['New', 'Open', 'Download', 'History'].map(opt => (
-                                            <div key={opt}
-                                                onClick={() => opt === 'Download' && onDownload()}
-                                                className="px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded cursor-pointer transition-colors">
-                                                {opt}...
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-                <div>Your Name</div>
-            </div>
             <div className="h-14 px-4 flex items-center justify-between border-b border-gray-100">
                 <div className="flex items-center gap-3">
                     {/* App Icon */}
