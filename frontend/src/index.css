@@ -107,7 +107,7 @@ body {
 .resizable-image-wrapper {
   position: relative;
   display: inline-block;
-  margin: 8px 0;
+  margin: 24px 0;
   transition: all 0.2s ease;
 }
 
@@ -157,11 +157,14 @@ body {
   /* Let line-height handle spacing or add small margin */
 }
 
-/* Ensure images in editor are properly displayed */
-.ProseMirror img.resizable-image {
+/* Ensure images in editor are properly displayed and don't exceed page height */
+.ProseMirror img.resizable-image,
+.ProseMirror img {
   max-width: 100%;
+  max-height: calc(1122.5px - var(--page-margin-top) - var(--page-margin-bottom) - 40px);
   height: auto;
   display: block;
+  object-fit: contain;
 }
 
 
@@ -314,10 +317,9 @@ body {
 
 /* Page Break Node Style */
 .ProseMirror div[data-type="page-break"] {
-  height: 184px;
-  /* 72px (bottom margin) + 40px (gap) + 72px (top margin) */
-  margin: 0 -72px;
-  /* Pull out to edges of the A4 width */
+  height: calc(var(--page-margin-bottom) + var(--page-gap) + var(--page-margin-top));
+  margin-left: calc(-1 * var(--page-margin-left));
+  margin-right: calc(-1 * var(--page-margin-right));
   background-color: #f3f4f6;
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
@@ -344,6 +346,9 @@ body {
   .ProseMirror div[data-type="page-break"] {
     display: none;
     page-break-after: always;
+    height: 0;
+    margin: 0;
+    border: none;
   }
 }
 

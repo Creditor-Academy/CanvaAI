@@ -735,7 +735,7 @@ const TextEditorContent = () => {
     tempDiv.style.cssText = `
       position: absolute;
       visibility: hidden;
-      width: ${PAGE_WIDTH - 144}px; 
+      width: ${PAGE_WIDTH - (pageMargins.left + pageMargins.right)}px; 
       font-family: var(--athena-font-body);
       font-size: 11pt;
       line-height: 1.5;
@@ -755,7 +755,7 @@ const TextEditorContent = () => {
     paragraphHeightCacheRef.current.set(htmlContent, height);
 
     return height;
-  }, []); // EMPTY dependency array to prevent re-creation
+  }, [pageMargins.left, pageMargins.right]);
 
   // Function to split content into pages (Google Docs style) - FIXED: removed problematic dependencies
   const splitContentIntoPages = useCallback((fullContent) => {
@@ -1040,17 +1040,17 @@ const TextEditorContent = () => {
             const gapHeight = 40;
             const totalPageHeight = pageHeight + gapHeight;
             const positionInPage = relativeTop % totalPageHeight;
-            const threshold = pageHeight - 72 - 20;
+            const threshold = pageHeight - pageMargins.bottom - 10;
 
             if (positionInPage > threshold && positionInPage < pageHeight) {
-              let hasPageBreakAhead = false;
-              state.doc.nodesBetween($from.pos, Math.min($from.pos + 50, state.doc.content.size), (node) => {
-                if (node.type.name === 'pageBreak') hasPageBreakAhead = true;
+              const splitPos = $from.parent.type.name !== 'paragraph' ? $from.before() : $from.pos;
+              let hasPageBreakNearby = false;
+              state.doc.nodesBetween(Math.max(0, splitPos - 5), Math.min(state.doc.content.size, splitPos + 5), (node) => {
+                if (node.type.name === 'pageBreak') hasPageBreakNearby = true;
               });
 
-              if (!hasPageBreakAhead) {
-                editorInstance.chain().focus().insertContentAt($from.pos, { type: 'pageBreak' }).run();
-                toast.info('New page created');
+              if (!hasPageBreakNearby) {
+                editorInstance.chain().focus().insertContentAt(splitPos, { type: 'pageBreak' }).run();
               }
             }
           } catch (e) {
@@ -2380,10 +2380,7 @@ const TextEditorContent = () => {
 
     // Trigger update if editor exists
     if (editor) {
-      const content = editor.getHTML();
-      if (content) {
-        updatePages(content);
-      }
+      updatePages(editor);
     }
   }, [pageSize, pageOrientation, pageMargins, editor, updatePages]);
 
@@ -2530,6 +2527,11 @@ const TextEditorContent = () => {
                 style={{
                   transform: `scale(${zoom / 100})`,
                   transformOrigin: 'top center',
+                  '--page-margin-top': `${pageMargins.top}px`,
+                  '--page-margin-bottom': `${pageMargins.bottom}px`,
+                  '--page-margin-left': `${pageMargins.left}px`,
+                  '--page-margin-right': `${pageMargins.right}px`,
+                  '--page-gap': '40px'
                 }}
               >
                 {/* Editor Content Overlay */}
