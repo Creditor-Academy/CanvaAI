@@ -49,6 +49,10 @@ const useHistoryStore = create((set, get) => ({
 
     return next;
   },
+
+  clear: () => {
+    set({ past: [], future: [] });
+  },
 }));
 
 export default useHistoryStore;

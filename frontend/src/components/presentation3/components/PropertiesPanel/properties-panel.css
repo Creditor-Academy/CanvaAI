@@ -1,0 +1,223 @@
+/* ===============================
+   Properties Panel – Athena UI
+================================ */
+
+.properties-panel {
+  position: absolute;
+  right: 24px;
+  top: 96px;
+  width: 300px;
+  max-height: calc(100vh - 140px);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    width 0.25s ease,
+    transform 0.25s ease,
+    opacity 0.25s ease,
+    box-shadow 0.25s ease;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Collapsed state */
+.properties-panel.collapsed {
+  width: 60px;
+}
+
+/* Hide content when collapsed */
+.properties-panel.collapsed .properties-content {
+  display: none;
+}
+
+/* Scrollable content */
+.properties-content {
+  padding: 16px 16px 18px;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+/* Collapse button */
+.properties-collapse-btn {
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 40px;
+  background: #ead202;
+  border: 1px solid rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  color: #e5e7eb;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.35);
+  transition: all 0.2s ease;
+}
+
+.properties-collapse-btn:hover {
+  transform: translateY(0) scale(1.05);
+}
+
+/* Section headers */
+.properties-panel h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+/* Labels */
+.properties-panel label {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* Inputs */
+.properties-panel input,
+.properties-panel select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.properties-panel input:focus,
+.properties-panel select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Floating section card */
+.panel-section {
+  background: rgba(248, 250, 252, 0.94);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 10px 10px 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 14px 30px rgba(148, 163, 184, 0.15);
+}
+
+.panel-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.panel-section-header span {
+  white-space: nowrap;
+}
+
+/* MS Paint style palette controls */
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.palette-color-current {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid #cbd5e1;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.palette-color-add {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px dashed #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.palette-color-add:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #1d4ed8;
+  box-shadow: 0 8px 18px rgba(129, 140, 248, 0.35);
+  transform: translateY(-1px);
+}
+
+.palette-color-input-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.color-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.18s ease;
+}
+
+.color-swatch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(148, 163, 184, 0.4);
+}
+
+.color-swatch.selected {
+  box-shadow: 0 0 0 2px #2563eb;
+  border-color: #1d4ed8;
+}
+
+/* Buttons */
+.properties-panel button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+/* Primary action */
+.properties-panel .primary-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+}
+
+.properties-panel .primary-btn:hover {
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}

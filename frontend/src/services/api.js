@@ -38,7 +38,7 @@ class ApiService {
         return text;
       }
 
-      if (!response.ok) {
+       if (!response.ok && !data?.unverified)  {
         console.error('Response error:', data);
         throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
       }
@@ -362,6 +362,16 @@ class ApiService {
     });
   }
 
+  async sendOTP(email) {
+    return this.request('/api/auth/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async verifyToken(token) {
     return this.request('/api/auth/verify', {
       method: 'POST',
@@ -372,6 +382,14 @@ class ApiService {
     });
   }
 
+  async forgetPassword(email) {
+    return this.request(`/api/auth/forget-password?email=${encodeURIComponent(email)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
   // ============= TEMPLATE MANAGEMENT (ADMIN & USER) =============
 
   // 1. Upload Thumbnail Image
@@ -441,7 +459,7 @@ class ApiService {
       headers: getAuthHeaders(),
     });
   }
-  
+
 
   async deleteTemplate(id) {
     return this.request(`/api/templates/${id}`, {
@@ -528,6 +546,17 @@ class ApiService {
         'Authorization': getAuthHeaders().Authorization
       },
       body: formData,
+    });
+  }
+
+  // ============= IMAGE UPLOAD =============
+  async uploadTemporaryImage({ userId, serviceId, base64Image }) {
+    return this.request('/api/image/upload-image/temperary', {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ userId, serviceId, base64Image }),
     });
   }
 }

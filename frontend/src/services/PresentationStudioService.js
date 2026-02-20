@@ -50,7 +50,7 @@ export const generatePresentation = async (params) => {
       tone: params.tone,
       length: params.length,
       mediaStyle: params.mediaStyle,
-      useBrandStyle: params.useBrandStyle,
+      // useBrandStyle: params.useBrandStyle,
       outlineText: params.outlineText
     })
   });
