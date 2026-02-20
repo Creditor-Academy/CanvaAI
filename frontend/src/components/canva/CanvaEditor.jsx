@@ -74,7 +74,6 @@ const CanvaEditor = () => {
   const [pages, setPages] = useState([{ id: 1, layers: [] }]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [cropState, setCropState] = useState(null);
 
@@ -859,30 +858,33 @@ const CanvaEditor = () => {
   };
 
   // Shape settings handler
-  // Shape settings handler
   const handleShapeSettingsChange = useCallback((propertyOrUpdates, value) => {
     if (!selectedLayer) return;
+
     const layer = layers.find(l => l.id === selectedLayer);
+    if (!layer || layer.type !== 'shape') return;
 
-    if (layer && layer.type === 'shape') {
-      let updates = {};
+    let updates = {};
 
-      // Check if first argument is an object (for batch updates)
-      if (typeof propertyOrUpdates === 'object' && propertyOrUpdates !== null) {
-        updates = propertyOrUpdates;
-      } else {
-        // Handle single property update
-        updates = { [propertyOrUpdates]: value };
-      }
-
-      const newLayers = layers.map(l =>
-        l.id === selectedLayer ? { ...l, ...updates } : l
-      );
-      setLayers(newLayers);
-      saveToHistory(newLayers);
+    if (typeof propertyOrUpdates === 'object' && propertyOrUpdates !== null) {
+      updates = propertyOrUpdates;
+    } else {
+      updates = { [propertyOrUpdates]: value };
     }
-  }, [selectedLayer, layers, setLayers, saveToHistory]);
 
+    const newLayers = layers.map(l =>
+      l.id === selectedLayer ? { ...l, ...updates } : l
+    );
+
+    setLayers(newLayers);
+
+    setShapeSettings(prev => ({
+      ...prev,
+      ...updates
+    }));
+
+    saveToHistory(newLayers);
+  }, [selectedLayer, layers, setLayers, saveToHistory, setShapeSettings]);
   // Image upload handler
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -1195,7 +1197,7 @@ const CanvaEditor = () => {
       return updatedLayers;
     });
   };
-  
+
   // Generic effects handler
   const handleEffectChange = (property, value) => {
     if (!selectedLayer) return;
@@ -1343,27 +1345,9 @@ const CanvaEditor = () => {
   return (
     <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden touch-none">
 
-      {/* Mobile Left Sidebar Toggle Button */}
-      <button
-        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-        className="lg:hidden fixed top-20 left-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
-        aria-label="Toggle left sidebar"
-      >
-        <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
-      {/* Mobile Left Sidebar Overlay */}
-      {isLeftSidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-[15]"
-          onClick={() => setIsLeftSidebarOpen(false)}
-        />
-      )}
 
       {/* Left Sidebar - Hidden on mobile, visible on desktop */}
-      <div className={`${isLeftSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:absolute left-0 lg:left-4 top-0 lg:top-40 bottom-0 z-[16] lg:z-[10] transition-transform duration-300 ease-in-out`}>
+      <div className="fixed left-0 top-20 bottom-0 z-[10]">
         <div className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <LeftCanvasSidebar
             toggleSection={toggleSection}
@@ -1392,16 +1376,6 @@ const CanvaEditor = () => {
 
           />
         </div>
-        {/* Close button for mobile */}
-        <button
-          onClick={() => setIsLeftSidebarOpen(false)}
-          className="lg:hidden absolute top-2 right-2 bg-white border border-gray-300 rounded-full p-1.5 shadow-lg hover:bg-gray-50 z-[17]"
-          aria-label="Close sidebar"
-        >
-          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
 
       {/* Main Area */}
@@ -1461,7 +1435,7 @@ const CanvaEditor = () => {
         {/* Canvas Area - scrollable container with all pages */}
         <div
           onClick={handleOutsideClick}
-          className="flex-1 flex flex-col justify-center py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
+          className="flex-1 flex flex-col justify-center items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
         >
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
