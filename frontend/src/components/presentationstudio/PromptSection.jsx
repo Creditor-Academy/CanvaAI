@@ -1,236 +1,216 @@
-import React from 'react';
-import { FiSettings, FiRefreshCw } from 'react-icons/fi';
-import { MdAutoAwesome } from 'react-icons/md';
+import React, { useState } from 'react';
 
-const PromptSection = ({ 
-  prompt, 
-  setPrompt, 
-  tone, 
-  setTone, 
-  length, 
-  setLength, 
-  mediaStyle, 
-  setMediaStyle, 
-  useBrandStyle, 
-  setUseBrandStyle, 
-  showAdvanced, 
-  setShowAdvanced, 
-  outlineText, 
-  setOutlineText, 
-  handleGenerate, 
-  isGenerating, 
-  generationStep 
+const PromptSection = ({
+  prompt,
+  setPrompt,
+  tone,
+  setTone,
+  length,
+  setLength,
+  mediaStyle,
+  setMediaStyle,
+  showAdvanced,
+  setShowAdvanced,
+  outlineText,
+  setOutlineText,
+  handleGenerate,
+  isGenerating,
+  generationStep
 }) => {
-  const tones = ['Professional', 'Friendly', 'Minimal', 'Corporate', 'Creative'];
-  const lengths = ['2', '3', '5', '7', '10'];
-  const mediaStyles = ['AI Images', 'No Media'];
-
+  
   return (
     <div className="presentation-studio-creation-hub">
       <div className="presentation-studio-creation-container">
-        <div className="presentation-studio-creation-header">
-          <h2 className="presentation-studio-creation-title">Create Your Presentation</h2>
-          <p className="presentation-studio-creation-subtitle">
-            Describe what you need and let AI generate a beautiful presentation for you
-          </p>
-        </div>
+        <div className="ai-input-box">
+          <label className="presentation-studio-label"> Title </label>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Write your presentation title..."
+            className="ai-main-input"
+          />
+          <hr className='horizontal-line'></hr>
+          <label className="presentation-studio-label"> Outline (Optional) </label>
+          <textarea
+            value={outlineText || ""}
+            onChange={(e) => setOutlineText(e.target.value)}
+            placeholder="Provide a structured outline for your presentation..."
+            className="ai-main-input"
+          />
+          <div className="ai-toolbar">
 
-        <div className="presentation-studio-form">
-          {/* Prompt Input */}
-          <div className="presentation-studio-form-group">
-            <label className="presentation-studio-label">
-              Presentation Topic
-            </label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., 'Annual Marketing Strategy for 2024' or 'Introduction to Machine Learning'"
-              className="presentation-studio-textarea"
-            />
-          </div>
+            <div className="ai-left-controls">
 
-          {/* Options Grid (Cards Instead of Dropdowns) */}
-          <div className="presentation-studio-card-options">
-            {/* Tone Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Tone</label>
-              <div className="presentation-studio-card-grid">
-                {tones.map(t => (
-                  <div
-                    key={t}
-                    className={`presentation-studio-card-option ${tone === t ? "selected" : ""}`}
-                    onClick={() => setTone(t)}
-                    data-tone={t}
-                  >
-                    {t !== 'Professional' && t !== 'Friendly' && t !== 'Minimal' && t !== 'Corporate' && (
-                      <img 
-                        src={`/assets/tone/${t.toLowerCase()}.png`} 
-                        alt={t} 
-                        className="presentation-studio-card-image"
-                      />
-                    )}
-                    <span>{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+              {/* Tone */}
+              <div className={`ai-dropdown ${showAdvanced === "tone" ? "open" : ""}`}>
+                <button
+                  className="ai-dropdown-trigger"
+                  onClick={() =>
+                    setShowAdvanced(prev => prev === "tone" ? null : "tone")
+                  }
+                >
+                  {tone ? tone : "Tone"}
+                </button>
 
-            {/* Length Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Length</label>
-              <div className="presentation-studio-card-grid">
-                {lengths.map(l => (
-                  <div
-                    key={l}
-                    className={`presentation-studio-card-option ${length === l ? "selected" : ""}`}
-                    onClick={() => setLength(l)}
-                    data-length={l}
-                  >
-                    <span>{l} slides</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Media Style Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Media Style</label>
-              <div className="presentation-studio-card-grid">
-                {mediaStyles.map(s => (
-                  <div
-                    key={s}
-                    className={`presentation-studio-card-option ${mediaStyle === s ? "selected" : ""} ${s === 'AI Images' ? 'ai-images-card' : ''} ${s === 'No Media' ? 'no-media-card' : ''}`}
-                    onClick={() => setMediaStyle(s)}
-                    {...(s === 'AI Images' ? { 'data-media': 'ai-images' } : {})}
-                    {...(s === 'No Media' ? { 'data-media': 'no-media' } : {})}
-                  >
-                    <span>{s}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Brand Style Checkbox */}
-            <div className="presentation-studio-checkbox-group" style={{ marginTop: "1rem" }}>
-              <input
-                type="checkbox"
-                id="brandStyle"
-                checked={useBrandStyle}
-                onChange={(e) => setUseBrandStyle(e.target.checked)}
-                className="presentation-studio-checkbox"
-              />
-              <label htmlFor="brandStyle" className="presentation-studio-checkbox-label">
-                Use Brand Style
-              </label>
-            </div>
-          </div>
-
-          {/* Advanced Options */}
-          <div className="presentation-studio-advanced-options">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="presentation-studio-advanced-toggle"
-            >
-              <span>{showAdvanced ? 'Hide' : 'Show'} Advanced Options</span>
-              <FiSettings className={`presentation-studio-advanced-icon ${showAdvanced ? 'presentation-studio-advanced-icon-open' : ''}`} />
-            </button>
-
-            {showAdvanced && (
-              <div className="presentation-studio-advanced-content">
-                <div className="presentation-studio-form-group">
-                  <label className="presentation-studio-label">
-                    Outline (Optional)
-                  </label>
-                  <textarea
-                    value={outlineText}
-                    onChange={(e) => setOutlineText(e.target.value)}
-                    placeholder="Provide a structured outline for your presentation..."
-                    className="presentation-studio-textarea presentation-studio-textarea-small"
-                  />
-                </div>
-                <div className="presentation-studio-form-group">
-                  <label className="presentation-studio-label">
-                    Reference Document
-                  </label>
-                  <div className="presentation-studio-file-upload">
-                    <label className="presentation-studio-file-upload-label">
-                      <div className="presentation-studio-file-upload-content">
-                        <svg className="presentation-studio-file-upload-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg>
-                        <p className="presentation-studio-file-upload-text">
-                          <span className="presentation-studio-file-upload-bold">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="presentation-studio-file-upload-subtext">
-                          PDF, DOC, DOCX (MAX. 10MB)
-                        </p>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="presentation-studio-file-input" 
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            // Handle file upload
-                            alert(`File selected: ${e.target.files[0].name}`);
+                {showAdvanced === "tone" && (
+                  <div className="ai-dropdown-menu">
+                    {['Professional', 'Friendly', 'Creative', 'Corporate'].map(item => (
+                      <div
+                        key={item}
+                        className="ai-dropdown-item"
+                        onClick={() => {
+                          if (tone === item) {
+                            setTone(null);     // deselect
+                          } else {
+                            setTone(item);     // select
                           }
+                          setShowAdvanced(null);
                         }}
-                      />
-                    </label>
+                      >
+                        {item}
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Generate Button */}
-          <div className="presentation-studio-generate-container">
+
+
+
+              {/* Slides */}
+              <div className={`ai-dropdown ${showAdvanced === "slides" ? "open" : ""}`}>
+                <button
+                  className="ai-dropdown-trigger"
+                  onClick={() =>
+                    setShowAdvanced(prev => prev === "slides" ? null : "slides")
+                  }
+                >
+                  {length ? `${length} Slides` : "Slides"}
+                </button>
+
+                {showAdvanced === "slides" && (
+                  <div className="ai-dropdown-menu">
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <div
+                        key={num}
+                        className="ai-dropdown-item"
+                        onClick={() => {
+                          if (length === String(num)) {
+                            setLength(null);
+                          } else {
+                            setLength(String(num));
+                          }
+                          setShowAdvanced(null);
+                        }}
+                      >
+                        {num} Slides
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+
+
+
+              {/* Media */}
+              <div className={`ai-dropdown ${showAdvanced === "media" ? "open" : ""}`}>
+                <button
+                  className="ai-dropdown-trigger"
+                  onClick={() =>
+                    setShowAdvanced(prev => prev === "media" ? null : "media")
+                  }
+                >
+                  {mediaStyle ? mediaStyle : "Media"}
+                </button>
+
+                {showAdvanced === "media" && (
+                  <div className="ai-dropdown-menu">
+                    {['AI Images', 'No Media'].map(item => (
+                      <div
+                        key={item}
+                        className="ai-dropdown-item"
+                        onClick={() => {
+                          if (mediaStyle === item) {
+                            setMediaStyle(null);
+                          } else {
+                            setMediaStyle(item);
+                          }
+                          setShowAdvanced(null);
+                        }}
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+
+
+            </div>
+
+
+
+
             <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isGenerating && prompt.trim()) {
-                  handleGenerate();
-                }
+              onClick={() => {
+                handleGenerate({
+                  prompt: prompt.trim(),
+                  tone: tone ? tone.toLowerCase() : null,
+                  length: length ? Number(length) : null,
+                  media: mediaStyle === "AI Images",
+                  outline: outlineText?.trim() || null
+                });
               }}
-              disabled={isGenerating || !prompt.trim()}
-              className={`presentation-studio-generate-button ${isGenerating || !prompt.trim() ? 'presentation-studio-generate-button-disabled' : ''}`}
+              disabled={
+                isGenerating ||
+                !prompt.trim() ||
+                !tone ||
+                !length ||
+                !mediaStyle
+              }
+
+              className="ai-generate-top"
             >
-              {isGenerating ? (
-                <>
-                  <FiRefreshCw className="presentation-studio-spinner" />
-                  {[
-                    'Structuring story...',
-                    'Visualizing content...',
-                    'Designing slides...',
-                    'Finalizing presentation...'
-                  ][generationStep] || 'Generating...'}
-                </>
-              ) : (
-                <>
-                  <MdAutoAwesome className="presentation-studio-generate-icon" />
-                  Generate Outline
-                </>
+              <span className="generate-text">Generate</span>
+
+              {isGenerating && (
+                <div className="mini-progress-wrapper">
+                  <svg className="mini-progress-ring" width="28" height="28">
+                    <circle
+                      className="mini-progress-bg"
+                      cx="14"
+                      cy="14"
+                      r="12"
+                    />
+                    <circle
+                      className="mini-progress-bar"
+                      cx="14"
+                      cy="14"
+                      r="12"
+                      style={{
+                        strokeDashoffset: 75 - (75 * generationStep) / 100
+                      }}
+                    />
+                  </svg>
+                  <span className="mini-progress-text">{generationStep}%</span>
+                </div>
               )}
             </button>
+
+
+
+
+
           </div>
-          
-          {/* Progress bar during generation */}
-          {isGenerating && (
-            <div className="presentation-studio-progress-container">
-              <div className="presentation-studio-progress-bar">
-                <div 
-                  className="presentation-studio-progress-fill" 
-                  style={{ width: `${((generationStep + 1) / 4) * 100}%` }}
-                ></div>
-              </div>
-              <div className="presentation-studio-progress-labels">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-            </div>
-          )}
+
         </div>
+
+
+
+
       </div>
     </div>
   );

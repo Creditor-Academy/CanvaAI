@@ -115,6 +115,8 @@ const AppContent = () => {
             element={<PresentationStudio />}
           />
           <Route path="/presentation-studio" element={<PresentationStudio />} />
+          <Route path="/ai-presentation" element={<PresentationStudio />} />
+
 
           <Route path="/image-editor" element={<ImageEdit />} />
           <Route path="/video-maker" element={<VideoMaker />} />

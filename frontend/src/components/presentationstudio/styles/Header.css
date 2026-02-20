@@ -1,24 +1,58 @@
 /* ===== Presentation Header | Athena Theme ===== */
 
 .presentation-studio-header {
-  background: var(--ps-bg-card);
-  padding: 1.5rem 2rem;
-  border-radius: var(--ps-radius-xl);
-  border: 1px solid var(--ps-border);
+  position: relative;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center; /* center content */
+  padding: 1.5rem 2rem;
   margin-bottom: 2rem;
-  box-shadow: var(--ps-shadow-lg);
-  backdrop-filter: blur(10px);
+}
+.header-left {
+  position: absolute;
+  left: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.header-center {
+  text-align: center;
+}
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.back-button:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.2);
+}
+@media (max-width: 768px) {
+  .presentation-studio-header {
+    padding: 1.25rem;
+  }
+
+  .header-left {
+    left: 1.25rem;
+  }
+
+  .presentation-studio-title {
+    font-size: 2rem;
+  }
 }
 
-/* Gradient Title */
 .presentation-studio-title {
   background: var(--athena-hero-gradient);
   -webkit-background-clip: text;
   color: transparent;
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 800;
   margin: 0;
   letter-spacing: -0.02em;
@@ -32,13 +66,13 @@
 }
 
 /* Button Group */
-.presentation-studio-header-actions {
+/* .presentation-studio-header-actions {
   display: flex;
   gap: 0.75rem;
-}
+} */
 
 /* Buttons */
-.presentation-studio-button {
+/* .presentation-studio-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -61,10 +95,10 @@
   border-color: var(--ps-border-accent);
   transform: translateY(-2px);
   box-shadow: var(--ps-shadow-md);
-}
+} */
 
 /* Primary Button */
-.presentation-studio-button-primary {
+/* .presentation-studio-button-primary {
   background: var(--athena-btn-primary);
   border: none;
   color: #ffffff;
@@ -75,10 +109,10 @@
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 10px 25px rgba(251, 191, 36, 0.35);
-}
+} */
 
 /* Disabled State */
-.presentation-studio-button-disabled {
+/* .presentation-studio-button-disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;
@@ -88,10 +122,10 @@
 .presentation-studio-button-disabled:hover {
   background: var(--ps-bg-primary) !important;
   transform: none !important;
-}
+} */
 
 /* Dropdown */
-.presentation-studio-dropdown {
+/* .presentation-studio-dropdown {
   position: relative;
 }
 
@@ -110,9 +144,9 @@
   display: flex;
   flex-direction: column;
   z-index: 100;
-}
+} */
 
-.presentation-studio-dropdown-item {
+/* .presentation-studio-dropdown-item {
   padding: 0.75rem 1rem;
   text-align: left;
   font-size: 0.9rem;
@@ -131,32 +165,23 @@
 .presentation-studio-dropdown-item:hover {
   background: var(--ps-bg-secondary);
   color: var(--ps-accent-primary);
-}
+} */
 
 /* Animation */
-@keyframes fadeIn {
+/* @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
-}
+} */
 
 /* Responsive */
 @media (max-width: 768px) {
-  .presentation-studio-header {
-    flex-direction: column;
-    gap: 1.25rem;
-    align-items: flex-start;
-    padding: 1.25rem;
+  .header-center {
+    transform: none;
+    text-align: left;
+    margin-top: 30px;
   }
-  
-  .presentation-studio-title {
-    font-size: 1.75rem;
-  }
-  
-  .presentation-studio-header-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
+
+} 
 
 /* Enhanced mobile styles for smaller screens */
 @media (max-width: 480px) {
@@ -166,14 +191,14 @@
   }
   
   .presentation-studio-title {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
   }
   
   .presentation-studio-subtitle {
     font-size: 0.9rem;
   }
   
-  .presentation-studio-header-actions {
+  /* .presentation-studio-header-actions {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
@@ -181,7 +206,7 @@
   .presentation-studio-button {
     padding: 0.6rem 1rem;
     font-size: 0.85rem;
-  }
+  } */
 }
 
 /* Extra small screens */
@@ -194,10 +219,10 @@
     font-size: 1.3rem;
   }
   
-  .presentation-studio-button {
+  /* .presentation-studio-button {
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
-  }
+  } */
 }
 
 /* Ultra small screens */
@@ -214,12 +239,12 @@
     font-size: 0.8rem;
   }
   
-  .presentation-studio-button {
+  /* .presentation-studio-button {
     padding: 0.4rem 0.6rem;
     font-size: 0.75rem;
   }
   
   .presentation-studio-dropdown-menu {
     min-width: 140px;
-  }
+  } */
 }
