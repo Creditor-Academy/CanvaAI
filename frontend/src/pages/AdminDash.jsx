@@ -1,29 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-// import TempUpload from '../components/admin/TempUpload';
-// import TemplateManager from '../components/admin/TemplateManager';
+import { listPresentations } from '../services/presentation/presentation.service';
+import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility } from '../services/Admin/admin';
+import { Trash2, Globe, Lock } from 'lucide-react';
 import './AdminDash.css';
-
-const COLORS = {
-  deepBlue: "#1d3fAf",
-  primaryBlue: "#60a5fa",
-  Grey: "#455469",
-  gold: "#fabf23",
-  lightGold: "#f8d77d",
-  navyText: "#0c496e",
-  bgLight: "#f9fafb",
-};
-const {
-  deepBlue,
-  primaryBlue,
-  Grey,
-  gold,
-  lightGold,
-  navyText,
-  bgLight,
-} = COLORS;
-
+import { useNavigate } from "react-router-dom";
 
 const AdminDash = () => {
   const { user } = useAuth();
@@ -32,58 +13,95 @@ const AdminDash = () => {
   // Primary view toggle and create modal controls
   const [activeView, setActiveView] = useState('create');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showPostOptions, setShowPostOptions] = useState(false);
   // ===== Templates Storage =====
   const [templates, setTemplates] = useState([]);
 
   // filters
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
 
-  // const [selectedTemplateType, setSelectedTemplateType] = useState('');
+  useEffect(() => {
+    if (!user?._id) return;
 
-  // const postOptions = useMemo(
-  //   () => [
-  //     'Insta Post',
-  //     'Insta Story',
-  //     'Facebook Post',
-  //     'YouTube Thumbnail',
-  //     'WhatsApp Status',
-  //     'Custom',
-  //   ],
-  //   []
-  // );
+    const fetchAllData = async () => {
+      setLoading(true);
+      try {
+        const [res, publicList, privateList] = await Promise.all([
+          listPresentations(user._id),
+          getPublicPresentations(user._id),
+          getUnpublicPresentations(user._id),
+        ]);
 
-  
+        const all = Array.isArray(res) ? res : res?.data || [];
 
-  
+        const publicIds = new Set(publicList.map(p => p._id));
 
-  const filteredTemplates = useMemo(() => {
+        const mapped = all.map(ppt => ({
+          id: ppt._id,
+          title: ppt.title || "Untitled Presentation",
+          category: "presentation",
+          createdAt: ppt.createdAt || ppt.updatedAt,
+          preview:
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI6kyGvk51WegGvlf-MdBLorUpRaZ8KfnaEg&s",
+          url: `/presentation-editor-v3/${ppt._id}`,
+          isPublished: publicIds.has(ppt._id) ? true : false,
+        }));
 
-    return templates.filter(template => {
-
-      // category filter
-      if (categoryFilter !== "all" && template.category !== categoryFilter)
-        return false;
-
-      // date filter
-      if (dateFilter !== "all") {
-        const now = new Date();
-        const diffDays =
-          (now - new Date(template.createdAt)) / (1000 * 60 * 60 * 24);
-
-        if (dateFilter === "today" && diffDays > 1) return false;
-        if (dateFilter === "yesterday" && (diffDays < 1 || diffDays > 2)) return false;
-        if (dateFilter === "30" && diffDays > 30) return false;
-        if (dateFilter === "90" && diffDays > 90) return false;
+        setTemplates(mapped);
+      } catch (err) {
+        console.error(err);
+        setTemplates([]);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      return true;
-    });
+    fetchAllData();
+  }, [user?._id]);
 
-  }, [templates, categoryFilter, dateFilter]);
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this presentation?")) return;
 
+    try {
+      await deletePresentation(id);
+      setTemplates(prev => prev.filter(t => t.id !== id));
+    } catch (error) {
+      console.error("Failed to delete presentation:", error);
+      alert("Failed to delete presentation. Please try again.");
+    }
+  };
+  const handleTemplateSelect = (path) => {
+    navigate(path);
+  };
+  const handleVisibilityChange = async (id, currentStatus, e) => {
+    e.stopPropagation();
 
+    try {
+      await updatePPTVisibility(id, user._id, !currentStatus);
+
+      // UI update
+      setTemplates(prev =>
+        prev.map(t =>
+          t.id === id
+            ? { ...t, isPublished: !currentStatus }
+            : t
+        )
+      );
+
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      alert(error.response?.data?.error || "Failed to update visibility");
+    }
+  };
+
+  const filteredTemplates = templates.filter(t => {
+    if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
+    if (statusFilter === "published") return t.isPublished === true;
+    if (statusFilter === "unpublished") return t.isPublished === false;
+    return true;
+  });
 
   return (
     <div className="admin-dash">
@@ -127,34 +145,69 @@ const AdminDash = () => {
                   <option value="image">Image</option>
                 </select>
 
-                <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="30">Last 30 Days</option>
-                  <option value="90">Last 90 Days</option>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="all">All</option>
+                  <option value="published">Published</option>
+                  <option value="unpublished">Unpublished</option>
                 </select>
+
 
               </div>
             </div>
 
             <div className="admin-recents__grid">
 
-              {filteredTemplates.length === 0 ? (
+              {loading ? (
+                <p>Loading presentations...</p>
+              ) : filteredTemplates.length === 0 ? (
                 <p>No templates created yet</p>
               ) : (
                 filteredTemplates.map(temp => (
-                  <div key={temp.id} className="recent-card">
+                  <div
+                    key={temp.id}
+                    className="recent-card"
+                    onClick={() => temp.url && window.open(temp.url, '_blank')}
+                    style={{ cursor: temp.url ? 'pointer' : 'default' }}
+                  >
+
 
                     <div className="recent-thumb">
                       <img src={temp.preview} alt="preview" />
                     </div>
 
                     <div className="recent-info">
-                      <h4>{temp.title}</h4>
+                      <div className="recent-info__top">
+                        <h4>{temp.title}</h4>
+                        <button
+                          className="card-action-btn delete-btn"
+                          onClick={(e) => handleDelete(temp.id, e)}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
 
-                      <div className={`badge badge-${temp.category}`}>
-                        {temp.category}
+                      <div className="recent-info__mid">
+                        <div className={`badge badge-${temp.category}`}>
+                          {temp.category}
+                        </div>
+
+                        <button
+                          className={`visibility-btn ${temp.isPublished ? "published" : "unpublished"}`}
+                          onClick={(e) =>
+                            handleVisibilityChange(temp.id, temp.isPublished, e)
+                          }
+                        >
+                          {temp.isPublished ? (
+                            <>
+                              <Globe size={14} /> Published
+                            </>
+                          ) : (
+                            <>
+                              <Lock size={14} /> Unpublished
+                            </>
+                          )}
+                        </button>
                       </div>
 
                       <span className="recent-date">
@@ -170,24 +223,6 @@ const AdminDash = () => {
             </div>
 
           </section>
-
-
-          {/* <div className="admin-status">
-            <div className="admin-status__left">
-              <span className="status-dot" />
-              <strong>Creation mode:</strong>
-              <span className="status-label">
-                {selectedTemplateType ? selectedTemplateType : 'Not chosen yet'}
-              </span>
-            </div>
-            <div className="admin-status__right">
-              View: {activeView === 'create' ? 'Create workspace' : 'Manage & delete'}
-            </div>
-          </div> */}
-
-          {/* <div className="admin-workspace">
-            {activeView === 'create' ? <TempUpload /> : <TemplateManager />}
-          </div> */}
         </div>
       </div>
 
@@ -212,9 +247,9 @@ const AdminDash = () => {
                 </p>
                 <button
                   className="btn  btn-secondary"
-                  // onClick={() => handleTemplateSelect("Presentation")}
+                  onClick={() => handleTemplateSelect("/Presentation")}
                 >
-                  Create Presentation 
+                  Create Presentation
                 </button>
 
               </div>
@@ -224,7 +259,8 @@ const AdminDash = () => {
                 <p className="modal-card__body">
                   Start with a square canvas ideal for logo uploads or quick drafts.
                 </p>
-                <button className="btn btn-second" >
+                <button className="btn btn-second"
+                  onClick={() => handleTemplateSelect("/editor")} >
                   Create Document
                 </button>
               </div>
@@ -236,8 +272,9 @@ const AdminDash = () => {
                 </p>
                 <button
                   className="btn btn-secondary"
+                  onClick={() => handleTemplateSelect("/canva-clone")}
                 >
-                  Use Business Card
+                  Edit Image
                 </button>
               </div>
             </div>
