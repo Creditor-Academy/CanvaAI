@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import { Toaster } from "sonner";
 
 import SideBar from "./components/SideBar";
+import Navbar from "./components/Navbar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 
 import { Home } from './pages/Home';
@@ -54,47 +55,31 @@ import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 
 
-
-
-
 const AppContent = () => {
-  const { isCollapsed, isMobile } = useSidebar();
   const location = useLocation();
 
-  // Check if current route is a canva-clone route
   const isFullScreenRoute =
-  location.pathname.startsWith('/canva-clone') ||
-  location.pathname.startsWith('/presentation-editor') ||
-  location.pathname.startsWith('/presentation-editor-v3');
-
-
-  const getContentMargin = () => {
-  if (isFullScreenRoute) return "0";
-  if (isMobile) return "0";
-  return isCollapsed ? "60px" : "260px";
-};
-// React.useEffect(() => {
-//   window.dispatchEvent(new Event("resize"));
-// }, [location.pathname]);
-
+    location.pathname.startsWith('/canva-clone') ||
+    location.pathname.startsWith('/presentation-editor') ||
+    location.pathname.startsWith('/presentation-editor-v3');
 
   return (
-  <div
-  style={{
-    display: "flex",
-    minHeight: "100vh",
-    background: "#f8fafc"
-  }}
->
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
 
-    {!isFullScreenRoute && <SideBar />}
+      {/* Sidebar */}
+      {!isFullScreenRoute && <SideBar />}
 
-    <div
-      className="app-content"
-      style={{
-        flex: 1,
-      }}
-    >
+      {/* Navbar */}
+      <Navbar />
+
+      {/* Page Content */}
+      <div
+        style={{
+          flex: 1,
+          paddingTop: isFullScreenRoute ? 0 : "52px",
+          marginLeft: isFullScreenRoute ? 0 : "63px",
+        }}
+      >
 
         <Routes>
           <Route path="/home" element={<Home />} />
@@ -113,13 +98,9 @@ const AppContent = () => {
           <Route path="/projects/templates" element={<Templates />} />
           <Route path="/templates/:category" element={<CategoryTemplates />} />
           <Route path="/ai-generator" element={<AiGenerator />} />
-          <Route
-            path="/ai-generator/presentation-studio"
-            element={<PresentationStudio />}
-          />
+          <Route path="/ai-generator/presentation-studio" element={<PresentationStudio />} />
           <Route path="/presentation-studio" element={<PresentationStudio />} />
           <Route path="/ai-presentation" element={<PresentationStudio />} />
-
 
           <Route path="/image-editor" element={<ImageEdit />} />
           <Route path="/video-maker" element={<VideoMaker />} />
@@ -137,16 +118,9 @@ const AppContent = () => {
           <Route path="/brand-kit-result" element={<BrandKitResult />} />
           <Route path="/brand-kit-detail" element={<BrandKitDetail />} />
           <Route path="/docGenerator" element={<DocumentGenerator />} />
-          {/* <Route path="/editor" element={<EditorPage />} /> */}
-
-          <Route path="/docGenerator" element={<DocumentGenerator />} />
           <Route path="/editor" element={<EditorTabPage />} />
-
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
-
-          {/* New Dashboard Route */}
-
 
           <Route
             path="/admin-dash"
@@ -159,10 +133,12 @@ const AppContent = () => {
 
           <Route path="/presentation" element={<Presentation />} />
         </Routes>
+
       </div>
     </div>
   );
 };
+
 
 function App() {
   return (
@@ -170,62 +146,25 @@ function App() {
       <SidebarProvider>
         <Router>
           <Toaster position="top-right" richColors />
+
           <Routes>
-            {/* PUBLIC ROUTES */}
+
+            {/* PUBLIC */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
             <Route path="/verify" element={<VerifyUserPage />} />
             <Route path="/forget-password" element={<ForgetPassword />} />
 
-            {/* Full-screen Presentation Editor - No sidebar */}
-            <Route
-              path="/presentation-editor"
-              element={
-                <ProtectedRoute>
-                  <PresentationEditor2 />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/presentation-editor/:id"
-              element={
-                <ProtectedRoute>
-                  <PresentationEditor2 />
-                </ProtectedRoute>
-              }
-            />
+            {/* FULLSCREEN EDITORS */}
+            <Route path="/presentation-editor" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+            <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+            <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
+            <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
 
+            {/* MAIN APP */}
+            <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
 
-            {/* Presentation Editor v3 (new canvas-based editor) */}
-            <Route
-              path="/presentation-editor-v3"
-              element={
-                <ProtectedRoute>
-                  <PresentationWorkspace />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/presentation-editor-v3/:id"
-              element={
-                <ProtectedRoute>
-                  <PresentationWorkspace />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* PROTECTED ROUTES */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <AppContent />
-                </ProtectedRoute>
-              }
-            />
           </Routes>
         </Router>
       </SidebarProvider>
