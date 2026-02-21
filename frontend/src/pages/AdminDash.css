@@ -471,12 +471,53 @@
   margin-top: 4px;
 }
 
+/* ===== Visibility Button ===== */
+
+.visibility-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Published State */
+.visibility-btn.published {
+  background-color: var(--athena-bg-light);
+  color: var(--athena-sky-blue);
+  border: 1px solid var(--athena-sky-blue);
+}
+
+.visibility-btn.published:hover {
+  background-color: var(--athena-primary-blue);
+  color: #fff;
+}
+
+/* Unpublished State */
+.visibility-btn.unpublished {
+  background-color: var(--athena-bg-light);
+  color: var(--athena-text-secondary);
+  border: 1px solid #ccc;
+}
+
+.visibility-btn.unpublished:hover {
+  background-color: var(--athena-text-primary);
+  color: #fff;
+  border-color: var(--athena-text-primary);
+}
+
+
 .card-action-btn {
   background: none;
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: #64748b;
+  color: #1bd139;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -484,41 +525,11 @@
   transition: all 0.2s;
 }
 
-.delete-btn:hover {
+/* .delete-btn:hover {
   background: #fee2e2;
   color: #ef4444;
-}
+} */
 
-.publish-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.publish-toggle-btn.is-published {
-  background: #dcfce7;
-  color: #15803d;
-  border-color: #bbf7d0;
-}
-
-.publish-toggle-btn.is-unpublished {
-  background: #f1f5f9;
-  color: #64748b;
-  border-color: #e2e8f0;
-}
-
-.publish-toggle-btn:hover {
-  filter: brightness(0.95);
-}
 
 /* Category badge */
 

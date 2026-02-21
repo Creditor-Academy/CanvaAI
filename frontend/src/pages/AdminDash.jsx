@@ -1,31 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { listPresentations, deletePresentation } from '../services/presentation/presentation.service';
+import { listPresentations } from '../services/presentation/presentation.service';
+import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility } from '../services/Admin/admin';
 import { Trash2, Globe, Lock } from 'lucide-react';
-// import TempUpload from '../components/admin/TempUpload';
-// import TemplateManager from '../components/admin/TemplateManager';
 import './AdminDash.css';
-
-const COLORS = {
-  deepBlue: "#1d3fAf",
-  primaryBlue: "#60a5fa",
-  Grey: "#455469",
-  gold: "#fabf23",
-  lightGold: "#f8d77d",
-  navyText: "#0c496e",
-  bgLight: "#f9fafb",
-};
-const {
-  deepBlue,
-  primaryBlue,
-  Grey,
-  gold,
-  lightGold,
-  navyText,
-  bgLight,
-} = COLORS;
-
+import { useNavigate } from "react-router-dom";
 
 const AdminDash = () => {
   const { user } = useAuth();
@@ -34,59 +13,52 @@ const AdminDash = () => {
   // Primary view toggle and create modal controls
   const [activeView, setActiveView] = useState('create');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showPostOptions, setShowPostOptions] = useState(false);
   // ===== Templates Storage =====
   const [templates, setTemplates] = useState([]);
 
   // filters
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (categoryFilter === "presentation" && user?._id) {
-      const fetchPresentations = async () => {
-        setLoading(true);
-        try {
-          const res = await listPresentations(user._id);
-          const list = Array.isArray(res) ? res : (res.data || []);
+    if (!user?._id) return;
 
-          // Map presentations to template structure
-          const mappedPresentations = list.map(ppt => ({
-            id: ppt._id,
-            title: ppt.title || "Untitled Presentation",
-            category: "presentation",
-            createdAt: ppt.createdAt || ppt.updatedAt || new Date().toISOString(),
-            preview: ppt.preview || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI6kyGvk51WegGvlf-MdBLorUpRaZ8KfnaEg&s", // Default placeholder
-            url: `/presentation-editor-v3/${ppt._id}`,
-            isPublished: false // Default to unpublished
-          }));
+    const fetchAllData = async () => {
+      setLoading(true);
+      try {
+        const [res, publicList, privateList] = await Promise.all([
+          listPresentations(user._id),
+          getPublicPresentations(user._id),
+          getUnpublicPresentations(user._id),
+        ]);
 
-          setTemplates(mappedPresentations);
-        } catch (error) {
-          console.error("Failed to fetch presentations:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
+        const all = Array.isArray(res) ? res : res?.data || [];
 
-      fetchPresentations();
-    } else if (categoryFilter === "all" || categoryFilter === "document" || categoryFilter === "image") {
-      // If switching away from presentation, we might want to clear or keep?
-      // For now, let's just clear templates if it's not presentation to reflect "empty" for others
-      // unless they also have fetching logic.
-      if (templates.some(t => t.category === "presentation")) {
+        const publicIds = new Set(publicList.map(p => p._id));
+
+        const mapped = all.map(ppt => ({
+          id: ppt._id,
+          title: ppt.title || "Untitled Presentation",
+          category: "presentation",
+          createdAt: ppt.createdAt || ppt.updatedAt,
+          preview:
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI6kyGvk51WegGvlf-MdBLorUpRaZ8KfnaEg&s",
+          url: `/presentation-editor-v3/${ppt._id}`,
+          isPublished: publicIds.has(ppt._id) ? true : false,
+        }));
+
+        setTemplates(mapped);
+      } catch (err) {
+        console.error(err);
         setTemplates([]);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [categoryFilter, user?._id]);
+    };
 
-  const togglePublish = (id, e) => {
-    e.stopPropagation();
-    setTemplates(prev => prev.map(t =>
-      t.id === id ? { ...t, isPublished: !t.isPublished } : t
-    ));
-  };
+    fetchAllData();
+  }, [user?._id]);
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
@@ -100,51 +72,36 @@ const AdminDash = () => {
       alert("Failed to delete presentation. Please try again.");
     }
   };
+  const handleTemplateSelect = (path) => {
+    navigate(path);
+  };
+  const handleVisibilityChange = async (id, currentStatus, e) => {
+    e.stopPropagation();
 
-  // const [selectedTemplateType, setSelectedTemplateType] = useState('');
+    try {
+      await updatePPTVisibility(id, user._id, !currentStatus);
 
-  // const postOptions = useMemo(
-  //   () => [
-  //     'Insta Post',
-  //     'Insta Story',
-  //     'Facebook Post',
-  //     'YouTube Thumbnail',
-  //     'WhatsApp Status',
-  //     'Custom',
-  //   ],
-  //   []
-  // );
+      // UI update
+      setTemplates(prev =>
+        prev.map(t =>
+          t.id === id
+            ? { ...t, isPublished: !currentStatus }
+            : t
+        )
+      );
 
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      alert(error.response?.data?.error || "Failed to update visibility");
+    }
+  };
 
-
-
-
-  const filteredTemplates = useMemo(() => {
-
-    return templates.filter(template => {
-
-      // category filter
-      if (categoryFilter !== "all" && template.category !== categoryFilter)
-        return false;
-
-      // date filter
-      if (dateFilter !== "all") {
-        const now = new Date();
-        const diffDays =
-          (now - new Date(template.createdAt)) / (1000 * 60 * 60 * 24);
-
-        if (dateFilter === "today" && diffDays > 1) return false;
-        if (dateFilter === "yesterday" && (diffDays < 1 || diffDays > 2)) return false;
-        if (dateFilter === "30" && diffDays > 30) return false;
-        if (dateFilter === "90" && diffDays > 90) return false;
-      }
-
-      return true;
-    });
-
-  }, [templates, categoryFilter, dateFilter]);
-
-
+  const filteredTemplates = templates.filter(t => {
+    if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
+    if (statusFilter === "published") return t.isPublished === true;
+    if (statusFilter === "unpublished") return t.isPublished === false;
+    return true;
+  });
 
   return (
     <div className="admin-dash">
@@ -188,11 +145,12 @@ const AdminDash = () => {
                   <option value="image">Image</option>
                 </select>
 
-                <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                   <option value="all">All</option>
                   <option value="published">Published</option>
-                  <option value="unpublished">Unpuclished</option>
+                  <option value="unpublished">Unpublished</option>
                 </select>
+
 
               </div>
             </div>
@@ -233,12 +191,22 @@ const AdminDash = () => {
                         <div className={`badge badge-${temp.category}`}>
                           {temp.category}
                         </div>
+
                         <button
-                          className={`publish-toggle-btn ${temp.isPublished ? 'is-published' : 'is-unpublished'}`}
-                          onClick={(e) => togglePublish(temp.id, e)}
+                          className={`visibility-btn ${temp.isPublished ? "published" : "unpublished"}`}
+                          onClick={(e) =>
+                            handleVisibilityChange(temp.id, temp.isPublished, e)
+                          }
                         >
-                          {temp.isPublished ? <Globe size={12} /> : <Lock size={12} />}
-                          {temp.isPublished ? "Published" : "Unpublished"}
+                          {temp.isPublished ? (
+                            <>
+                              <Globe size={14} /> Published
+                            </>
+                          ) : (
+                            <>
+                              <Lock size={14} /> Unpublished
+                            </>
+                          )}
                         </button>
                       </div>
 
@@ -255,24 +223,6 @@ const AdminDash = () => {
             </div>
 
           </section>
-
-
-          {/* <div className="admin-status">
-            <div className="admin-status__left">
-              <span className="status-dot" />
-              <strong>Creation mode:</strong>
-              <span className="status-label">
-                {selectedTemplateType ? selectedTemplateType : 'Not chosen yet'}
-              </span>
-            </div>
-            <div className="admin-status__right">
-              View: {activeView === 'create' ? 'Create workspace' : 'Manage & delete'}
-            </div>
-          </div> */}
-
-          {/* <div className="admin-workspace">
-            {activeView === 'create' ? <TempUpload /> : <TemplateManager />}
-          </div> */}
         </div>
       </div>
 
@@ -297,7 +247,7 @@ const AdminDash = () => {
                 </p>
                 <button
                   className="btn  btn-secondary"
-                // onClick={() => handleTemplateSelect("Presentation")}
+                  onClick={() => handleTemplateSelect("/Presentation")}
                 >
                   Create Presentation
                 </button>
@@ -309,7 +259,8 @@ const AdminDash = () => {
                 <p className="modal-card__body">
                   Start with a square canvas ideal for logo uploads or quick drafts.
                 </p>
-                <button className="btn btn-second" >
+                <button className="btn btn-second"
+                  onClick={() => handleTemplateSelect("/editor")} >
                   Create Document
                 </button>
               </div>
@@ -321,8 +272,9 @@ const AdminDash = () => {
                 </p>
                 <button
                   className="btn btn-secondary"
+                  onClick={() => handleTemplateSelect("/canva-clone")}
                 >
-                  Use Business Card
+                  Edit Image
                 </button>
               </div>
             </div>
