@@ -52,7 +52,7 @@ const CanvaEditor = () => {
   const [shapeSettings, setShapeSettings] = useState(initialShapeSettings);
   const [imageSettings, setImageSettings] = useState(initialImageSettings);
   const [openSections, setOpenSections] = useState(initialOpenSections);
-  const [hasChosenTemplate, setHasChosenTemplate] = useState(false);
+  const [hasChosenTemplate, setHasChosenTemplate] = useState(true);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [canvasBgColor, setCanvasBgColor] = useState('#82c787ff');
@@ -76,6 +76,8 @@ const CanvaEditor = () => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [cropState, setCropState] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [activeTemplateId, setActiveTemplateId] = useState(initialTemplates[0]?.id || 'default');
 
   // Refs - store refs per page
   const canvasAreaRefs = useRef({});
@@ -110,11 +112,22 @@ const CanvaEditor = () => {
     history,
     historyIndex,
     saveToHistory,
+    resetHistory,
     undo,
     redo,
     canUndo,
     canRedo
   } = useHistory(layers);
+
+  // Track changes for "Save Changes" prompt
+  useEffect(() => {
+    // If we're at index 0, it's either just loaded or just reset
+    if (historyIndex > 0) {
+      setHasUnsavedChanges(true);
+    } else {
+      setHasUnsavedChanges(false);
+    }
+  }, [historyIndex]);
 
   const {
     zoom,
@@ -436,6 +449,8 @@ const CanvaEditor = () => {
       if (projectId) {
         await api.updateProjectDesign(projectId, design);
         alert('Design saved successfully!');
+        resetHistory(layers);
+        setHasUnsavedChanges(false);
       } else {
         const newProjectData = {
           title: "Untitled Design",
@@ -450,7 +465,8 @@ const CanvaEditor = () => {
 
         if (newProject && newProject._id) {
           alert('Project created successfully!');
-
+          resetHistory(layers);
+          setHasUnsavedChanges(false);
           navigate(`/canva-clone/${newProject._id}`, { replace: true });
         }
       }
@@ -788,11 +804,40 @@ const CanvaEditor = () => {
     }));
 
     setLayers(newLayers);
-    saveToHistory(newLayers);
+    resetHistory(newLayers);
+    setHasUnsavedChanges(false);
+    // Find matching template if any to set as active
+    const matchingTemplate = templates.find(t => t.width === newSize.width && t.height === newSize.height);
+    if (matchingTemplate) setActiveTemplateId(matchingTemplate.id);
 
     setSelectedLayer(null);
     setHasChosenTemplate(true);
     hasInitializedRef.current = true;
+
+    // Ensure a heading exists in the applied template, if not add one
+    const hasHeading = newLayers.some(l => l.type === 'text' && (l.name === 'Heading' || l.fontSize >= 30));
+    if (!hasHeading) {
+      const centerX = Math.max(100, (newSize.width - 300) / 2);
+      const defaultHeading = {
+        id: Date.now() + 1,
+        type: 'text',
+        name: 'Heading',
+        text: 'Add a heading',
+        x: centerX,
+        y: 50,
+        width: 300,
+        height: 80,
+        ...textSettings,
+        fontSize: 32,
+        fontWeight: '700',
+        visible: true,
+        locked: false,
+        rotation: 0,
+      };
+      const layersWithHeading = [...newLayers, defaultHeading];
+      setLayers(layersWithHeading);
+      resetHistory(layersWithHeading);
+    }
 
     // Auto-fit to screen after small delay to allow DOM to catch up
     setTimeout(() => {
@@ -814,11 +859,14 @@ const CanvaEditor = () => {
 
       // Load new page layers
       isLoadingPageRef.current = true;
-      setCurrentPageIndex(index);
-      setLayers(pages[index].layers || []);
+      const newLayers = pages[index].layers || [];
+      setLayers(newLayers);
+      resetHistory(newLayers);
+      setHasUnsavedChanges(false);
       setSelectedLayer(null);
+      setCurrentPageIndex(index);
     }
-  }, [pages, currentPageIndex, layers]);
+  }, [pages, currentPageIndex, layers, resetHistory, setHasUnsavedChanges]);
 
   const handleMaximize = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -1147,6 +1195,11 @@ const CanvaEditor = () => {
 
   // Template selection handler
   const handleTemplateSelect = (template) => {
+    // Clear previous layers/text
+    setLayers([]);
+    resetHistory([]);
+    setHasUnsavedChanges(false);
+
     if (template.name === 'Default Canvas') {
       resetEditorToInitialState();
       return;
@@ -1159,9 +1212,33 @@ const CanvaEditor = () => {
     };
     setCanvasSize(newSize);
 
+    setActiveTemplateId(template.id);
     setSelectedLayer(null);
     setHasChosenTemplate(true);
-    hasInitializedRef.current = false;
+
+    // Add default heading centered
+    const centerX = Math.max(100, (newSize.width - 300) / 2);
+    const centerY = (newSize.height > 400) ? 100 : 50;
+
+    const defaultHeading = {
+      id: Date.now(),
+      type: 'text',
+      name: 'Heading',
+      text: 'Add a heading',
+      x: centerX,
+      y: centerY,
+      width: 300,
+      height: 80,
+      ...textSettings,
+      fontSize: 32,
+      fontWeight: '700',
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    setLayers([defaultHeading]);
+    resetHistory([defaultHeading]);
 
     // Auto-fit to screen
     setTimeout(() => {
@@ -1259,7 +1336,8 @@ const CanvaEditor = () => {
     hasInitializedRef.current = false;
 
     // Reset history
-    saveToHistory([]);
+    resetHistory([]);
+    setHasUnsavedChanges(false);
 
   }, [setZoom, setPan, saveToHistory]);
 
@@ -1373,6 +1451,10 @@ const CanvaEditor = () => {
             onCanvasBgImageChange={onCanvasBgImageChange}
             handleAddSticker={handleAddSticker}
             handleApplyDesignTemplate={handleApplyDesignTemplate}
+            onSave={handleSave}
+            layers={layers}
+            hasUnsavedChanges={hasUnsavedChanges}
+            activeTemplateId={activeTemplateId}
 
           />
         </div>

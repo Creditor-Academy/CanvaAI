@@ -9,7 +9,7 @@ import {
 import AIImageGenerator from '../AIImageGenerator'
 import BackgroundColor from './BackgroundColor'
 import { MdDisabledVisible } from 'react-icons/md'
-import DesignLibrary from './DesignLibrary';
+import { designTemplates } from './DesignLibrary';
 
 // --- Sub-components moved outside to prevent unmounting on parent re-renders ---
 
@@ -107,14 +107,21 @@ const LeftCanvasSidebar = memo(({
   drawingSettings,
   handleDrawingSettingsChange,
   handleAddSticker,
-  handleApplyDesignTemplate
+  handleApplyDesignTemplate,
+  onSave,
+  layers,
+  hasUnsavedChanges,
+  activeTemplateId
 
 }) => {
   const [hoveredButtonTooltip, setHoveredButtonTooltip] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [expandedSection, setExpandedSection] = useState(null);
   const [expandedSectionPosition, setExpandedSectionPosition] = useState({ x: 0, y: 0, width: 0 });
+  const [expandedTemplateId, setExpandedTemplateId] = useState(null);
   const [referencePosition, setReferencePosition] = useState(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState(null);
   const buttonRefs = useRef({});
   const bgFileInputRef = useRef(null);
 
@@ -147,10 +154,9 @@ const LeftCanvasSidebar = memo(({
     'shapes': 'Shapes & Icons',
     'drawing': 'Freehand Draw',
     'media': 'Images & AI',
-    'templates': 'mas',
+    'templates': 'Templates',
     'canvas': 'Dimensions',
-    'stockImages': 'Stock Images',
-    'design': 'Design Presets'   // NEW
+    'stockImages': 'Stock Images'
   };
 
 
@@ -416,19 +422,6 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
-        <ParentButton
-          sectionKey="design"
-          icon={<FiMaximize size={16} />}
-          label="Design"
-          isActive={expandedSection === "design"}
-          onMouseEnter={handleButtonMouseEnter}
-          onMouseLeave={handleButtonMouseLeave}
-          onClick={handleSectionToggleInternal}
-          buttonRef={(el) => buttonRefs.current["design"] = el}
-          tooltipTexts={tooltipTexts}
-          hoveredButtonTooltip={hoveredButtonTooltip}
-          tooltipPosition={tooltipPosition}
-        />
 
 
         {/* Portals */}
@@ -633,18 +626,72 @@ const LeftCanvasSidebar = memo(({
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("templates")}
         >
-          <div className="grid grid-cols-1 gap-3 pb-20">
+          <div className="flex flex-col gap-3 pb-10">
             {templates.map(template => (
-              <button
-                key={template.id}
-                className="flex items-center gap-4 p-3 rounded-xl bg-slate-800/40 border border-slate-700 hover:border-blue-500 transition-all text-left group"
-                onClick={() => handleTemplateSelect(template)}
-              >
-                <div>
-                  <p className="text-sm font-bold text-white">{template.name}</p>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-tight">{template.width} × {template.height}</p>
-                </div>
-              </button>
+              <div key={template.id} className="flex flex-col gap-2">
+                <button
+                  className={`flex flex-col p-4 rounded-xl border transition-all text-left group ${expandedTemplateId === template.id ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/40 border-slate-700 hover:border-slate-500'}`}
+                  onClick={() => {
+                    const isClosing = expandedTemplateId === template.id;
+                    const isAlreadyActive = activeTemplateId === template.id;
+
+                    if (isClosing) {
+                      setExpandedTemplateId(null);
+                      return;
+                    }
+
+                    if (isAlreadyActive) {
+                      // Just toggle accordion for current active layout
+                      setExpandedTemplateId(template.id);
+                      return;
+                    }
+
+                    if (hasUnsavedChanges) {
+                      setPendingTemplate(template);
+                      setShowSaveConfirm(true);
+                    } else {
+                      handleTemplateSelect(template);
+                      setExpandedTemplateId(template.id);
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-center w-full">
+                    <div>
+                      <p className="text-sm font-bold text-white">{template.name}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">{template.category} • {template.width} × {template.height}</p>
+                    </div>
+                    {expandedTemplateId === template.id ? <FiChevronDown className="text-white" /> : <FiChevronRight className="text-slate-400" />}
+                  </div>
+                </button>
+
+                {expandedTemplateId === template.id && (
+                  <div className="grid grid-cols-2 gap-2 mt-2 px-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {designTemplates
+                      .filter(dt => dt.width === template.width && dt.height === template.height)
+                      .map(dt => (
+                        <div
+                          key={dt.id}
+                          onClick={() => handleApplyDesignTemplate(dt)}
+                          className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer border border-slate-700 hover:border-blue-500 transition-all bg-slate-800"
+                        >
+                          <img
+                            src={dt.preview}
+                            alt={dt.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                            <p className="text-[9px] font-bold text-white truncate">{dt.name}</p>
+                          </div>
+                        </div>
+                      ))}
+                    {designTemplates.filter(dt => dt.width === template.width && dt.height === template.height).length === 0 && (
+                      <div className="col-span-2 py-4 text-center">
+                        <p className="text-slate-500 text-[10px]">No templates for this size yet</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </ExpandedSectionPortal>
@@ -673,74 +720,66 @@ const LeftCanvasSidebar = memo(({
           </div>
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal
-          sectionKey="design"
-          title="Design Presets"
-          expandedSection={expandedSection}
-          position={expandedSectionPosition}
-          onClose={() => handleCloseSection("design")}
-        >
-          <div className="space-y-4">
-
-            <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
-              <p className="text-sm text-white font-semibold mb-2">Quick Backgrounds</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  '#ff6b6b',
-                  '#4f46e5',
-                  '#22c55e',
-                  '#f59e0b'
-                ].map(color => (
-                  <div
-                    key={color}
-                    onClick={() => onCanvasBgColorChange(color)}
-                    className="h-14 rounded-lg cursor-pointer border border-slate-700 hover:scale-105 transition"
-                    style={{ background: color }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
-              <p className="text-sm text-white font-semibold mb-2">Quick Layout</p>
-              <button
-                onClick={() => handleAddElement(100, 100, 'heading')}
-                className="w-full py-2 bg-blue-600 rounded-lg text-sm font-medium hover:bg-blue-500 transition"
-              >
-                Add Title Layout
-              </button>
-            </div>
-
-          </div>
-        </ExpandedSectionPortal>
-
-
-
-        <ExpandedSectionPortal
-          sectionKey="design"
-          title="Design"
-          expandedSection={expandedSection}
-          position={expandedSectionPosition}
-          onClose={() => handleCloseSection("design")}
-        >
-          <DesignLibrary
-            onSelect={(template) => {
-              handleApplyDesignTemplate(template);
-              setExpandedSection(null);
-            }}
-          />
-
-        </ExpandedSectionPortal>
 
 
 
       </div>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
       <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgFileChange} className="hidden" />
+
+      {/* Save Changes Confirmation Modal */}
+      {showSaveConfirm && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FiGrid className="text-blue-400 text-3xl" />
+            </div>
+            <h3 className="text-xl font-bold text-white text-center mb-2">Unsaved Changes</h3>
+            <p className="text-slate-400 text-center text-sm mb-8">Do you want to save previous changes before switching to a new template?</p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={async () => {
+                  if (onSave) await onSave();
+                  setShowSaveConfirm(false);
+                  if (pendingTemplate) {
+                    handleTemplateSelect(pendingTemplate);
+                    setExpandedTemplateId(pendingTemplate.id);
+                  }
+                  setPendingTemplate(null);
+                }}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => {
+                  setShowSaveConfirm(false);
+                  if (pendingTemplate) {
+                    handleTemplateSelect(pendingTemplate);
+                    setExpandedTemplateId(pendingTemplate.id);
+                  }
+                  setPendingTemplate(null);
+                }}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition-all"
+              >
+                Discard & Continue
+              </button>
+              <button
+                onClick={() => {
+                  setShowSaveConfirm(false);
+                  setPendingTemplate(null);
+                }}
+                className="w-full py-3 bg-transparent text-slate-500 hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 });
 
 export default LeftCanvasSidebar;
-
-
