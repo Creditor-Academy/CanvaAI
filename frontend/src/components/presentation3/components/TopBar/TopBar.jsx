@@ -17,10 +17,12 @@ import {
   Upload,
   Link,
   Trash2,
-  Save
+  Save,
+  Download
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
+import { exportToPDF, exportToPPTX } from "../../utils/PresentationExportService";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
   const { user } = useAuth();
@@ -53,10 +55,12 @@ const TopBar = ({ onPresent, onAgentClick }) => {
   const [showShapes, setShowShapes] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
 
   const shapesRef = useRef(null);
   const themeRef = useRef(null);
   const imageOptionsRef = useRef(null);
+  const downloadRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -68,6 +72,9 @@ const TopBar = ({ onPresent, onAgentClick }) => {
       }
       if (imageOptionsRef.current && !imageOptionsRef.current.contains(event.target)) {
         setShowImageOptions(false);
+      }
+      if (downloadRef.current && !downloadRef.current.contains(event.target)) {
+        setShowDownload(false);
       }
     };
 
@@ -156,6 +163,35 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             >
               <Save size={18} /> {presentationId ? "Save Changes" : "Save"}
             </button>
+
+            {/* Download Button */}
+            <div className="dropdown" ref={downloadRef}>
+              <button
+                className="nav-btn"
+                onClick={() => setShowDownload(!showDownload)}
+                title="Download Presentation"
+              >
+                <Download size={18} /> Download
+              </button>
+
+              {showDownload && (
+                <div className="dropdown-menu">
+                  <button onClick={() => {
+                    exportToPDF(slides, title);
+                    setShowDownload(false);
+                  }}>
+                    PDF Document (.pdf)
+                  </button>
+                  <button onClick={() => {
+                    exportToPPTX(slides, title);
+                    setShowDownload(false);
+                  }}>
+                    PowerPoint (.pptx)
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="dropdown" ref={themeRef}>
               <button
                 className="nav-btn"
