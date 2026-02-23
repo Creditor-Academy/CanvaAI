@@ -284,8 +284,28 @@ const CanvaEditor = () => {
           // Create a default heading at center-top of canvas
           const centerX = Math.max(100, (canvasSize.width - 300) / 2);
           const centerY = 100;
-          handleAddElement(centerX, centerY, 'heading');
+
+          const defaultHeading = {
+            id: Date.now(),
+            type: 'text',
+            name: 'Heading',
+            text: 'Add a heading',
+            x: centerX,
+            y: centerY,
+            width: 300,
+            height: 80,
+            ...textSettings,
+            fontSize: 32,
+            fontWeight: '700',
+            visible: true,
+            locked: false,
+            rotation: 0,
+          };
+
+          setLayers([defaultHeading]);
           hasInitializedRef.current = true;
+          resetHistory([defaultHeading]);
+          setHasUnsavedChanges(false);
         }
       }, projectId ? 1000 : 300); // Longer delay if loading a project
 
@@ -298,7 +318,7 @@ const CanvaEditor = () => {
       // If layers exist, mark as initialized so we don't add heading
       hasInitializedRef.current = true;
     }
-  }, [layers.length, handleAddElement, saveToHistory, canvasSize, projectId]);
+  }, [layers.length, handleAddElement, resetHistory, textSettings, canvasSize, projectId]);
 
   // Keep right sidebar open when text layer is selected (only on selection, not on every state change)
   useEffect(() => {
@@ -795,13 +815,34 @@ const CanvaEditor = () => {
     setCanvasSize(newSize);
 
     // Add layers with unique IDs
-    const newLayers = template.layers.map(layer => ({
-      ...layer,
-      id: Date.now() + Math.random(),
-      visible: true,
-      locked: false,
-      rotation: 0
-    }));
+    // Get random image if template has image list
+    let selectedImage = null;
+
+    if (template.images && template.images.length > 0) {
+      selectedImage =
+        template.images[Math.floor(Math.random() * template.images.length)];
+    }
+
+    const newLayers = template.layers.map(layer => {
+      if (layer.type === "image" && selectedImage) {
+        return {
+          ...layer,
+          src: selectedImage,
+          id: Date.now() + Math.random(),
+          visible: true,
+          locked: false,
+          rotation: 0
+        };
+      }
+
+      return {
+        ...layer,
+        id: Date.now() + Math.random(),
+        visible: true,
+        locked: false,
+        rotation: 0
+      };
+    });
 
     setLayers(newLayers);
     resetHistory(newLayers);
@@ -1202,6 +1243,7 @@ const CanvaEditor = () => {
 
     if (template.name === 'Default Canvas') {
       resetEditorToInitialState();
+      setActiveTemplateId(template.id);
       return;
     }
 
@@ -1237,8 +1279,26 @@ const CanvaEditor = () => {
       rotation: 0,
     };
 
-    setLayers([defaultHeading]);
-    resetHistory([defaultHeading]);
+    const defaultDate = {
+      id: Date.now() + 1,
+      type: 'text',
+      name: 'Current Date',
+      text: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+      x: newSize.width - 160,
+      y: newSize.height - 40,
+      width: 150,
+      height: 30,
+      fontSize: 12,
+      color: '#ffffff',
+      textAlign: 'right',
+      opacity: 70,
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    setLayers([defaultHeading, defaultDate]);
+    resetHistory([defaultHeading, defaultDate]);
 
     // Auto-fit to screen
     setTimeout(() => {
@@ -1313,9 +1373,46 @@ const CanvaEditor = () => {
     setZoom(80);
     setPan({ x: 0, y: 0 });
 
-    // Reset layers & pages
-    setLayers([]);
-    setPages([{ id: Date.now(), layers: [] }]);
+    const centerX = Math.max(100, (initialCanvasSize.width - 300) / 2);
+    const centerY = 100;
+    const defaultHeading = {
+      id: Date.now(),
+      type: 'text',
+      name: 'Heading',
+      text: 'Add a heading',
+      x: centerX,
+      y: centerY,
+      width: 300,
+      height: 80,
+      ...textSettings,
+      fontSize: 32,
+      fontWeight: '700',
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    const defaultDate = {
+      id: Date.now() + 1,
+      type: 'text',
+      name: 'Current Date',
+      text: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+      x: initialCanvasSize.width - 160,
+      y: initialCanvasSize.height - 40,
+      width: 150,
+      height: 30,
+      fontSize: 12,
+      color: '#ffffff',
+      textAlign: 'right',
+      opacity: 70,
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    // Reset layers & pages with a default heading and date
+    setLayers([defaultHeading, defaultDate]);
+    setPages([{ id: Date.now() + 2, layers: [defaultHeading, defaultDate] }]);
     setCurrentPageIndex(0);
 
     // Reset selections & tools
@@ -1326,20 +1423,20 @@ const CanvaEditor = () => {
     setHasChosenTemplate(false);
     setIsRightSidebarCollapsed(false);
     setIsRightSidebarOpen(false);
-    setIsLeftSidebarOpen(false);
+    setOpenSections(initialOpenSections);
 
     // Reset background
     setCanvasBgColor(GRADIENTS[0].value);
     setCanvasBgImage(null);
 
-    // 🔑 THIS IS VERY IMPORTANT
-    hasInitializedRef.current = false;
+    // 🔑 Mark as initialized
+    hasInitializedRef.current = true;
 
-    // Reset history
-    resetHistory([]);
+    // Reset history with the initial layer as the base state
+    resetHistory([defaultHeading, defaultDate]);
     setHasUnsavedChanges(false);
 
-  }, [setZoom, setPan, saveToHistory]);
+  }, [setZoom, setPan, resetHistory, textSettings]);
 
 
   // Drawing mouse handlers are provided by useDrawing hook
