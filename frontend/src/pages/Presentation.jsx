@@ -40,7 +40,7 @@ const Presentation = () => {
     e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this presentation?")) return;
     try {
-      await deletePresentation(id);
+      await deletePresentation(id, user._id);
       setPresentations(prev => prev.filter(ppt => ppt._id !== id));
     } catch (error) {
       console.error("Failed to delete presentation:", error);
@@ -64,7 +64,7 @@ const Presentation = () => {
   };
 
   // If AI Studio is active, show it
-  
+
 
   // If layout is selected, show workspace
   if (selectedLayout) {
@@ -269,27 +269,27 @@ const Presentation = () => {
                 1920 × 1080px
               </span>
               <button
-  onClick={(e) => {
-    e.stopPropagation();
-    navigate('/ai-presentation');
-  }}
-  style={{
-    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-    color: '#ffffff',
-    padding: '10px 18px',
-    borderRadius: '12px',
-    fontSize: '0.95rem',
-    lineHeight: 1,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    border: 'none',
-    cursor: 'pointer'
-  }}
->
-  <FiZap size={16} />
-  Create with AI
-</button>
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate('/ai-presentation');
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  color: '#ffffff',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  fontSize: '0.95rem',
+                  lineHeight: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <FiZap size={16} />
+                Create with AI
+              </button>
 
             </div>
           </button>

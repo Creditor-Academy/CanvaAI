@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { listPresentations } from '../services/presentation/presentation.service';
+import { listPresentations, deletePresentation } from '../services/presentation/presentation.service';
 import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility } from '../services/Admin/admin';
 import { Trash2, Globe, Lock } from 'lucide-react';
 import './AdminDash.css';
@@ -65,7 +65,7 @@ const AdminDash = () => {
     if (!window.confirm("Are you sure you want to delete this presentation?")) return;
 
     try {
-      await deletePresentation(id);
+      await deletePresentation(id, user._id);
       setTemplates(prev => prev.filter(t => t.id !== id));
     } catch (error) {
       console.error("Failed to delete presentation:", error);

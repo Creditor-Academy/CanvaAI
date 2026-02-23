@@ -69,7 +69,7 @@ const createDefaultTextLayers = () => [
     fontStyle: "normal",
     textDecoration: "none",
     textAlign: "center",
-    color: "#000000",
+    color: "#ffffff",
     link: "",
     rotation: 0,
   },
@@ -142,9 +142,52 @@ const usePresentationStore = create((set, get) => {
       // Expect data to match store shape: { id, title, slides: [...] }
       // Or backend shape: { _id, title, data: { slides: [...] } }
       const rawSlides = data.slides || (data.data && data.data.slides) || [];
+
+      const normalizeCells = (cells, rows, cols) => {
+        if (!cells || !Array.isArray(cells)) {
+          return Array.from({ length: rows || 0 }, () =>
+            Array.from({ length: cols || 0 }, () => ({
+              content: createInitialValue(),
+              fontFamily: "Arial",
+              fontSize: 14,
+              color: "#ffffff",
+              textAlign: "center",
+            }))
+          );
+        }
+        return cells.map(row =>
+          Array.isArray(row) ? row.map(cell => {
+            if (typeof cell === 'string') {
+              return {
+                content: convertTextToSlate(cell),
+                fontFamily: "Arial",
+                fontSize: 14,
+                color: "#ffffff",
+                textAlign: "center",
+              };
+            }
+            if (cell && typeof cell === 'object' && !cell.content) {
+              return {
+                ...cell,
+                content: createInitialValue()
+              };
+            }
+            return cell;
+          }) : []
+        );
+      };
+
       const slides = rawSlides.map(slide => ({
-        ...slide
-        // Title removed
+        ...slide,
+        layers: slide.layers?.map(layer => {
+          if (layer.type === 'table') {
+            return {
+              ...layer,
+              cells: normalizeCells(layer.cells, layer.rows, layer.cols)
+            };
+          }
+          return layer;
+        })
       }));
 
       const id = data.presentationId || data._id || data.id || (data.data && (data.data._id || data.data.id));
@@ -486,7 +529,7 @@ const usePresentationStore = create((set, get) => {
                   placeholder: "Click to add text",
                   hasBeenEdited: false,
                   fontSize: 24,
-                  color: "#000000",
+                  color: "#ffffff",
                   fontFamily: "Arial",
                   fontWeight: "normal",
                   fontStyle: "normal",
@@ -1009,6 +1052,31 @@ const usePresentationStore = create((set, get) => {
               return {
                 ...rest,
                 content: convertTextToSlate(text),
+              };
+            }
+            if (layer.type === "table" && layer.cells) {
+              return {
+                ...layer,
+                cells: layer.cells.map(row =>
+                  row.map(cell => {
+                    if (typeof cell === 'string') {
+                      return {
+                        content: convertTextToSlate(cell),
+                        fontFamily: "Arial",
+                        fontSize: 14,
+                        color: "#000000",
+                        textAlign: "center",
+                      };
+                    }
+                    if (cell && typeof cell === 'object' && !cell.content) {
+                      return {
+                        ...cell,
+                        content: createInitialValue()
+                      };
+                    }
+                    return cell;
+                  })
+                )
               };
             }
             return layer;

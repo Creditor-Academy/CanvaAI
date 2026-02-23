@@ -1,5 +1,5 @@
 /* ===============================
-   Properties Panel – Athena UI
+   Properties Panel – Canva Style
 ================================ */
 
 .properties-panel {
@@ -9,12 +9,10 @@
   width: 300px;
   max-height: calc(100vh - 140px);
   flex-shrink: 0;
-  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.55);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition:
     width 0.25s ease,
     transform 0.25s ease,
@@ -50,19 +48,21 @@
   transform: translateY(-50%);
   width: 24px;
   height: 40px;
-  background: #ead202;
-  border: 1px solid rgba(15, 23, 42, 0.6);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   cursor: pointer;
   font-size: 18px;
   font-weight: 700;
-  color: #e5e7eb;
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.35);
+  color: #64748b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
 }
 
 .properties-collapse-btn:hover {
+  background: #f1f5f9;
   transform: translateY(0) scale(1.05);
+  border-color: #cbd5e1;
 }
 
 /* Section headers */
@@ -101,12 +101,12 @@
 
 /* Floating section card */
 .panel-section {
-  background: rgba(248, 250, 252, 0.94);
-  border-radius: 12px;
+  background: #ffffff;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
   padding: 10px 10px 12px;
   margin-bottom: 14px;
-  box-shadow: 0 14px 30px rgba(148, 163, 184, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .panel-section-header {
@@ -213,11 +213,12 @@
 
 /* Primary action */
 .properties-panel .primary-btn {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: #1d4ed8;
   color: white;
 }
 
 .properties-panel .primary-btn:hover {
-  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4);
+  background: #1e40af;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
   transform: translateY(-1px);
 }

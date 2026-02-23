@@ -35,6 +35,7 @@ const TextLayer = ({ layer, isEditing }) => {
     fontFamily: layer.fontFamily,
     fontSize: `${layer.fontSize}px`,
     textAlign: layer.textAlign,
+    color: layer.color || "#ffffff",
   };
 
   if (isEditing) {

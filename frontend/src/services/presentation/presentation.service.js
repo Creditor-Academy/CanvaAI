@@ -161,8 +161,12 @@ export const getPresentationById = async (pptId) => {
     return res.data;
 };
 
-export const deletePresentation = async (id) => {
-    const res = await axios.delete(`${API_URL}/delete/${id}`, getAuthHeaders());
+export const deletePresentation = async (id, userId) => {
+    const folderPath = `presentation/${userId}/${id}/`;
+    const res = await axios.delete(`${API_URL}/delete/${id}`, {
+        ...getAuthHeaders(),
+        data: { folderPath }
+    });
     return res.data;
 };
 

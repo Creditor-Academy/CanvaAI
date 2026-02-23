@@ -1,5 +1,5 @@
 /* =========================
-   Slides Panel — Athena Floating UI
+   Slides Panel — Canva Style
 ========================= */
 
 .slides-panel {
@@ -13,16 +13,13 @@
   display: flex;
   flex-direction: column;
 
-  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #ffffff;
 
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 
   box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.12),
-    0 4px 12px rgba(15, 23, 42, 0.08);
+    0 4px 12px rgba(0, 0, 0, 0.1);
 
   padding: 14px 12px;
 
@@ -39,8 +36,7 @@
 /* Hover elevation */
 .slides-panel:hover {
   box-shadow:
-    0 18px 42px rgba(15, 23, 42, 0.18),
-    0 6px 16px rgba(15, 23, 42, 0.12);
+    0 8px 24px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
@@ -72,9 +68,9 @@
   width: 28px;
   height: 56px;
 
-  background: #ead202;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
 
   display: flex;
   align-items: center;
@@ -83,18 +79,19 @@
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  color: #334155;
+  color: #64748b;
 
   box-shadow:
-    0 6px 18px rgba(15, 23, 42, 0.15);
+    0 2px 6px rgba(0, 0, 0, 0.1);
 
   transition: all 0.2s ease;
   z-index: 50;
 }
 
 .collapse-btn:hover {
-  background: #f8fafc;
+  background: #f1f5f9;
   transform: translateY(-50%) scale(1.05);
+  border-color: #cbd5e1;
 }
 
 /* =========================
@@ -184,7 +181,7 @@
 }
 
 .slide-row:hover {
-  background: rgba(241, 245, 249, 0.8);
+  background: #f8fafc;
 }
 
 /* Slide Number */
@@ -211,7 +208,7 @@
   height: 90px;
 
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
 
   overflow: hidden;
@@ -222,13 +219,13 @@
 
 .thumbnail:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* Active slide */
 .thumbnail.active {
   border: 2px solid #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 /* =========================
@@ -272,22 +269,24 @@
 
 /* Duplicate */
 .duplicate-btn {
-  background: #2563eb;
-  color: #ffffff;
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .duplicate-btn:hover {
+  background: #cbd5e1;
   transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Delete */
 .delete-btn {
-  background: #fbbf24;
-  color: #000000;
+  background: #fecaca;
+  color: #dc2626;
 }
 
 .delete-btn:hover {
+  background: #fca5a5;
   transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(251, 191, 36, 0.45);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

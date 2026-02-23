@@ -98,7 +98,7 @@ const CanvasShell = () => {
       const mouseXRatio = (e.clientX - slideRect.left - offset.x) / totalScale;
       const mouseYRatio = (e.clientY - slideRect.top - offset.y) / totalScale;
 
-      const layer = activeSlide.layers.find(l => l.id === draggingId);
+      const layer = activeSlide.layers?.find(l => l.id === draggingId);
       if (!layer) return;
 
       let newX = mouseXRatio;
@@ -131,7 +131,7 @@ const CanvasShell = () => {
       snapY(SLIDE_HEIGHT / 2 - layer.height / 2, SLIDE_HEIGHT / 2);
 
       // 2. Snap to other layers
-      activeSlide.layers.forEach(other => {
+      activeSlide.layers?.forEach(other => {
         if (other.id === draggingId) return;
 
         // X alignments
@@ -165,7 +165,7 @@ const CanvasShell = () => {
 
     if (rotatingId) {
       const scale = slideRect.width / SLIDE_WIDTH;
-      const layer = activeSlide.layers.find((l) => l.id === rotatingId);
+      const layer = activeSlide.layers?.find((l) => l.id === rotatingId);
       if (layer) {
         // Calculate center of layer in SCREEN pixels
         const layerCenterX = slideRect.left + (layer.x + layer.width / 2) * scale;
@@ -221,7 +221,7 @@ const CanvasShell = () => {
             }
           }}
         >
-          {activeSlide.layers.map((layer) => {
+          {activeSlide.layers?.map((layer) => {
             const selected = selectedLayerId === layer.id;
 
             if (layer.type === "shape") {
