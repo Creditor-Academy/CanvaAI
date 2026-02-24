@@ -110,52 +110,7 @@ const EditingToolbar = ({
     const toolGroup = "flex items-center gap-1 bg-gray-50/80 p-1 rounded-lg border border-gray-100";
     const verticalDivider = <div className="w-px h-5 bg-gray-200 mx-2" />;
 
-    const handleSaveButton = () => {
-        try {
-            console.log('Debug: Checking if props are available');
-            console.log('Layers:', layers);
-            console.log('CanvasSize:', canvasSize);
-            console.log('Zoom:', zoom);
-            console.log('Pan:', pan);
 
-            // Check if required props are available
-            if (!layers || !canvasSize) {
-                console.error('Missing required props for save functionality');
-                return;
-            }
-
-            // Format layers to ensure they have all required properties
-            const formattedLayers = layers.map(layer => {
-                if (layer.type === 'text') {
-                    return {
-                        ...layer,
-                        textValue: layer.text || '',
-                        placeholder: layer.placeholder || layer.text || ''
-                    };
-                }
-                return layer;
-            });
-
-            const designData = {
-                id: `new_${Date.now()}`,
-                title: "Untitled Design",
-                design: {
-                    layers: formattedLayers,
-                    canvasSize: canvasSize || { width: 800, height: 600 },
-                    zoom: zoom || 80,
-                    pan: pan || { x: 0, y: 0 },
-                    canvasBgColor: canvasBgColor || '#82c787ff',
-                    canvasBgImage: canvasBgImage || null
-                },
-                savedAt: new Date().toISOString(),
-                savedMethod: "localStorage"
-            };
-            console.log('Saving design data...');
-            console.log(JSON.stringify(designData, null, 2));
-        } catch (error) {
-            console.error('Error in save functionality:', error);
-        }
-    };
 
     return (
         <div className="bg-white border-b border-gray-200 w-full sticky top-0 z-[100] flex flex-col antialiased">
@@ -363,7 +318,7 @@ const EditingToolbar = ({
                         {/* Saving Status */}
                         <button
                             className="flex items-center cursor-pointer gap-2 text-sm mr-2"
-                            onClick={handleSaveButton}
+                            onClick={onSave}
                         >
                             <FiSave className="animate-pulse text-gray-400" />
                             <span>Save</span>

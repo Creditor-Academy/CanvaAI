@@ -13,6 +13,7 @@ import CanvasArea from './canvas/CanvasArea';
 import LeftCanvasSidebar from './components/LeftCanvasSidebar';
 
 // Import hooks
+import { useAuth } from '../../contexts/AuthContext';
 import { useHistory } from './hooks/useHistory';
 import { useCanvasTransforms } from './hooks/useCanvasTransforms';
 import { useLayerActions } from './hooks/useLayerActions';
@@ -38,10 +39,12 @@ import {
   SCROLLER_MARGIN
 } from './state/initialState';
 import { GRADIENTS } from './components/BackgroundColor';
+import { saveImage } from '@/services/imageEditor/imageApi';
 
 const CanvaEditor = () => {
   const { id: projectId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Core state
   const [selectedTool, setSelectedTool] = useState('select');
@@ -241,7 +244,12 @@ const CanvaEditor = () => {
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
   }, [drawingSettings.isDrawing, finishDrawing]);
+  
+  useEffect(() => {
+    console.log("Logged in user:", user);
+  }, [user]);
 
+  
   const { handleAddElement } = useElementCreation(
     layers,
     setLayers,
@@ -253,7 +261,7 @@ const CanvaEditor = () => {
   );
 
   // Load project data
-  useProjectLoader(setLayers, setCanvasSize, setZoom, setPan);
+  useProjectLoader(setLayers, setCanvasSize, setZoom, setPan, setCanvasBgColor, setCanvasBgImage);
 
   // Add default heading when page opens and there are no layers
   const hasInitializedRef = useRef(false);
@@ -463,36 +471,54 @@ const CanvaEditor = () => {
 
   //Handle save canva design (new + existing)
   const handleSave = async () => {
-    const design = { layers, canvasSize, zoom, pan };
+    if (!user) {
+      alert("Please login to save your design");
+      return;
+    }
 
     try {
+      const designData = {
+        layers: layers,
+        canvasSize,
+        canvasBgColor,
+        canvasBgImage,
+        zoom,
+        pan
+      };
+
       if (projectId) {
-        await api.updateProjectDesign(projectId, design);
-        alert('Design saved successfully!');
-        resetHistory(layers);
-        setHasUnsavedChanges(false);
+        // If we have a projectId, use the main API to update the project design
+        await api.updateProjectDesign(projectId, designData);
+        alert("Design updated successfully!");
       } else {
-        const newProjectData = {
+        // For new designs, use the saveImage service
+        const payload = {
+          userId: user._id || user.id,
           title: "Untitled Design",
-          desc: "Created in Canva Clone",
-          icon: "🎨",
-          category: "General",
-          status: "Active",
-          design: design,
+          isPublic: false,
+          data: {
+            layer: layers
+          }
         };
 
-        const newProject = await api.createProject(newProjectData);
+        const res = await saveImage(payload);
+        console.log("Saved response:", res);
 
-        if (newProject && newProject._id) {
-          alert('Project created successfully!');
-          resetHistory(layers);
-          setHasUnsavedChanges(false);
-          navigate(`/canva-clone/${newProject._id}`, { replace: true });
+        alert("Design saved successfully!");
+
+        // If it's a new save and we got an ID back, navigate to the project URL
+        if (res && (res.id || res._id)) {
+          navigate(`/canva-clone/${res.id || res._id}`);
         }
       }
+
+      resetHistory(layers);
+      setHasUnsavedChanges(false);
+
     } catch (error) {
-      console.error('Failed to save design:', error);
-      alert('Error saving design. Please try again.');
+      console.error("Failed to save design:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Error saving design. Please try again.";
+      alert(errorMessage);
     }
   };
 
@@ -1310,8 +1336,6 @@ const CanvaEditor = () => {
     }, 50);
   };
 
-
-
   // Fit to screen wrapper
   const handleFitToScreenWrapper = useCallback(() => {
     handleFitToScreen(canvasAreaRef, canvasSize);
@@ -1727,20 +1751,7 @@ const CanvaEditor = () => {
         onDownload={handleDownloadExport}
         onSaveWorksheet={handleSaveWorksheetToLocation}
       />
-      {/* Mobile Right Sidebar Toggle Button */}
-      {/* {layers.length > 0 && (
-        <button
-          onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-          className="lg:hidden fixed top-20 right-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
-          aria-label="Toggle right sidebar"
-        >
-          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        </button>
-      )} */}
 
-      {/* Mobile Right Sidebar Overlay */}
       {isRightSidebarOpen && layers.length > 0 && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[15]"

@@ -9,7 +9,9 @@ export const useProjectLoader = (
   setLayers,
   setCanvasSize,
   setZoom,
-  setPan
+  setPan,
+  setCanvasBgColor,
+  setCanvasBgImage
 ) => {
   const { id: projectId } = useParams();
 
@@ -22,6 +24,8 @@ export const useProjectLoader = (
             setCanvasSize(project.design.canvasSize || { width: 800, height: 600 });
             setZoom(project.design.zoom || 100);
             setPan(project.design.pan || { x: 0, y: 0 });
+            if (project.design.canvasBgColor) setCanvasBgColor(project.design.canvasBgColor);
+            if (project.design.canvasBgImage) setCanvasBgImage(project.design.canvasBgImage);
           }
         })
         .catch(error => {
