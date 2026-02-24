@@ -549,7 +549,7 @@ const styles = {
   canvasWrapper: {
     flex: 1,
     background: "#f3f4f6", // Subtle grey, as requested
-    padding: "69px 48px",  // Increased top padding to move content down
+    padding: "79px 48px",  // Increased top padding to move content down
     overflow: "auto",      // Handle scrolling if needed
     display: "flex",       // To allow centering the editor-center
     flexDirection: "column",

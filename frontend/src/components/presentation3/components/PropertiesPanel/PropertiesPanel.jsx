@@ -3,6 +3,7 @@ import usePresentationStore from "../../store/usePresentationStore";
 import { debounce } from "lodash";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
+import { toggleBlock, isBlockActive } from "../../editors/slate/slateBlocks";
 import "./properties-panel.css";
 
 const ColorPicker = ({ value, onChange, onHistorySave }) => {
@@ -170,6 +171,8 @@ const PropertiesPanel = () => {
     alignLayer,
     addTableRow,
     addTableColumn,
+    removeTableRow,
+    removeTableColumn,
     saveToHistory,
     updateLayerStyle,
     applyGlobalTextStyle,
@@ -178,6 +181,7 @@ const PropertiesPanel = () => {
     selectionMarks,
     editingCell, // Add editingCell
     updateTableCell, // Add updateTableCell
+    activeEditor,
     presentationId,
   } = usePresentationStore();
 
@@ -469,18 +473,16 @@ const PropertiesPanel = () => {
                 <span>Table Style</span>
               </div>
               <div className="accordion-content">
-                <div className="property-row">
-                  <label>Border Color</label>
-                  <input
-                    type="color"
-                    value={selectedLayer.borderColor || "#e5e7eb"}
-                    onChange={(e) =>
-                      updateLayerStyle(selectedLayer.id, {
-                        borderColor: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+                <PaletteColorControl
+                  label="Border Color"
+                  value={selectedLayer.borderColor || "#e5e7eb"}
+                  onHistorySave={saveToHistory}
+                  onColorChange={(color) =>
+                    updateLayerStyle(selectedLayer.id, {
+                      borderColor: color,
+                    })
+                  }
+                />
                 <div className="property-row">
                   <label>Border Width ({selectedLayer.borderWidth || 1}px)</label>
                   <input
@@ -495,6 +497,42 @@ const PropertiesPanel = () => {
                     }
                   />
                 </div>
+              </div>
+            </div>
+
+            <div style={styles.control}>
+              <label style={styles.label}>Table Structure</label>
+              <div style={styles.row}>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  onClick={() => addTableRow(selectedLayer.id)}
+                >
+                  + Row
+                </button>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  onClick={() => addTableColumn(selectedLayer.id)}
+                >
+                  + Col
+                </button>
+              </div>
+              <div style={{ ...styles.row, marginTop: "8px" }}>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  disabled={selectedLayer.rows <= 1}
+                  onClick={() => removeTableRow(selectedLayer.id)}
+                  title={selectedLayer.rows <= 1 ? "Cannot remove last row" : "Remove Row"}
+                >
+                  - Row
+                </button>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  disabled={selectedLayer.cols <= 1}
+                  onClick={() => removeTableColumn(selectedLayer.id)}
+                  title={selectedLayer.cols <= 1 ? "Cannot remove last column" : "Remove Column"}
+                >
+                  - Col
+                </button>
               </div>
             </div>
           </>
@@ -556,7 +594,6 @@ const PropertiesPanel = () => {
                   const val = Number(e.target.value);
                   if (editingLayerId) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
-                    updateTextLayer(selectedLayer.id, { fontSize: val }, false);
                   } else if (editingCell) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
                     // Also update cell prop directly for container style
@@ -584,7 +621,6 @@ const PropertiesPanel = () => {
                       detail: { format: "color", value: color },
                     })
                   );
-                  updateTextLayer(selectedLayer.id, { color }, false);
                 } else if (editingCell) {
                   window.dispatchEvent(
                     new CustomEvent("slate-apply-mark", {
@@ -610,7 +646,6 @@ const PropertiesPanel = () => {
                   const val = e.target.value;
                   if (editingLayerId) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
-                    updateTextLayer(selectedLayer.id, { fontFamily: val }, false);
                   } else if (editingCell) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
                     updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontFamily: val });
@@ -653,15 +688,13 @@ const PropertiesPanel = () => {
             )}
 
 
-            {/* Bold / Italic / Underline */}
+            {/* Bold / Italic / Underline / Lists */}
             <div style={styles.control}>
               <label style={styles.label}>Style</label>
               <div style={styles.row}>
                 <button
                   onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
-                    } else if (editingCell) {
+                    if (editingLayerId || editingCell) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
                     } else {
                       const newVal = selectedLayer.fontWeight === "bold" ? "normal" : "bold";
@@ -686,9 +719,7 @@ const PropertiesPanel = () => {
 
                 <button
                   onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
-                    } else if (editingCell) {
+                    if (editingLayerId || editingCell) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
                     } else {
                       const newVal = selectedLayer.fontStyle === "italic" ? "normal" : "italic";
@@ -713,9 +744,7 @@ const PropertiesPanel = () => {
 
                 <button
                   onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
-                    } else if (editingCell) {
+                    if (editingLayerId || editingCell) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
                     } else {
                       const newVal = selectedLayer.textDecoration === "underline" ? "none" : "underline";
@@ -736,6 +765,40 @@ const PropertiesPanel = () => {
                   }}
                 >
                   U
+                </button>
+
+                {/* Bullet List */}
+                <button
+                  onClick={() => {
+                    if (activeEditor) toggleBlock(activeEditor, "bulleted-list");
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{
+                    ...styles.btn,
+                    background: (activeEditor && isBlockActive(activeEditor, "bulleted-list")) ? "#2563eb" : "#f3f4f6",
+                    color: (activeEditor && isBlockActive(activeEditor, "bulleted-list")) ? "#fff" : "#000",
+                  }}
+                  title="Bullet List"
+                >
+                  •
+                </button>
+
+                {/* Numbered List */}
+                <button
+                  onClick={() => {
+                    if (activeEditor) toggleBlock(activeEditor, "numbered-list");
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{
+                    ...styles.btn,
+                    background: (activeEditor && isBlockActive(activeEditor, "numbered-list")) ? "#2563eb" : "#f3f4f6",
+                    color: (activeEditor && isBlockActive(activeEditor, "numbered-list")) ? "#fff" : "#000",
+                    fontWeight: "600",
+                    fontSize: "10px"
+                  }}
+                  title="Numbered List"
+                >
+                  1.
                 </button>
               </div>
             </div>
@@ -782,66 +845,6 @@ const PropertiesPanel = () => {
         {/* ========================= */}
         {/* TABLE PROPERTIES */}
         {/* ========================= */}
-        {selectedLayer?.type === "table" && (
-          <>
-            <h3 style={styles.heading}>Table</h3>
-
-            {/* Font Size - REMOVED, now covered in Text section */}
-            {/* <div style={styles.control}>
-               ... 
-            </div> */}
-
-            {/* Border Color */}
-            <div style={styles.control}>
-              <label style={styles.label}>Border Color</label>
-              <ColorPicker
-                value={selectedLayer.borderColor || "#d1d5db"}
-                onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateTextLayer(selectedLayer.id, {
-                    borderColor: val,
-                  }, saveHistory)
-                }
-              />
-            </div>
-
-            {/* Text Color - REMOVED, covered in Text section */}
-
-            {/* Alignment - REMOVED, covered in Text section */}
-
-            {/* Style Controls - REMOVED, individual cell styling via Slate */}\n
-
-            {/* Link support for Table (Simplified) */}
-            <div style={styles.control}>
-              <label style={styles.label}>Table Link (Future: per cell)</label>
-              <input
-                type="text"
-                placeholder="https://example.com"
-                value={selectedLayer.link || ""}
-                onChange={(e) => updateTextLayer(selectedLayer.id, { link: e.target.value })}
-              />
-            </div>
-
-            {/* Add Row / Column Buttons */}
-            <div style={styles.control}>
-              <label style={styles.label}>Table Structure</label>
-              <div style={styles.row}>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => addTableRow(selectedLayer.id)}
-                >
-                  + Row
-                </button>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => addTableColumn(selectedLayer.id)}
-                >
-                  + Column
-                </button>
-              </div>
-            </div>
-          </>
-        )}
 
         {/* ========================= */}
         {/* IMAGE PROPERTIES */}

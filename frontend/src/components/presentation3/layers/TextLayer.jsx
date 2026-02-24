@@ -2,16 +2,23 @@ import React from "react";
 import usePresentationStore from "../store/usePresentationStore";
 import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
 import SlateTextEditor from "../editors/slate/SlateTextEditor";
+import { debounce } from "lodash";
 
 const TextLayer = ({ layer, isEditing }) => {
   const { updateTextLayer } = usePresentationStore();
 
+  const debouncedUpdate = React.useMemo(
+    () =>
+      debounce((id, updates) => {
+        updateTextLayer(id, updates, false);
+      }, 500),
+    [updateTextLayer]
+  );
+
   const handleSlateChange = (newValue) => {
-    updateTextLayer(
-      layer.id,
-      { content: newValue, hasBeenEdited: true },
-      false
-    );
+    // Immediate local state update is handled by Slate
+    // but we persist to store with debounce
+    debouncedUpdate(layer.id, { content: newValue, hasBeenEdited: true });
   };
 
   const isPlaceholderVisible =

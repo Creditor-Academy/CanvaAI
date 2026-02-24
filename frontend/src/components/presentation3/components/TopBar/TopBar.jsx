@@ -102,6 +102,16 @@ const TopBar = ({ onPresent, onAgentClick }) => {
 
         {/* Left: Project name */}
         <div className="topbar-left">
+          {/* Brand Icon (Google Slides Style) */}
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" className="topbar-brand-icon">
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" stroke="#CCCCCC" strokeWidth="0.816">
+              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+            </g>
+            <g id="SVGRepo_iconCarrier">
+              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+            </g>
+          </svg>
           <input
             type="text"
             value={title || ""}
@@ -191,7 +201,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                 </div>
               )}
             </div>
-
+            {/* 
             <div className="dropdown" ref={themeRef}>
               <button
                 className="nav-btn"
@@ -209,7 +219,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
               )}
             </div>
 
-            <button className="nav-btn">Share</button>
+            <button className="nav-btn">Share</button> */}
             <button className="nav-btn" onClick={onAgentClick}>Agent</button>
           </div>
 

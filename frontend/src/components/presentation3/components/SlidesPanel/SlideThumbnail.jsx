@@ -3,8 +3,8 @@ import React from "react";
 
 import { SlateStaticRenderer } from "../../editors/slate/slateRenderer";
 
-const THUMB_WIDTH = 160;
-const THUMB_HEIGHT = 90;
+const THUMB_WIDTH = 100;
+const THUMB_HEIGHT = 56.25;
 const SCALE = THUMB_WIDTH / 960;
 
 const SlideThumbnail = ({ slide, isActive, onClick }) => {
