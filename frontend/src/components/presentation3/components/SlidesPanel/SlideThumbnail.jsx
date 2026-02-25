@@ -2,6 +2,7 @@ import React from "react";
 
 
 import { SlateStaticRenderer } from "../../editors/slate/slateRenderer";
+import ShapeRenderer from "../shapes/ShapeRenderer";
 
 const THUMB_WIDTH = 100;
 const THUMB_HEIGHT = 56.25;
@@ -83,10 +84,6 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
           }
 
           if (layer.type === "shape") {
-            let borderRadius = "0px";
-            if (layer.shapeType === "roundRect") borderRadius = "12px";
-            if (layer.shapeType === "circle") borderRadius = "50%";
-
             return (
               <div
                 key={layer.id}
@@ -95,22 +92,13 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   left: layer.x,
                   top: layer.y,
                   width: layer.width,
-                  height:
-                    layer.shapeType === "line" ||
-                      layer.shapeType === "arrow"
-                      ? Math.max(2, layer.strokeWidth || 2)
-                      : layer.height,
-                  background: layer.fill,
-                  borderRadius,
-                  border:
-                    layer.shapeType === "line" ||
-                      layer.shapeType === "arrow"
-                      ? `2px solid ${layer.stroke}`
-                      : "none",
+                  height: layer.height,
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
-              />
+              >
+                <ShapeRenderer layer={layer} />
+              </div>
             );
           }
 

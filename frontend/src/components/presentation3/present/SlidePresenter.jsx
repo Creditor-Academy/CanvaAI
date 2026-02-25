@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
+import ShapeRenderer from "../components/shapes/ShapeRenderer";
 
 const SlidePresenter = ({ slide, onClose }) => {
     const [scale, setScale] = useState(1);
@@ -119,25 +120,13 @@ const SlidePresenter = ({ slide, onClose }) => {
                     }
 
                     if (layer.type === "shape") {
-                        let borderRadius = "0px";
-                        if (layer.shapeType === "roundRect") borderRadius = "12px";
-                        if (layer.shapeType === "circle") borderRadius = "50%";
-
                         return (
                             <div
                                 key={layer.id}
-                                style={{
-                                    ...commonStyle,
-                                    height: (layer.shapeType === "line" || layer.shapeType === "arrow")
-                                        ? Math.max(2, layer.strokeWidth || 2)
-                                        : layer.height,
-                                    background: layer.fill,
-                                    borderRadius,
-                                    border: (layer.shapeType === "line" || layer.shapeType === "arrow")
-                                        ? `2px solid ${layer.stroke}`
-                                        : "none",
-                                }}
-                            />
+                                style={commonStyle}
+                            >
+                                <ShapeRenderer layer={layer} />
+                            </div>
                         );
                     }
 

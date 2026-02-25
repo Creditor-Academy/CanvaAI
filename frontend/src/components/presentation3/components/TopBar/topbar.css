@@ -252,6 +252,28 @@
   }
 }
 
+/* Shapes Dropdown Grid */
+.dropdown-menu.shapes-dropdown {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  width: 280px;
+  padding: 8px;
+}
+
+.dropdown-menu.shapes-dropdown button {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  grid-column: span 2;
+  margin: 4px 0;
+}
+
+/* Base style for existing dropdown results */
 .dropdown-menu button {
   display: flex;
   align-items: center;

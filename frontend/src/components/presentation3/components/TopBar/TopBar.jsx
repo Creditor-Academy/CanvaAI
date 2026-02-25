@@ -18,7 +18,13 @@ import {
   Link,
   Trash2,
   Save,
-  Download
+  Download,
+  Triangle,
+  Diamond,
+  ArrowRight,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
@@ -290,17 +296,47 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             </button>
 
             {showShapes && (
-              <div className="dropdown-menu">
+              <div className="dropdown-menu shapes-dropdown">
                 <button onClick={() => addShapeLayer("rect")}>
                   <Square size={16} /> Rectangle
+                </button>
+
+                <button onClick={() => addShapeLayer("roundedRect")}>
+                  <Square size={16} style={{ borderRadius: '4px' }} /> Rounded Rect
                 </button>
 
                 <button onClick={() => addShapeLayer("circle")}>
                   <Circle size={16} /> Circle
                 </button>
 
+                <button onClick={() => addShapeLayer("triangle")}>
+                  <Triangle size={16} /> Triangle
+                </button>
+
+                <button onClick={() => addShapeLayer("diamond")}>
+                  <Diamond size={16} /> Diamond
+                </button>
+
                 <button onClick={() => addShapeLayer("line")}>
                   <Minus size={16} /> Line
+                </button>
+
+                <div className="dropdown-divider" />
+
+                <button onClick={() => addShapeLayer("arrowRight")}>
+                  <ArrowRight size={16} /> Right Arrow
+                </button>
+
+                <button onClick={() => addShapeLayer("arrowLeft")}>
+                  <ArrowLeft size={16} /> Left Arrow
+                </button>
+
+                <button onClick={() => addShapeLayer("arrowUp")}>
+                  <ArrowUp size={16} /> Up Arrow
+                </button>
+
+                <button onClick={() => addShapeLayer("arrowDown")}>
+                  <ArrowDown size={16} /> Down Arrow
                 </button>
               </div>
             )}
