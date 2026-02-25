@@ -3,96 +3,96 @@ import './Settingintro.css';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { getAvatarSource, getInitialsColors, generateDiceBearAvatar, DICEBEAR_STYLES } from './avatarUtils';
+// import { getAvatarSource, getInitialsColors, generateDiceBearAvatar, DICEBEAR_STYLES } from './avatarUtils';
 
-const AVATAR_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'initials', label: 'Initials' },
-  { key: 'emoji', label: 'Emoji' },
-];
+// const AVATAR_FILTERS = [
+//   { key: 'all', label: 'All' },
+//   { key: 'initials', label: 'Initials' },
+//   { key: 'emoji', label: 'Emoji' },
+// ];
 
 // Generate DiceBear avatars with curated seeds for more predictable variety
-const generateDiceBearCatalog = () => {
-  const styles = ['adventurer', 'avataaars', 'bottts', 'fun', 'micah', 'personas', 'lorelei'];
-  
-  // Seeds that tend to produce more masculine appearances
-  const maleSeeds = [
-    'john', 'mike', 'david', 'james', 'robert', 'william', 'richard', 'joseph', 'thomas', 'charles',
-    'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew', 'joshua', 'kenneth',
-    'kevin', 'brian', 'george', 'timothy', 'ronald', 'jason', 'edward', 'jeffrey', 'ryan', 'jacob',
-    'gary', 'nicholas', 'eric', 'jonathan', 'stephen', 'larry', 'justin', 'scott', 'brandon', 'benjamin',
-    'samuel', 'frank', 'gregory', 'raymond', 'alexander', 'patrick', 'jack', 'dennis', 'jerry', 'tyler',
-    'aaron', 'jose', 'henry', 'adam', 'douglas', 'nathan', 'zachary', 'peter', 'kyle', 'noah',
-    'alan', 'ethan', 'wayne', 'jordan', 'harold', 'dylan', 'sean', 'billy', 'jesse', 'ralph'
-  ];
-  
-  // Seeds that tend to produce more feminine appearances
-  const femaleSeeds = [
-    'emily', 'sarah', 'jessica', 'jennifer', 'amanda', 'lisa', 'michelle', 'melissa', 'ashley', 'nicole',
-    'stephanie', 'elizabeth', 'heather', 'kimberly', 'amy', 'angela', 'rebecca', 'samantha', 'megan', 'rachel',
-    'christina', 'kelly', 'lauren', 'maria', 'katherine', 'andrea', 'julie', 'sarah', 'sara', 'karen',
-    'nancy', 'betty', 'helen', 'sandra', 'donna', 'carol', 'ruth', 'sharon', 'michelle', 'laura',
-    'emily', 'kimberly', 'deborah', 'dorothy', 'lisa', 'nancy', 'karen', 'betty', 'helen', 'sandra',
-    'donna', 'carol', 'ruth', 'sharon', 'michelle', 'laura', 'sarah', 'kimberly', 'deborah', 'dorothy',
-    'anna', 'sophia', 'olivia', 'isabella', 'emma', 'charlotte', 'amelia', 'mia', 'harper', 'evelyn'
-  ];
-  
-  const catalog = [];
+// const generateDiceBearCatalog = () => {
+//   const styles = ['adventurer', 'avataaars', 'bottts', 'fun', 'micah', 'personas', 'lorelei'];
 
-  // Generate male avatars - use first 70 seeds
-  styles.forEach((style, styleIndex) => {
-    for (let i = 0; i < 10; i++) {
-      const seedIndex = (styleIndex * 10) + i;
-      const seed = maleSeeds[seedIndex % maleSeeds.length];
-      catalog.push({
-        id: `dicebear-${style}-male-${i}`,
-        label: `${style.charAt(0).toUpperCase() + style.slice(1)} ${i + 1}`,
-        value: `male-${seed}-${styleIndex}-${i}`,
-        type: 'dicebear',
-        style: style,
-        seed: seed,
-        isDiceBear: true,
-      });
-    }
-  });
+// Seeds that tend to produce more masculine appearances
+// const maleSeeds = [
+//   'john', 'mike', 'david', 'james', 'robert', 'william', 'richard', 'joseph', 'thomas', 'charles',
+//   'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew', 'joshua', 'kenneth',
+//   'kevin', 'brian', 'george', 'timothy', 'ronald', 'jason', 'edward', 'jeffrey', 'ryan', 'jacob',
+//   'gary', 'nicholas', 'eric', 'jonathan', 'stephen', 'larry', 'justin', 'scott', 'brandon', 'benjamin',
+//   'samuel', 'frank', 'gregory', 'raymond', 'alexander', 'patrick', 'jack', 'dennis', 'jerry', 'tyler',
+//   'aaron', 'jose', 'henry', 'adam', 'douglas', 'nathan', 'zachary', 'peter', 'kyle', 'noah',
+//   'alan', 'ethan', 'wayne', 'jordan', 'harold', 'dylan', 'sean', 'billy', 'jesse', 'ralph'
+// ];
 
-  // Generate female avatars - use first 70 seeds
-  styles.forEach((style, styleIndex) => {
-    for (let i = 0; i < 10; i++) {
-      const seedIndex = (styleIndex * 10) + i;
-      const seed = femaleSeeds[seedIndex % femaleSeeds.length];
-      catalog.push({
-        id: `dicebear-${style}-female-${i}`,
-        label: `${style.charAt(0).toUpperCase() + style.slice(1)} ${i + 11}`,
-        value: `female-${seed}-${styleIndex}-${i}`,
-        type: 'dicebear',
-        style: style,
-        seed: seed,
-        isDiceBear: true,
-      });
-    }
-  });
+// Seeds that tend to produce more feminine appearances
+// const femaleSeeds = [
+//   'emily', 'sarah', 'jessica', 'jennifer', 'amanda', 'lisa', 'michelle', 'melissa', 'ashley', 'nicole',
+//   'stephanie', 'elizabeth', 'heather', 'kimberly', 'amy', 'angela', 'rebecca', 'samantha', 'megan', 'rachel',
+//   'christina', 'kelly', 'lauren', 'maria', 'katherine', 'andrea', 'julie', 'sarah', 'sara', 'karen',
+//   'nancy', 'betty', 'helen', 'sandra', 'donna', 'carol', 'ruth', 'sharon', 'michelle', 'laura',
+//   'emily', 'kimberly', 'deborah', 'dorothy', 'lisa', 'nancy', 'karen', 'betty', 'helen', 'sandra',
+//   'donna', 'carol', 'ruth', 'sharon', 'michelle', 'laura', 'sarah', 'kimberly', 'deborah', 'dorothy',
+//   'anna', 'sophia', 'olivia', 'isabella', 'emma', 'charlotte', 'amelia', 'mia', 'harper', 'evelyn'
+// ];
 
-  return catalog;
-};
+// const catalog = [];
 
-const AVATAR_CATALOG = [
-  // DiceBear avatars
-  ...generateDiceBearCatalog(),
+// // Generate male avatars - use first 70 seeds
+// styles.forEach((style, styleIndex) => {
+//   for (let i = 0; i < 10; i++) {
+//     const seedIndex = (styleIndex * 10) + i;
+//     const seed = maleSeeds[seedIndex % maleSeeds.length];
+//     catalog.push({
+//       id: `dicebear-${style}-male-${i}`,
+//       label: `${style.charAt(0).toUpperCase() + style.slice(1)} ${i + 1}`,
+//       value: `male-${seed}-${styleIndex}-${i}`,
+//       type: 'dicebear',
+//       style: style,
+//       seed: seed,
+//       isDiceBear: true,
+//     });
+//   }
+// });
 
-  // Emoji-style avatars
-  { id: 'emoji-1', label: 'Rocket', value: '🚀', type: 'emoji' },
-  { id: 'emoji-2', label: 'Robot', value: '🤖', type: 'emoji' },
-  { id: 'emoji-3', label: 'Spark', value: '✨', type: 'emoji' },
-  { id: 'emoji-4', label: 'Star', value: '⭐', type: 'emoji' },
-  { id: 'emoji-5', label: 'Fire', value: '🔥', type: 'emoji' },
+// Generate female avatars - use first 70 seeds
+//   styles.forEach((style, styleIndex) => {
+//     for (let i = 0; i < 10; i++) {
+//       const seedIndex = (styleIndex * 10) + i;
+//       const seed = femaleSeeds[seedIndex % femaleSeeds.length];
+//       catalog.push({
+//         id: `dicebear-${style}-female-${i}`,
+//         label: `${style.charAt(0).toUpperCase() + style.slice(1)} ${i + 11}`,
+//         value: `female-${seed}-${styleIndex}-${i}`,
+//         type: 'dicebear',
+//         style: style,
+//         seed: seed,
+//         isDiceBear: true,
+//       });
+//     }
+//   });
 
-  // Initials-based
-  { id: 'init-1', label: 'AT', value: 'AT', type: 'initials' },
-  { id: 'init-2', label: 'PS', value: 'PS', type: 'initials' },
-  { id: 'init-3', label: 'JD', value: 'JD', type: 'initials' },
-  { id: 'init-4', label: 'SM', value: 'SM', type: 'initials' },
-];
+//   return catalog;
+// };
+
+// const AVATAR_CATALOG = [
+//   // DiceBear avatars
+//   ...generateDiceBearCatalog(),
+
+//   // Emoji-style avatars
+//   { id: 'emoji-1', label: 'Rocket', value: '🚀', type: 'emoji' },
+//   { id: 'emoji-2', label: 'Robot', value: '🤖', type: 'emoji' },
+//   { id: 'emoji-3', label: 'Spark', value: '✨', type: 'emoji' },
+//   { id: 'emoji-4', label: 'Star', value: '⭐', type: 'emoji' },
+//   { id: 'emoji-5', label: 'Fire', value: '🔥', type: 'emoji' },
+
+//   // Initials-based
+//   { id: 'init-1', label: 'AT', value: 'AT', type: 'initials' },
+//   { id: 'init-2', label: 'PS', value: 'PS', type: 'initials' },
+//   { id: 'init-3', label: 'JD', value: 'JD', type: 'initials' },
+//   { id: 'init-4', label: 'SM', value: 'SM', type: 'initials' },
+// ];
 
 
 
@@ -103,25 +103,28 @@ const Settingintro = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState('AT');
+  // const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  // const [selectedAvatar, setSelectedAvatar] = useState('AT');
   const [loading, setLoading] = useState(true);
-  const [avatarFilter, setAvatarFilter] = useState('all');
-  const [avatarSearch, setAvatarSearch] = useState('');
-  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
-  
+  // const [avatarFilter, setAvatarFilter] = useState('all');
+  // const [avatarSearch, setAvatarSearch] = useState('');
+  // const [customAvatarUrl, setCustomAvatarUrl] = useState('');
+
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
-    bio: '',
-    website: ''
+    email: ''
   });
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
   });
 
   const tabs = ['Profile'];
@@ -139,6 +142,12 @@ const Settingintro = () => {
       [field]: value
     }));
   };
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
 
   // Fetch user profile on mount
   useEffect(() => {
@@ -149,11 +158,8 @@ const Settingintro = () => {
         setProfileData({
           firstName: data.firstName || '',
           lastName: data.lastName || '',
-          email: data.email || '',
-          bio: data.bio || '',
-          website: data.website || ''
+          email: data.email || ''
         });
-        setSelectedAvatar(data.avatar || 'AT');
       } catch (error) {
         console.error('Error fetching profile:', error);
         // Show user-friendly error message
@@ -171,9 +177,7 @@ const Settingintro = () => {
       setProfileData({
         firstName: updated.firstName || '',
         lastName: updated.lastName || '',
-        email: updated.email || '',
-        bio: updated.bio || '',
-        website: updated.website || ''
+        email: updated.email || ''
       });
       console.log('Profile updated successfully:', updated);
       alert('Profile updated successfully!');
@@ -184,7 +188,6 @@ const Settingintro = () => {
   };
 
   const handleUpdatePassword = async () => {
-    // Validate passwords
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       alert('Please fill in all password fields');
       return;
@@ -201,64 +204,56 @@ const Settingintro = () => {
     }
 
     try {
-      await api.changePassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.confirmPassword
-      });
-      
-      // Clear password fields on success
+      await api.changePassword(passwordData);
+
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-      
+
       alert('Password changed successfully!');
-      console.log('Password updated successfully');
     } catch (error) {
-      console.error('Error updating password:', error);
-      const errorMessage = error.message || 'Failed to update password. Please try again.';
-      alert(errorMessage);
+      alert(error.message || 'Failed to update password');
     }
   };
 
-  const filteredAvatars = useMemo(() => {
-    const normalizedQuery = avatarSearch.trim().toLowerCase();
+  // const filteredAvatars = useMemo(() => {
+  //   const normalizedQuery = avatarSearch.trim().toLowerCase();
 
-    return AVATAR_CATALOG.filter((option) => {
-      const matchesFilter =
-        avatarFilter === 'all'
-          ? true
-          : option.type === avatarFilter;
-      const matchesSearch =
-        !normalizedQuery ||
-        option.label.toLowerCase().includes(normalizedQuery) ||
-        (typeof option.value === 'string' &&
-          option.value.toLowerCase().includes(normalizedQuery)) ||
-        option.type.toLowerCase().includes(normalizedQuery) ||
-        (option.style && option.style.toLowerCase().includes(normalizedQuery));
+  //   return AVATAR_CATALOG.filter((option) => {
+  //     const matchesFilter =
+  //       avatarFilter === 'all'
+  //         ? true
+  //         : option.type === avatarFilter;
+  //     const matchesSearch =
+  //       !normalizedQuery ||
+  //       option.label.toLowerCase().includes(normalizedQuery) ||
+  //       (typeof option.value === 'string' &&
+  //         option.value.toLowerCase().includes(normalizedQuery)) ||
+  //       option.type.toLowerCase().includes(normalizedQuery) ||
+  //       (option.style && option.style.toLowerCase().includes(normalizedQuery));
 
-      return matchesFilter && matchesSearch;
-    });
-  }, [avatarFilter, avatarSearch]);
+  //     return matchesFilter && matchesSearch;
+  //   });
+  // }, [avatarFilter, avatarSearch]);
 
-  const openAvatarModal = () => setIsAvatarModalOpen(true);
-  const closeAvatarModal = () => {
-    setIsAvatarModalOpen(false);
-    setAvatarSearch('');
-    setAvatarFilter('all');
-  };
-  const saveAvatar = async () => {
-    try {
-      await api.updateProfile({ ...profileData, avatar: selectedAvatar });
-      alert('Avatar updated successfully!');
-    } catch (error) {
-      console.error('Error updating avatar:', error);
-      alert('Failed to update avatar. Please try again.');
-    }
-    closeAvatarModal();
-  };
+  // const openAvatarModal = () => setIsAvatarModalOpen(true);
+  // const closeAvatarModal = () => {
+  //   setIsAvatarModalOpen(false);
+  //   setAvatarSearch('');
+  //   setAvatarFilter('all');
+  // };
+  // const saveAvatar = async () => {
+  //   try {
+  //     await api.updateProfile({ ...profileData, avatar: selectedAvatar });
+  //     alert('Avatar updated successfully!');
+  //   } catch (error) {
+  //     console.error('Error updating avatar:', error);
+  //     alert('Failed to update avatar. Please try again.');
+  //   }
+  //   closeAvatarModal();
+  // };
 
   if (loading) {
     return (
@@ -269,113 +264,113 @@ const Settingintro = () => {
   }
 
   // Get the selected avatar option to determine its type
-  const getSelectedAvatarOption = () => {
-    return AVATAR_CATALOG.find(opt => opt.value === selectedAvatar);
-  };
+  // const getSelectedAvatarOption = () => {
+  //   return AVATAR_CATALOG.find(opt => opt.value === selectedAvatar);
+  // };
 
   // Render the main avatar display
-  const renderMainAvatar = () => {
-    // Check if selectedAvatar is a URL (starts with http)
-    if (selectedAvatar && (selectedAvatar.startsWith('http://') || selectedAvatar.startsWith('https://'))) {
-      return (
-        <div className="avatar">
-          <img 
-            src={selectedAvatar} 
-            alt="Avatar" 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
-            onError={(e) => {
-              // Fallback if URL fails
-              e.target.style.display = 'none';
-              const fallback = e.target.parentElement.querySelector('.avatar-fallback');
-              if (fallback) fallback.style.display = 'flex';
-            }}
-          />
-          <div className="avatar-fallback" style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="avatar-initials">??</div>
-          </div>
-        </div>
-      );
-    }
+  // const renderMainAvatar = () => {
+  //   // Check if selectedAvatar is a URL (starts with http)
+  //   if (selectedAvatar && (selectedAvatar.startsWith('http://') || selectedAvatar.startsWith('https://'))) {
+  //     return (
+  //       <div className="avatar">
+  //         <img
+  //           src={selectedAvatar}
+  //           alt="Avatar"
+  //           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
+  //           onError={(e) => {
+  //             // Fallback if URL fails
+  //             e.target.style.display = 'none';
+  //             const fallback = e.target.parentElement.querySelector('.avatar-fallback');
+  //             if (fallback) fallback.style.display = 'flex';
+  //           }}
+  //         />
+  //         <div className="avatar-fallback" style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+  //           <div className="avatar-initials">??</div>
+  //         </div>
+  //       </div>
+  //     );
+  //   }
 
-    const selectedOption = getSelectedAvatarOption();
-    
-    // Handle DiceBear avatars (identified via isDiceBear flag regardless of filter)
-    if (selectedOption?.isDiceBear) {
-      const avatarSrc = generateDiceBearAvatar(
-        selectedOption.seed || selectedAvatar,
-        selectedOption.style || 'adventurer',
-        140
-      );
-      return (
-        <div className="avatar">
-          <img 
-            src={avatarSrc} 
-            alt="Avatar" 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              const fallback = e.target.parentElement.querySelector('.avatar-fallback');
-              if (fallback) fallback.style.display = 'flex';
-            }}
-          />
-          <div className="avatar-fallback" style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="avatar-initials">??</div>
-          </div>
-        </div>
-      );
-    }
+  //   const selectedOption = getSelectedAvatarOption();
 
-    const avatarSrc = getAvatarSource(selectedAvatar, selectedOption?.type, selectedOption?.style);
+  //   // Handle DiceBear avatars (identified via isDiceBear flag regardless of filter)
+  //   if (selectedOption?.isDiceBear) {
+  //     const avatarSrc = generateDiceBearAvatar(
+  //       selectedOption.seed || selectedAvatar,
+  //       selectedOption.style || 'adventurer',
+  //       140
+  //     );
+  //     return (
+  //       <div className="avatar">
+  //         <img
+  //           src={avatarSrc}
+  //           alt="Avatar"
+  //           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
+  //           onError={(e) => {
+  //             e.target.style.display = 'none';
+  //             const fallback = e.target.parentElement.querySelector('.avatar-fallback');
+  //             if (fallback) fallback.style.display = 'flex';
+  //           }}
+  //         />
+  //         <div className="avatar-fallback" style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+  //           <div className="avatar-initials">??</div>
+  //         </div>
+  //       </div>
+  //     );
+  //   }
 
-    if (selectedOption?.type === 'initials') {
-      const colors = getInitialsColors(selectedAvatar);
-      return (
-        <div 
-          className="avatar"
-          style={{
-            background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
-          }}
-        >
-          <div className="avatar-initials">{selectedAvatar}</div>
-        </div>
-      );
-    }
+  //   const avatarSrc = getAvatarSource(selectedAvatar, selectedOption?.type, selectedOption?.style);
 
-    if (selectedOption?.type === 'emoji') {
-      return (
-        <div className="avatar" style={{ fontSize: '64px' }}>
-          {selectedAvatar}
-        </div>
-      );
-    }
+  //   if (selectedOption?.type === 'initials') {
+  //     const colors = getInitialsColors(selectedAvatar);
+  //     return (
+  //       <div
+  //         className="avatar"
+  //         style={{
+  //           background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
+  //         }}
+  //       >
+  //         <div className="avatar-initials">{selectedAvatar}</div>
+  //       </div>
+  //     );
+  //   }
 
-    if (avatarSrc) {
-      return (
-        <div className="avatar">
-          <img 
-            src={avatarSrc} 
-            alt="Avatar" 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              const fallback = e.target.parentElement.querySelector('.avatar-fallback');
-              if (fallback) fallback.style.display = 'flex';
-            }}
-          />
-          <div className="avatar-fallback" style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="avatar-initials">??</div>
-          </div>
-        </div>
-      );
-    }
+  //   if (selectedOption?.type === 'emoji') {
+  //     return (
+  //       <div className="avatar" style={{ fontSize: '64px' }}>
+  //         {selectedAvatar}
+  //       </div>
+  //     );
+  //   }
 
-    // Fallback
-    return (
-      <div className="avatar">
-        <div className="avatar-initials">??</div>
-      </div>
-    );
-  };
+  //   if (avatarSrc) {
+  //     return (
+  //       <div className="avatar">
+  //         <img
+  //           src={avatarSrc}
+  //           alt="Avatar"
+  //           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '20px' }}
+  //           onError={(e) => {
+  //             e.target.style.display = 'none';
+  //             const fallback = e.target.parentElement.querySelector('.avatar-fallback');
+  //             if (fallback) fallback.style.display = 'flex';
+  //           }}
+  //         />
+  //         <div className="avatar-fallback" style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+  //           <div className="avatar-initials">??</div>
+  //         </div>
+  //       </div>
+  //     );
+  //   }
+
+  //   // Fallback
+  //   return (
+  //     <div className="avatar">
+  //       <div className="avatar-initials">??</div>
+  //     </div>
+  //   );
+  // };
 
   const renderProfileTab = () => (
     <div className="profile-tab">
@@ -384,7 +379,7 @@ const Settingintro = () => {
         <p>Update your personal information and profile settings</p>
       </div>
 
-      <div className="avatar-section">
+      {/* <div className="avatar-section">
         <div className="avatar-container">
           {renderMainAvatar()}
 
@@ -393,7 +388,7 @@ const Settingintro = () => {
             <p className="avatar-hint">Choose from our collection or use your own image URL</p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       <div className="form-section">
         <div className="form-row">
@@ -432,7 +427,7 @@ const Settingintro = () => {
           />
         </div>
 
-        <div className="form-group">
+        {/* <div className="form-group">
           <label htmlFor="bio">Bio</label>
           <textarea
             id="bio"
@@ -442,9 +437,9 @@ const Settingintro = () => {
             rows="3"
             placeholder="Tell us about yourself..."
           />
-        </div>
+        </div> */}
 
-        <div className="form-group">
+        {/* <div className="form-group">
           <label htmlFor="website">Website</label>
           <input
             type="url"
@@ -454,13 +449,13 @@ const Settingintro = () => {
             className="form-input"
             placeholder="https://yourwebsite.com"
           />
-        </div>
+        </div> */}
 
         <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
           <button className="save-btn" onClick={handleSaveProfile}>
             Save Changes
           </button>
-          <button 
+          {/* <button
             className="logout-btn"
             onClick={() => {
               logout();
@@ -468,7 +463,126 @@ const Settingintro = () => {
             }}
           >
             Logout
-          </button>
+          </button> */}
+        </div>
+        <div className="settings-section">
+          <div className="section-header">
+            <h2 className="section-title">Change Password</h2>
+            <p className="section-description">
+              Ensure your account stays secure with a strong password
+            </p>
+          </div>
+          <div className="section-content">
+            <div className="password-fields">
+              {/* Current Password */}
+              <div className="input-group">
+                <label htmlFor="current-password" className="input-label">
+                  Current Password
+                </label>
+                <div className="password-input-container">
+                  <input
+                    type={showPasswords.current ? 'text' : 'password'}
+                    id="current-password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => handlePasswordChange('current', e.target.value)}
+                    className="password-input"
+                    placeholder="Enter current password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => togglePasswordVisibility('current')}
+                    aria-label={showPasswords.current ? 'Hide password' : 'Show password'}
+                  >
+                    {showPasswords.currentPassword ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3L21 21M9.9 9.9C9.5 10.3 9.2 10.8 9.2 11.4C9.2 12.7 10.3 13.8 11.6 13.8C12.2 13.8 12.7 13.5 13.1 13.1M15.2 15.2C14.1 16.1 12.6 16.6 11 16.6C7.1 16.6 3.7 13.2 2 8.6C2.8 6.8 3.9 5.3 5.2 4.1L15.2 15.2ZM22 8.6C20.1 12.1 16.2 15.6 11 15.6C10.1 15.6 9.2 15.4 8.4 15.1L22 8.6ZM8.4 8.4L15.6 15.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div className="input-group">
+                <label htmlFor="new-password" className="input-label">
+                  New Password
+                </label>
+                <div className="password-input-container">
+                  <input
+                    type={showPasswords.newPassword ? 'text' : 'password'}
+                    id="new-password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => handlePasswordChange('new', e.target.value)}
+                    className="password-input"
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => togglePasswordVisibility('new')}
+                    aria-label={showPasswords.newPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPasswords.newPassword ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3L21 21M9.9 9.9C9.5 10.3 9.2 10.8 9.2 11.4C9.2 12.7 10.3 13.8 11.6 13.8C12.2 13.8 12.7 13.5 13.1 13.1M15.2 15.2C14.1 16.1 12.6 16.6 11 16.6C7.1 16.6 3.7 13.2 2 8.6C2.8 6.8 3.9 5.3 5.2 4.1L15.2 15.2ZM22 8.6C20.1 12.1 16.2 15.6 11 15.6C10.1 15.6 9.2 15.4 8.4 15.1L22 8.6ZM8.4 8.4L15.6 15.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm New Password */}
+              <div className="input-group">
+                <label htmlFor="confirm-password" className="input-label">
+                  Confirm New Password
+                </label>
+                <div className="password-input-container">
+                  <input
+                    type={showPasswords.confirmPassword ? 'text' : 'password'}
+                    id="confirm-password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => handlePasswordChange('confirm', e.target.value)}
+                    className="password-input"
+                    placeholder="Confirm new password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => togglePasswordVisibility('confirm')}
+                    aria-label={showPasswords.confirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPasswords.confirmPassword ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3L21 21M9.9 9.9C9.5 10.3 9.2 10.8 9.2 11.4C9.2 12.7 10.3 13.8 11.6 13.8C12.2 13.8 12.7 13.5 13.1 13.1M15.2 15.2C14.1 16.1 12.6 16.6 11 16.6C7.1 16.6 3.7 13.2 2 8.6C2.8 6.8 3.9 5.3 5.2 4.1L15.2 15.2ZM22 8.6C20.1 12.1 16.2 15.6 11 15.6C10.1 15.6 9.2 15.4 8.4 15.1L22 8.6ZM8.4 8.4L15.6 15.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              className="update-password-btn"
+              onClick={handleUpdatePassword}
+            >
+              Update Password
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -553,59 +667,60 @@ const Settingintro = () => {
   );
 
   return (
-    <div className="settings-container">
-      <div className="settings-header">
-        <h1>Settings</h1>
-        <p>Manage your account preferences and settings</p>
-      </div>
+    <div className="settings-hero">
+      <div className="settings-container">
+        <div className="settings-header">
+          <h1>Settings</h1>
+          <p>Manage your account preferences and settings</p>
+        </div>
 
-      <div className="settings-tabs">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+        <div className="settings-tabs">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              className={`tab-button ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
 
-      <div className="settings-content">
-        {activeTab === 'Profile' && renderProfileTab()}
-        {activeTab === 'Notifications' && (
-          <div className="coming-soon">
-            <h2>Notifications</h2>
-            <p>Notification settings coming soon...</p>
-          </div>
-        )}
-        {activeTab === 'Appearance' && (
-          <div className="coming-soon">
-            <h2>Appearance</h2>
-            <p>Appearance settings coming soon...</p>
-          </div>
-        )}
-        {activeTab === 'Privacy' && (
-          <div className="coming-soon">
-            <h2>Privacy</h2>
-            <p>Privacy settings coming soon...</p>
-          </div>
-        )}
-        {activeTab === 'Billing' && (
-          <div className="coming-soon">
-            <h2>Billing</h2>
-            <p>Billing settings coming soon...</p>
-          </div>
-        )}
-        {activeTab === 'Advanced' && (
-          <div className="coming-soon">
-            <h2>Advanced</h2>
-            <p>Advanced settings coming soon...</p>
-          </div>
-        )}
-      </div>
+        <div className="settings-content">
+          {activeTab === 'Profile' && renderProfileTab()}
+          {activeTab === 'Notifications' && (
+            <div className="coming-soon">
+              <h2>Notifications</h2>
+              <p>Notification settings coming soon...</p>
+            </div>
+          )}
+          {activeTab === 'Appearance' && (
+            <div className="coming-soon">
+              <h2>Appearance</h2>
+              <p>Appearance settings coming soon...</p>
+            </div>
+          )}
+          {activeTab === 'Privacy' && (
+            <div className="coming-soon">
+              <h2>Privacy</h2>
+              <p>Privacy settings coming soon...</p>
+            </div>
+          )}
+          {activeTab === 'Billing' && (
+            <div className="coming-soon">
+              <h2>Billing</h2>
+              <p>Billing settings coming soon...</p>
+            </div>
+          )}
+          {activeTab === 'Advanced' && (
+            <div className="coming-soon">
+              <h2>Advanced</h2>
+              <p>Advanced settings coming soon...</p>
+            </div>
+          )}
+        </div>
 
-      {isAvatarModalOpen && (
+        {/* {isAvatarModalOpen && (
         <div className="modal-overlay" onClick={closeAvatarModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -672,7 +787,7 @@ const Settingintro = () => {
                     // Check if option.value is a URL
                     const isUrl = option.value && (option.value.startsWith('http://') || option.value.startsWith('https://'));
                     let avatarSrc;
-                    
+
                     // Handle DiceBear avatars (identified via isDiceBear flag)
                     if (option.isDiceBear) {
                       avatarSrc = generateDiceBearAvatar(
@@ -683,7 +798,7 @@ const Settingintro = () => {
                     } else {
                       avatarSrc = isUrl ? option.value : getAvatarSource(option.value, option.type, option.style);
                     }
-                    
+
                     const colors = option.type === 'initials' ? getInitialsColors(option.value) : null;
 
                     return (
@@ -696,8 +811,8 @@ const Settingintro = () => {
                         style={
                           option.type === 'initials' && colors
                             ? {
-                                background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
-                              }
+                              background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
+                            }
                             : {}
                         }
                       >
@@ -708,8 +823,8 @@ const Settingintro = () => {
                             {option.value}
                           </div>
                         ) : avatarSrc ? (
-                          <img 
-                            src={avatarSrc} 
+                          <img
+                            src={avatarSrc}
                             alt={option.label}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={(e) => {
@@ -759,7 +874,8 @@ const Settingintro = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
+      </div>
     </div>
   );
 };

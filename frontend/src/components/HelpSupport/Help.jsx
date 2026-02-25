@@ -1,51 +1,51 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import './Help.css';
-import ChatModal from './ChatModal'
-import EmailSupport from './EmailSupport'
-import PhoneSupport from './PhoneSupport';
-import faqImage from "../../assets/faq-illustration.svg";
+// import ChatModal from './ChatModal'
+// import EmailSupport from './EmailSupport'
+// import PhoneSupport from './PhoneSupport';
+
 
 const Help = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState(null);
-  const contactSectionRef = useRef(null);
-  const contentRef = useRef(null);
+  // const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [modalType, setModalType] = useState(null);
+  // const contactSectionRef = useRef(null);
+  // const contentRef = useRef(null);
 
-  const openModal = (type) => {
-    setModalType(type);
-    setIsModalOpen(true);
-  };
+  // const openModal = (type) => {
+  //   setModalType(type);
+  //   setIsModalOpen(true);
+  // };
 
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setModalType(null);
-  };
+  // const closeModal = () => {
+  //   setIsModalOpen(false);
+  //   setModalType(null);
+  // };
 
-  const renderModalContent = () => {
-    if (!modalType) return null;
+  // const renderModalContent = () => {
+  //   if (!modalType) return null;
 
-    if (modalType === 'chat') {
-      return <ChatModal />;
-    }
+  //   if (modalType === 'chat') {
+  //     return <ChatModal />;
+  //   }
 
-    if (modalType === 'email') {
-      return <EmailSupport />;
-    }
+  //   if (modalType === 'email') {
+  //     return <EmailSupport />;
+  //   }
 
-    if (modalType === 'phone') {
-      return <PhoneSupport onClose={() => setModalType(null)} />;
-    }
+  //   if (modalType === 'phone') {
+  //     return <PhoneSupport onClose={() => setModalType(null)} />;
+  //   }
 
-    return null;
-  };
+  //   return null;
+  // };
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedFilter, setSelectedFilter] = useState('FAQ');
+  // const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  // const [selectedFilter, setSelectedFilter] = useState('FAQ');
   const [expandedFAQ, setExpandedFAQ] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
+  // const [searchResults, setSearchResults] = useState([]);
+  // const [isSearching, setIsSearching] = useState(false);
 
   // const categories = [
   //   'All Categories',
@@ -60,6 +60,8 @@ const Help = () => {
   //   'Contact',
   //   'Feedback'
   // ];
+
+  /*-------------------FAQ DATA----------------------- */
 
   const faqData = [
     {
@@ -100,6 +102,8 @@ const Help = () => {
 
   ];
 
+  /*-------------------TUTORIALS DATA----------------------- */
+
   const tutorialData = [
     {
       id: 1,
@@ -124,36 +128,37 @@ const Help = () => {
     }
   ];
 
+  
+/*-------------------SEARCH FILTER FUNCTION----------------------- */
   const filteredFAQs = faqData.filter(faq => {
-    const matchesCategory = selectedCategory === 'All Categories' || faq.category === selectedCategory;
-    const matchesSearch = searchQuery === '' ||
+    const matchesSearch =
+      searchQuery === '' ||
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
+      faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesCategory && matchesSearch;
+    return matchesSearch;
   });
 
   const filteredTutorials = tutorialData.filter(tutorial => {
-    const matchesCategory = selectedCategory === 'All Categories' || tutorial.category === selectedCategory;
-    const matchesSearch = searchQuery === '' ||
+    const matchesSearch =
+      searchQuery === '' ||
       tutorial.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tutorial.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+
+    return matchesSearch;
   });
-useEffect(() => {
-  if (searchQuery === "") {
-    setSelectedCategory("All Categories");
-  }
-}, [searchQuery]);
+  // useEffect(() => {
+  //   if (searchQuery === "") {
+  //     setSelectedCategory("All Categories");
+  //   }
+  // }, [searchQuery]);
+
+  /*-------------------SEARCH FUNCTION----------------------- */
   const handleSearch = (query) => {
     setSearchQuery(query);
-    setIsSearching(true);
-
-    // Simulate search delay
-    setTimeout(() => {
-      setIsSearching(false);
-    }, 500);
   };
+
+  /*-------------------TOGGLE FUNCTION----------------------- */
 
   const toggleFAQ = (id) => {
     setExpandedFAQ(expandedFAQ === id ? null : id);
@@ -163,165 +168,147 @@ useEffect(() => {
   //   setSelectedFilter('Contact');
   // };
 
-  const renderContent = () => {
-    if (selectedFilter === 'FAQ') {
-      return (
-        <div className="faq-section">
-          <h2 className="section-title">Frequently asked questions</h2>
-          <div className="faq-list">
-            {filteredFAQs.map((faq) => (
-              <div key={faq.id} className={`faq-item ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
-                <div
-                  className="faq-question"
-                  onClick={() => toggleFAQ(faq.id)}
-                >
-                  <span className="question-text">{faq.question}</span>
-                  <div className="faq-badges">
-                    <span className={`expand-icon ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-                {expandedFAQ === faq.id && (
-                  <div className="faq-answer">
-                    <p>{faq.answer}</p>
+ 
+  //   if (selectedFilter === 'FAQ') {
+  //     return (
+  //       <>
+  //         <div className="faq-section">
+  //           <h2 className="section-title">Frequently asked questions</h2>
 
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-    if (selectedFilter === 'getstarted') {
-      return (
-        <div className="faq-section">
-          <h2 className="section-title">Getting Started</h2>
-          <div className="faq-list">
-            {filteredFAQs.map((faq) => (
-              <div key={faq.id} className={`faq-item ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
-                <div
-                  className="faq-question"
-                  onClick={() => toggleFAQ(faq.id)}
-                >
-                  <span className="question-text">{faq.question}</span>
-                  <div className="faq-badges">
-                    <span className={`expand-icon ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-                {expandedFAQ === faq.id && (
-                  <div className="faq-answer">
-                    <p>{faq.answer}</p>
+  //           <div className="faq-list">
+  //             {filteredFAQs.map((faq) => (
+  //               <div key={faq.id} className={`faq-item ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
+  //                 <div
+  //                   className="faq-question"
+  //                   onClick={() => toggleFAQ(faq.id)}
+  //                 >
+  //                   <span className="question-text">{faq.question}</span>
+  //                   <span className={`expand-icon ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
+  //                     ▼
+  //                   </span>
+  //                 </div>
 
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
+  //                 {expandedFAQ === faq.id && (
+  //                   <div className="faq-answer">
+  //                     <p>{faq.answer}</p>
+  //                   </div>
+  //                 )}
+  //               </div>
+  //             ))}
+  //           </div>
+  //         </div>
 
-    // if (selectedFilter === 'Tutorials') {
-    //   return (
-    //     <div className="tutorials-section">
-    //       <h2 className="section-title">Tutorials</h2>
-    //       <div className="tutorials-grid">
-    //         {filteredTutorials.map((tutorial) => (
-    //           <div key={tutorial.id} className="tutorial-card">
-    //             <div className="tutorial-header">
-    //               <h3 className="tutorial-title">{tutorial.title}</h3>
-    //               <span className="tutorial-duration">{tutorial.duration}</span>
-    //             </div>
-    //             <p className="tutorial-description">{tutorial.description}</p>
-    //             <div className="tutorial-footer">
-    //               <span className="tutorial-category">{tutorial.category}</span>
-    //               <button className="read-more-btn">Read More</button>
-    //             </div>
-    //           </div>
-    //         ))}
-    //       </div>
-    //     </div>
-    //   );
-    // }
+  //       </>
+  //     );
+  //   }
 
-    if (selectedFilter === 'Contact') {
-      return (
-        <div className="contact-section" ref={contactSectionRef}>
-          <h2 className="section-title">Contact Support</h2>
-          <div className="contact-options">
-            <div className="contact-card">
-              <div className="contact-icon">💬</div>
-              <h3>Live Chat</h3>
-              <p>Get instant help from our support team</p>
-              <button className="contact-btn" onClick={() => openModal('chat')}>Start Chat</button>
-            </div>
+  //   if (selectedFilter === 'getstarted') {
+  //     return (
+  //       <div className="faq-section">
+  //         <h2 className="section-title">Getting Started</h2>
+  //         <div className="faq-list">
+  //           {filteredFAQs.map((faq) => (
+  //             <div key={faq.id} className={`faq-item ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
+  //               <div
+  //                 className="faq-question"
+  //                 onClick={() => toggleFAQ(faq.id)}
+  //               >
+  //                 <span className="question-text">{faq.question}</span>
+  //                 <div className="faq-badges">
+  //                   <span className={`expand-icon ${expandedFAQ === faq.id ? 'expanded' : ''}`}>
+  //                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  //                       <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  //                     </svg>
+  //                   </span>
+  //                 </div>
+  //               </div>
+  //               {expandedFAQ === faq.id && (
+  //                 <div className="faq-answer">
+  //                   <p>{faq.answer}</p>
 
-            <div className="contact-card">
-              <div className="contact-icon">📧</div>
-              <h3>Email Support</h3>
-              <p>Send us a detailed message</p>
-              <button className="contact-btn" onClick={() => openModal('email')}>Send Email</button>
-            </div>
-
-            <div className="contact-card">
-              <div className="contact-icon">📞</div>
-              <h3>Phone Support</h3>
-              <p>Speak directly with our team</p>
-              <button className="contact-btn" onClick={() => openModal('phone')}>Call Now</button>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  //                 </div>
+  //               )}
+  //             </div>
+  //           ))}
+  //         </div>
+  //       </div>
+  //     );
+  //   }
 
 
-    if (selectedFilter === 'Feedback') {
-      return (
-        <div className="feedback-section">
-          <h2 className="section-title">Share Your Feedback</h2>
-          <div className="feedback-form">
-            <div className="form-group">
-              <label htmlFor="feedback-type">Feedback Type</label>
-              <select id="feedback-type" className="form-select">
-                <option>Feature Request</option>
-                <option>Bug Report</option>
-                <option>General Feedback</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="feedback-message">Your Message</label>
-              <textarea
-                id="feedback-message"
-                className="form-textarea"
-                placeholder="Tell us what you think..."
-                rows="5"
-              ></textarea>
-            </div>
-            <button className="submit-feedback-btn">Submit Feedback</button>
-          </div>
-        </div>
-      );
-    }
+  //   // if (selectedFilter === 'Contact') {
+  //   //   return (
+  //   //     <div className="contact-section" ref={contactSectionRef}>
+  //   //       <h2 className="section-title">Contact Support</h2>
+  //   //       <div className="contact-options">
+  //   //         <div className="contact-card">
+  //   //           <div className="contact-icon">💬</div>
+  //   //           <h3>Live Chat</h3>
+  //   //           <p>Get instant help from our support team</p>
+  //   //           <button className="contact-btn" onClick={() => openModal('chat')}>Start Chat</button>
+  //   //         </div>
 
-    return null;
-  };
+  //   //         <div className="contact-card">
+  //   //           <div className="contact-icon">📧</div>
+  //   //           <h3>Email Support</h3>
+  //   //           <p>Send us a detailed message</p>
+  //   //           <button className="contact-btn" onClick={() => openModal('email')}>Send Email</button>
+  //   //         </div>
 
-  useEffect(() => {
-    if (selectedFilter === 'Contact' && contactSectionRef.current) {
-      contactSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [selectedFilter]);
+  //   //         <div className="contact-card">
+  //   //           <div className="contact-icon">📞</div>
+  //   //           <h3>Phone Support</h3>
+  //   //           <p>Speak directly with our team</p>
+  //   //           <button className="contact-btn" onClick={() => openModal('phone')}>Call Now</button>
+  //   //         </div>
+  //   //       </div>
+  //   //     </div>
+  //   //   );
+  //   // }
+
+
+  //   // if (selectedFilter === 'Feedback') {
+  //   //   return (
+  //   //     <div className="feedback-section">
+  //   //       <h2 className="section-title">Share Your Feedback</h2>
+  //   //       <div className="feedback-form">
+  //   //         <div className="form-group">
+  //   //           <label htmlFor="feedback-type">Feedback Type</label>
+  //   //           <select id="feedback-type" className="form-select">
+  //   //             <option>Feature Request</option>
+  //   //             <option>Bug Report</option>
+  //   //             <option>General Feedback</option>
+  //   //             <option>Other</option>
+  //   //           </select>
+  //   //         </div>
+  //   //         <div className="form-group">
+  //   //           <label htmlFor="feedback-message">Your Message</label>
+  //   //           <textarea
+  //   //             id="feedback-message"
+  //   //             className="form-textarea"
+  //   //             placeholder="Tell us what you think..."
+  //   //             rows="5"
+  //   //           ></textarea>
+  //   //         </div>
+  //   //         <button className="submit-feedback-btn">Submit Feedback</button>
+  //   //       </div>
+  //   //     </div>
+  //   //   );
+  //   // }
+
+  //   return null;
+  // };
+
+  // useEffect(() => {
+  //   if (selectedFilter === 'Contact' && contactSectionRef.current) {
+  //     contactSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  //   }
+  // }, [selectedFilter]);
+
 
   return (
+
+    /*-------------------HEADER----------------------- */
     <div className="help-container">
       <div className="help-hero">
         <div className="hero-left">
@@ -331,47 +318,53 @@ useEffect(() => {
           <p className="hero-sub">
             Search our knowledge base for answers to common questions
           </p>
-
-          <div className="hero-search">
-            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
-              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" />
-            </svg>
-
-            <input
-              type="text"
-              placeholder="Search our articles"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-
-            <button className="hero-search-btn">Search</button>
-          </div>
-
-          {/* <div className="hero-topics">
-            <span>Common topics:</span>
-            <button onClick={() => handleSearch("smtp")}>smtp</button>
-            <button onClick={() => handleSearch("validation")}>validation</button>
-            <button onClick={() => handleSearch("contacts")}>contacts</button>
-          </div> */}
-
+          <button
+            className="hero-card-btn hero-start-btn"
+            onClick={() =>
+              document.querySelector(".faq-section")
+                .scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            Get started →
+          </button>
+        </div>
+        <div className="hero-right" aria-hidden="true">
+          <img src="https://images.unsplash.com/vector-1761384690980-b218fa986838?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGJ1c2luZXNzfGVufDB8MHwwfHx8Mg%3D%3D" />
         </div>
 
-        <div className="hero-right">
+        <div className="hero-search">
+          <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+            <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" />
+          </svg>
+
+          <input
+            type="text"
+            placeholder="Search our articles"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+
+          <button className="hero-search-btn">Search</button>
+        </div>
+
+
+
+        {/* <div className="hero-right">
           <div className="hero-card">
             <h3>Getting Started</h3>
             <p>Learn everything you need to know to get started</p>
             <button
               className="hero-card-btn"
-              onClick={() => {
-                setSelectedFilter("getstarted");
-                setSelectedCategory("All Categories");
-              }}
+              onClick={() =>
+                document.querySelector(".faq-section")
+                  .scrollIntoView({ behavior: "smooth" })
+              }
             >
               Get started →
             </button>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* <div className="filters-section">
@@ -410,20 +403,106 @@ useEffect(() => {
         </div>
       </div> */}
 
+{/*-------------------FAQ SECTION----------------------- */}
+      <div className="faq-wrapper">
 
-      <div className="faq-layout">
+        <div className="faq-intro">
 
-        <div className="faq-left">
-          {renderContent()}
+          <h2 className="faq-heading">
+            Frequently Asked <span>Questions</span>
+          </h2>
+
+          <p className="faq-desc">
+            Optiv is a cloud-based platform that helps you manage projects,
+            track sales, design easily and automate workflows.
+          </p>
+
+          <div className="faq-cta">
+            <h3>Still Have Questions?</h3>
+            <p>
+              Our support team is here to help you understand everything
+              about the platform and pricing.
+            </p>
+            <button>Book a Demo</button>
+          </div>
         </div>
 
-        <div className="faq-right">
-          <img src={faqImage} alt="support" />
+
+        {/* RIGHT QUESTIONS */}
+        <div className="faq-cards">
+          {filteredFAQs.map((faq) => (
+            <div
+              key={faq.id}
+              className={`faq-card ${expandedFAQ === faq.id ? "open" : ""}`}
+              onClick={() => toggleFAQ(faq.id)}
+            >
+              <div className="faq-card-head">
+                <span>{faq.question}</span>
+                <div className="faq-arrow">
+                  {expandedFAQ === faq.id ? "▲" : "▼"}
+                </div>
+              </div>
+
+              <div className="faq-card-body">
+                <p>{faq.answer}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
       </div>
+      {/* ---------------- Tutorials Section ---------------- */}
 
-      {isModalOpen && (
+
+      <div className="tutorial-wrapper">
+        <div className="tutorial-section">
+          <h2 className="section-title">Tutorials</h2>
+
+          <div className="tutorial-grid">
+            {filteredTutorials.map((tutorial) => (
+              <div key={tutorial.id} className="tutorial-card">
+                <div className="tutorial-icon">📘</div>
+
+                <h3>{tutorial.title}</h3>
+                <p>{tutorial.description}</p>
+
+                <div className="tutorial-footer">
+                  <span>{tutorial.duration}</span>
+                  <button>Learn more →</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ================= Support CTA Section ================= */}
+      <div className="support-cta">
+        <div className="support-cta-inner">
+
+          <div className="support-icon">
+            <img
+              src="https://cdn-icons-png.flaticon.com/128/14865/14865140.png"
+              alt="Support Illustration"
+            />
+          </div>
+
+          <div className="support-content">
+            <h2>Still have questions?</h2>
+            <p>
+              Our Customer Experience Team is here for you!
+              Looking for help with a project? We can match you with the right certified partner.
+            </p>
+
+            <div className="support-actions">
+              <button className="support-primary">Submit a request</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* {isModalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -436,7 +515,7 @@ useEffect(() => {
             {renderModalContent()}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
