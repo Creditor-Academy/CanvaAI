@@ -1,19 +1,35 @@
 body{
+  font-family: var(--athena-font-body);
   background:#f1f5f9;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--athena-font-heading);
+}
+
+/* Remove extra forcing */
+p,
+span,
+div,
+a,
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
 }
 
 /* ------MAIN CONTAINER------- */
 .help-container {
-  font-family: var(--athena-font-body);
   background: #eff6ff;
   min-height: 100vh;
   max-width: 100%;
   margin: 0 auto;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.help-container h1 {
-  font-family: var(--athena-font-heading);
 }
 
 /* ------HERO------- */

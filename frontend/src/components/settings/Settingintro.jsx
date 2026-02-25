@@ -375,6 +375,10 @@ const Settingintro = () => {
   const renderProfileTab = () => (
     <div className="profile-tab">
       <div className="profile-header">
+        <div className="profile-mini-avatar">
+          {(profileData.firstName?.[0] || '').toUpperCase()}
+          {(profileData.lastName?.[0] || '').toUpperCase()}
+        </div>
         <h2>Profile Information</h2>
         <p>Update your personal information and profile settings</p>
       </div>
@@ -399,7 +403,7 @@ const Settingintro = () => {
               id="firstName"
               value={profileData.firstName}
               onChange={(e) => handleProfileChange('firstName', e.target.value)}
-              className="form-input"
+              className="form-input input-base"
             />
           </div>
           <div className="form-group">
@@ -409,7 +413,7 @@ const Settingintro = () => {
               id="lastName"
               value={profileData.lastName}
               onChange={(e) => handleProfileChange('lastName', e.target.value)}
-              className="form-input"
+              className="form-input input-base"
             />
           </div>
         </div>
@@ -421,8 +425,8 @@ const Settingintro = () => {
             id="email"
             value={profileData.email}
             readOnly
-            className="form-input"
-            style={{ background: '#f5f5f5', cursor: 'not-allowed' }}
+            className="form-input input-base"
+
             title="Email cannot be changed"
           />
         </div>
@@ -451,7 +455,7 @@ const Settingintro = () => {
           />
         </div> */}
 
-        <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
+        <div>
           <button className="save-btn" onClick={handleSaveProfile}>
             Save Changes
           </button>
@@ -481,11 +485,13 @@ const Settingintro = () => {
                 </label>
                 <div className="password-input-container">
                   <input
-                    type={showPasswords.current ? 'text' : 'password'}
+                    type={showPasswords.current ? "text" : "password"}
+                    name="current-password"
+                    autoComplete="current-password"
                     id="current-password"
                     value={passwordData.currentPassword}
-                    onChange={(e) => handlePasswordChange('current', e.target.value)}
-                    className="password-input"
+                    onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                    className="password-input input-base"
                     placeholder="Enter current password"
                   />
                   <button
@@ -494,7 +500,7 @@ const Settingintro = () => {
                     onClick={() => togglePasswordVisibility('current')}
                     aria-label={showPasswords.current ? 'Hide password' : 'Show password'}
                   >
-                    {showPasswords.currentPassword ? (
+                    {showPasswords.current ? (
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 3L21 21M9.9 9.9C9.5 10.3 9.2 10.8 9.2 11.4C9.2 12.7 10.3 13.8 11.6 13.8C12.2 13.8 12.7 13.5 13.1 13.1M15.2 15.2C14.1 16.1 12.6 16.6 11 16.6C7.1 16.6 3.7 13.2 2 8.6C2.8 6.8 3.9 5.3 5.2 4.1L15.2 15.2ZM22 8.6C20.1 12.1 16.2 15.6 11 15.6C10.1 15.6 9.2 15.4 8.4 15.1L22 8.6ZM8.4 8.4L15.6 15.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -515,11 +521,13 @@ const Settingintro = () => {
                 </label>
                 <div className="password-input-container">
                   <input
-                    type={showPasswords.newPassword ? 'text' : 'password'}
+                    type={showPasswords.new ? "text" : "password"}
+                    name="new-password"
+                    autoComplete="new-password"
                     id="new-password"
                     value={passwordData.newPassword}
-                    onChange={(e) => handlePasswordChange('new', e.target.value)}
-                    className="password-input"
+                    onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                    className="password-input input-base"
                     placeholder="Enter new password"
                   />
                   <button
@@ -528,7 +536,7 @@ const Settingintro = () => {
                     onClick={() => togglePasswordVisibility('new')}
                     aria-label={showPasswords.newPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPasswords.newPassword ? (
+                    {showPasswords.new ? (
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 3L21 21M9.9 9.9C9.5 10.3 9.2 10.8 9.2 11.4C9.2 12.7 10.3 13.8 11.6 13.8C12.2 13.8 12.7 13.5 13.1 13.1M15.2 15.2C14.1 16.1 12.6 16.6 11 16.6C7.1 16.6 3.7 13.2 2 8.6C2.8 6.8 3.9 5.3 5.2 4.1L15.2 15.2ZM22 8.6C20.1 12.1 16.2 15.6 11 15.6C10.1 15.6 9.2 15.4 8.4 15.1L22 8.6ZM8.4 8.4L15.6 15.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -549,11 +557,13 @@ const Settingintro = () => {
                 </label>
                 <div className="password-input-container">
                   <input
-                    type={showPasswords.confirmPassword ? 'text' : 'password'}
+                    type={showPasswords.confirm ? "text" : "password"}
+                    name="confirm-password"
+                    autoComplete="new-password"
                     id="confirm-password"
                     value={passwordData.confirmPassword}
-                    onChange={(e) => handlePasswordChange('confirm', e.target.value)}
-                    className="password-input"
+                    onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                    className="password-input input-base"
                     placeholder="Confirm new password"
                   />
                   <button
@@ -562,7 +572,7 @@ const Settingintro = () => {
                     onClick={() => togglePasswordVisibility('confirm')}
                     aria-label={showPasswords.confirmPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPasswords.confirmPassword ? (
+                    {showPasswords.confirm ? (
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 3L21 21M9.9 9.9C9.5 10.3 9.2 10.8 9.2 11.4C9.2 12.7 10.3 13.8 11.6 13.8C12.2 13.8 12.7 13.5 13.1 13.1M15.2 15.2C14.1 16.1 12.6 16.6 11 16.6C7.1 16.6 3.7 13.2 2 8.6C2.8 6.8 3.9 5.3 5.2 4.1L15.2 15.2ZM22 8.6C20.1 12.1 16.2 15.6 11 15.6C10.1 15.6 9.2 15.4 8.4 15.1L22 8.6ZM8.4 8.4L15.6 15.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -588,293 +598,22 @@ const Settingintro = () => {
     </div>
   );
 
-  const _renderPasswordTab = () => (
-    <div className="password-tab">
-      <div className="password-header">
-        <h2>Change Password</h2>
-        <p>Ensure your account stays secure with a strong password</p>
-      </div>
-
-      <div className="form-section">
-        <div className="form-group">
-          <label htmlFor="currentPassword">Current Password</label>
-          <div className="password-input-container">
-            <input
-              type={showCurrentPassword ? 'text' : 'password'}
-              id="currentPassword"
-              value={passwordData.currentPassword}
-              onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-              className="form-input"
-              placeholder="Enter current password"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-            >
-              {showCurrentPassword ? '👁️' : '👁️‍🗨️'}
-            </button>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="newPassword">New Password</label>
-          <div className="password-input-container">
-            <input
-              type={showNewPassword ? 'text' : 'password'}
-              id="newPassword"
-              value={passwordData.newPassword}
-              onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-              className="form-input"
-              placeholder="Enter new password"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowNewPassword(!showNewPassword)}
-            >
-              {showNewPassword ? '👁️' : '👁️‍🗨️'}
-            </button>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm New Password</label>
-          <div className="password-input-container">
-            <input
-              type={showConfirmPassword ? 'text' : 'password'}
-              id="confirmPassword"
-              value={passwordData.confirmPassword}
-              onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-              className="form-input"
-              placeholder="Confirm new password"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-            </button>
-          </div>
-        </div>
-
-        <button className="update-password-btn" onClick={handleUpdatePassword}>
-          Update Password
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="settings-hero">
       <div className="settings-container">
-        <div className="settings-header">
-          <h1>Settings</h1>
-          <p>Manage your account preferences and settings</p>
-        </div>
+        <div className="glass-layer">
 
-        <div className="settings-tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="settings-content">
-          {activeTab === 'Profile' && renderProfileTab()}
-          {activeTab === 'Notifications' && (
-            <div className="coming-soon">
-              <h2>Notifications</h2>
-              <p>Notification settings coming soon...</p>
-            </div>
-          )}
-          {activeTab === 'Appearance' && (
-            <div className="coming-soon">
-              <h2>Appearance</h2>
-              <p>Appearance settings coming soon...</p>
-            </div>
-          )}
-          {activeTab === 'Privacy' && (
-            <div className="coming-soon">
-              <h2>Privacy</h2>
-              <p>Privacy settings coming soon...</p>
-            </div>
-          )}
-          {activeTab === 'Billing' && (
-            <div className="coming-soon">
-              <h2>Billing</h2>
-              <p>Billing settings coming soon...</p>
-            </div>
-          )}
-          {activeTab === 'Advanced' && (
-            <div className="coming-soon">
-              <h2>Advanced</h2>
-              <p>Advanced settings coming soon...</p>
-            </div>
-          )}
-        </div>
-
-        {/* {isAvatarModalOpen && (
-        <div className="modal-overlay" onClick={closeAvatarModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Choose an avatar</h3>
-              <button className="modal-close" onClick={closeAvatarModal} aria-label="Close">✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="avatar-filter-bar">
-                <div className="avatar-search">
-                  <input
-                    type="search"
-                    value={avatarSearch}
-                    onChange={(event) => setAvatarSearch(event.target.value)}
-                    placeholder="Search by vibe, role, or keyword..."
-                    aria-label="Search avatars"
-                  />
-                </div>
-                <div className="avatar-url-input">
-                  <input
-                    type="url"
-                    value={customAvatarUrl}
-                    onChange={(e) => setCustomAvatarUrl(e.target.value)}
-                    placeholder="Or paste an image URL here..."
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && customAvatarUrl) {
-                        setSelectedAvatar(customAvatarUrl);
-                        setCustomAvatarUrl('');
-                      }
-                    }}
-                  />
-                  {customAvatarUrl && (
-                    <button
-                      type="button"
-                      className="primary-btn avatar-url-btn"
-                      onClick={() => {
-                        if (customAvatarUrl) {
-                          setSelectedAvatar(customAvatarUrl);
-                          setCustomAvatarUrl('');
-                        }
-                      }}
-                    >
-                      Use This URL
-                    </button>
-                  )}
-                </div>
-                <div className="avatar-filters" role="tablist" aria-label="Avatar categories">
-                  {AVATAR_FILTERS.map((filter) => (
-                    <button
-                      key={filter.key}
-                      type="button"
-                      className={`avatar-filter-btn ${avatarFilter === filter.key ? 'active' : ''}`}
-                      onClick={() => setAvatarFilter(filter.key)}
-                      aria-pressed={avatarFilter === filter.key}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {filteredAvatars.length > 0 ? (
-                <div className="avatar-grid">
-                  {filteredAvatars.map((option) => {
-                    // Check if option.value is a URL
-                    const isUrl = option.value && (option.value.startsWith('http://') || option.value.startsWith('https://'));
-                    let avatarSrc;
-
-                    // Handle DiceBear avatars (identified via isDiceBear flag)
-                    if (option.isDiceBear) {
-                      avatarSrc = generateDiceBearAvatar(
-                        option.seed || option.value,
-                        option.style || 'adventurer',
-                        80
-                      );
-                    } else {
-                      avatarSrc = isUrl ? option.value : getAvatarSource(option.value, option.type, option.style);
-                    }
-
-                    const colors = option.type === 'initials' ? getInitialsColors(option.value) : null;
-
-                    return (
-                      <button
-                        key={option.id}
-                        className={`avatar-option ${selectedAvatar === option.value ? 'selected' : ''}`}
-                        onClick={() => setSelectedAvatar(option.value)}
-                        aria-label={`Select avatar ${option.label}`}
-                        title={option.label}
-                        style={
-                          option.type === 'initials' && colors
-                            ? {
-                              background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
-                            }
-                            : {}
-                        }
-                      >
-                        {option.type === 'emoji' ? (
-                          <span style={{ fontSize: '2rem' }}>{option.value}</span>
-                        ) : option.type === 'initials' ? (
-                          <div className="avatar-initials" style={{ color: 'white', fontWeight: 700 }}>
-                            {option.value}
-                          </div>
-                        ) : avatarSrc ? (
-                          <img
-                            src={avatarSrc}
-                            alt={option.label}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => {
-                              // Fallback if image fails to load
-                              e.target.style.display = 'none';
-                              const fallback = e.target.parentElement.querySelector('.avatar-option-fallback');
-                              if (fallback) {
-                                fallback.style.display = 'flex';
-                              } else {
-                                const fallbackDiv = document.createElement('div');
-                                fallbackDiv.className = 'avatar-option-fallback';
-                                fallbackDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;';
-                                fallbackDiv.innerHTML = '<div class="avatar-initials" style="color: white; font-weight: 700; font-size: 24px;">??</div>';
-                                e.target.parentElement.appendChild(fallbackDiv);
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="avatar-initials" style={{ color: 'white', fontWeight: 700 }}>
-                            ??
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="avatar-empty-state">
-                  <h4>No avatars match your filters</h4>
-                  <p>Try a different keyword or reset your filters.</p>
-                  <button
-                    type="button"
-                    className="avatar-filter-reset"
-                    onClick={() => {
-                      setAvatarFilter('all');
-                      setAvatarSearch('');
-                    }}
-                  >
-                    Reset filters
-                  </button>
-                </div>
-              )}
-              <div className="modal-actions">
-                <button className="secondary-btn" onClick={closeAvatarModal}>Cancel</button>
-                <button className="primary-btn" onClick={saveAvatar}>Save & Proceed</button>
-              </div>
+          <div className="settings-header">
+            <div className="settings-title-row">
+              <h1>Settings</h1>
             </div>
           </div>
+
+          <div className="settings-content">
+            {renderProfileTab()}
+          </div>
+
         </div>
-      )} */}
       </div>
     </div>
   );
