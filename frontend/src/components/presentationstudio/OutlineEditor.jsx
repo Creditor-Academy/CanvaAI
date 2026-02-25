@@ -1,24 +1,48 @@
 import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiTrash2 } from 'react-icons/fi';
 import { finalizePresentation } from '../../services/OutlineEditorService';
 import './styles/OutlineEditor.css';
 
 const OutlineEditor = ({ outlineData, onFinalize }) => {
+  const navigate = useNavigate();
+
   const [slides, setSlides] = useState(() => {
-    // Initialize slides from outlineData
-    if (!outlineData || !outlineData.slides) {
-      return [];
-    }
-    return outlineData.slides.map((slide, index) => ({
-      slideId: slide.slideId || `slide-${slide.slideNo || index + 1}`,
-      slideNo: slide.slideNo || index + 1,
-      source: slide.source || 'ai',
-      title: slide.title || '',
-      content: slide.content || { mode: 'raw', rawText: '' },
-      layout: slide.layout || 'content',
-      contentType: slide.contentType || 'paragraph'
-    }));
+    if (!outlineData || !outlineData.slides) return [];
+
+    return outlineData.slides.map((slide, index) => {
+      let formattedContent = { mode: 'raw', rawText: '' };
+
+      // ✅ FIX: Handle AI structured content (bulletPoints)
+      if (Array.isArray(slide.content?.bulletPoints) && slide.content.bulletPoints.length > 0) {
+        formattedContent = {
+          mode: 'bullets',
+          bullets: slide.content.bulletPoints
+        };
+      }
+      // If AI ever sends plain string
+      else if (typeof slide.content === 'string') {
+        formattedContent = {
+          mode: 'raw',
+          rawText: slide.content
+        };
+      }
+
+      return {
+        slideId: slide.slideId || `slide-${index + 1}`,
+        slideNo: slide.slideNo || index + 1,
+        source: slide.source || 'ai',
+        title: slide.title || '',
+        content: formattedContent,
+        layout: slide.layout || 'content',
+        contentType: slide.contentType || 'paragraph',
+
+        // ✅ FIX: Map image from AI structure
+        image: slide.content?.images?.[0]?.url || null
+      };
+    });
   });
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
 
@@ -30,21 +54,42 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 
   const handleContentChange = (index, newContent) => {
     const updated = [...slides];
-    updated[index].content = {
-      mode: 'raw',
-      rawText: newContent
-    };
+
+    if (newContent.includes('•')) {
+      const bullets = newContent
+        .split('\n')
+        .map(line => line.replace('•', '').trim())
+        .filter(Boolean);
+
+      updated[index].content = {
+        mode: 'bullets',
+        bullets
+      };
+    } else {
+      updated[index].content = {
+        mode: 'raw',
+        rawText: newContent
+      };
+    }
+
     setSlides(updated);
   };
 
-  const handleAddSlide = () => {
+  const handleInsertSlide = (index) => {
     const newSlide = {
       slideId: `slide-${Date.now()}`,
+      slideNo: slides.length + 1,
       source: 'user',
       title: '',
-      content: { mode: 'raw', rawText: '' }
+      content: { mode: 'raw', rawText: '' },
+      layout: 'content',
+      contentType: 'paragraph',
+      image: null
     };
-    setSlides([...slides, newSlide]);
+
+    const updated = [...slides];
+    updated.splice(index + 1, 0, newSlide);
+    setSlides(updated);
   };
 
   const handleDeleteSlide = (index) => {
@@ -55,19 +100,6 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     const updated = slides.filter((_, i) => i !== index);
     setSlides(updated);
   };
-  const handleInsertSlide = (index) => {
-    const newSlide = {
-      slideId: `slide-${Date.now()}`,
-      source: 'user',
-      title: '',
-      content: { mode: 'raw', rawText: '' }
-    };
-
-    const updated = [...slides];
-    updated.splice(index + 1, 0, newSlide);
-    setSlides(updated);
-  };
-
 
   const handleFinalize = async () => {
     if (isGenerating) return;
@@ -76,7 +108,6 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     setError(null);
 
     try {
-      // Prepare the updated outline JSON
       const updatedOutline = {
         ...outlineData,
         slides: slides.map(slide => ({
@@ -86,18 +117,21 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
           title: slide.title,
           content: slide.content,
           layout: slide.layout,
-          contentType: slide.contentType
+          contentType: slide.contentType,
+          image: slide.image
         }))
       };
 
-      // Call finalize API using service
       const finalPresentation = await finalizePresentation(updatedOutline);
 
-      // Pass final presentation to parent
       onFinalize(finalPresentation);
+      navigate('/presentation-editor-v3', {
+  state: { presentationData: finalPresentation }
+});
+
     } catch (error) {
       console.error('Error finalizing presentation:', error);
-      setError(error.message || 'Failed to finalize presentation. Please try again.');
+      setError(error.message || 'Failed to finalize presentation.');
     } finally {
       setIsGenerating(false);
     }
@@ -105,19 +139,9 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 
   const getContentText = (content) => {
     if (!content) return '';
-    if (typeof content === 'string') return content;
     if (content.mode === 'raw') return content.rawText || '';
     if (content.mode === 'bullets' && Array.isArray(content.bullets)) {
-      return content.bullets.map(bullet => `• ${bullet}`).join('\n');
-    }
-    if (content.mode === 'comparison') {
-      const left = Array.isArray(content.left) ? content.left.map(item => `• ${item}`).join('\n') : '';
-      const right = Array.isArray(content.right) ? content.right.map(item => `• ${item}`).join('\n') : '';
-      return `Left:\n${left}\n\nRight:\n${right}`;
-    }
-    // Handle array content (bullets format from backend)
-    if (Array.isArray(content)) {
-      return content.map(item => `• ${item}`).join('\n');
+      return content.bullets.map(b => `• ${b}`).join('\n');
     }
     return '';
   };
@@ -125,59 +149,56 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   return (
     <div className="outline-editor">
       <div className="outline-editor-container">
-
-
         <div className="outline-editor-content">
           <div className="outline-editor-slides">
             {slides.map((slide, index) => (
-              <React.Fragment key={slide.slideId || index}>
-
+              <React.Fragment key={slide.slideId}>
                 <div className="outline-editor-slide">
                   <div className="outline-editor-slide-header">
                     <div className="outline-editor-slide-number">
                       {index + 1}
                     </div>
 
-                    <div className="outline-editor-field title-field">
-                      <input
-                        type="text"
-                        value={slide.title}
-                        onChange={(e) => handleTitleChange(index, e.target.value)}
-                        className="outline-editor-input"
-                        placeholder="Enter slide title"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={slide.title}
+                      onChange={(e) =>
+                        handleTitleChange(index, e.target.value)
+                      }
+                      className="outline-editor-input"
+                      placeholder="Enter slide title"
+                    />
 
-                    <div className="slide-header-actions">
-                      {slide.source === 'user' && (
-                        <span className="outline-editor-slide-badge">Custom</span>
-                      )}
-
-                      <button
-                        onClick={() => handleDeleteSlide(index)}
-                        className="outline-editor-slide-delete"
-                        disabled={slides.length <= 1}
-                        title="Delete Slide"
-                      >
-                        <FiTrash2 size={16} />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleDeleteSlide(index)}
+                      disabled={slides.length <= 1}
+                      className="outline-editor-slide-delete"
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
                   </div>
 
-                  <div className="outline-editor-slide-body">
-                    <div className="outline-editor-field">
-                      <textarea
-                        value={getContentText(slide.content)}
-                        onChange={(e) => handleContentChange(index, e.target.value)}
-                        className="outline-editor-textarea"
-                        placeholder="Enter slide content (bullets, paragraph, or raw text)"
-                        rows={4}
+                  <textarea
+                    value={getContentText(slide.content)}
+                    onChange={(e) =>
+                      handleContentChange(index, e.target.value)
+                    }
+                    className="outline-editor-textarea"
+                    placeholder="Enter slide content"
+                    rows={4}
+                  />
+
+                  {slide.image && (
+                    <div className="outline-editor-image-preview">
+                      <img
+                        src={slide.image}
+                        alt="Slide Visual"
+                        style={{ width: '100%', marginTop: '10px', borderRadius: '8px' }}
                       />
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* + BUTTON AFTER EVERY SLIDE */}
                 <div className="slide-insert-wrapper">
                   <button
                     className="slide-insert-btn"
@@ -186,33 +207,27 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                     +
                   </button>
                 </div>
-
               </React.Fragment>
             ))}
-
           </div>
-
-          
 
           <div className="outline-editor-finalize">
             {error && (
-              <div style={{
-                marginBottom: '1rem',
-                padding: '1rem',
-                background: '#fee2e2',
-                border: '1px solid #fecaca',
-                borderRadius: '8px',
-                color: '#991b1b'
-              }}>
+              <div className="outline-editor-error">
                 <strong>Error:</strong> {error}
               </div>
             )}
+
             <button
               onClick={handleFinalize}
               disabled={isGenerating || slides.length === 0}
-              className={`outline-editor-finalize-button ${isGenerating || slides.length === 0 ? 'outline-editor-finalize-button-disabled' : ''}`}
+              className={`outline-editor-finalize-button ${
+                isGenerating ? 'outline-editor-finalize-button-disabled' : ''
+              }`}
             >
-              {isGenerating ? 'Generating Final Presentation...' : 'Generate Final Presentation'}
+              {isGenerating
+                ? 'Generating Final Presentation...'
+                : 'Generate Final Presentation'}
             </button>
           </div>
         </div>
@@ -222,4 +237,3 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 };
 
 export default OutlineEditor;
-

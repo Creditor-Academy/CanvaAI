@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { useLocation,useParams,useNavigate } from "react-router-dom";
 import SlidesPanel from "./components/SlidesPanel/SlidesPanel";
 import PropertiesPanel from "./components/PropertiesPanel/PropertiesPanel";
 import AgentPanel from "./components/AgentPanel/AgentPanel";
@@ -7,7 +7,7 @@ import TopBar from "./components/TopBar/TopBar";
 import CanvasShell from "./components/Canvas/CanvasShell";
 import PresentationMode from "./present/PresentationMode";
 
-import { useParams, useNavigate } from "react-router-dom";
+// import { useParams, useNavigate } from "react-router-dom";
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
@@ -21,7 +21,8 @@ const PresentationWorkspace = () => {
   const [error, setError] = useState(null);
 
   const { setPresentation, resetPresentation } = usePresentationStore();
-
+  const location = useLocation();
+  const passedData = location.state?.presentationData;
   useEffect(() => {
     if (id) {
       setIsLoading(true);
@@ -80,7 +81,7 @@ const PresentationWorkspace = () => {
         <PropertiesPanel />
 
         <AgentPanel
-          isOpen={isAgentPanelOpen}
+          isOpen={passedData ? true : isAgentPanelOpen}
           onClose={() => setIsAgentPanelOpen(false)}
         />
       </div>
