@@ -14,9 +14,9 @@ export const createShapeLayer = (shapeType) => ({
   height: shapeType === "line" || shapeType === "arrow" ? 40 : 80, // Increased hit area
 
   // style
-  fill: shapeType === "line" || shapeType === "arrow" ? "transparent" : "#3b82f6",
+  fill: (shapeType === "line" || shapeType === "arrow") ? "transparent" : "#3b82f6",
   stroke: "#1e40af",
-  strokeWidth: shapeType === "line" || shapeType === "arrow" ? 8 : 2, // Thicker default
+  strokeWidth: (shapeType === "line" || shapeType === "arrow") ? 8 : 2, // Thicker default
 
   // transforms
   rotation: 0,

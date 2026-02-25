@@ -1,46 +1,42 @@
 /* =========================
-   Slides Panel — Athena Floating UI
+   Slides Panel — Canva Style
 ========================= */
 
 .slides-panel {
   position: absolute;
-  top: 88px;                 /* below topbar */
+  top: 88px;
+  /* below topbar */
   left: 16px;
 
-  width: 260px;
+  width: 150px;
   max-height: calc(100vh - 120px);
 
   display: flex;
   flex-direction: column;
 
-  background: linear-gradient(135deg, #bcd1f1 50%, #59a4ff 100%);;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #ffffff;
 
-  border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 
   box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.12),
-    0 4px 12px rgba(15, 23, 42, 0.08);
+    0 4px 12px rgba(0, 0, 0, 0.1);
 
-  padding: 14px 12px;
+  padding: 12px 8px;
 
   /* Allow collapse handle to sit slightly outside the card */
   overflow: visible;
   z-index: 40;
 
   transition:
-    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
+    transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s ease;
 }
 
 /* Hover elevation */
-.slides-panel:hover {
+.slides-panel:not(.collapsed):hover {
   box-shadow:
-    0 18px 42px rgba(15, 23, 42, 0.18),
-    0 6px 16px rgba(15, 23, 42, 0.12);
+    0 8px 24px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
@@ -49,8 +45,8 @@
 ========================= */
 
 .slides-panel.collapsed {
-  width: 56px;
-  padding: 14px 6px;
+  transform: translateX(calc(-100% - 16px));
+  box-shadow: none;
 }
 
 .slides-panel.collapsed .slides-header,
@@ -72,9 +68,9 @@
   width: 28px;
   height: 56px;
 
-  background: #ead202;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 0 8px 8px 0; /* Rounded only on the right side */
 
   display: flex;
   align-items: center;
@@ -83,18 +79,29 @@
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  color: #334155;
+  color: #64748b;
 
   box-shadow:
-    0 6px 18px rgba(15, 23, 42, 0.15);
+    2px 0 6px rgba(0, 0, 0, 0.08);
 
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   z-index: 50;
+}
+
+.slides-panel.collapsed .collapse-btn {
+  right: -28px; /* Move out to be fully visible at edge */
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.12);
 }
 
 .collapse-btn:hover {
   background: #f8fafc;
-  transform: translateY(-50%) scale(1.05);
+  color: #2563eb;
+  width: 32px;
+  right: -18px;
+}
+
+.slides-panel.collapsed .collapse-btn:hover {
+  right: -32px;
 }
 
 /* =========================
@@ -123,8 +130,8 @@
 ========================= */
 
 .add-slide-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 
   border-radius: 8px;
   border: none;
@@ -132,7 +139,7 @@
   background: #2563eb;
   color: #ffffff;
 
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
 
   cursor: pointer;
@@ -176,21 +183,21 @@
 
 .slide-row {
   display: flex;
-  gap: 10px;
-  padding: 8px;
+  gap: 6px;
+  padding: 4px;
 
   border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .slide-row:hover {
-  background: rgba(241, 245, 249, 0.8);
+  background: #f8fafc;
 }
 
 /* Slide Number */
 .slide-number {
-  width: 18px;
-  font-size: 12px;
+  width: 16px;
+  font-size: 11px;
   font-weight: 500;
   color: #64748b;
   padding-top: 6px;
@@ -207,11 +214,11 @@
 }
 
 .thumbnail {
-  width: 160px;
-  height: 90px;
+  width: 100px;
+  height: 56.25px;
 
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid #e2e8f0;
 
   overflow: hidden;
@@ -222,13 +229,13 @@
 
 .thumbnail:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* Active slide */
 .thumbnail.active {
   border: 2px solid #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 /* =========================
@@ -253,13 +260,13 @@
 
 /* Buttons */
 .slide-actions button {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
 
-  border-radius: 8px;
+  border-radius: 6px;
   border: none;
 
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
 
   display: flex;
@@ -272,22 +279,24 @@
 
 /* Duplicate */
 .duplicate-btn {
-  background: #2563eb;
-  color: #ffffff;
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .duplicate-btn:hover {
+  background: #cbd5e1;
   transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Delete */
 .delete-btn {
-  background: #fbbf24;
-  color: #000000;
+  background: #fecaca;
+  color: #dc2626;
 }
 
 .delete-btn:hover {
+  background: #fca5a5;
   transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(251, 191, 36, 0.45);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

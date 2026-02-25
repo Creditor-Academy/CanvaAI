@@ -65,7 +65,7 @@ const createDefaultTextLayers = () => [
     height: 80,
     fontSize: 48,
     fontFamily: "Arial",
-    fontWeight: "bold",
+    fontWeight: "normal",
     fontStyle: "normal",
     textDecoration: "none",
     textAlign: "center",
@@ -89,7 +89,7 @@ const createDefaultTextLayers = () => [
     fontStyle: "normal",
     textDecoration: "none",
     textAlign: "center",
-    color: "#343b44ff",
+    color: "#000000",
     link: "",
     rotation: 0,
   },
@@ -142,9 +142,72 @@ const usePresentationStore = create((set, get) => {
       // Expect data to match store shape: { id, title, slides: [...] }
       // Or backend shape: { _id, title, data: { slides: [...] } }
       const rawSlides = data.slides || (data.data && data.data.slides) || [];
+
+      const normalizeCells = (cells, rows, cols) => {
+        if (!cells || !Array.isArray(cells)) {
+          return Array.from({ length: rows || 0 }, () =>
+            Array.from({ length: cols || 0 }, () => ({
+              content: createInitialValue(),
+              fontFamily: "Arial",
+              fontSize: 14,
+              color: "#ffffff",
+              textAlign: "center",
+            }))
+          );
+        }
+        return cells.map(row =>
+          Array.isArray(row) ? row.map(cell => {
+            if (typeof cell === 'string') {
+              return {
+                content: convertTextToSlate(cell),
+                fontFamily: "Arial",
+                fontSize: 14,
+                color: "#ffffff",
+                textAlign: "center",
+              };
+            }
+            if (cell && typeof cell === 'object' && !cell.content) {
+              return {
+                ...cell,
+                content: createInitialValue()
+              };
+            }
+            return cell;
+          }) : []
+        );
+      };
+
       const slides = rawSlides.map(slide => ({
-        ...slide
-        // Title removed
+        ...slide,
+        layers: slide.layers?.map(layer => {
+          if (layer.type === 'table') {
+            return {
+              ...layer,
+              cells: normalizeCells(layer.cells, layer.rows, layer.cols)
+            };
+          }
+          // Normalize legacy bulleted/numbered list layers
+          if ((layer.type === "bulleted-list" || layer.type === "numbered-list") && layer.children) {
+            const listType = layer.type;
+            const normalizedLayer = {
+              ...layer,
+              type: "text",
+              content: [
+                {
+                  type: listType,
+                  children: layer.children
+                }
+              ],
+              fontSize: layer.fontSize || 24,
+              fontFamily: layer.fontFamily || "Arial",
+              color: layer.color || "#000000",
+              textAlign: layer.textAlign || "left"
+            };
+            delete normalizedLayer.children;
+            return normalizedLayer;
+          }
+          return layer;
+        })
       }));
 
       const id = data.presentationId || data._id || data.id || (data.data && (data.data._id || data.data.id));
@@ -347,6 +410,9 @@ const usePresentationStore = create((set, get) => {
 
     editingCell: null,
     setEditingCell: (cell) => set({ editingCell: cell }),
+
+    activeEditor: null,
+    setActiveEditor: (editor) => set({ activeEditor: editor }),
 
     getSelectedLayer: () => {
       const { slides, activeSlideId, selectedLayerId } = get();
@@ -946,7 +1012,7 @@ const usePresentationStore = create((set, get) => {
                     ...layer,
                     rows: layer.rows + 1,
                     cells: [
-                      ...layer.cells,
+                      ...layer.cells.map(row => row.map(cell => ({ ...cell }))),
                       Array.from({ length: layer.cols }, () => ({
                         content: createInitialValue(),
                         fontFamily: "Arial",
@@ -955,7 +1021,7 @@ const usePresentationStore = create((set, get) => {
                         textAlign: "center",
                       })),
                     ],
-                    height: layer.height + (layer.height / layer.rows),
+                    // Removed height increment to keep dimensions fixed
                   }
                   : layer
               ),
@@ -980,7 +1046,7 @@ const usePresentationStore = create((set, get) => {
                     ...layer,
                     cols: layer.cols + 1,
                     cells: layer.cells.map((row) => [
-                      ...row,
+                      ...row.map(cell => ({ ...cell })),
                       {
                         content: createInitialValue(),
                         fontFamily: "Arial",
@@ -989,9 +1055,69 @@ const usePresentationStore = create((set, get) => {
                         textAlign: "center",
                       }
                     ]),
-                    width: layer.width + (layer.width / layer.cols),
+                    // Removed width increment to keep dimensions fixed
                   }
                   : layer
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    removeTableRow: (layerId) => {
+      const { slides, activeSlideId } = get();
+      const slide = slides.find(s => s.id === activeSlideId);
+      const layer = slide?.layers.find(l => l.id === layerId);
+
+      if (!layer || layer.type !== "table" || layer.rows <= 1) return;
+
+      get().saveToHistory();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((l) =>
+                l.id === layerId
+                  ? {
+                    ...l,
+                    rows: l.rows - 1,
+                    cells: l.cells.slice(0, -1).map(row => row.map(cell => ({ ...cell }))),
+                  }
+                  : l
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    removeTableColumn: (layerId) => {
+      const { slides, activeSlideId } = get();
+      const slide = slides.find(s => s.id === activeSlideId);
+      const layer = slide?.layers.find(l => l.id === layerId);
+
+      if (!layer || layer.type !== "table" || layer.cols <= 1) return;
+
+      get().saveToHistory();
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((l) =>
+                l.id === layerId
+                  ? {
+                    ...l,
+                    cols: l.cols - 1,
+                    cells: l.cells.map((row) =>
+                      row.slice(0, -1).map(cell => ({ ...cell }))
+                    ),
+                  }
+                  : l
               ),
             }
             : slide
@@ -1010,6 +1136,50 @@ const usePresentationStore = create((set, get) => {
                 ...rest,
                 content: convertTextToSlate(text),
               };
+            }
+            if (layer.type === "table" && layer.cells) {
+              return {
+                ...layer,
+                cells: layer.cells.map(row =>
+                  row.map(cell => {
+                    if (typeof cell === 'string') {
+                      return {
+                        content: convertTextToSlate(cell),
+                        fontFamily: "Arial",
+                        fontSize: 14,
+                        color: "#000000",
+                        textAlign: "center",
+                      };
+                    }
+                    if (cell && typeof cell === 'object' && !cell.content) {
+                      return {
+                        ...cell,
+                        content: createInitialValue()
+                      };
+                    }
+                    return cell;
+                  })
+                )
+              };
+            }
+            if ((layer.type === "bulleted-list" || layer.type === "numbered-list") && layer.children) {
+              const listType = layer.type;
+              const normalized = {
+                ...layer,
+                type: "text",
+                content: [
+                  {
+                    type: listType,
+                    children: layer.children
+                  }
+                ],
+                fontSize: layer.fontSize || 24,
+                fontFamily: layer.fontFamily || "Arial",
+                color: layer.color || "#000000",
+                textAlign: layer.textAlign || "left"
+              };
+              delete normalized.children;
+              return normalized;
             }
             return layer;
           }),
