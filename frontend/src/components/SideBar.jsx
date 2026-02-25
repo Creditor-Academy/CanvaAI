@@ -105,7 +105,7 @@ const NAV_ITEMS = [
     section: "AI Tools",
     sublabel: "New",
     sublabelClass: "new",
-    path: "/editor"
+    path: "/editor-intro"
   },
   // {
   //   label: "Team",
@@ -415,7 +415,7 @@ const SideBar = () => {
                       <li key={item.key}>
                         <button
                           onClick={() => {
-                            // Open canva-clone in a new tab
+                            // Open editor tools in a new tab
                             if (item.key === 'canvaClone') {
                               const baseUrl = window.location.origin;
                               window.open(`${baseUrl}${item.path}`, '_blank');

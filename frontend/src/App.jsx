@@ -50,6 +50,7 @@ import PresentationEditor2 from "./pages/PresentationEditor2";
 
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
+import EditorIntro from './pages/EditorIntro';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 
@@ -61,16 +62,18 @@ const AppContent = () => {
   const { isCollapsed, isMobile } = useSidebar();
   const location = useLocation();
 
-  // Check if current route is a canva-clone route
+  // Check if current route is a full-screen route (no sidebar)
   const isFullScreenRoute =
     location.pathname.startsWith('/canva-clone') ||
     location.pathname.startsWith('/presentation-editor') ||
+    location.pathname.startsWith('/editor-intro') ||
+    location.pathname === '/editor' ||
+    location.pathname.startsWith('/editor/') ||
     location.pathname.startsWith('/presentation-editor-v3');
 
-
   const getContentMargin = () => {
-    if (isFullScreenRoute) return "0";
-    if (isMobile) return "0";
+    if (isFullScreenRoute) return "0px";
+    if (isMobile) return "0px";
     return isCollapsed ? "60px" : "260px";
   };
   // React.useEffect(() => {
@@ -93,6 +96,10 @@ const AppContent = () => {
         className="app-content"
         style={{
           flex: 1,
+          width: isFullScreenRoute ? "100vw" : "auto",
+          maxWidth: isFullScreenRoute ? "100vw" : "none",
+          overflowX: "hidden",
+          position: "relative"
         }}
       >
 
@@ -141,6 +148,7 @@ const AppContent = () => {
 
           <Route path="/docGenerator" element={<DocumentGenerator />} />
           <Route path="/editor" element={<EditorTabPage />} />
+          <Route path="/editor-intro" element={<EditorIntro />} />
 
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />

@@ -97,7 +97,10 @@ import {
   Brain,
   Trash2,
   ChevronDown,
-  Play
+  Play,
+  FileEdit,
+  RotateCcw,
+  Droplets,
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import {
@@ -105,6 +108,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '../ui/tooltip';
+import IndentControls from './toolbar/IndentControls.jsx';
 import {
   Popover,
   PopoverContent,
@@ -130,16 +134,25 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
+import { Slider } from '../ui/slider';
 import { cn } from '../utils';
 import { toast } from 'sonner';
 
 // AI Assistant Components
-import { AIInlineActions } from './AIInlineActions';
+import { AIInlineActions } from './AIInlineActions.tsx';
 import { CodeAssistant } from './CodeAssistant';
 
 // Import AI-related utilities
 import { generateDocument, rewriteText, expandText, summarizeText, changeTone, fixGrammar, bulletToParagraph, generateCode, explainCode, refactorCode, addComments } from '../../ai/aiUtils';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+
+// New feature components
+import { CommentsPanel } from './CommentsPanel';
+import { VersionHistory } from './VersionHistory';
+import { VoiceTyping } from './VoiceTyping';
+import { PageSetupDialog } from './PageSetupDialog';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { WordCountDialog } from './WordCountDialog';
 
 
 // Constants
@@ -209,32 +222,40 @@ const ToolbarButton = ({
   disabled = false,
   tooltip,
   children,
-  className
-}) => (
-  <Tooltip delayDuration={300}>
-    <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onClick}
-        disabled={disabled}
-        className={cn(
-          "h-9 w-9 p-0 rounded-lg",
-          "bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border border-blue-200",
-          "transition-all duration-200",
-          isActive && "bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 border-blue-300",
-          disabled && "opacity-50 cursor-not-allowed",
-          className
-        )}
-      >
-        {children}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent side="bottom" className="text-xs bg-gray-800 text-white px-2 py-1 rounded shadow-lg">
-      {tooltip}
-    </TooltipContent>
-  </Tooltip>
-);
+  className,
+  ariaLabel
+}) => {
+  let cleanClass = className || "";
+  if (cleanClass.includes("from-blue-") || cleanClass.includes("from-green-") || cleanClass.includes("from-gray-")) {
+    cleanClass = "";
+  }
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={ariaLabel || tooltip}
+          className={cn(
+            "h-8 w-8 p-0 rounded-full flex items-center justify-center transition-all duration-200 border",
+            isActive
+              ? "bg-green-100 border-green-300 text-green-600 shadow-inner"
+              : "bg-transparent border-transparent text-blue-500 hover:bg-blue-100/50 hover:border-blue-200",
+            disabled && "opacity-50 cursor-not-allowed",
+            cleanClass
+          )}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs bg-gray-800 text-white px-2 py-1 rounded shadow-lg">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
 
 export const EditorToolbar = ({
   editor,
@@ -244,6 +265,7 @@ export const EditorToolbar = ({
   handleInsertImage,
   setShowReferencesPanel,
   setIsAISidebarOpen,
+  isAISidebarOpen,
   documentTitle,
   onPrint,
   setShowFormatMenu,
@@ -333,9 +355,13 @@ export const EditorToolbar = ({
   const effectiveZoom = zoom || 100;
 
   const onZoomChangeWithFeedback = (newZoom) => {
+    // Round zoom to the nearest multiple of 10
+    const roundedZoom = Math.round(newZoom / 10) * 10;
+    // Ensure zoom stays within valid bounds (50-200)
+    const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
     if (onZoomChange && typeof onZoomChange === 'function') {
-      onZoomChange(newZoom);
-      toast.success(`Zoom set to ${newZoom}%`);
+      onZoomChange(clampedZoom);
+      toast.success(`Zoom set to ${clampedZoom}%`);
     } else {
       toast.error('Zoom function not available');
     }
@@ -369,9 +395,26 @@ export const EditorToolbar = ({
   const [documentPages, setDocumentPages] = useState(1);
   const [documentTone, setDocumentTone] = useState("Professional");
   const [documentType, setDocumentType] = useState("Technical Document");
+  const [documentCreativity, setDocumentCreativity] = useState([0.7]);
 
   // File upload ref
   const fileInputRef = useRef(null);
+
+  // New feature panel states
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showVoiceTyping, setShowVoiceTyping] = useState(false);
+  const [showPageSetup, setShowPageSetup] = useState(false);
+  const [showWordCount, setShowWordCount] = useState(false);
+  const [textDirection, setTextDirectionState] = useState('ltr');
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [lineSpacingMenuOpen, setLineSpacingMenuOpen] = useState(false);
+  const [pageMargins, setPageMargins] = useState({ top: 72, bottom: 72, left: 72, right: 72 });
+  const [documentVersions, setDocumentVersions] = useState([]);
+  const [showInsertLink, setShowInsertLink] = useState(false);
+  const [linkDisplayText, setLinkDisplayText] = useState('');
 
   // Auto-hide export progress messages after 5 seconds
   useEffect(() => {
@@ -611,8 +654,6 @@ export const EditorToolbar = ({
   const tablePickerRef = useRef(null);
   const tableButtonRef = useRef(null);
 
-  // Removed state change monitoring to reduce console noise
-
   // Position the table picker dropdown
   useLayoutEffect(() => {
     if (showTablePicker && tableButtonRef.current && tablePickerRef.current) {
@@ -817,7 +858,7 @@ export const EditorToolbar = ({
                 content = editor.state.doc.textContent || '';
                 // Convert plain text to HTML if needed
                 if (content && !content.includes('<')) {
-                  content = `<p>${content.replace(/\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
+                  content = `<p>${content.replace(/\n/g, '</p><p>').replace(/\r/g, '<br>')}</p>`;
                 }
               }
             }
@@ -835,8 +876,8 @@ export const EditorToolbar = ({
               <head>
                 <title>Print Document</title>
                 <style>
-                  body { 
-                    font-family: Arial, sans-serif; 
+                  body {
+                    font-family: Arial, sans-serif;
                     padding: 20px;
                     margin: 0 auto;
                     max-width: 1000px;
@@ -961,36 +1002,95 @@ export const EditorToolbar = ({
 
 
   const indent = () => {
+    console.log('Indent button clicked');
+    console.log('Editor available:', !!editor);
     if (editor) {
-      // If we're in a list item, increase the list item indent (Google Docs style)
-      if (editor.isActive('listItem')) {
-        editor.chain().focus().sinkListItem('listItem').run();
-        toast.success('List item indented');
-        console.log('Indented list item (Google Docs style)');
-      } else {
-        // For regular paragraphs/headers, use the standard indent
-        editor.chain().focus().indent().run();
-        toast.success('Text indented');
-        console.log('Indented regular text');
+      console.log('Editor commands:', Object.keys(editor.commands));
+      console.log('Is active listItem:', editor.isActive('listItem'));
+      console.log('Can indent:', editor.can().indent());
+      
+      try {
+        // If we're in a list item, increase the list item indent (Google Docs style)
+        if (editor.isActive('listItem')) {
+          console.log('Indenting list item');
+          const result = editor.chain().focus().sinkListItem('listItem').run();
+          console.log('Sink list item result:', result);
+          toast.success('List item indented');
+        } else {
+          // For regular paragraphs/headers, use the standard indent
+          console.log('Indenting regular text');
+          const result = editor.chain().focus().indent().run();
+          console.log('Indent result:', result);
+          if (result) {
+            toast.success('Text indented');
+          }
+        }
+      } catch (error) {
+        console.error('Indent error:', error);
+        toast.error('Failed to indent text');
       }
+    } else {
+      console.log('No editor available');
     }
   };
 
   const outdent = () => {
+    console.log('Outdent button clicked');
+    console.log('Editor available:', !!editor);
     if (editor) {
-      // If we're in a list item, decrease the list item indent (Google Docs style)
-      if (editor.isActive('listItem')) {
-        editor.chain().focus().liftListItem('listItem').run();
-        toast.success('List item outdented');
-        console.log('Outdented list item (Google Docs style)');
-      } else {
-        // For regular paragraphs/headers, use the standard outdent
-        editor.chain().focus().outdent().run();
-        toast.success('Text outdented');
-        console.log('Outdented regular text');
+      console.log('Editor commands:', Object.keys(editor.commands));
+      console.log('Is active listItem:', editor.isActive('listItem'));
+      console.log('Can outdent:', editor.can().outdent());
+      
+      try {
+        // If we're in a list item, decrease the list item indent (Google Docs style)
+        if (editor.isActive('listItem')) {
+          console.log('Outdenting list item');
+          const result = editor.chain().focus().liftListItem('listItem').run();
+          console.log('Lift list item result:', result);
+          toast.success('List item outdented');
+        } else {
+          // For regular paragraphs/headers, use the standard outdent
+          console.log('Outdenting regular text');
+          const result = editor.chain().focus().outdent().run();
+          console.log('Outdent result:', result);
+          if (result) {
+            toast.success('Text outdented');
+          }
+        }
+      } catch (error) {
+        console.error('Outdent error:', error);
+        toast.error('Failed to outdent text');
       }
+    } else {
+      console.log('No editor available');
     }
   };
+
+  // Context-aware enablement for indentation controls
+  const canIndent = (() => {
+    if (!editor) return false;
+    try {
+      if (editor.isActive('listItem')) {
+        return editor.can().sinkListItem('listItem');
+      }
+      return typeof editor.can().indent === 'function' ? editor.can().indent() : true;
+    } catch {
+      return true;
+    }
+  })();
+
+  const canOutdent = (() => {
+    if (!editor) return false;
+    try {
+      if (editor.isActive('listItem')) {
+        return editor.can().liftListItem('listItem');
+      }
+      return typeof editor.can().outdent === 'function' ? editor.can().outdent() : true;
+    } catch {
+      return true;
+    }
+  })();
 
   const toggleCodeBlock = () => {
     if (!editor) {
@@ -1102,14 +1202,7 @@ export const EditorToolbar = ({
     }
   };
 
-  const clearAllFormatting = () => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-    editor.chain().focus().unsetAllMarks().clearNodes().setParagraph().run();
-    toast.success('Formatting cleared');
-  };
+
 
   const openImageCropper = () => {
     if (!editor) {
@@ -1327,7 +1420,7 @@ export const EditorToolbar = ({
           }
           break;
         case 'equation':
-          editor.chain().focus().insertContent('\[E = mc^2\]').run();
+          editor.chain().focus().insertContent('\\[E = mc^2\\]').run();
           toast.success('Equation inserted');
           break;
         case 'code_block':
@@ -1366,18 +1459,24 @@ export const EditorToolbar = ({
         type: documentType
       });
     } else {
-      // Fallback to local generation
-      try {
-        const generatedContent = await generateDocument({
-          topic: documentTopic,
-          pages: documentPages,
-          tone: documentTone,
-          type: documentType
-        });
+      setShowAIDocumentGenerator(false);
+      editor.commands.clearContent();
+      editor.commands.insertContent("<h1>Athena is forging your document...</h1><p>Please wait while the AI generates your content.</p>");
 
-        editor.commands.clearContent();
-        editor.commands.insertContent(generatedContent);
-        toast.success('Document generated successfully');
+      try {
+        await generateDocument(
+          {
+            topic: documentTopic,
+            pages: documentPages,
+            tone: documentTone,
+            type: documentType,
+            temperature: documentCreativity[0]
+          },
+          (full) => {
+            editor.commands.setContent(full);
+          }
+        );
+        toast.success('Document forged successfully');
       } catch (error) {
         toast.error('Failed to generate document');
       }
@@ -1386,89 +1485,126 @@ export const EditorToolbar = ({
     setShowAIDocumentGenerator(false);
   };
 
-  const handleAIInlineAction = async (action, text) => {
-    if (!text) {
-      toast.error('Please select some text first');
+  const handleAIInlineAction = async (actionOrMode, textOrResult) => {
+    if (!textOrResult) {
+      toast.error('No content to process');
       return;
     }
 
+    // New behavior: Commit a previously generated result
+    if (actionOrMode === 'replace' || actionOrMode === 'insert') {
+      const mode = actionOrMode;
+      const result = textOrResult;
+
+      if (!editor) {
+        toast.error('Editor not ready');
+        return;
+      }
+
+      const { from, to } = editor.state.selection;
+
+      if (mode === 'replace') {
+        editor.chain().focus().insertContent(result).run();
+        toast.success('Text replaced with AI version');
+      } else {
+        // Insert after selection
+        editor.chain().focus().insertContentAt(to, `\n\n${result}`).run();
+        toast.success('AI content inserted after selection');
+      }
+      return;
+    }
+
+    // Old behavior: Perform transformation directly (if called from elsewhere)
     if (onAIInlineAction) {
-      onAIInlineAction(action, text);
+      onAIInlineAction(actionOrMode, textOrResult);
     } else {
       try {
         let result;
-        switch (action) {
-          case 'rewrite':
-            result = await rewriteText(text);
-            break;
-          case 'expand':
-            result = await expandText(text);
-            break;
-          case 'summarize':
-            result = await summarizeText(text);
-            break;
-          case 'change_tone':
-            result = await changeTone(text, 'professional');
-            break;
-          case 'fix_grammar':
-            result = await fixGrammar(text);
-            break;
-          case 'bullets_to_paragraph':
-            result = await bulletToParagraph(text);
-            break;
-          default:
-            return;
+        const options = { temperature: 0.7 };
+
+        switch (actionOrMode) {
+          case 'rewrite': result = await rewriteText(textOrResult, options); break;
+          case 'expand': result = await expandText(textOrResult, options); break;
+          case 'summarize': result = await summarizeText(textOrResult, options); break;
+          case 'change_tone': result = await changeTone(textOrResult, 'professional', options); break;
+          case 'fix_grammar': result = await fixGrammar(textOrResult, options); break;
+          case 'bullets_to_paragraph': result = await bulletToParagraph(textOrResult, options); break;
+          default: return;
         }
 
-        // Replace selected text with result
-        if (!editor || !editor.state || !editor.state.selection) {
+        if (!editor) {
           toast.error('Editor is not ready');
           return;
         }
+
         const { from, to } = editor.state.selection;
         editor.commands.deleteRange({ from, to });
         editor.commands.insertContent(result);
-
-        toast.success(`${action.replace('_', ' ')} completed`);
+        toast.success(`${actionOrMode.replace('_', ' ')} completed`);
       } catch (error) {
-        toast.error(`Failed to ${action.replace('_', ' ')} text`);
+        toast.error(`Failed to ${actionOrMode.replace('_', ' ')} text`);
       }
     }
   };
 
-  const handleCodeAssistant = async (action, code, language) => {
-    if (!code) {
-      toast.error('Please select some code first');
+  const handleCodeAssistant = async (mode, resultCode, language) => {
+    if (!resultCode) {
+      toast.error('No code to process');
+      return;
+    }
+
+    // New behavior: Commit a previously generated result
+    if (mode === 'replace' || mode === 'insert') {
+      if (!editor) {
+        toast.error('Editor not ready');
+        return;
+      }
+
+      const { to } = editor.state.selection;
+
+      // Wrap in code block if it's not already
+      let formattedCode = resultCode;
+      if (!resultCode.includes('```')) {
+        formattedCode = `\`\`\`${language}\n${resultCode}\n\`\`\``;
+      }
+
+      if (mode === 'replace') {
+        const { from, to: rangeTo } = editor.state.selection;
+        editor.chain().focus().deleteRange({ from, to: rangeTo }).insertContent(formattedCode).run();
+        toast.success('Code replaced with AI version');
+      } else {
+        editor.chain().focus().insertContentAt(to, `\n\n${formattedCode}`).run();
+        toast.success('Code inserted after selection');
+      }
       return;
     }
 
     if (onCodeAssistant) {
-      onCodeAssistant(action, code, language);
+      onCodeAssistant(mode, resultCode, language);
     } else {
       try {
-        let result;
-        switch (action) {
-          case 'generate':
-            result = await generateCode(code, language);
-            break;
-          case 'explain':
-            result = await explainCode(code, language);
-            break;
-          case 'refactor':
-            result = await refactorCode(code, language);
-            break;
-          case 'add_comments':
-            result = await addComments(code, language);
-            break;
-          default:
-            return;
+        let result = resultCode;
+        const options = { temperature: 0.2 };
+
+        switch (mode) {
+          case 'generate': result = await generateCode(resultCode, language, options); break;
+          case 'explain': result = await explainCode(resultCode, language, options); break;
+          case 'refactor': result = await refactorCode(resultCode, language, options); break;
+          case 'add_comments': result = await addComments(resultCode, language, options); break;
+          default: return;
         }
 
-        // Insert result
-        editor.commands.insertContent(result);
-        toast.success(`Code ${action} completed`);
+        if (!editor) return;
+
+        let formattedCode = result;
+        if (!result.includes('```')) {
+          formattedCode = `\`\`\`${language}\n${result}\n\`\`\``;
+        }
+
+        editor.commands.insertContent(formattedCode);
+        toast.success(`Code ${mode} completed`);
       } catch (error) {
-        toast.error(`Failed to ${action} code`);
+        toast.error(`Forge failed`);
       }
     }
   };
@@ -1477,7 +1613,7 @@ export const EditorToolbar = ({
   // LAYOUT FUNCTIONS
   // ========================
 
-  const setPageMargins = (margins) => {
+  const updatePageMargins = (margins) => {
     if (!margins || typeof margins !== 'object') {
       toast.error('Invalid margins provided');
       return;
@@ -1490,6 +1626,9 @@ export const EditorToolbar = ({
       bottom: Math.max(0, Math.min(200, margins.bottom || 72)),
       left: Math.max(0, Math.min(200, margins.left || 72))
     };
+
+    // Update state
+    setPageMargins(validMargins);
 
     // Update CSS variables for page margins
     document.documentElement.style.setProperty('--page-margin-top', `${validMargins.top}px`);
@@ -1526,18 +1665,18 @@ export const EditorToolbar = ({
 
     // Wrap current selection or paragraph with bordered div
     const borderedContent = `
-      <div style="
+        <div style="
         border: ${borderStyle};
         padding: 10px;
         margin: 5px 0;
       ">
-        ${editor.state.doc.textBetween(
+          ${editor.state.doc.textBetween(
       editor.state.selection.from,
       editor.state.selection.to,
       ' '
     ) || 'Content with border'}
-      </div>
-    `;
+        </div>
+        `;
 
     editor.chain().focus().insertContent(borderedContent).run();
     toast.success(`${type} border applied`);
@@ -1551,7 +1690,7 @@ export const EditorToolbar = ({
 
     // Insert a proper section break with styling
     const sectionBreakHTML = `
-      <div class="section-break" style="
+        <div class="section-break" style="
         page-break-before: always;
         border-top: 1px dashed #cccccc;
         margin: 20px 0;
@@ -1559,9 +1698,9 @@ export const EditorToolbar = ({
         color: #666666;
         font-size: 12px;
       ">
-        SECTION BREAK
-      </div>
-    `;
+          SECTION BREAK
+        </div>
+        `;
     editor.chain().focus().insertContent(sectionBreakHTML).run();
     toast.success('Section break inserted');
   };
@@ -1570,15 +1709,86 @@ export const EditorToolbar = ({
   // addNewPage, addPageBreak, and insertPageNumber are received as props
 
   // ========================
+  // TEXT DIRECTION (LTR/RTL)
+  // ========================
+  const setTextDir = (dir) => {
+    if (!editor) return;
+    setTextDirectionState(dir);
+    editor.chain().focus().setTextDirection(dir).run();
+    toast.success(`Text direction set to ${dir.toUpperCase()}`);
+  };
+
+  // ========================
+  // FIND & REPLACE (live)
+  // ========================
+  const performFind = (term, replaceWith = null) => {
+    if (!editor || !term) return;
+    const content = editor.getHTML();
+    if (replaceWith !== null) {
+      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const newContent = content.replace(regex, replaceWith);
+      editor.commands.setContent(newContent);
+      toast.success(`Replaced occurrences of "${term}"`);
+    } else {
+      const text = editor.getText();
+      const found = (text.toLowerCase().match(new RegExp(term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+      if (found > 0) toast.success(`Found ${found} occurrence(s) of "${term}"`);
+      else toast.info(`"${term}" not found`);
+    }
+  };
+
+  // ========================
+  // LINE SPACING
+  // ========================
+  const applyLineSpacing = (value) => {
+    setLineSpacing(value);
+    if (!editor) return;
+    // Apply lineHeight to all paragraphs via CSS
+    const editorEl = document.querySelector('.tiptap.ProseMirror');
+    if (editorEl) editorEl.style.lineHeight = value.toString();
+    editor.chain().focus().run();
+    toast.success(`Line spacing set to ${value}`);
+  };
+
+  // ========================
+  // VERSION MANAGEMENT
+  // ========================
+  const saveCurrentVersion = (version) => {
+    if (version) {
+      setDocumentVersions(prev => {
+        const updated = prev.filter(v => v.id !== version.id);
+        return [version, ...updated];
+      });
+    } else if (editor) {
+      const newVersion = {
+        id: Date.now(),
+        title: `Version ${documentVersions.length + 1}`,
+        content: editor.getHTML(),
+        timestamp: new Date(),
+        author: 'You',
+      };
+      setDocumentVersions(prev => [newVersion, ...prev]);
+      toast.success('Version saved');
+    }
+  };
+
+  const restoreVersion = (version) => {
+    if (editor && version.content) {
+      editor.commands.setContent(version.content);
+      toast.success(`Restored to "${version.title}"`);
+    }
+  };
+
+  // ========================
   // MENU DEFINITIONS
   // ========================
 
   const menuItems = [
     {
-      label: "File",
+      label: 'File',
       items: [
         {
-          label: "New", icon: FilePlus2, shortcut: "Ctrl+N", action: () => {
+          label: 'New', icon: FilePlus2, shortcut: 'Ctrl+N', action: () => {
             if (window.confirm('Create new document? Current changes will be lost.')) {
               editor.commands.clearContent();
               toast.success('New document created');
@@ -1586,13 +1796,13 @@ export const EditorToolbar = ({
           }
         },
         {
-          label: "Open...", icon: FolderOpen, shortcut: "Ctrl+O", action: () => {
+          label: 'Open...', icon: FolderOpen, shortcut: 'Ctrl+O', action: () => {
             fileInputRef.current?.click();
           }
         },
 
         {
-          label: "Print", icon: Printer, shortcut: "Ctrl+P", action: () => {
+          label: 'Print', icon: Printer, shortcut: 'Ctrl+P', action: () => {
             setTimeout(() => {
               if (onPrint && typeof onPrint === 'function') {
                 const content = editor && typeof editor.getHTML === 'function' ? editor.getHTML() : '';
@@ -1603,9 +1813,9 @@ export const EditorToolbar = ({
             }, 100);
           }
         },
-        { type: "separator" },
+        { type: 'separator' },
         {
-          label: "Export",
+          label: 'Export',
           icon: Download,
           submenu: EXPORT_FORMATS.map(format => ({
             label: exportLoading && exportLoading[format.value] ? `Exporting as ${format.label}...` : `Export as ${format.label}`,
@@ -1621,35 +1831,61 @@ export const EditorToolbar = ({
             disabled: exportLoading && exportLoading[format.value]
           }))
         },
-        { type: "separator" },
-        { label: "Document Templates", icon: FileText, action: () => toast.info('Template selection dialog') },
-        { label: "Document Settings", icon: Settings, action: () => toast.info('Document settings dialog') },
+        { type: 'separator' },
+        {
+          label: 'Rename Document', icon: FileEdit, action: () => {
+            const current = documentTitle || 'Untitled';
+            const newName = window.prompt('Rename document:', current);
+            if (newName && newName.trim()) {
+              toast.success(`Document renamed to "${newName.trim()}"`);
+            }
+          }
+        },
+        {
+          label: 'Duplicate Document', icon: Copy, action: () => {
+            if (editor) {
+              const html = editor.getHTML();
+              const newWindow = window.open('/editor', '_blank');
+              if (newWindow) {
+                newWindow.addEventListener('load', () => {
+                  try { newWindow.localStorage?.setItem('duplicatedContent', html); } catch (e) { }
+                });
+              }
+              toast.success('Document duplicated in new tab');
+            }
+          }
+        },
+        { label: 'Delete Document', icon: Trash2, action: () => { if (window.confirm('Delete this document? This cannot be undone.')) { editor.commands.clearContent(); toast.success('Document deleted'); } } },
+        { label: 'Restore Document', icon: RotateCcw, action: () => setShowVersionHistory(true) },
+        { type: 'separator' },
+        { label: 'Document Templates', icon: FileText, action: () => toast.info('Template selection dialog') },
+        { label: 'Document Settings', icon: Settings, action: () => toast.info('Document settings dialog') },
       ]
     },
     {
-      label: "Edit",
+      label: 'Edit',
       items: [
-        { label: "Undo", icon: Undo, shortcut: "Ctrl+Z", action: () => editor.chain().focus().undo().run() },
-        { label: "Redo", icon: Redo, shortcut: "Ctrl+Y", action: () => editor.chain().focus().redo().run() },
-        { type: "separator" },
-        { label: "Cut", icon: Scissors, shortcut: "Ctrl+X", action: () => document.execCommand('cut') },
+        { label: 'Undo', icon: Undo, shortcut: 'Ctrl+Z', action: () => editor.chain().focus().undo().run() },
+        { label: 'Redo', icon: Redo, shortcut: 'Ctrl+Y', action: () => editor.chain().focus().redo().run() },
+        { type: 'separator' },
+        { label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X', action: () => document.execCommand('cut') },
         {
-          label: "Copy", icon: Copy, shortcut: "Ctrl+C", action: () => {
+          label: 'Copy', icon: Copy, shortcut: 'Ctrl+C', action: () => {
             document.execCommand('copy');
             toast.success('Copied to clipboard');
           }
         },
-        { label: "Paste", icon: Copy, shortcut: "Ctrl+V", action: () => document.execCommand('paste') },
-        { label: "Paste Special", icon: Clipboard, action: () => toast.info('Paste special dialog') },
-        { type: "separator" },
-        { label: "Select All", icon: CheckSquare, shortcut: "Ctrl+A", action: () => editor.chain().focus().selectAll().run() },
-        { label: "Find", icon: Search, shortcut: "Ctrl+F", action: () => setShowSearch(true) },
-        { label: "Replace", icon: Replace, shortcut: "Ctrl+H", action: () => toast.info('Replace dialog would appear here') },
-        { label: "Go To", icon: Hash, shortcut: "Ctrl+G", action: () => toast.info('Go to dialog') },
-        { type: "separator" },
-        { label: "Spell Check", icon: SpellCheck, action: () => toast.info('Spell check started') },
+        { label: 'Paste', icon: Copy, shortcut: 'Ctrl+V', action: () => handleEditAction('paste', editor, null, handleCopy, handlePaste) },
+        { label: 'Paste Without Formatting', icon: Clipboard, shortcut: 'Ctrl+Shift+V', action: () => handleEditAction('paste_plain', editor, null, handleCopy, handlePaste) },
+        { type: 'separator' },
+        { label: 'Select All', icon: CheckSquare, shortcut: 'Ctrl+A', action: () => editor.chain().focus().selectAll().run() },
+        { label: 'Find', icon: Search, shortcut: 'Ctrl+F', action: () => setShowSearch(true) },
+        { label: 'Replace', icon: Replace, shortcut: 'Ctrl+H', action: () => toast.info('Replace dialog would appear here') },
+        { label: 'Go To', icon: Hash, shortcut: 'Ctrl+G', action: () => toast.info('Go to dialog') },
+        { type: 'separator' },
+        { label: 'Spell Check', icon: SpellCheck, action: () => toast.info('Spell check started') },
         {
-          label: "Word Count", icon: Hash, action: () => {
+          label: 'Word Count', icon: Hash, action: () => {
             const text = editor.getText();
             const words = text.trim().split(/\s+/).filter(Boolean).length;
             const chars = text.length;
@@ -1659,69 +1895,60 @@ export const EditorToolbar = ({
       ]
     },
     {
-      label: "View",
+      label: 'View',
       items: [
         {
-          label: "Zoom",
+          label: 'Zoom',
           icon: ZoomIn,
           submenu: [
             {
-              label: "Zoom In", icon: ZoomIn, shortcut: "Ctrl++", action: () => {
-                console.log('Menu Zoom In clicked, current zoom:', zoom);
-                console.log('Effective zoom:', effectiveZoom);
+              label: 'Zoom In', icon: ZoomIn, shortcut: 'Ctrl++', action: () => {
                 if (onZoomChange && typeof onZoomChange === 'function') {
                   const currentZoom = zoom || 100;
                   const newZoom = Math.min(200, currentZoom + 10);
-                  console.log('Zooming in from', currentZoom, 'to', newZoom);
-                  onZoomChange(newZoom);
+                  // Round to nearest multiple of 10
+                  const roundedZoom = Math.round(newZoom / 10) * 10;
+                  const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
+                  onZoomChange(clampedZoom);
                 } else {
-                  console.error('onZoomChange is not available');
                   toast.error('Zoom function not available');
                 }
               }
             },
             {
-              label: "Zoom Out", icon: ZoomOut, shortcut: "Ctrl+-", action: () => {
-                console.log('Menu Zoom Out clicked, current zoom:', zoom);
-                console.log('Effective zoom:', effectiveZoom);
+              label: 'Zoom Out', icon: ZoomOut, shortcut: 'Ctrl+-', action: () => {
                 if (onZoomChange && typeof onZoomChange === 'function') {
                   const currentZoom = zoom || 100;
                   const newZoom = Math.max(50, currentZoom - 10);
-                  console.log('Zooming out from', currentZoom, 'to', newZoom);
-                  onZoomChange(newZoom);
+                  // Round to nearest multiple of 10
+                  const roundedZoom = Math.round(newZoom / 10) * 10;
+                  const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
+                  onZoomChange(clampedZoom);
                 } else {
-                  console.error('onZoomChange is not available');
                   toast.error('Zoom function not available');
                 }
               }
             },
             {
-              label: "Zoom to 100%", icon: ZoomIn, shortcut: "Ctrl+0", action: () => {
-                console.log('Menu Zoom Reset clicked, current zoom:', zoom);
-                console.log('Effective zoom:', effectiveZoom);
+              label: 'Zoom to 100%', icon: ZoomIn, shortcut: 'Ctrl+0', action: () => {
                 if (onZoomChange && typeof onZoomChange === 'function') {
                   onZoomChange(100);
-                  console.log('Zoom reset to 100%');
                 } else {
-                  console.error('onZoomChange is not available');
                   toast.error('Zoom function not available');
                 }
               }
             },
-            { type: "separator" },
-            { label: "50%", action: () => onZoomChangeWithFeedback(50) },
-            { label: "75%", action: () => onZoomChangeWithFeedback(75) },
-            { label: "100%", action: () => onZoomChangeWithFeedback(100) },
-            { label: "125%", action: () => onZoomChangeWithFeedback(125) },
-            { label: "150%", action: () => onZoomChangeWithFeedback(150) },
-            { label: "200%", action: () => onZoomChangeWithFeedback(200) },
-            { type: "separator" },
-            { label: "Fit to Width", action: () => toast.info('Fit to width (coming soon)') },
-            { label: "Fit to Page", action: () => toast.info('Fit to page (coming soon)') },
+            { type: 'separator' },
+            { label: '50%', action: () => onZoomChangeWithFeedback(50) },
+            { label: '75%', action: () => onZoomChangeWithFeedback(75) },
+            { label: '100%', action: () => onZoomChangeWithFeedback(100) },
+            { label: '125%', action: () => onZoomChangeWithFeedback(125) },
+            { label: '150%', action: () => onZoomChangeWithFeedback(150) },
+            { label: '200%', action: () => onZoomChangeWithFeedback(200) },
           ]
         },
         {
-          label: "Full Screen", icon: Maximize2, shortcut: "F11", action: () => {
+          label: 'Full Screen', icon: Maximize2, shortcut: 'F11', action: () => {
             if (!document.fullscreenElement) {
               document.documentElement.requestFullscreen();
             } else {
@@ -1729,52 +1956,41 @@ export const EditorToolbar = ({
             }
           }
         },
-        { type: "separator" },
+        { type: 'separator' },
         {
-          label: "Show/Hide",
+          label: 'Show/Hide',
           icon: Eye,
           submenu: [
             {
-              label: "Ruler", icon: Ruler, checked: showRuler, action: () => {
-                setShowRuler(!showRuler);
-                toast.info(`Ruler ${showRuler ? 'hidden' : 'shown'}`);
-              }
+              label: 'Ruler', icon: Ruler, checked: showRuler, action: () => setShowRuler(!showRuler)
             },
             {
-              label: "Grid", icon: Grid3x3, checked: showGrid, action: () => {
-                setShowGrid(!showGrid);
-                toast.info(`Grid ${showGrid ? 'hidden' : 'shown'}`);
-              }
+              label: 'Grid', icon: Grid3x3, checked: showGrid, action: () => setShowGrid(!showGrid)
             },
-            { label: "Navigation Pane", icon: PanelLeft, action: () => toast.info('Navigation panel toggled') },
-            { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel toggled') },
-            { label: "Page Breaks", icon: Minus, action: () => toast.info('Page breaks visibility toggled') },
+            { label: 'Navigation Pane', icon: PanelLeft, action: () => toast.info('Navigation panel toggled') },
           ]
         },
-        { type: "separator" },
+        { type: 'separator' },
         {
-          label: "Dark Mode", icon: Moon, checked: isDarkMode, action: () => {
+          label: 'Dark Mode', icon: Moon, checked: isDarkMode, action: () => {
             setIsDarkMode(!isDarkMode);
             document.documentElement.classList.toggle('dark');
-            toast.info(`Dark mode ${isDarkMode ? 'disabled' : 'enabled'}`);
           }
         },
-        { label: "Layout View", icon: LayoutTemplate, action: () => toast.info('Switched to layout view') },
       ]
     },
     {
-      label: "Insert",
+      label: 'Insert',
       items: [
-        { label: "Page Break", icon: Minus, action: () => handleInsertAction('page_break') },
-        { label: "Section Break", icon: Split, action: insertSectionBreak },
-        { label: "Page Number", icon: Hash, action: () => insertPageNumber() },
-        { type: "separator" },
-        { label: "Image", icon: ImageIcon, action: () => handleInsertAction('image') },
-        { label: "Crop Image", icon: Crop, action: openImageCropper },
+        { label: 'Page Break', icon: Minus, action: () => handleInsertAction('page_break') },
+        { label: 'Section Break', icon: Split, action: insertSectionBreak },
+        { label: 'Page Number', icon: Hash, action: () => insertPageNumber() },
+        { type: 'separator' },
+        { label: 'Image', icon: ImageIcon, action: () => handleInsertAction('image') },
+        { label: 'Crop Image', icon: Crop, action: openImageCropper },
         {
-          label: "Table", icon: TableIcon, action: () => {
+          label: 'Table', icon: TableIcon, action: () => {
             if (isInsideTable()) {
-              // Show table tools dropdown
               toast.info('Inside table - use More Options menu for table tools');
             } else {
               setShowTablePicker(!showTablePicker);
@@ -1796,33 +2012,25 @@ export const EditorToolbar = ({
         { label: "Symbol", icon: Sigma, action: () => handleInsertAction('symbol') },
         { label: "Equation", icon: Calculator, action: () => handleInsertAction('equation') },
         { label: "Field", icon: Hash, action: () => toast.info('Insert field dialog') },
+        { label: "Text Box", icon: Square, action: () => toast.info('Insert text box functionality') },
+        { label: "Watermark", icon: Droplets, action: () => toast.info('Insert watermark functionality') },
         { type: "separator" },
-        {
-          label: "Blocks",
-          icon: Square,
-          submenu: [
-            { label: "Code Block", icon: Code, action: () => handleInsertAction('code_block') },
-            { label: "Quote", icon: Quote, action: () => handleInsertAction('quote') },
-            {
-              label: "Horizontal Line", icon: Minus, action: () => {
-                editor?.chain().focus().setHorizontalRule().run();
-                toast.success("Horizontal line inserted");
-              }
-            },
-            { label: "Text Box", icon: Circle, action: () => toast.info('Text box inserted') },
-            { label: "Shape", icon: Circle, action: () => toast.info('Shape gallery') },
-            { label: "Chart", icon: BarChart, action: () => toast.info('Chart dialog') },
-            { label: "Smart Art", icon: Brain, action: () => toast.info('Smart Art gallery') },
-          ]
-        },
       ]
     },
     {
-      label: "Format",
+      label: 'Format',
       items: [
+        { label: 'Bold', icon: Bold, shortcut: 'Ctrl+B', action: () => handleFormatAction('bold') },
+        { label: 'Italic', icon: Italic, shortcut: 'Ctrl+I', action: () => handleFormatAction('italic') },
+        { label: 'Underline', icon: Underline, shortcut: 'Ctrl+U', action: () => handleFormatAction('underline') },
+        { label: 'Strikethrough', icon: Strikethrough, action: () => handleFormatAction('strike') },
+        { type: 'separator' },
+        { label: 'Superscript', icon: Superscript, action: () => handleFormatAction('superscript') },
+        { label: 'Subscript', icon: Subscript, action: () => handleFormatAction('subscript') },
+        { type: 'separator' },
         {
-          label: "Font",
-          icon: Type,
+          label: 'Align',
+          icon: AlignLeft,
           submenu: [
             { label: "Bold", icon: Bold, shortcut: "Ctrl+B", action: () => handleFormatAction('bold') },
             { label: "Italic", icon: Italic, shortcut: "Ctrl+I", action: () => handleFormatAction('italic') },
@@ -1834,7 +2042,9 @@ export const EditorToolbar = ({
             { type: "separator" },
             { label: "Text Color", icon: Palette, action: () => setShowFormatMenu('color') },
             { label: "Highlight Color", icon: Highlighter, action: () => setShowFormatMenu('highlight') },
-            { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearAllFormatting },
+            { label: "Increase Font Size", icon: Plus, action: increaseFontSize },
+            { label: "Decrease Font Size", icon: Minus, action: decreaseFontSize },
+            { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearFormatting },
           ]
         },
         {
@@ -1864,20 +2074,20 @@ export const EditorToolbar = ({
                 if (editor) {
                   // Create a sample multilevel list structure
                   const multilevelList = `
-                  <ol>
-                    <li>First level item
-                      <ol>
-                        <li>Second level item
-                          <ol>
-                            <li>Third level item</li>
-                          </ol>
-                        </li>
-                        <li>Another second level item</li>
-                      </ol>
-                    </li>
-                    <li>Another first level item</li>
-                  </ol>
-                `;
+        <ol>
+          <li>First level item
+            <ol>
+              <li>Second level item
+                <ol>
+                  <li>Third level item</li>
+                </ol>
+              </li>
+              <li>Another second level item</li>
+            </ol>
+          </li>
+          <li>Another first level item</li>
+        </ol>
+        `;
                   editor.chain().focus().insertContent(multilevelList).run();
                   toast.success('Multilevel list inserted');
                 }
@@ -1940,14 +2150,14 @@ export const EditorToolbar = ({
 
                     // Apply paragraph spacing using custom styles
                     const spacingHTML = `
-                    <p style="margin-top: ${beforeValue}px; margin-bottom: ${afterValue}px;">
-                      ${editor.state.doc.textBetween(
+        <p style="margin-top: ${beforeValue}px; margin-bottom: ${afterValue}px;">
+          ${editor.state.doc.textBetween(
                       editor.state.selection.from,
                       editor.state.selection.to,
                       ' '
                     ) || 'Paragraph with custom spacing'}
-                    </p>
-                  `;
+        </p>
+        `;
 
                     editor.chain().focus().insertContent(spacingHTML).run();
                     toast.success(`Paragraph spacing set: ${beforeValue}pt before, ${afterValue}pt after`);
@@ -1963,66 +2173,43 @@ export const EditorToolbar = ({
           label: "Styles",
           icon: Type,
           submenu: [
-            { label: "Clear All Formatting", icon: RemoveFormatting, action: clearAllFormatting },
+            { label: "Clear All Formatting", icon: RemoveFormatting, action: clearFormatting },
             { label: "Apply Style", icon: Paintbrush, action: () => toast.info('Style gallery') },
             { label: "Create New Style", icon: Plus, action: () => toast.info('Create style dialog') },
             { label: "Style Inspector", icon: Eye, action: () => toast.info('Style inspector panel') },
+            { label: "Text Color", icon: Palette, action: () => setShowFormatMenu('color') },
+            { label: "Highlight Color", icon: Highlighter, action: () => setShowFormatMenu('highlight') },
+            { label: "Clear Formatting", icon: RemoveFormatting, shortcut: "Ctrl+Space", action: clearFormatting },
           ]
         },
-        {
-          label: "Page Layout",
-          icon: LayoutTemplate,
-          submenu: [
-            { label: "Margins", icon: Columns, action: () => setShowFormatMenu('margins') },
-            { label: "Orientation", icon: RotateCw, action: () => toast.info('Page orientation dialog') },
-            { label: "Size", icon: Maximize, action: () => toast.info('Page size dialog') },
-            { label: "Columns", icon: Columns, action: () => toast.info('Columns dialog') },
-            { label: "Page Borders", icon: Circle, action: () => setBorders('page') },
-            { label: "Page Color", icon: Palette, action: () => toast.info('Page color picker') },
-            { label: "Watermark", icon: Droplet, action: () => toast.info('Watermark dialog') },
-          ]
-        },
-        { type: "separator" },
-        { label: "Bullets and Numbering", icon: List, action: () => toast.info('Bullets and numbering dialog') },
-        { label: "Borders and Shading", icon: Circle, action: () => toast.info('Borders and shading dialog') },
-        { label: "Change Case", icon: Type, action: () => toast.info('Change case dialog') },
       ]
     },
     {
-      label: "Tools",
+      label: 'Tools',
       items: [
+        { label: 'Spelling & Grammar', icon: SpellCheck, action: () => toast.info('Spell check started') },
         {
-          label: "Spelling & Grammar", icon: SpellCheck, checked: spellCheckEnabled, action: () => {
-            setSpellCheckEnabled(!spellCheckEnabled);
-            toast.info(`Spell check ${spellCheckEnabled ? 'disabled' : 'enabled'}`);
-          }
+          label: 'Word Count', icon: Hash, action: () => setShowWordCount(true)
         },
-        {
-          label: "Word Count", icon: Hash, action: () => {
-            const text = editor.getText();
-            const words = text.trim().split(/\s+/).filter(Boolean).length;
-            const chars = text.length;
-            toast.info(`Words: ${words}, Characters: ${chars}`);
-          }
-        },
-        { label: "Language", icon: Languages, action: () => toast.info('Language settings') },
-        { label: "Thesaurus", icon: FileText, action: () => toast.info('Thesaurus panel') },
-        { label: "Dictionary", icon: FileText, action: () => toast.info('Dictionary panel') },
-        { type: "separator" },
-        { label: "Comments", icon: MessageSquare, action: () => toast.info('Comments panel') },
-        { label: "Track Changes", icon: Edit3, action: () => toast.info('Track changes toggled') },
-        { label: "Compare Documents", icon: FileText, action: () => toast.info('Compare documents dialog') },
-        { type: "separator" },
-        { label: "Mail Merge", icon: Mail, action: () => toast.info('Mail merge wizard') },
-        { label: "Envelopes and Labels", icon: Tag, action: () => toast.info('Envelopes and labels dialog') },
-        { type: "separator" },
-        { label: "Macros", icon: Terminal, action: () => toast.info('Macro recorder') },
-        { label: "Templates and Add-ins", icon: FileText, action: () => toast.info('Templates and add-ins dialog') },
-        { label: "AutoCorrect Options", icon: Wand2, action: () => toast.info('AutoCorrect options') },
+        { type: 'separator' },
+        { label: 'Voice Typing', icon: MessageSquare, action: () => setShowVoiceTyping(true) },
+        { type: 'separator' },
+        { label: 'Find & Replace', icon: Replace, shortcut: 'Ctrl+H', action: () => setShowFindReplace(true) },
+        { label: 'Find', icon: Search, shortcut: 'Ctrl+F', action: () => setShowSearch(true) },
+        { type: 'separator' },
+        { label: 'Page Setup', icon: Ruler, action: () => setShowPageSetup(true) },
+        { label: 'Version History', icon: History, action: () => { saveCurrentVersion(); setShowVersionHistory(true); } },
+        { label: 'Comments', icon: MessageSquare, action: () => setShowCommentsPanel(!showCommentsPanel) },
+        { type: 'separator' },
+        { label: 'Text Direction: LTR', icon: AlignLeft, action: () => setTextDir('ltr') },
+        { label: 'Text Direction: RTL', icon: AlignRight, action: () => setTextDir('rtl') },
+        { type: 'separator' },
+        { label: 'Compare Documents', icon: FileText, action: () => toast.info('Compare documents dialog') },
+        { label: 'Citations', icon: Bookmark, action: () => setShowReferencesPanel(true) },
       ]
     },
     {
-      label: "AI Assistant",
+      label: 'AI Assistant',
       items: [
         {
           label: "Generate Document",
@@ -2053,12 +2240,12 @@ export const EditorToolbar = ({
       ]
     },
     {
-      label: "Help",
+      label: 'Help',
       items: [
-        { label: "Help Center", icon: HelpCircle, action: () => window.open('https://help.example.com', '_blank') },
-        { label: "Keyboard Shortcuts", icon: Keyboard, shortcut: "Ctrl+/", action: () => toast.info('Keyboard shortcuts dialog would appear here') },
-        { label: "Check for Updates", icon: Download, action: () => toast.info('Checking for updates...') },
-        { label: "About", icon: Info, action: () => toast.info('Athena Editor v2.0.0\n© 2024 Athena Software') },
+        { label: 'Help Center', icon: HelpCircle, action: () => handleExternalLink('https://help.athena-ai.com') },
+        { label: 'Keyboard Shortcuts', icon: Keyboard, shortcut: 'Ctrl+/', action: () => setShowShortcutsDialog(true) },
+        { type: 'separator' },
+        { label: 'About', icon: Info, action: () => toast.info('Athena-AI Editor v2.0') },
       ]
     }
   ];
@@ -2072,60 +2259,40 @@ export const EditorToolbar = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-none"
+                className="h-8 px-3 text-sm font-medium text-gray-700 hover:bg-blue-100/50 hover:text-blue-800 rounded-md transition-colors"
               >
                 {item.label}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-[200px]">
+            <DropdownMenuContent className="w-56 bg-white border border-blue-100 shadow-xl rounded-md p-1">
               {item.items.map((menuItem, index) => {
-                if (menuItem.type === "separator") {
-                  return <DropdownMenuSeparator key={`sep-${index}`} />
+                if (menuItem.type === 'separator') {
+                  return <DropdownMenuSeparator key={index} className="bg-blue-50" />;
                 }
 
                 if (menuItem.submenu) {
                   return (
-                    <DropdownMenuSub key={`sub-${index}`}>
-                      <DropdownMenuSubTrigger className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200">
-                        <menuItem.icon className="w-4 h-4 mr-2" />
-                        {menuItem.label}
+                    <DropdownMenuSub key={menuItem.label}>
+                      <DropdownMenuSubTrigger className="text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-800">
+                        {menuItem.icon && <menuItem.icon className="mr-2 h-4 w-4 text-blue-500" />}
+                        <span>{menuItem.label}</span>
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
+                      <DropdownMenuSubContent className="w-48 bg-white border border-blue-100 shadow-xl rounded-md p-1">
                         {menuItem.submenu.map((subItem, subIndex) => {
-                          if (subItem.type === "separator") {
-                            return <DropdownMenuSeparator key={`sub-sep-${subIndex}`} />
+                          if (subItem.type === 'separator') {
+                            return <DropdownMenuSeparator key={subIndex} className="bg-blue-50" />;
                           }
-
-                          if ('checked' in subItem) {
-                            return (
-                              <DropdownMenuCheckboxItem
-                                key={`check-${subIndex}`}
-                                checked={subItem.checked}
-                                onCheckedChange={subItem.action}
-                                className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
-                              >
-                                {subItem.icon && <subItem.icon className="w-4 h-4 mr-2" />}
-                                {subItem.label}
-                                {subItem.shortcut && (
-                                  <DropdownMenuShortcut>{subItem.shortcut}</DropdownMenuShortcut>
-                                )}
-                              </DropdownMenuCheckboxItem>
-                            )
-                          }
-
                           return (
                             <DropdownMenuItem
-                              key={`sub-${subIndex}`}
+                              key={subItem.label}
                               onClick={subItem.action}
-                              className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
+                              disabled={subItem.disabled}
+                              className="text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-800"
                             >
-                              {subItem.icon && <subItem.icon className="w-4 h-4 mr-2" />}
-                              {subItem.label}
-                              {subItem.shortcut && (
-                                <DropdownMenuShortcut>{subItem.shortcut}</DropdownMenuShortcut>
-                              )}
+                              {subItem.icon && <subItem.icon className="mr-2 h-4 w-4 text-blue-500" />}
+                              <span>{subItem.label}</span>
                             </DropdownMenuItem>
-                          )
+                          );
                         })}
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
@@ -2138,7 +2305,7 @@ export const EditorToolbar = ({
                       key={`check-${index}`}
                       checked={menuItem.checked}
                       onCheckedChange={menuItem.action}
-                      className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
+                      className="hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
                     >
                       <menuItem.icon className="w-4 h-4 mr-2" />
                       {menuItem.label}
@@ -2151,24 +2318,26 @@ export const EditorToolbar = ({
 
                 return (
                   <DropdownMenuItem
-                    key={index}
+                    key={menuItem.label}
                     onClick={menuItem.action}
-                    className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:text-blue-700 transition-all duration-200"
+                    className="text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-800 flex justify-between items-center"
                   >
-                    <menuItem.icon className="w-4 h-4 mr-2" />
-                    {menuItem.label}
+                    <div className="flex items-center">
+                      {menuItem.icon && <menuItem.icon className="mr-2 h-4 w-4 text-blue-500" />}
+                      <span>{menuItem.label}</span>
+                    </div>
                     {menuItem.shortcut && (
-                      <DropdownMenuShortcut>{menuItem.shortcut}</DropdownMenuShortcut>
+                      <span className="ml-auto text-[10px] text-gray-400">{menuItem.shortcut}</span>
                     )}
                   </DropdownMenuItem>
-                )
+                );
               })}
             </DropdownMenuContent>
           </DropdownMenu>
         ))}
       </div>
-    )
-  }
+    );
+  };
 
   // Hidden file input
   const hiddenFileInput = (
@@ -2191,142 +2360,72 @@ export const EditorToolbar = ({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="sticky top-0 z-40 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 shadow-sm"
+      className="sticky top-0 z-40 bg-[#eaf2ff] border-b border-blue-200 shadow-sm"
       style={{ contain: 'layout style' }}
     >
       {/* Header with Menu */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-blue-100 to-blue-200">
-        {/* Left section */}
+      <div className="flex items-center justify-between px-4 py-1 border-b border-blue-100">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent font-bold text-lg">
-              ATHENA-AI EDITOR
-            </div>
-            <span className="text-xs flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${onSave ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              <span className={onSave ? 'text-green-600' : 'text-gray-600'}>
-                {onSave ? 'Editor ready' : 'Loading...'}
-              </span>
-            </span>
+          <span className="text-blue-600 font-bold tracking-wider" style={{ fontSize: "1.05rem" }}>ATHENA-AI EDITOR</span>
+          <div className="flex items-center gap-1.5 ml-1">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <span className="text-xs text-green-500 font-medium">Editor ready</span>
           </div>
         </div>
 
-        {/* Center menu */}
-        {renderMenu()}
+        <div className="flex-1 flex justify-start ml-8">
+          {renderMenu()}
+        </div>
 
-        {/* Right section */}
-        <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-          <ToolbarButton
-            onClick={() => {
-              if (onZoomChange && typeof onZoomChange === 'function') {
-                const currentZoom = zoom || 100;
-                const newZoom = Math.max(50, currentZoom - 10);
-                console.log('Zooming out from', currentZoom, 'to', newZoom);
-                onZoomChange(newZoom);
-              } else {
-                console.error('onZoomChange is not available');
-                toast.error('Zoom function not available');
-              }
-            }}
-            tooltip="Zoom Out"
-            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
-          >
-            <Minus className="w-5 h-5 text-blue-600" />
-          </ToolbarButton>
-          <div className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700 min-w-[40px] text-center" style={{ flexShrink: 0 }}>
-            {zoom || 100}%
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full px-1 bg-white/50 border border-transparent hover:bg-white transition-colors">
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-blue-600 hover:bg-transparent" onClick={() => onZoomChangeWithFeedback(Math.max(50, effectiveZoom - 10))}><Minus className="w-3.5 h-3.5" /></Button>
+            <span className="text-xs font-medium w-12 text-center text-gray-700 bg-white rounded py-1 border border-blue-50">{effectiveZoom}%</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-blue-600 hover:bg-transparent" onClick={() => onZoomChangeWithFeedback(Math.min(200, effectiveZoom + 10))}><Plus className="w-3.5 h-3.5" /></Button>
           </div>
-          <ToolbarButton
-            onClick={() => {
-              if (onZoomChange && typeof onZoomChange === 'function') {
-                const currentZoom = zoom || 100;
-                const newZoom = Math.min(200, currentZoom + 10);
-                console.log('Zooming in from', currentZoom, 'to', newZoom);
-                onZoomChange(newZoom);
-              } else {
-                console.error('onZoomChange is not available');
-                toast.error('Zoom function not available');
-              }
-            }}
-            tooltip="Zoom In"
-            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-white text-blue-600 hover:bg-blue-50 shadow-sm transition-colors border border-transparent" onClick={() => setShowSearch(true)}><Search className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-white text-blue-600 hover:bg-blue-50 shadow-sm transition-colors border border-transparent" onClick={() => handlePrint()}><Printer className="w-4 h-4" /></Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-8 w-8 rounded-full transition-colors border border-transparent shadow-sm ${isAISidebarOpen
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-200'
+              }`}
+            onClick={() => setIsAISidebarOpen(!isAISidebarOpen)}
           >
-            <Plus className="w-5 h-5 text-blue-600" />
-          </ToolbarButton>
-
-          <Separator orientation="vertical" className="h-6 mx-2" />
-
-          <ToolbarButton
-            onClick={() => setShowSearch(!showSearch)}
-            tooltip="Search (Ctrl+F)"
-            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
-          >
-            <Search className="w-5 h-5 text-blue-600" />
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => {
-              setTimeout(() => {
-                if (onPrint && typeof onPrint === 'function') {
-                  const content = editor && typeof editor.getHTML === 'function' ? editor.getHTML() : '';
-                  onPrint(content);
-                } else {
-                  handlePrint();
-                }
-              }, 100);
-            }}
-            tooltip="Print (Ctrl+P)"
-            className="rounded-lg transition-all duration-300 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200"
-          >
-            <Printer className="w-5 h-5 text-blue-600" />
-          </ToolbarButton>
-
-
-          <ToolbarButton
-            onClick={() => {
-              if (typeof setIsAISidebarOpen === 'function') {
-                setIsAISidebarOpen(true);
-              } else {
-                toast.info('AI sidebar not available');
-              }
-            }}
-            tooltip="AI Assistance"
-            className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
-          >
-            <Sparkles className="w-4 h-4 text-blue-600" />
-          </ToolbarButton>
-
-
+            <Sparkles className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
       {/* Compact Single-Row Toolbar */}
-      <div className="flex items-center px-4 py-1 gap-1 border-t border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 overflow-x-auto" style={{ contain: 'layout' }}>
+      <div className="flex items-center px-4 py-0.5 gap-1.5 overflow-x-auto" style={{ contain: 'layout' }}>
         {/* History Controls */}
-        <ToolbarButton
+        < ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
           tooltip="Undo (Ctrl+Z)"
-          className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Undo className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
+        </ToolbarButton >
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
           tooltip="Redo (Ctrl+Y)"
-          className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Redo className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Font Controls */}
         <select
           value={currentFont}
           onChange={(e) => setFontFamily(e.target.value)}
-          className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 min-w-[120px] hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
+          className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-3 h-8 min-w-25 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors"
         >
           {FONTS.map(font => (
             <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -2338,35 +2437,43 @@ export const EditorToolbar = ({
         <select
           value={currentFontSize}
           onChange={(e) => setCurrentFontSize(parseInt(e.target.value))}
-          className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 w-16 hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
+          className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-3 h-8 w-16 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors"
         >
           {FONT_SIZES.map(size => (
             <option key={size} value={size}>{size}</option>
           ))}
         </select>
 
-        <select
-          value={activeHeadingLevel || 0}
-          onChange={(e) => handleHeadingChange(parseInt(e.target.value))}
-          className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg px-2 py-1 h-8 w-20 hover:from-blue-100 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200"
-        >
-          <option value={0}>Normal</option>
-          <option value={1}>H1</option>
-          <option value={2}>H2</option>
-          <option value={3}>H3</option>
-          <option value={4}>H4</option>
-          <option value={5}>H5</option>
-          <option value={6}>H6</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={activeHeadingLevel || 0}
+            onChange={(e) => {
+              console.log('Toolbar heading change to:', e.target.value);
+              handleHeadingChange(parseInt(e.target.value));
+            }}
+            className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-3 h-8 min-w-22.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors"
+          >
+            <option value={0}>Normal</option>
+            <option value={1}>H1</option>
+            <option value={2}>H2</option>
+            <option value={3}>H3</option>
+            <option value={4}>H4</option>
+            <option value={5}>H5</option>
+            <option value={6}>H6</option>
+          </select>
+          <div className="text-xs text-blue-600 font-medium px-2 py-1 bg-blue-50 rounded-full">
+            Level: {activeHeadingLevel || 0}
+          </div>
+        </div>
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Basic Formatting */}
         <ToolbarButton
           onClick={() => handleFormatAction('bold')}
           isActive={editor.isActive("bold")}
           tooltip="Bold (Ctrl+B)"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Bold className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2374,7 +2481,7 @@ export const EditorToolbar = ({
           onClick={() => handleFormatAction('italic')}
           isActive={editor.isActive("italic")}
           tooltip="Italic (Ctrl+I)"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Italic className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2382,7 +2489,7 @@ export const EditorToolbar = ({
           onClick={() => handleFormatAction('underline')}
           isActive={editor.isActive("underline")}
           tooltip="Underline (Ctrl+U)"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Underline className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2390,17 +2497,17 @@ export const EditorToolbar = ({
           onClick={() => handleFormatAction('strike')}
           isActive={editor.isActive("strike")}
           tooltip="Strikethrough"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Strikethrough className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Text Color Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
               <Palette className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
@@ -2429,7 +2536,7 @@ export const EditorToolbar = ({
         {/* Highlight Color Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
               <Highlighter className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
@@ -2455,7 +2562,7 @@ export const EditorToolbar = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Lists Dropdown */}
         <DropdownMenu>
@@ -2464,20 +2571,20 @@ export const EditorToolbar = ({
               variant="ghost"
               size="icon"
               className={`h-9 w-9 rounded-lg transition-all duration-300 ${(editor.isActive("bulletList") || editor.isActive("orderedList") || editor.isActive("taskList"))
-                ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300"
-                : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+                ? "bg-linear-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300"
+                : "bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
                 }`}
             >
               <List className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 bg-white z-[100] shadow-lg border border-gray-200 rounded-md p-1">
+          <DropdownMenuContent className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
             <DropdownMenuItem
               onClick={() => {
                 console.log('Numbered list selected');
                 toggleOrderedList();
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("orderedList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("orderedList") ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <ListOrdered className="w-4 h-4 mr-2" />
@@ -2488,7 +2595,7 @@ export const EditorToolbar = ({
                 console.log('Bullet list selected');
                 toggleBulletList();
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("bulletList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("bulletList") ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <List className="w-4 h-4 mr-2" />
@@ -2499,7 +2606,7 @@ export const EditorToolbar = ({
                 console.log('Task list selected');
                 toggleTaskList();
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("taskList") ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("taskList") ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <ListChecks className="w-4 h-4 mr-2" />
@@ -2512,7 +2619,7 @@ export const EditorToolbar = ({
                 removeListFormatting();
               }}
               disabled={!hasListFormatting()}
-              className={`hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${!hasListFormatting() ? "opacity-50 cursor-not-allowed" : ""
+              className={`hover:bg-linear-to-r hover:from-red-50 hover:to-red-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${!hasListFormatting() ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             >
               <X className="w-4 h-4 mr-2 text-red-500" />
@@ -2522,7 +2629,7 @@ export const EditorToolbar = ({
         </DropdownMenu>
 
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Text Alignment Dropdown */}
         <DropdownMenu>
@@ -2531,20 +2638,20 @@ export const EditorToolbar = ({
               variant="ghost"
               size="icon"
               className={`h-9 w-9 rounded-lg transition-all duration-300 ${(editor.isActive({ textAlign: 'left' }) || editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }))
-                ? "bg-gradient-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300"
-                : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+                ? "bg-linear-to-br from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 text-green-700 border-2 border-green-300"
+                : "bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
                 }`}
             >
               <AlignLeft className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 bg-white z-[100] shadow-lg border border-gray-200 rounded-md p-1">
+          <DropdownMenuContent className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
             <DropdownMenuItem
               onClick={() => {
                 console.log('Align left selected');
                 setTextAlign('left');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'left' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'left' }) ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <AlignLeft className="w-4 h-4 mr-2" />
@@ -2555,7 +2662,7 @@ export const EditorToolbar = ({
                 console.log('Align center selected');
                 setTextAlign('center');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'center' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'center' }) ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <AlignCenter className="w-4 h-4 mr-2" />
@@ -2566,7 +2673,7 @@ export const EditorToolbar = ({
                 console.log('Align right selected');
                 setTextAlign('right');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'right' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'right' }) ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <AlignRight className="w-4 h-4 mr-2" />
@@ -2577,7 +2684,7 @@ export const EditorToolbar = ({
                 console.log('Justify selected');
                 setTextAlign('justify');
               }}
-              className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'justify' }) ? "bg-gradient-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive({ textAlign: 'justify' }) ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
                 }`}
             >
               <AlignJustify className="w-4 h-4 mr-2" />
@@ -2590,7 +2697,7 @@ export const EditorToolbar = ({
                 removeTextAlignment();
               }}
               disabled={!hasTextAlignment()}
-              className={`hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${!hasTextAlignment() ? "opacity-50 cursor-not-allowed" : ""
+              className={`hover:bg-linear-to-r hover:from-red-50 hover:to-red-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${!hasTextAlignment() ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             >
               <X className="w-4 h-4 mr-2 text-red-500" />
@@ -2599,25 +2706,12 @@ export const EditorToolbar = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Indentation */}
-        <ToolbarButton
-          onClick={indent}
-          tooltip="Increase Indent"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <ArrowRightToLine className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={outdent}
-          tooltip="Decrease Indent"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <ArrowLeftToLine className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
+        <IndentControls editor={editor} />
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Quick Insert */}
         <ToolbarButton
@@ -2675,7 +2769,7 @@ export const EditorToolbar = ({
             fileInput.click();
           }}
           tooltip="Insert Image"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <ImageIcon className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2717,8 +2811,8 @@ export const EditorToolbar = ({
             tooltip={isInsideTable() ? "Table Tools (Click for options)" : "Insert Table"}
             isActive={isInsideTable()}
             className={`rounded-lg transition-all duration-300 ${isInsideTable()
-              ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
-              : "bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
+              ? "bg-linear-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+              : "bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
               }`}
             data-table-button="true"
           >
@@ -2728,7 +2822,7 @@ export const EditorToolbar = ({
           {/* Table Picker Dropdown - Rendered in Portal to escape overflowing containers */}
           {showTablePicker && ReactDOM.createPortal(
             <div
-              className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200"
+              className="fixed z-9999 bg-white rounded-lg shadow-xl border border-gray-200"
               ref={tablePickerRef}
               style={{
                 position: 'fixed',
@@ -2744,7 +2838,7 @@ export const EditorToolbar = ({
 
         {/* Code Block with Configuration Dropdown */}
         <div className="relative">
-          <div className="flex items-center rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 border border-blue-200">
+          <div className="flex items-center rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 border border-blue-200">
             <ToolbarButton
               onClick={toggleCodeBlock}
               isActive={editor.isActive('codeBlock')}
@@ -2781,8 +2875,8 @@ export const EditorToolbar = ({
                           key={lang}
                           onClick={() => insertCodeBlockWithLanguage(lang)}
                           className={`text-xs px-2 py-1 rounded text-left transition-all duration-200 ${selectedCodeLanguage === lang
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-                            : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200 hover:border hover:border-blue-300'
+                            ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white'
+                            : 'bg-linear-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200 hover:border hover:border-blue-300'
                             }`}
                         >
                           {lang.charAt(0).toUpperCase() + lang.slice(1)}
@@ -2798,8 +2892,8 @@ export const EditorToolbar = ({
                       <button
                         onClick={toggleCodeExecution}
                         className={`text-xs px-2 py-1 rounded transition-all duration-200 ${codeExecutionEnabled
-                          ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-                          : 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700'
+                          ? 'bg-linear-to-r from-green-500 to-green-600 text-white'
+                          : 'bg-linear-to-r from-gray-200 to-gray-300 text-gray-700'
                           }`}
                       >
                         {codeExecutionEnabled ? 'ON' : 'OFF'}
@@ -2810,7 +2904,7 @@ export const EditorToolbar = ({
                       <button
                         onClick={executeCodeBlock}
                         disabled={!editor.isActive('codeBlock')}
-                        className="w-full text-xs bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 mt-1"
+                        className="w-full text-xs bg-linear-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 mt-1"
                       >
                         <Play className="w-3 h-3 inline mr-1" />
                         Execute Code Block
@@ -2834,18 +2928,18 @@ export const EditorToolbar = ({
           onClick={toggleBlockquote}
           isActive={editor.isActive('blockquote')}
           tooltip="Insert Block Quote"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Quote className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
 
-        <Separator orientation="vertical" className="mx-2 h-5" />
+        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* AI Tools */}
         <ToolbarButton
           onClick={() => setShowAIDocumentGenerator(true)}
           tooltip="Generate Document with AI"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Sparkles className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2853,7 +2947,7 @@ export const EditorToolbar = ({
         <ToolbarButton
           onClick={() => setShowAIInlineActions(true)}
           tooltip="AI Inline Actions"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Wand2 className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2861,7 +2955,7 @@ export const EditorToolbar = ({
         <ToolbarButton
           onClick={() => setShowCodeAssistant(true)}
           tooltip="Code Assistant"
-          className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
+          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Code2 className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
@@ -2895,7 +2989,7 @@ export const EditorToolbar = ({
             <DropdownMenuItem onClick={executeCodeBlock} disabled={!editor.isActive('codeBlock') || !codeExecutionEnabled}>
               <Play className="w-4 h-4 mr-2" /> Execute Code Block
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={clearAllFormatting}>
+            <DropdownMenuItem onClick={clearFormatting}>
               <RemoveFormatting className="w-4 h-4 mr-2" /> Clear Formatting
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -2936,18 +3030,18 @@ export const EditorToolbar = ({
               <Trash2 className="w-4 h-4 mr-2" /> Delete Table
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setPageMargins({ top: 72, right: 72, bottom: 72, left: 72 })}>
-              <Ruler className="w-4 h-4 mr-2" /> Set Page Margins
+            <DropdownMenuItem onClick={() => setShowPageSetup(true)}>
+              <Ruler className="w-4 h-4 mr-2" /> Page Setup
             </DropdownMenuItem>
             <DropdownMenuItem onClick={insertSectionBreak}>
               <Split className="w-4 h-4 mr-2" /> Insert Section Break
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </div >
 
       {/* Search Bar */}
-      <AnimatePresence>
+      < AnimatePresence >
         {showSearch && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -2984,102 +3078,132 @@ export const EditorToolbar = ({
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence >
 
       {/* Hidden file input */}
       {hiddenFileInput}
 
       {/* AI Document Generator Dialog */}
       <Dialog open={showAIDocumentGenerator} onOpenChange={setShowAIDocumentGenerator}>
-        <DialogContent className="max-w-2xl bg-white">
-          <DialogHeader>
-            <DialogTitle>Generate Document with AI</DialogTitle>
-            <DialogDescription>
-              Provide the details below and AI will generate a complete structured document.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="topic">Document Topic *</Label>
-              <Input
-                id="topic"
-                placeholder="e.g., Artificial Intelligence in Healthcare"
-                value={documentTopic}
-                onChange={(e) => setDocumentTopic(e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="pages">Number of Pages</Label>
-                <Select value={documentPages.toString()} onValueChange={(value) => setDocumentPages(parseInt(value))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 5, 10].map(num => (
-                      <SelectItem key={num} value={num.toString()}>{num} page{num > 1 ? 's' : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white/95 backdrop-blur-xl border border-blue-200/60 rounded-4xl shadow-2xl overflow-hidden p-0" aria-describedby="ai-document-generator-description">
+          <div className="bg-linear-to-r from-[#0c496e] to-[#1e40af] px-8 py-6 text-white relative shrink-0">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <Sparkles className="w-5 h-5 text-gold" style={{ color: '#fabf23' }} />
+                </div>
+                <DialogTitle className="text-2xl font-bold tracking-tight text-white">Generate with AI</DialogTitle>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tone">Tone</Label>
-                <Select value={documentTone} onValueChange={setDocumentTone}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select tone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TONES.map(tone => (
-                      <SelectItem key={tone} value={tone}>{tone}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="type">Document Type</Label>
-              <Select value={documentType} onValueChange={setDocumentType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Technical Document">Technical Document</SelectItem>
-                  <SelectItem value="Blog Post">Blog Post</SelectItem>
-                  <SelectItem value="Research Paper">Research Paper</SelectItem>
-                  <SelectItem value="Business Report">Business Report</SelectItem>
-                  <SelectItem value="Resume">Resume</SelectItem>
-                  <SelectItem value="Portfolio">Portfolio</SelectItem>
-                  <SelectItem value="Thesis">Thesis</SelectItem>
-                  <SelectItem value="Code Documentation">Code Documentation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="additionalInstructions">Additional Instructions (Optional)</Label>
-              <Textarea
-                id="additionalInstructions"
-                placeholder="Any specific requirements or structure..."
-                rows={3}
-              />
-            </div>
+              <DialogDescription className="text-blue-100/80 font-medium">
+                Describe your vision and Athena will craft a professional document for you.
+              </DialogDescription>
+            </DialogHeader>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAIDocumentGenerator(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleGenerateDocument} className="bg-gradient-to-r from-purple-600 to-blue-600">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generate Document
-            </Button>
-          </DialogFooter>
+          <div className="p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
+            <div className="space-y-3">
+              <Label htmlFor="topic" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Document Topic</Label>
+              <div className="relative group">
+                <Input
+                  id="topic"
+                  placeholder="e.g., Marketing Strategy for 2026..."
+                  value={documentTopic}
+                  onChange={(e) => setDocumentTopic(e.target.value)}
+                  className="h-14 bg-slate-50 border-slate-200 rounded-2xl pl-4 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all shadow-sm group-hover:shadow-md border-2 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="pages" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Length</Label>
+                <Select value={documentPages.toString()} onValueChange={(value) => setDocumentPages(parseInt(value))}>
+                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
+                    <SelectValue placeholder="Select pages" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+                    {[1, 2, 3, 5, 10].map(num => (
+                      <SelectItem key={num} value={num.toString()} className="rounded-lg">{num} page{num > 1 ? 's' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="tone" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Tone of Voice</Label>
+                <Select value={documentTone} onValueChange={setDocumentTone}>
+                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
+                    <SelectValue placeholder="Select tone" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+                    {TONES.map(tone => (
+                      <SelectItem key={tone} value={tone} className="rounded-lg">{tone}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="type" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Document Category</Label>
+                <Select value={documentType} onValueChange={setDocumentType}>
+                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+                    {['Technical Document', 'Blog Post', 'Research Paper', 'Business Report', 'Creative Story', 'Meeting Minutes'].map(type => (
+                      <SelectItem key={type} value={type} className="rounded-lg">{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-1">
+                  <Label className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Creativity</Label>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">
+                    {Math.round(documentCreativity[0] * 100)}%
+                  </span>
+                </div>
+                <div className="h-12 flex items-center px-2">
+                  <Slider
+                    value={documentCreativity}
+                    onValueChange={setDocumentCreativity}
+                    max={1}
+                    step={0.1}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 flex items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowAIDocumentGenerator(false)}
+                className="flex-1 h-12 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-bold text-slate-600 transition-all font-sans"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  handleGenerateDocument();
+                  setShowAIDocumentGenerator(false);
+                }}
+                disabled={!documentTopic || !documentTopic.trim()}
+                className="flex-2 h-14 rounded-xl bg-linear-to-r from-[#0c496e] to-[#1e40af] hover:shadow-xl shadow-[#0c496e]/20 text-white font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Forge Document
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
+
+
 
       {/* AI Inline Actions */}
       <AIInlineActions
@@ -3195,9 +3319,12 @@ export const EditorToolbar = ({
       </Dialog>
 
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
-        <DialogContent className="max-w-md bg-white">
+        <DialogContent className="max-w-md bg-white" aria-describedby="insert-image-description">
           <DialogHeader>
             <DialogTitle>Insert Image</DialogTitle>
+                        <DialogDescription id="insert-image-description">
+                          Add images to your document from URL or file upload
+                        </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -3372,13 +3499,13 @@ export const EditorToolbar = ({
                     className={`text-xs px-3 py-2 rounded transition-all duration-200 ${codeTheme === theme.value
                       ? 'ring-2 ring-blue-500 ring-offset-2'
                       : ''
-                      } ${theme.value === 'default' ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200' :
-                        theme.value === 'dark' ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800' :
-                          theme.value === 'light' ? 'bg-gradient-to-r from-white to-gray-50 text-gray-800 hover:from-gray-50 hover:to-white border' :
-                            theme.value === 'monokai' ? 'bg-gradient-to-r from-purple-900 to-indigo-900 text-purple-200 hover:from-purple-800 hover:to-indigo-800' :
-                              theme.value === 'github' ? 'bg-gradient-to-r from-gray-100 to-white text-gray-800 hover:from-gray-200 hover:to-gray-50' :
-                                theme.value === 'solarized' ? 'bg-gradient-to-r from-amber-50 to-yellow-100 text-amber-800 hover:from-amber-100 hover:to-yellow-200' :
-                                  'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'
+                      } ${theme.value === 'default' ? 'bg-linear-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200' :
+                        theme.value === 'dark' ? 'bg-linear-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800' :
+                          theme.value === 'light' ? 'bg-linear-to-r from-white to-gray-50 text-gray-800 hover:from-gray-50 hover:to-white border' :
+                            theme.value === 'monokai' ? 'bg-linear-to-r from-purple-900 to-indigo-900 text-purple-200 hover:from-purple-800 hover:to-indigo-800' :
+                              theme.value === 'github' ? 'bg-linear-to-r from-gray-100 to-white text-gray-800 hover:from-gray-200 hover:to-gray-50' :
+                                theme.value === 'solarized' ? 'bg-linear-to-r from-amber-50 to-yellow-100 text-amber-800 hover:from-amber-100 hover:to-yellow-200' :
+                                  'bg-linear-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'
                       }`}
                   >
                     {theme.label}
@@ -3471,8 +3598,92 @@ export const EditorToolbar = ({
         )}
       </AnimatePresence>
 
+      {/* === NEW FEATURE PANELS === */}
+      <AnimatePresence>
+        {showCommentsPanel && (
+          <CommentsPanel isOpen={showCommentsPanel} onClose={() => setShowCommentsPanel(false)} editor={editor} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showVersionHistory && (
+          <VersionHistory
+            isOpen={showVersionHistory} onClose={() => setShowVersionHistory(false)}
+            editor={editor} versions={documentVersions}
+            onSaveVersion={saveCurrentVersion} onRestoreVersion={restoreVersion}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showVoiceTyping && (
+          <VoiceTyping isOpen={showVoiceTyping} onClose={() => setShowVoiceTyping(false)} editor={editor} />
+        )}
+      </AnimatePresence>
+      <PageSetupDialog open={showPageSetup} onOpenChange={setShowPageSetup} onApply={(cfg) => { if (cfg.margins) updatePageMargins(cfg.margins); }} />
+      <KeyboardShortcutsDialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog} />
+      <WordCountDialog open={showWordCount} onOpenChange={setShowWordCount} editor={editor} />
 
-    </motion.div>
+      {/* Find & Replace Inline Dialog */}
+      {showFindReplace && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20" onClick={() => setShowFindReplace(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 w-110 p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                <Search className="w-4 h-4 text-blue-600" /> Find &amp; Replace
+              </h3>
+              <button onClick={() => setShowFindReplace(false)} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Find</label>
+                <div className="flex gap-2">
+                  <input autoFocus type="text" value={findText} onChange={e => setFindText(e.target.value)} placeholder="Search text..."
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                    onKeyDown={e => { if (e.key === 'Enter') performFind(findText); }} />
+                  <button onClick={() => performFind(findText)} className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600">Find</button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Replace with</label>
+                <div className="flex gap-2">
+                  <input type="text" value={replaceText} onChange={e => setReplaceText(e.target.value)} placeholder="Replacement text..."
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                  <button onClick={() => performFind(findText, replaceText)} disabled={!findText || !replaceText}
+                    className="px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50">Replace All</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Insert Dialog */}
+      {showInsertLink && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20" onClick={() => setShowInsertLink(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 w-96 p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 text-base mb-4">Insert Link</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Display Text</label>
+                <input autoFocus type="text" value={linkDisplayText} onChange={e => setLinkDisplayText(e.target.value)} placeholder="Link text..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">URL</label>
+                <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://example.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                  onKeyDown={e => { if (e.key === 'Enter' && linkUrl) { editor.chain().focus().setLink({ href: linkUrl }).run(); toast.success('Link inserted'); setShowInsertLink(false); setLinkUrl(''); setLinkDisplayText(''); } }} />
+              </div>
+              <div className="flex gap-2 justify-end mt-2">
+                <button onClick={() => setShowInsertLink(false)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                <button onClick={() => { if (!linkUrl) return; editor.chain().focus().setLink({ href: linkUrl }).run(); toast.success('Link inserted'); setShowInsertLink(false); setLinkUrl(''); setLinkDisplayText(''); }}
+                  disabled={!linkUrl} className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50">Insert</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </motion.div >
   );
 };
 

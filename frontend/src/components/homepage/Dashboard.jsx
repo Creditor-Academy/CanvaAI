@@ -58,7 +58,7 @@ const QUICK_CREATE = [
     label: "Document",
     defaultIcon: IoDocument,
     hoverIcon: MdOutlineDocumentScanner,
-    route: "/editor",
+    route: "/editor-intro",
     color1: gold,
     color2: lightGold,
   },
@@ -193,7 +193,7 @@ const Dashboard = () => {
               }}
               className="w-11 h-11 rounded-full flex items-center justify-center text-white transition transform hover:scale-105"
               style={{
-                background:navyText
+                background: navyText
               }}
             >
               <FiZap />
@@ -300,7 +300,7 @@ const Dashboard = () => {
               </button>
 
               <button
-                onClick={() => navigate("/editor")}
+                onClick={() => navigate("/editor-intro")}
                 className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition"
               >
                 <FiFileText /> Generate Document

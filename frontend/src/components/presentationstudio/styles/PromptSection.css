@@ -52,6 +52,7 @@
 .presentation-studio-title {
   background: var(--athena-hero-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   color: transparent;
   font-size: 2.5rem;
   font-weight: 800;
@@ -275,7 +276,7 @@
   top: 110%;
   left: 0;
   width: 100%;
-  background: var(--athena-bg-light);
+  background: white !important;
   border: 1px solid var(--athena-text-primary);
   border-radius: 8px;
   margin-top: 6px;

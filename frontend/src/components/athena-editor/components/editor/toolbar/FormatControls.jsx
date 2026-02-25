@@ -62,21 +62,39 @@ export const FormatControls = ({ editor }) => {
   const hasTextAlignment = () => editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' });
 
   const indent = () => {
-    if (editor.isActive('listItem')) {
-      editor.chain().focus().sinkListItem('listItem').run();
-      toast.success('List item indented');
-    } else {
-      editor.chain().focus().indent().run();
-      toast.success('Text indented');
+    try {
+      if (editor.isActive('listItem')) {
+        const result = editor.chain().focus().sinkListItem('listItem').run();
+        if (result) {
+          toast.success('List item indented');
+        }
+      } else {
+        const result = editor.chain().focus().indent().run();
+        if (result) {
+          toast.success('Text indented');
+        }
+      }
+    } catch (error) {
+      console.error('Indent error:', error);
+      toast.error('Failed to indent text');
     }
   };
   const outdent = () => {
-    if (editor.isActive('listItem')) {
-      editor.chain().focus().liftListItem('listItem').run();
-      toast.success('List item outdented');
-    } else {
-      editor.chain().focus().outdent().run();
-      toast.success('Text outdented');
+    try {
+      if (editor.isActive('listItem')) {
+        const result = editor.chain().focus().liftListItem('listItem').run();
+        if (result) {
+          toast.success('List item outdented');
+        }
+      } else {
+        const result = editor.chain().focus().outdent().run();
+        if (result) {
+          toast.success('Text outdented');
+        }
+      }
+    } catch (error) {
+      console.error('Outdent error:', error);
+      toast.error('Failed to outdent text');
     }
   };
 

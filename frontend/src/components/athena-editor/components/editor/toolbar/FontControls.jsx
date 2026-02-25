@@ -57,7 +57,7 @@ export const FontControls = ({
         value={currentFont}
         onValueChange={(value) => setFontFamily(value)}
       >
-        <SelectTrigger className="w-[130px] h-8 text-xs bg-white border-blue-200 hover:border-blue-400 focus:ring-blue-400">
+        <SelectTrigger className="w-32.5 h-8 text-xs bg-white border-blue-200 hover:border-blue-400 focus:ring-blue-400">
           <SelectValue placeholder="Font" />
         </SelectTrigger>
         <SelectContent>
@@ -78,7 +78,7 @@ export const FontControls = ({
           value={currentFontSize.toString()}
           onValueChange={(value) => setFontSize(parseInt(value))}
         >
-          <SelectTrigger className="w-[50px] h-8 text-xs bg-white border-blue-200 hover:border-blue-400 focus:ring-blue-400 px-2">
+          <SelectTrigger className="w-12.5 h-8 text-xs bg-white border-blue-200 hover:border-blue-400 focus:ring-blue-400 px-2">
             <SelectValue placeholder="11" />
           </SelectTrigger>
           <SelectContent>
@@ -99,7 +99,7 @@ export const FontControls = ({
         value={(activeHeadingLevel || 0).toString()}
         onValueChange={(value) => handleHeadingChange(parseInt(value))}
       >
-        <SelectTrigger className="w-[80px] h-8 text-xs bg-white border-blue-200 hover:border-blue-400 focus:ring-blue-400">
+        <SelectTrigger className="w-20 h-8 text-xs bg-white border-blue-200 hover:border-blue-400 focus:ring-blue-400">
           <SelectValue placeholder="Normal" />
         </SelectTrigger>
         <SelectContent>
@@ -118,7 +118,7 @@ export const FontControls = ({
       {/* Text Color Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
             <div className="flex flex-col items-center justify-center">
               <span className="font-bold text-sm leading-none" style={{ color: currentTextColor }}>A</span>
               <div className="w-4 h-1 mt-0.5 rounded-full" style={{ backgroundColor: currentTextColor }}></div>
@@ -153,7 +153,7 @@ export const FontControls = ({
       {/* Highlight Color Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 transition-all duration-300">
             <Highlighter className="w-4 h-4 text-blue-600" />
           </Button>
         </DropdownMenuTrigger>

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Plugin, PluginKey } from 'prosemirror-state';
 import { StarterKit } from '@tiptap/starter-kit';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Underline } from '@tiptap/extension-underline';
 import { TextAlign } from '@tiptap/extension-text-align';
@@ -21,6 +24,114 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import TableExtension from '../extensions/TableExtension.js';
 import { Color } from '@tiptap/extension-color';
 import { FontFamily } from '@tiptap/extension-font-family';
+import { TextDirection } from '../extensions/TextDirection.js';
+
+// Add heading styles to make visual changes obvious
+const addHeadingStyles = () => {
+  const styleId = 'athena-heading-styles';
+  if (document.getElementById(styleId)) return;
+
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `
+    /* Override Tailwind prose styles with higher specificity */
+    .ProseMirror h1,
+    .prose .ProseMirror h1,
+    .prose-lg .ProseMirror h1 {
+      font-size: 2.5rem !important;
+      font-weight: 800 !important;
+      line-height: 1.15 !important;
+      margin-top: 0.75rem !important;
+      margin-bottom: 0.25rem !important;
+      color: #1f2937 !important;
+      display: block !important;
+      font-family: Georgia, serif !important;
+    }
+    
+    .ProseMirror h2,
+    .prose .ProseMirror h2,
+    .prose-lg .ProseMirror h2 {
+      font-size: 2rem !important;
+      font-weight: 700 !important;
+      line-height: 1.15 !important;
+      margin-top: 0.75rem !important;
+      margin-bottom: 0.25rem !important;
+      color: #1f2937 !important;
+      display: block !important;
+      font-family: Georgia, serif !important;
+    }
+    
+    .ProseMirror h3,
+    .prose .ProseMirror h3,
+    .prose-lg .ProseMirror h3 {
+      font-size: 1.75rem !important;
+      font-weight: 600 !important;
+      line-height: 1.15 !important;
+      margin-top: 0.625rem !important;
+      margin-bottom: 0.25rem !important;
+      color: #1f2937 !important;
+      display: block !important;
+      font-family: Georgia, serif !important;
+    }
+    
+    .ProseMirror h4,
+    .prose .ProseMirror h4,
+    .prose-lg .ProseMirror h4 {
+      font-size: 1.5rem !important;
+      font-weight: 600 !important;
+      line-height: 1.15 !important;
+      margin-top: 0.5rem !important;
+      margin-bottom: 0.25rem !important;
+      color: #1f2937 !important;
+      display: block !important;
+      font-family: Georgia, serif !important;
+    }
+    
+    .ProseMirror h5,
+    .prose .ProseMirror h5,
+    .prose-lg .ProseMirror h5 {
+      font-size: 1.25rem !important;
+      font-weight: 600 !important;
+      line-height: 1.15 !important;
+      margin-top: 0.5rem !important;
+      margin-bottom: 0.25rem !important;
+      color: #1f2937 !important;
+      display: block !important;
+      font-family: Georgia, serif !important;
+    }
+    
+    .ProseMirror h6,
+    .prose .ProseMirror h6,
+    .prose-lg .ProseMirror h6 {
+      font-size: 1.1rem !important;
+      font-weight: 600 !important;
+      line-height: 1.15 !important;
+      margin-top: 0.5rem !important;
+      margin-bottom: 0.25rem !important;
+      color: #1f2937 !important;
+      display: block !important;
+      font-family: Georgia, serif !important;
+    }
+    
+    .ProseMirror p,
+    .prose .ProseMirror p,
+    .prose-lg .ProseMirror p {
+      font-size: 1rem !important;
+      line-height: 1.6 !important;
+      margin-top: 0 !important;
+      margin-bottom: 1rem !important;
+      color: #374151 !important;
+      display: block !important;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    }
+    
+    /* Ensure heading styles are visible even when nested */
+    .ProseMirror [data-type="heading"] {
+      font-family: Georgia, serif !important;
+    }
+  `;
+  document.head.appendChild(style);
+};
 import { ResizableImage } from '../extensions/ResizableImage.jsx';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
@@ -136,6 +247,8 @@ import { EditorToolbar } from './editor/EditorToolbar';
 import { AISidebar } from './editor/AISidebar';
 import { DocumentOutline } from './editor/DocumentOutline';
 import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
+import { HeaderMenuBar } from './editor/HeaderMenuBar';
+import { FindReplaceModal } from './editor/FindReplaceModal';
 import { DocumentExporter } from '../../../utils/documentExporter.js';
 import { saveAs } from 'file-saver';
 
@@ -228,24 +341,16 @@ const FontSize = Extension.create({
 
 
 
-// Custom Page Break Extension
+// Custom Page Break Extension - Auto-managed leaf node that creates a physical gap
 const PageBreak = Node.create({
   name: 'pageBreak',
-
   group: 'block',
-
-  selectable: true,
-
-  draggable: true,
-
-  atom: true, // Crucial: treats the node as a single unit
+  selectable: false,
+  draggable: false,
+  atom: true,
 
   parseHTML() {
-    return [
-      {
-        tag: 'div[data-type="page-break"]',
-      },
-    ];
+    return [{ tag: 'div[data-type="page-break"]' }];
   },
 
   renderHTML() {
@@ -349,12 +454,20 @@ const handleFileAction = (action, editor) => {
 const handleViewAction = (action, editorActions, zoom) => {
   switch (action) {
     case 'zoom_in':
-      editorActions.setZoom(prev => Math.min(200, prev + 10));
-      toast.success(`Zoom: ${Math.min(200, (zoom || 100) + 10)}%`);
+      editorActions.setZoom(prev => {
+        const newZoom = Math.min(200, prev + 10);
+        return Math.round(newZoom / 10) * 10;
+      });
+      const newZoomIn = Math.round((Math.min(200, (zoom || 100) + 10)) / 10) * 10;
+      toast.success(`Zoom: ${newZoomIn}%`);
       break;
     case 'zoom_out':
-      editorActions.setZoom(prev => Math.max(50, prev - 10));
-      toast.success(`Zoom: ${Math.max(50, (zoom || 100) - 10)}%`);
+      editorActions.setZoom(prev => {
+        const newZoom = Math.max(50, prev - 10);
+        return Math.round(newZoom / 10) * 10;
+      });
+      const newZoomOut = Math.round((Math.max(50, (zoom || 100) - 10)) / 10) * 10;
+      toast.success(`Zoom: ${newZoomOut}%`);
       break;
     case 'zoom_100':
       editorActions.setZoom(100);
@@ -365,12 +478,14 @@ const handleViewAction = (action, editorActions, zoom) => {
       toast.success('Zoom set to 50%');
       break;
     case 'zoom_75':
-      editorActions.setZoom(75);
-      toast.success('Zoom set to 75%');
+      // Round 75 to nearest multiple of 10 (75 -> 80)
+      editorActions.setZoom(80);
+      toast.success('Zoom set to 80%');
       break;
     case 'zoom_125':
-      editorActions.setZoom(125);
-      toast.success('Zoom set to 125%');
+      // Round 125 to nearest multiple of 10 (125 -> 130)
+      editorActions.setZoom(130);
+      toast.success('Zoom set to 130%');
       break;
     case 'zoom_150':
       editorActions.setZoom(150);
@@ -425,6 +540,14 @@ const handleEditAction = (action, editor, evt = null, handleCopy, handlePaste) =
       // Prevent default paste and use custom handler
       evt && evt.preventDefault()
       handlePaste(evt)
+      break
+    case 'paste_plain':
+      // Paste without formatting
+      if (evt) {
+        evt.preventDefault();
+        const text = evt.clipboardData.getData('text/plain');
+        editor.commands.insertContent(text);
+      }
       break
     case 'select_all':
       editor.chain().focus().selectAll().run()
@@ -555,8 +678,8 @@ const TextEditorWithProviders = () => {
 // Main TextEditor component that uses context providers
 const TextEditorContent = () => {
   // Constants for page management
-  const PAGE_HEIGHT = 1122; // A4 height in points at 96 DPI (11.69 inches * 96)
-  const PAGE_WIDTH = 793;   // A4 width in points at 96 DPI (8.27 inches * 96)
+  const PAGE_HEIGHT = 1122.5; // A4 height in points at 96 DPI (exact match for CSS)
+  const PAGE_WIDTH = 793.7;   // A4 width in px (210mm)
   const LINE_HEIGHT = 1.5;
 
   // Use context hooks for state management with safe defaults
@@ -613,6 +736,8 @@ const TextEditorContent = () => {
   const [readingTime, setReadingTime] = useState(0);
   const [isStarred, setIsStarred] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [showFindReplaceModal, setShowFindReplaceModal] = useState(false);
+  const [findReplaceMode, setFindReplaceMode] = useState(false); // false = find only, true = find and replace
 
 
   // Document management states
@@ -715,6 +840,8 @@ const TextEditorContent = () => {
   // Create refs
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
+  // Stable ref to repaginateDocument so onUpdate can call it before it is defined
+  const repaginateRef = useRef(null);
 
   // Debounce refs for performance
   const statsTimeoutRef = useRef(null);
@@ -722,152 +849,60 @@ const TextEditorContent = () => {
   const pagesUpdateTimeoutRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
 
-  // Function to calculate content height for a page - FIXED: removed dependencies that cause loops
-  const calculateContentHeight = useCallback((htmlContent) => {
-    if (!htmlContent || htmlContent.trim() === '') return 0;
 
-    // Check cache first to avoid expensive DOM measurements
-    if (paragraphHeightCacheRef.current.has(htmlContent)) {
-      return paragraphHeightCacheRef.current.get(htmlContent);
-    }
 
-    const tempDiv = document.createElement('div');
-    tempDiv.style.cssText = `
-      position: absolute;
-      visibility: hidden;
-      width: ${PAGE_WIDTH - (pageMargins.left + pageMargins.right)}px; 
-      font-family: var(--athena-font-body);
-      font-size: 11pt;
-      line-height: 1.5;
-      padding: 0;
-      margin: 0;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    `;
 
-    tempDiv.innerHTML = htmlContent;
-    document.body.appendChild(tempDiv);
+  // Dynamic Manual Pagination - Only triggered by user actions
+  const dynamicManualPagination = useCallback((editorInstance) => {
+    if (!editorInstance?.state?.doc) return;
 
-    const height = tempDiv.offsetHeight;
-    document.body.removeChild(tempDiv);
+    // Only update page count based on explicit page break nodes
+    // This prevents automatic page creation based on content flow
+    let pageBreakCount = 0;
+    editorInstance.state.doc.descendants((node) => {
+      if (node.type.name === 'pageBreak') pageBreakCount++;
+    });
 
-    // Store in cache for future use
-    paragraphHeightCacheRef.current.set(htmlContent, height);
+    const totalPages = pageBreakCount + 1;
 
-    return height;
-  }, [pageMargins.left, pageMargins.right]);
+    if (totalPages !== pages.length) {
+      // Create dummy pages array just for the length/indicator
+      const newPages = Array.from({ length: totalPages }, (_, i) => ({
+        id: i + 1,
+        content: '', // Not needed for single-view editor
+        height: 1122.5
+      }));
 
-  // Function to split content into pages (Google Docs style) - FIXED: removed problematic dependencies
-  const splitContentIntoPages = useCallback((fullContent) => {
-    if (!fullContent || fullContent.trim() === '') {
-      return [{ id: 1, content: '', height: 0 }];
-    }
+      setPages(newPages);
 
-    const maxPageHeight = PAGE_HEIGHT - 144; // Fixed margins
-    const pages = [];
-    let currentPageContent = '';
-    let currentHeight = 0;
-    let pageId = 1;
-
-    // Split by paragraphs and process each
-    const paragraphs = fullContent.split(/(?=<p[^>]*>|<\/p>|<h[1-6][^>]*>|<\/h[1-6]>|<div[^>]*>|<\/div>|<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>|<li[^>]*>|<\/li>)/gi)
-      .filter(p => p.trim().length > 0);
-
-    for (let i = 0; i < paragraphs.length; i++) {
-      const paragraph = paragraphs[i];
-
-      // Calculate height of this paragraph
-      const paragraphHeight = calculateContentHeight(paragraph);
-
-      // If adding this paragraph would exceed page height, start new page
-      if (currentHeight + paragraphHeight > maxPageHeight && currentHeight > 0) {
-        // Save current page
-        pages.push({
-          id: pageId,
-          content: currentPageContent,
-          height: currentHeight
-        });
-
-        // Start new page
-        pageId++;
-        currentPageContent = paragraph;
-        currentHeight = paragraphHeight;
-      } else {
-        // Add to current page
-        currentPageContent += paragraph;
-        currentHeight += paragraphHeight;
-      }
-
-      // If we're at the last paragraph, add the current page
-      if (i === paragraphs.length - 1 && currentPageContent.trim()) {
-        pages.push({
-          id: pageId,
-          content: currentPageContent,
-          height: currentHeight
-        });
+      if (setDocumentStats) {
+        setDocumentStats(prev => ({
+          ...prev,
+          pages: totalPages
+        }));
       }
     }
-
-    // Ensure at least one page exists
-    if (pages.length === 0) {
-      pages.push({ id: 1, content: '', height: 0 });
-    }
-
-    return pages;
-  }, [calculateContentHeight]); // Only depends on calculateContentHeight
+  }, [pages.length, setDocumentStats]);
 
   // Update pages when content changes - FIXED: Count physical page breaks
+  // This function is now aliased to dynamicManualPagination for consistency
   const updatePages = useCallback((editorInstance) => {
-    if (!editorInstance || isPageCalculationLocked) return;
+    dynamicManualPagination(editorInstance);
+  }, [dynamicManualPagination]);
 
-    // Additional guard: check if editor is ready and has state
-    if (!editorInstance.state || !editorInstance.state.doc) {
-      // Silently return when editor isn't ready - this is normal during initialization
-      return;
-    }
 
-    setIsPageCalculationLocked(true);
-
-    try {
-      let pageBreakCount = 0;
-      // Additional safety check
-      if (!editorInstance.state.doc) {
-        console.warn('Editor doc not available');
-        return;
-      }
-      editorInstance.state.doc.descendants((node) => {
-        if (node.type.name === 'pageBreak') pageBreakCount++;
-      });
-
-      const totalPages = pageBreakCount + 1;
-
-      if (totalPages !== pages.length) {
-        // Create dummy pages array just for the length/indicator
-        const newPages = Array.from({ length: totalPages }, (_, i) => ({
-          id: i + 1,
-          content: '', // Not needed for single-view editor
-          height: 1122.5
-        }));
-
-        setPages(newPages);
-
-        if (setDocumentStats) {
-          setDocumentStats(prev => ({
-            ...prev,
-            pages: totalPages
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error updating pages:', error);
-    } finally {
-      setTimeout(() => setIsPageCalculationLocked(false), 100);
-    }
-  }, [isPageCalculationLocked, pages.length, setDocumentStats]);
-
+  // Add heading styles when component mounts
+  useEffect(() => {
+    addHeadingStyles();
+  }, []);
 
   // Main editor instance
   const editor = useEditor({
+    onCreate: ({ editor: editorInstance }) => {
+      console.log('Editor created successfully');
+      console.log('Editor instance:', editorInstance);
+      console.log('Editor HTML:', editorInstance.getHTML());
+    },
     extensions: [
       StarterKit.configure({
         heading: {
@@ -956,14 +991,184 @@ const TextEditorContent = () => {
       Superscript,
       Indent,
       PageBreak,
+      TextDirection,
+      // Custom extension to enhance paste functionality and preserve formatting
+      Extension.create({
+        name: 'enhancedPaste',
+        addProseMirrorPlugins() {
+          return [
+            new Plugin({
+              key: new PluginKey('enhancedPaste'),
+              props: {
+                // Enhanced paste handling to preserve more formatting
+                transformPastedHTML: (html) => {
+                  // Clean and enhance the pasted HTML to preserve formatting
+                  // This will retain more formatting from external sources like Word, Google Docs, etc.
+
+                  // Create a temporary DOM element to process the HTML
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = html;
+
+                  // Preserve important formatting elements
+                  const elements = tempDiv.querySelectorAll('*');
+                  elements.forEach(el => {
+                    // Preserve font styles
+                    if (el.style.fontFamily) {
+                      el.setAttribute('data-font-family', el.style.fontFamily);
+                    }
+                    if (el.style.fontSize) {
+                      el.setAttribute('data-font-size', el.style.fontSize);
+                    }
+                    if (el.style.color) {
+                      el.setAttribute('data-color', el.style.color);
+                    }
+                    if (el.style.backgroundColor) {
+                      el.setAttribute('data-bg-color', el.style.backgroundColor);
+                    }
+                    if (el.style.fontWeight) {
+                      el.setAttribute('data-font-weight', el.style.fontWeight);
+                    }
+                    if (el.style.fontStyle) {
+                      el.setAttribute('data-font-style', el.style.fontStyle);
+                    }
+                    if (el.style.textDecoration) {
+                      el.setAttribute('data-text-decoration', el.style.textDecoration);
+                    }
+
+                    // Normalize some common elements that carry formatting
+                    if (el.tagName === 'B') {
+                      el.style.fontWeight = 'bold';
+                    }
+                    if (el.tagName === 'I') {
+                      el.style.fontStyle = 'italic';
+                    }
+                    if (el.tagName === 'U') {
+                      el.style.textDecoration = 'underline';
+                    }
+                    if (el.tagName === 'STRIKE' || el.tagName === 'S') {
+                      el.style.textDecoration = 'line-through';
+                    }
+                  });
+
+                  return tempDiv.innerHTML;
+                },
+                handlePaste: (view, event, slice) => {
+                  // This gives us more control over paste behavior
+                  // Return false to let Tiptap handle the paste normally
+                  // But with our enhanced configuration
+                  return false;
+                },
+              },
+            }),
+          ];
+        },
+      }),
+
+      // Extension to handle data attributes from pasted content
+      Extension.create({
+        name: 'dataAttributeHandler',
+        addInputRules() {
+          return [];
+        },
+        parseHTML() {
+          return [
+            {
+              tag: '*',
+              getAttrs: node => {
+                if (node instanceof HTMLElement) {
+                  const attrs = {};
+
+                  // Handle font family
+                  const fontFamily = node.getAttribute('data-font-family');
+                  if (fontFamily) {
+                    attrs.fontFamily = fontFamily;
+                  }
+
+                  // Handle font size
+                  const fontSize = node.getAttribute('data-font-size');
+                  if (fontSize) {
+                    attrs.fontSize = fontSize;
+                  }
+
+                  // Handle color
+                  const color = node.getAttribute('data-color');
+                  if (color) {
+                    attrs.color = color;
+                  }
+
+                  // Handle background color
+                  const bgColor = node.getAttribute('data-bg-color');
+                  if (bgColor) {
+                    attrs.backgroundColor = bgColor;
+                  }
+
+                  // Handle font weight
+                  const fontWeight = node.getAttribute('data-font-weight');
+                  if (fontWeight) {
+                    if (fontWeight === 'bold' || parseInt(fontWeight) >= 600) {
+                      attrs.fontWeight = 'bold';
+                    }
+                  }
+
+                  // Handle font style
+                  const fontStyle = node.getAttribute('data-font-style');
+                  if (fontStyle === 'italic') {
+                    attrs.fontStyle = 'italic';
+                  }
+
+                  // Handle text decoration
+                  const textDecoration = node.getAttribute('data-text-decoration');
+                  if (textDecoration) {
+                    if (textDecoration.includes('underline')) {
+                      attrs.textDecoration = 'underline';
+                    } else if (textDecoration.includes('line-through')) {
+                      attrs.textDecoration = 'line-through';
+                    }
+                  }
+
+                  return Object.keys(attrs).length > 0 ? attrs : false;
+                }
+                return false;
+              },
+            },
+          ];
+        },
+        renderHTML({ HTMLAttributes }) {
+          const { fontFamily, fontSize, color, backgroundColor, fontWeight, fontStyle, textDecoration, ...rest } = HTMLAttributes;
+
+          const styleObj = {};
+          if (fontFamily) styleObj.fontFamily = fontFamily;
+          if (fontSize) styleObj.fontSize = fontSize;
+          if (color) styleObj.color = color;
+          if (backgroundColor) styleObj.backgroundColor = backgroundColor;
+          if (fontWeight) styleObj.fontWeight = fontWeight;
+          if (fontStyle) styleObj.fontStyle = fontStyle;
+          if (textDecoration) styleObj.textDecoration = textDecoration;
+
+          const styleString = Object.entries(styleObj)
+            .map(([key, value]) => `${key}:${value}`)
+            .join(';');
+
+          return ['span', { ...rest, style: styleString }, 0];
+        },
+      }),
     ],
     content: '',
     editable: true,
     autofocus: true,
     onUpdate: ({ editor: editorInstance }) => {
       try {
+        console.log('Editor updated');
+        console.log('Current HTML:', editorInstance.getHTML());
+        console.log('Active heading level:', activeHeadingLevel);
+
         // Mark as modified immediately
         setSaveStatus('modified');
+
+        // Ensure heading styles are applied after content changes
+        setTimeout(() => {
+          addHeadingStyles();
+        }, 10);
 
         // 1. Debounced Stats Update (Word count, Headings, Doc stats)
         if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
@@ -1016,56 +1221,15 @@ const TextEditorContent = () => {
           }
         }, 500);
 
-        // 2. Automatic Pagination Logic
-        if (paginationTimeoutRef.current) clearTimeout(paginationTimeoutRef.current);
-
-        paginationTimeoutRef.current = setTimeout(() => {
-          if (!editorInstance || !editorInstance.view) return;
-
-          try {
-            const { state, view } = editorInstance;
-            const { selection } = state;
-            const { $from } = selection;
-
-            const coords = view.coordsAtPos($from.pos);
-            if (!coords) return;
-
-            const editorElement = view.dom;
-            const editorRect = editorElement.getBoundingClientRect();
-
-            const zoomFactor = (zoom || 100) / 100;
-            const relativeTop = (coords.top - editorRect.top + editorElement.scrollTop) / zoomFactor;
-
-            const pageHeight = 1122.5;
-            const gapHeight = 40;
-            const totalPageHeight = pageHeight + gapHeight;
-            const positionInPage = relativeTop % totalPageHeight;
-            const threshold = pageHeight - pageMargins.bottom - 10;
-
-            if (positionInPage > threshold && positionInPage < pageHeight) {
-              const splitPos = $from.parent.type.name !== 'paragraph' ? $from.before() : $from.pos;
-              let hasPageBreakNearby = false;
-              state.doc.nodesBetween(Math.max(0, splitPos - 5), Math.min(state.doc.content.size, splitPos + 5), (node) => {
-                if (node.type.name === 'pageBreak') hasPageBreakNearby = true;
-              });
-
-              if (!hasPageBreakNearby) {
-                editorInstance.chain().focus().insertContentAt(splitPos, { type: 'pageBreak' }).run();
-              }
-            }
-          } catch (e) {
-            // Coords might not be available yet or other view issues
-          }
-        }, 300);
-
-        // 3. Page Structure Update
+        // 2. Page Structure Update (Physical page count) - Using manual pagination
         if (pagesUpdateTimeoutRef.current) clearTimeout(pagesUpdateTimeoutRef.current);
-
         pagesUpdateTimeoutRef.current = setTimeout(() => {
           if (editorInstance && editorInstance.state && editorInstance.state.doc) {
-            updatePages(editorInstance);
+            dynamicManualPagination(editorInstance);  // Use the new manual pagination
           }
-        }, 500);
+        }, 400);
+
+        // Auto repagination disabled (A4 page view removed)
 
         // 4. Auto Save
         if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
@@ -1089,26 +1253,27 @@ const TextEditorContent = () => {
       }
 
       // Update active heading level based on current selection
+      let newHeadingLevel = 0;
+
       if (from === to) {
         // Cursor is at a single position
         const node = editorInstance.state.doc.nodeAt(from);
         if (node && node.type.name === 'heading') {
-          setActiveHeadingLevel(node.attrs.level);
-        } else {
-          setActiveHeadingLevel(0);
+          newHeadingLevel = node.attrs.level;
         }
       } else {
         // There's a selection
-        let foundHeadingLevel = 0;
         editorInstance.state.doc.nodesBetween(from, to, (node) => {
           if (node.type.name === 'heading') {
-            foundHeadingLevel = node.attrs.level;
+            newHeadingLevel = node.attrs.level;
             return false; // Stop iteration
           }
           return true;
         });
-        setActiveHeadingLevel(foundHeadingLevel);
       }
+
+      console.log('Detected heading level:', newHeadingLevel);
+      setActiveHeadingLevel(newHeadingLevel);
     },
     editorProps: {
       attributes: {
@@ -1160,26 +1325,58 @@ const TextEditorContent = () => {
     },
   });
 
-  // Store editor reference
+  // Store editor reference + load initial content from EditorIntro handoff or existing save
   useEffect(() => {
-    if (editor) {
-      editorRef.current = editor;
+    if (!editor) return;
+    editorRef.current = editor;
 
-      // Load initial content
-      const savedContent = localStorage.getItem('text-editor-document');
-      if (savedContent) {
-        try {
-          const parsed = JSON.parse(savedContent);
-          editor.commands.setContent(parsed.html || '');
-          if (parsed.title) {
-            setDocumentTitle(parsed.title);
-          }
-        } catch (error) {
-          console.error('Error loading saved content:', error);
-        }
+    // 1. Check if EditorIntro handed off a document
+    const handoffContent = localStorage.getItem('athena_active_doc_content');
+    const handoffTitle = localStorage.getItem('athena_active_doc_title');
+    const handoffId = localStorage.getItem('athena_active_doc_id');
+
+    if (handoffContent !== null) {
+      try {
+        editor.commands.setContent(handoffContent);
+        if (handoffTitle) setDocumentTitle(handoffTitle);
+        // Clear the handoff so refreshing doesn't reload it again
+        localStorage.removeItem('athena_active_doc_content');
+        localStorage.removeItem('athena_active_doc_title');
+        // Keep the ID for auto-save persistence
+      } catch (e) {
+        console.error('Error loading handoff content:', e);
+      }
+      return;
+    }
+
+    // 2. Fallback: load from legacy auto-save key
+    const savedContent = localStorage.getItem('text-editor-document');
+    if (savedContent) {
+      try {
+        const parsed = JSON.parse(savedContent);
+        editor.commands.setContent(parsed.html || '');
+        if (parsed.title) setDocumentTitle(parsed.title);
+      } catch (error) {
+        console.error('Error loading saved content:', error);
       }
     }
-  }, [editor]); // Removed setDocumentTitle to prevent infinite loop
+  }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
+  // Force re-render when heading level changes to ensure visual updates
+  useEffect(() => {
+    if (editor && activeHeadingLevel !== undefined && editor.view) {
+      // Force a small delay to ensure DOM updates
+      setTimeout(() => {
+        // Trigger a re-render by updating a dummy state
+        try {
+          editor.view.dispatch(editor.state.tr.setMeta('headingUpdate', Date.now()));
+        } catch (error) {
+          console.warn('Could not dispatch heading update:', error);
+        }
+      }, 50);
+    }
+  }, [activeHeadingLevel, editor]);
 
   // Custom clipboard handlers
   const handleCopy = useCallback(async () => {
@@ -1218,47 +1415,223 @@ const TextEditorContent = () => {
     }
   }, [editor]);
 
-  const handlePaste = useCallback(async (event) => {
+  // ──────────────────────────────────────────────────────────────────────────
+  // A4 PAGINATION  –  coordsAtPos-based (correct, zoom-aware)
+  // ──────────────────────────────────────────────────────────────────────────
+  //
+  // How it works:
+  //  1. view.coordsAtPos(pos) returns VIEWPORT coordinates that already account
+  //     for CSS transform zoom scaling — no manual zoom math needed.
+  //  2. We locate the `.editor-workspace-scaled` element, which is the root of
+  //     the A4 background CSS grid.  Its getBoundingClientRect().top is the
+  //     viewport origin of the grid.
+  //  3. For each top-level block we get the viewport Y of its bottom edge using
+  //     coordsAtPos on its last content position.
+  //  4. The A4 page grid repeats every PAGE_SLOT_VP viewport pixels (which is
+  //     PAGE_SLOT_LOGICAL CSS-px * zoomFactor).  We check if a block's bottom
+  //     crosses the page content boundary within its page slot.
+  //  5. We delete ALL existing auto page-break nodes and insert fresh ones in a
+  //     single ProseMirror transaction so there's no flicker / duplication.
+  // ──────────────────────────────────────────────────────────────────────────
+  // Google Docs-style Dynamic Pagination Algorithm
+  // This implementation continuously adapts to content changes in real-time
+  // and provides smooth, fluid pagination similar to Google Docs
+  const smartRepaginateDocument = useCallback((editorInstance) => {
+    if (!editorInstance?.view?.state) return;
+
+    const { state, view } = editorInstance;
+    if (!state.schema.nodes.pageBreak) return;
+
+    const doc = state.doc;
+    const zoomFactor = (zoom || 100) / 100;
+
+    // Get the editor container element
+    const workspaceEl = view.dom.closest('.editor-workspace-scaled')
+      || view.dom.parentElement?.closest('.editor-workspace-scaled');
+    if (!workspaceEl) return;
+
+    const workspaceRect = workspaceEl.getBoundingClientRect();
+
+    // Configuration constants aligned with CSS A4 dimensions
+    const PAGE_HEIGHT_PT = 1122.5; // A4 height at 96 DPI
+    const GAP_HEIGHT_PT = 40.0;    // The gray gap between pages
+    const BREAK_NODE_HEIGHT_PT = 184.0; // MarginBottom(72) + Gap(40) + MarginTop(72)
+
+    // USABLE content area per page (1122.5 - 72 - 72 = 978.5)
+    const CONTENT_START_PT = pageMargins.top;
+    const USABLE_HEIGHT_PER_PAGE = PAGE_HEIGHT_PT - pageMargins.top - pageMargins.bottom;
+
+    // ── Step 0: Collect all current page break positions ───────────────
+    const currentBreaks = [];
+    doc.forEach((node, offset) => {
+      if (node.type.name === 'pageBreak') {
+        currentBreaks.push(offset);
+      }
+    });
+
+    // ── Step 1: Google Docs-style Dynamic Content Measurement ──────────────────
+    const insertBeforeDocPos = new Set();
+
+    // Track cumulative content height per page
+    let currentCumulativeHeight = CONTENT_START_PT; // Start from top margin
+    let currentPageIndex = 0;
+
+    const processNode = (node, offset) => {
+      if (node.type.name === 'pageBreak') return;
+
+      const isContainer = ['bulletList', 'orderedList', 'taskList'].includes(node.type.name);
+
+      try {
+        // For container nodes (lists), process children individually to get accurate measurements
+        if (isContainer && node.childCount > 0) {
+          node.forEach((child, childOffset) => {
+            processNode(child, offset + 1 + childOffset);
+          });
+          return;
+        }
+
+        // Measure the height of the current node
+        const contentEnd = offset + node.nodeSize - 1;
+        const coords = view.coordsAtPos(contentEnd);
+        const contentStart = offset;
+        const startCoords = view.coordsAtPos(contentStart);
+
+        if (!coords || !startCoords) return;
+
+        // Calculate actual viewport position relative to workspace
+        const actualVPStart = startCoords.top - workspaceRect.top;
+        const actualVPEnd = coords.bottom - workspaceRect.top;
+
+        // Convert to document units (points)
+        const actualStartPT = actualVPStart / zoomFactor;
+        const actualEndPT = actualVPEnd / zoomFactor;
+
+        // Calculate the height of this content chunk
+        const contentHeight = actualEndPT - actualStartPT;
+
+        // Check if this content would overflow the current page
+        const pageCapacityRemaining = (currentPageIndex + 1) * PAGE_HEIGHT_PT - currentCumulativeHeight;
+
+        if (contentHeight > pageCapacityRemaining && actualEndPT > CONTENT_START_PT) {
+          // Need to insert a page break before this content
+          insertBeforeDocPos.add(offset);
+
+          // Reset cumulative height for the new page and account for break height
+          currentCumulativeHeight = CONTENT_START_PT;
+          currentPageIndex++;
+
+          // Add content height to new page
+          currentCumulativeHeight += contentHeight;
+        } else {
+          // Add content height to current page
+          currentCumulativeHeight += contentHeight;
+        }
+      } catch (e) {
+        // ignore measurement errors and continue
+        console.warn('Pagination measurement error:', e);
+      }
+    };
+
+    // Process all nodes in document order
+    doc.forEach((node, offset) => {
+      processNode(node, offset);
+    });
+
+    // ── Step 2: Build atomic transaction to update page breaks ──────────────────
+    let tr = state.tr;
+
+    // Remove all existing page breaks
+    for (let i = currentBreaks.length - 1; i >= 0; i--) {
+      const pos = currentBreaks[i];
+      tr = tr.delete(pos, pos + 1);
+    }
+
+    // Insert new page breaks at calculated positions
+    const sortedInserts = Array.from(insertBeforeDocPos).sort((a, b) => b - a);
+
+    let lastInsertedPos = -1;
+
+    for (const origPos of sortedInserts) {
+      const mappedPos = tr.mapping.map(origPos);
+
+      // Prevent inserting breaks too close to each other
+      if (lastInsertedPos !== -1 && Math.abs(mappedPos - lastInsertedPos) < 2) continue;
+
+      if (mappedPos <= tr.doc.content.size) {
+        tr = tr.insert(mappedPos, state.schema.nodes.pageBreak.create());
+        lastInsertedPos = mappedPos;
+      }
+    }
+
+    // Dispatch the transaction if there were changes
+    if (tr.docChanged) {
+      view.dispatch(tr);
+
+      // Update page count indicator after a brief delay
+      setTimeout(() => {
+        if (editorInstance) {
+          dynamicManualPagination(editorInstance);
+        }
+      }, 20);
+    }
+  }, [pageMargins.top, pageMargins.bottom, zoom, dynamicManualPagination]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Original automatic pagination function (kept for manual invocation)
+  const repaginateDocument = useCallback((editorInstance) => {
+    // This function is now available for manual invocation only
+    smartRepaginateDocument(editorInstance);
+  }, [smartRepaginateDocument]);
+
+  // Keep stable ref in sync so onUpdate can call the latest version
+  useEffect(() => { repaginateRef.current = repaginateDocument; }, [repaginateDocument]);
+
+  // Expose on editorRef so external code can trigger a manual repagination
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.repaginateDocument = () => repaginateDocument(editor);
+    }
+  }, [editor, repaginateDocument]);
+
+  // Google Docs-style Dynamic Pagination Effect
+  // Implements a more responsive pagination system similar to Google Docs
+  useEffect(() => {
     if (!editor) return;
 
-    try {
-      event.preventDefault();
+    let paginationDebounceTimer = null;
 
-      let pastedText = '';
-
-      if (navigator.clipboard && window.ClipboardItem) {
-        try {
-          const clipboardItems = await navigator.clipboard.read();
-          for (const clipboardItem of clipboardItems) {
-            for (const type of clipboardItem.types) {
-              if (type === 'text/html') {
-                const blob = await clipboardItem.getType(type);
-                pastedText = await blob.text();
-                break;
-              } else if (type === 'text/plain' && !pastedText) {
-                const blob = await clipboardItem.getType(type);
-                pastedText = await blob.text();
-              }
-            }
-            if (pastedText) break;
-          }
-        } catch (error) {
-          console.error('Clipboard API failed:', error);
-          pastedText = event.clipboardData?.getData('text/plain') || '';
-        }
-      } else {
-        pastedText = event.clipboardData?.getData('text/plain') || '';
+    // Mutation observer for detecting content changes
+    const handleEditorUpdate = () => {
+      // Clear previous timeout
+      if (paginationDebounceTimer) {
+        clearTimeout(paginationDebounceTimer);
       }
 
-      if (pastedText) {
-        editor.chain().focus().insertContent(pastedText).run();
-        toast.success('Content pasted successfully');
+      // Use a shorter debounce for more responsive pagination
+      paginationDebounceTimer = setTimeout(() => {
+        smartRepaginateDocument(editor);
+      }, 150); // Very responsive for Google Docs-like behavior
+    };
+
+    // Listen for editor updates
+    editor.on('transaction', handleEditorUpdate);
+
+    return () => {
+      if (paginationDebounceTimer) {
+        clearTimeout(paginationDebounceTimer);
       }
-    } catch (error) {
-      console.error('Paste error:', error);
-      toast.error('Failed to paste content');
-    }
-  }, [editor]);
+      editor.off('transaction', handleEditorUpdate);
+    };
+  }, [editor, smartRepaginateDocument]);
+
+  const handlePaste = useCallback((event) => {
+    // Let Tiptap handle the paste natively (preserves rich-text / HTML formatting).
+    // The enhanced paste extension will handle the formatting preservation.
+    // After Tiptap inserts the content, schedule a smart repagination pass.
+    setTimeout(() => {
+      if (editor) smartRepaginateDocument(editor);
+    }, 300); // Faster response for Google Docs-like experience
+  }, [editor, smartRepaginateDocument]);
 
   // Enhanced insertImage function that uses ResizableImage extension with fallbacks
   const insertImage = useCallback((src, alt = '', width = 400, height = 300, options = {}) => {
@@ -1704,25 +2077,103 @@ const TextEditorContent = () => {
     if (!editor) return;
 
     try {
+      const html = editor.getHTML();
       const content = {
         title: documentTitle,
-        html: editor.getHTML(),
+        html,
         savedAt: new Date().toISOString(),
-        metadata: {
-          wordCount,
-          characterCount,
-          lastModified: new Date().toISOString()
-        }
+        metadata: { wordCount, characterCount, lastModified: new Date().toISOString() }
       };
 
+      // Save to legacy key
       localStorage.setItem('text-editor-document', JSON.stringify(content));
+
+      // Also update the athena_documents list if we have an active doc ID
+      const activeDocId = localStorage.getItem('athena_active_doc_id');
+      if (activeDocId) {
+        try {
+          const docsRaw = localStorage.getItem('athena_documents');
+          const docs = docsRaw ? JSON.parse(docsRaw) : [];
+          const updated = docs.map(d =>
+            d.id === activeDocId
+              ? { ...d, content: html, title: documentTitle, lastOpened: Date.now() }
+              : d
+          );
+          // If doc doesn't exist yet, add it
+          if (!updated.find(d => d.id === activeDocId)) {
+            updated.unshift({
+              id: activeDocId,
+              title: documentTitle,
+              content: html,
+              createdAt: Date.now(),
+              lastOpened: Date.now(),
+              template: 'blank',
+              pinned: false,
+            });
+          }
+          localStorage.setItem('athena_documents', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('Could not sync to document list:', e);
+        }
+      }
+
       setLastSaved(new Date());
       setSaveStatus('saved');
-      toast.success('Document auto-saved!');
     } catch (error) {
       console.error('Auto-save error:', error);
     }
   }, [editor, documentTitle, wordCount, characterCount, setLastSaved, setSaveStatus]);
+
+
+  // Document management functions
+  const createNewDocument = useCallback(() => {
+    if (editor) {
+      editor.commands.clearContent();
+      setDocumentTitle('Untitled Document');
+      setSaveStatus('new');
+      toast.success('New document created');
+    }
+  }, [editor, setDocumentTitle, setSaveStatus]);
+
+  const duplicateDocument = useCallback(() => {
+    if (editor) {
+      const content = editor.getHTML();
+      const newTitle = `${documentTitle} - Copy`;
+      // In a real implementation, this would create a new document
+      localStorage.setItem('temp_duplicate', JSON.stringify({
+        title: newTitle,
+        content: content,
+        timestamp: new Date().toISOString()
+      }));
+      toast.success('Document duplicated to clipboard');
+    }
+  }, [editor, documentTitle]);
+
+  const renameDocument = useCallback((newTitle) => {
+    const title = newTitle || prompt('Enter new document title:', documentTitle);
+    if (title) {
+      setDocumentTitle(title);
+      toast.success(`Document renamed to: ${title}`);
+    }
+  }, [documentTitle, setDocumentTitle]);
+
+  const deleteDocument = useCallback(() => {
+    if (window.confirm('Are you sure you want to delete this document?')) {
+      // In a real implementation, this would move to trash
+      // For now, we'll just clear the content
+      if (editor) {
+        editor.commands.clearContent();
+        setDocumentTitle('Untitled Document');
+        setSaveStatus('deleted');
+        toast.success('Document cleared');
+      }
+    }
+  }, [editor, setDocumentTitle, setSaveStatus]);
+
+  const restoreDocument = useCallback(() => {
+    // In a real implementation, this would restore from trash/version history
+    toast.info('Restore functionality would restore from version history');
+  }, []);
 
   const handleSave = useCallback(() => {
     if (!editor) return;
@@ -1762,6 +2213,11 @@ const TextEditorContent = () => {
       toast.error('Failed to print document');
     }
   }, [editor, documentTitle]);
+
+  const handleFindReplace = useCallback((isReplaceMode = false) => {
+    setFindReplaceMode(isReplaceMode);
+    setShowFindReplaceModal(true);
+  }, []);
 
   const handleExport = useCallback(async () => {
     if (!editor) {
@@ -1852,13 +2308,20 @@ const TextEditorContent = () => {
     if (!editor) return;
 
     try {
+      let finalContent = content;
+
       if (content.startsWith('API:')) {
         const prompt = content.substring(4);
         toast.info(`Generating content for: "${prompt}"`);
-        editor.chain().focus().insertContent(`<p>${prompt} - AI generated content would appear here.</p>`).run();
+        finalContent = `<p>${prompt} - AI generated content would appear here.</p>`;
       } else {
-        editor.chain().focus().insertContent(content).run();
+        // Parse Markdown to HTML
+        const html = marked.parse(content);
+        // Sanitize HTML
+        finalContent = DOMPurify.sanitize(html);
       }
+
+      editor.chain().focus().insertContent(finalContent).run();
       updateEditorFeatures({ isAISidebarOpen: false });
     } catch (error) {
       console.error('AI generate error:', error);
@@ -1893,7 +2356,11 @@ const TextEditorContent = () => {
   }, [editor]);
 
   const handleZoomChange = useCallback((newZoom) => {
-    updateUIState({ zoom: newZoom });
+    // Round zoom to the nearest multiple of 10
+    const roundedZoom = Math.round(newZoom / 10) * 10;
+    // Ensure zoom stays within valid bounds (50-200)
+    const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
+    updateUIState({ zoom: clampedZoom });
   }, [updateUIState]);
 
   const handleTemplateSelect = useCallback((template) => {
@@ -1967,12 +2434,24 @@ const TextEditorContent = () => {
   const handleIndent = useCallback((direction) => {
     if (!editor) return;
 
-    if (direction === 'increase') {
-      setIndentLevel(prev => prev + 1);
-      editor.commands.sinkListItem('listItem');
-    } else {
-      setIndentLevel(prev => Math.max(0, prev - 1));
-      editor.commands.liftListItem('listItem');
+    try {
+      if (direction === 'increase') {
+        setIndentLevel(prev => prev + 1);
+        const result = editor.commands.sinkListItem('listItem');
+        if (!result) {
+          // If not a list item, try regular indent
+          editor.chain().focus().indent().run();
+        }
+      } else {
+        setIndentLevel(prev => Math.max(0, prev - 1));
+        const result = editor.commands.liftListItem('listItem');
+        if (!result) {
+          // If not a list item, try regular outdent
+          editor.chain().focus().outdent().run();
+        }
+      }
+    } catch (error) {
+      console.error('Handle indent error:', error);
     }
   }, [editor]);
 
@@ -2001,14 +2480,30 @@ const TextEditorContent = () => {
     if (!editor) return;
 
     try {
+      console.log('Changing heading to level:', level);
+
+      // Ensure editor is focused before making changes
+      editor.chain().focus();
+
       if (level === 0) {
-        editor.chain().focus().setParagraph().run();
+        editor.chain().setParagraph().run();
       } else {
-        editor.chain().focus().toggleHeading({ level }).run();
+        editor.chain().toggleHeading({ level }).run();
       }
 
       setActiveHeadingLevel(level);
       toast.success(`Heading level ${level === 0 ? 'Normal' : level} applied`);
+
+      // Force immediate visual update
+      setTimeout(() => {
+        addHeadingStyles();
+        console.log('Heading styles applied for level:', level);
+
+        // Force editor to re-render
+        if (editor.view) {
+          editor.view.updateState(editor.state);
+        }
+      }, 50);
     } catch (error) {
       console.error('Heading change error:', error);
     }
@@ -2380,97 +2875,64 @@ const TextEditorContent = () => {
 
     // Trigger update if editor exists
     if (editor) {
-      updatePages(editor);
+      dynamicManualPagination(editor);
     }
-  }, [pageSize, pageOrientation, pageMargins, editor, updatePages]);
+  }, [pageSize, pageOrientation, pageMargins, editor, dynamicManualPagination]);
 
-  // Render the editor content
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Google Docs-style Header */}
-      <header className="flex items-center justify-between px-3 py-2 border-b border-border bg-background">
-        <div className="flex items-center gap-2">
-          {/* Document Icon */}
-          <div className="w-10 h-10 flex items-center justify-center">
-            <FileText className="w-8 h-8 text-blue-500" />
+    <div className="h-screen w-full flex flex-col bg-background overflow-x-hidden relative">
+      {/* Row 1: Document Logo, Title, Menu Bar, and Actions */}
+      <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#1a73e8] p-1.5 rounded shadow-sm">
+            <FileText className="w-5 h-5 text-white" />
           </div>
-
-          {/* Document Title Input */}
-          <div className="flex flex-col">
-            <Input
-              value={documentTitle}
-              onChange={(e) => setDocumentTitle(e.target.value)}
-              placeholder="Document Title"
-              className="text-lg font-medium w-75 border-none focus:ring-0 focus:outline-none px-2 py-1"
-            />
-          </div>
+          <Input
+            value={documentTitle}
+            onChange={(e) => setDocumentTitle(e.target.value)}
+            placeholder="Untitled Document"
+            className="text-lg font-medium border-none focus-visible:ring-0 p-0 h-auto w-auto min-w-25 tracking-tight text-gray-800 uppercase"
+          />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           {lastSaved && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              Last edit was {lastSaved.toLocaleTimeString()}
-            </span>
+            <div className="flex items-center gap-1.5 text-[12px] text-gray-500 mr-2">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Last edit was {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
+            </div>
           )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setIsStarred(!isStarred)}
-          >
-            <Star className={`w-4 h-4 ${isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600" onClick={() => setShowVersionHistory(true)}>
+              <History className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600" onClick={() => setIsOutlineOpen(!isOutlineOpen)}>
+              <FolderOpen className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600" onClick={() => setIsStarred(!isStarred)}>
+              <Star className={`w-4 h-4 ${isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+            </Button>
+          </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setIsOutlineOpen(!isOutlineOpen)}
-          >
-            <FolderOpen className="w-4 h-4" />
-          </Button>
-
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <History className="w-4 h-4" onClick={() => setShowVersionHistory(true)} />
-          </Button>
-
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MessageSquare className="w-4 h-4" />
-          </Button>
-
-          <Button
-            onClick={handleSave}
-            size="sm"
-            className="h-8 bg-linear-to-r from-amber-400 to-amber-500 text-black hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
-          >
-            <Save className="w-4 h-4 mr-1" />
-            Save
-          </Button>
-
-          <Button
-            onClick={openExportDialog}
-            size="sm"
-            className="h-8 bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-          >
-            <Download className="w-4 h-4 mr-1" />
-            Export
-          </Button>
-
-          <Button
-            onClick={handleDeleteDocument}
-            variant="ghost"
-            size="sm"
-            className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Delete
-          </Button>
+          {/* Menu Bar */}
+          <HeaderMenuBar
+            onSave={handleSave}
+            onExport={openExportDialog}
+            onPrint={handlePrint}
+            onDelete={handleDeleteDocument}
+            onFindReplace={handleFindReplace}
+            zoom={zoom}
+            onZoomChange={handleZoomChange}
+            isAISidebarOpen={isAISidebarOpen}
+            onToggleAISidebar={(open) => updateEditorFeatures({ isAISidebarOpen: open !== undefined ? open : !isAISidebarOpen })}
+            onShowHelp={() => toast.info('Help documentation would open here')}
+            onShowSettings={() => toast.info('Settings would open here')}
+          />
         </div>
       </header>
 
-      {/* Toolbar */}
+      {/* Row 2: Formatting Toolbar */}
       <EditorToolbar
         editor={editor}
         zoom={zoom}
@@ -2492,11 +2954,18 @@ const TextEditorContent = () => {
         toggleTaskList={toggleTaskList}
         toggleUnderline={toggleUnderline}
         toggleBlockquote={toggleBlockquote}
-
         openExportDialog={openExportDialog}
         exportLoading={exportLoading}
         setIsTemplateSidebarOpen={(open) => updateEditorFeatures({ showTemplateSidebar: open })}
         isTemplateSidebarOpen={showTemplateSidebar}
+      />
+
+      {/* Find and Replace Modal */}
+      <FindReplaceModal
+        isOpen={showFindReplaceModal}
+        onClose={() => setShowFindReplaceModal(false)}
+        editor={editor}
+        isReplaceMode={findReplaceMode}
       />
 
       {/* Main Content Area */}
@@ -2512,43 +2981,22 @@ const TextEditorContent = () => {
           onToggleCollapse={toggleSectionCollapse}
         />
 
-        {/* Editor Area - Single editor for all pages */}
+        {/* Editor Area */}
         <div
           ref={contentContainerRef}
-          className="flex-1 overflow-auto bg-slate-100/50 custom-scrollbar hidden-scrollbar"
+          className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-100/50 custom-scrollbar hidden-scrollbar p-6"
           onPaste={handlePaste}
           onCopy={handleCopy}
         >
           <div className="editor-pages-container">
-            {/* Single editor that spans all pages and fits into a repeating CSS background */}
             {editor && (
-              <div
-                className="editor-workspace-scaled"
-                style={{
-                  transform: `scale(${zoom / 100})`,
-                  transformOrigin: 'top center',
-                  '--page-margin-top': `${pageMargins.top}px`,
-                  '--page-margin-bottom': `${pageMargins.bottom}px`,
-                  '--page-margin-left': `${pageMargins.left}px`,
-                  '--page-margin-right': `${pageMargins.right}px`,
-                  '--page-gap': '40px'
-                }}
-              >
-                {/* Editor Content Overlay */}
-                <div
-                  className="relative z-10 w-full"
-                  style={{
-                    paddingTop: `${pageMargins.top}px`,
-                    paddingLeft: `${pageMargins.left}px`,
-                    paddingRight: `${pageMargins.right}px`,
-                    paddingBottom: `${pageMargins.bottom}px`,
-                  }}
-                >
+              <div className="editor-page">
+                <div className="editor-content">
                   <EditorContent
                     editor={editor}
-                    className="min-h-[1122.5px] tip-tap-editor w-full max-w-full overflow-x-hidden"
+                    className="tip-tap-editor w-full"
+                    style={{ padding: '0', minHeight: 'calc(100% - 192px)' }}
                   />
-
                 </div>
               </div>
             )}
@@ -2583,29 +3031,81 @@ const TextEditorContent = () => {
       </div>
 
       {/* Status Bar */}
-      <footer className="flex items-center justify-between px-4 py-1.5 border-t border-border bg-background text-xs text-muted-foreground">
+      <footer className="flex items-center justify-between px-4 py-2 bg-gray-50/30 text-xs text-gray-500 border-t border-gray-200/50">
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* Document Stats - Minimal Group */}
+          <div className="flex items-center gap-3 text-gray-600">
+            <span className="flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-file-text">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              {wordCount}
+            </span>
+            <span className="flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-type">
+                <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                <line x1="9" y1="20" x2="15" y2="20"></line>
+                <line x1="12" y1="4" x2="12" y2="20"></line>
+              </svg>
+              {characterCount}
+            </span>
+            <span className="flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-clock">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              {readingTime}m
+            </span>
+          </div>
 
-          <span>{wordCount} words</span>
-          <span>{characterCount} characters</span>
-          <span>{readingTime} min read</span>
-          <span>{headings.length} headings</span>
-          <div className="flex items-center gap-2">
-            <span>•</span>
-            <span className={`${saveStatus === 'modified' ? 'text-orange-500' : 'text-green-500'}`}>
-              {saveStatus === 'modified' ? '● Unsaved changes' : '● Saved'}
+          {/* Save Status */}
+          <div className="flex items-center gap-1.5 pl-3 border-l border-gray-300/50">
+            <div className={`w-2 h-2 rounded-full ${saveStatus === 'modified' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
+            <span className={`text-xs ${saveStatus === 'modified' ? 'text-orange-600' : 'text-green-600'}`}>
+              {saveStatus === 'modified' ? 'Unsaved' : 'Saved'}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span>{documentStats.paragraphs} paras</span>
-          <span>{documentStats.images} images</span>
-          <span>{documentStats.tables} tables</span>
+
+        <div className="flex items-center gap-3">
+          {/* Content Elements Count */}
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="flex items-center gap-1" title="Paragraphs">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-align-left">
+                <line x1="17" y1="10" x2="3" y2="10"></line>
+                <line x1="21" y1="6" x2="3" y2="6"></line>
+                <line x1="21" y1="14" x2="3" y2="14"></line>
+                <line x1="17" y1="18" x2="3" y2="18"></line>
+              </svg>
+              {documentStats.paragraphs}
+            </span>
+            <span className="flex items-center gap-1" title="Images">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-image">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              {documentStats.images}
+            </span>
+            <span className="flex items-center gap-1" title="Tables">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-grid">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              {documentStats.tables}
+            </span>
+          </div>
+
+          {/* Page Navigation and Zoom */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-gray-300/70 rounded text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
               onClick={() => {
                 const pageInput = prompt(`Go to page (1-${pages.length}):`, currentPage.toString());
                 if (pageInput) {
@@ -2616,13 +3116,28 @@ const TextEditorContent = () => {
                     toast.error(`Please enter a valid page number between 1 and ${pages.length}`);
                   }
                 }
-              }}
-              className="h-7 px-2 text-xs"
-            >
-              Page {currentPage} of {pages.length}
-            </Button>
+              }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-list">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+              <span className="text-xs">{currentPage}/{pages.length}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-gray-300/70 rounded text-gray-700">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-zoom-in">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <line x1="11" y1="8" x2="11" y2="14"></line>
+                <line x1="8" y1="11" x2="14" y2="11"></line>
+              </svg>
+              <span className="text-xs">{zoom}%</span>
+            </div>
           </div>
-          <span>Zoom: {zoom}%</span>
         </div>
       </footer >
 
