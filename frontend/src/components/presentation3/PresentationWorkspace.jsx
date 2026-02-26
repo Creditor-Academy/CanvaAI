@@ -12,18 +12,23 @@ import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
 
-const PresentationWorkspace = () => {
+const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(!!id); // Loading if ID is present
+  // Loading if ID is present and we don't have initialData
+  const [isLoading, setIsLoading] = useState(!!id && !initialData);
   const [error, setError] = useState(null);
 
   const { setPresentation, resetPresentation } = usePresentationStore();
 
   useEffect(() => {
-    if (id) {
+    if (initialData) {
+      console.log("--- Workspace: Using initialData from props:", initialData);
+      setPresentation(initialData);
+      setIsLoading(false);
+    } else if (id) {
       setIsLoading(true);
       getPresentationById(id)
         .then((data) => {
@@ -48,10 +53,11 @@ const PresentationWorkspace = () => {
         });
     } else {
       // New presentation -> Reset store
+      console.log("--- Workspace: New presentation, resetting store.");
       resetPresentation();
       setIsLoading(false);
     }
-  }, [id, setPresentation, resetPresentation]);
+  }, [id, initialData, setPresentation, resetPresentation]);
 
   if (isLoading) {
     return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>Loading Presentation...</div>;

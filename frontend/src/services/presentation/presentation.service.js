@@ -170,3 +170,30 @@ export const deletePresentation = async (id, userId) => {
     return res.data;
 };
 
+export const generateAIImage = async (prompt) => {
+    const res = await axios.post(`${BASE_URL}/api/image/generate-image`, { prompt }, getAuthHeaders());
+    return res.data;
+};
+
+export const generateAISlide = async (userId, pptId, prompt, mediaType) => {
+    const url = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
+    const payload = {
+        slideContent: prompt,
+        mediaStyle: mediaType
+    };
+    console.log(`--- PresentationService: generateAISlide POST ${url}`, payload);
+    const res = await axios.post(url, payload, getAuthHeaders());
+    return res.data;
+};
+
+export const expandAISlide = async (userId, pptId, prompt, mediaType, slideData) => {
+    const url = `${BASE_URL}/api/pp/expand-slide/${userId}/${pptId}`;
+    const payload = {
+        prompt,
+        mediaStyle: mediaType,
+        slideContent: slideData
+    };
+    console.log(`--- PresentationService: expandAISlide POST ${url}`, payload);
+    const res = await axios.post(url, payload, getAuthHeaders());
+    return res.data;
+};
