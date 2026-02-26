@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FiZap } from 'react-icons/fi';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { generateImage } from '@/services/imageEditor/imageApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AIImageGenerator = ({
   onImageGenerated,
@@ -9,6 +9,7 @@ const AIImageGenerator = ({
   setHoveredOption,
   imageSettings
 }) => {
+  const { user } = useAuth();
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -25,32 +26,9 @@ const AIImageGenerator = ({
     try {
       setIsGeneratingAI(true);
       setErrorMessage('');
-      // Use environment variable for API base URL instead of hardcoded localhost
-      const response = await fetch(`${API_BASE_URL}/api/image/generate-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to generate image' }));
-        const errorMsg = errorData.error || errorData.message || 'Failed to generate image';
-
-        // Check for specific error types and provide user-friendly messages
-        let userFriendlyMessage = errorMsg;
-        if (errorMsg.toLowerCase().includes('billing') || errorMsg.toLowerCase().includes('limit')) {
-          userFriendlyMessage = 'AI image generation is currently unavailable due to billing limits. Please contact the administrator or try again later.';
-        } else if (errorMsg.toLowerCase().includes('quota') || errorMsg.toLowerCase().includes('rate limit')) {
-          userFriendlyMessage = 'AI image generation quota has been reached. Please try again later.';
-        } else if (errorMsg.toLowerCase().includes('api key') || errorMsg.toLowerCase().includes('authentication')) {
-          userFriendlyMessage = 'AI service authentication failed. Please contact support.';
-        }
-
-        setErrorMessage(userFriendlyMessage);
-        throw new Error(userFriendlyMessage);
-      }
-
-      const data = await response.json();
+      const userId = user?._id || user?.id || '123'; // Use actual userId or '123' as fallback
+      const data = await generateImage(userId, aiPrompt);
       const imageB64 = data.data?.[0]?.b64_json || "";
 
       if (imageB64 && imageB64.length > 50) {

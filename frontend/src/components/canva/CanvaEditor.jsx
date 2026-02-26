@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { FiMove, FiChevronDown, FiChevronRight, FiFilter, FiZap, FiCrop } from 'react-icons/fi';
 import api from '../../services/api';
 import { getFilterCSS, getShadowCSS, hexToRgba } from '../../utils/styleUtils';
@@ -11,6 +12,7 @@ import TextStyleModal from './TextStyleModal';
 import RightSidebar from './components/RightSidebar';
 import CanvasArea from './canvas/CanvasArea';
 import LeftCanvasSidebar from './components/LeftCanvasSidebar';
+import ProjectNameModal from './ProjectNameModal';
 
 // Import hooks
 import { useAuth } from '../../contexts/AuthContext';
@@ -39,7 +41,7 @@ import {
   SCROLLER_MARGIN
 } from './state/initialState';
 import { GRADIENTS } from './components/BackgroundColor';
-import { saveImage } from '@/services/imageEditor/imageApi';
+import { saveImage, updateImage, updateImageVisibility } from '@/services/imageEditor/imageApi';
 
 const CanvaEditor = () => {
   const { id: projectId } = useParams();
@@ -64,6 +66,8 @@ const CanvaEditor = () => {
   const [showGrid, setShowGrid] = useState(false);
   const [isHeading, setIsHeading] = useState(false);
   const [tempBgState, setTempBgState] = useState(null);
+  const [projectName, setProjectName] = useState('Untitled Design');
+  const [isProjectNameModalOpen, setIsProjectNameModalOpen] = useState(false);
 
   // Save/Export modal state
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -244,12 +248,12 @@ const CanvaEditor = () => {
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
   }, [drawingSettings.isDrawing, finishDrawing]);
-  
+
   useEffect(() => {
     console.log("Logged in user:", user);
   }, [user]);
 
-  
+
   const { handleAddElement } = useElementCreation(
     layers,
     setLayers,
@@ -261,7 +265,7 @@ const CanvaEditor = () => {
   );
 
   // Load project data
-  useProjectLoader(setLayers, setCanvasSize, setZoom, setPan, setCanvasBgColor, setCanvasBgImage);
+  useProjectLoader(setLayers, setCanvasSize, setZoom, setPan, setCanvasBgColor, setCanvasBgImage, setProjectName);
 
   // Add default heading when page opens and there are no layers
   const hasInitializedRef = useRef(false);
@@ -470,45 +474,64 @@ const CanvaEditor = () => {
   };
 
   //Handle save canva design (new + existing)
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!user) {
       alert("Please login to save your design");
       return;
     }
+    setIsProjectNameModalOpen(true);
+  };
+
+  // Assuming updateImage and updateImageVisibility are imported from a service file
+  // import { updateImage, updateImageVisibility } from '../services/api'; // Add this import at the top of your file
+
+  const confirmSave = async (title) => {
+    setIsProjectNameModalOpen(false);
+    setProjectName(title);
 
     try {
-      const designData = {
-        layers: layers,
-        canvasSize,
-        canvasBgColor,
-        canvasBgImage,
-        zoom,
-        pan
+      // Match the user's required payload format: { title, data: { layer: layers, ... } }
+      const updatePayload = {
+        title: title,
+        data: {
+          layer: layers,
+          canvasSize,
+          canvasBgColor,
+          canvasBgImage,
+          zoom,
+          pan
+        }
       };
 
+      console.log("Saving design JSON:", JSON.stringify(updatePayload, null, 2));
+
       if (projectId) {
-        // If we have a projectId, use the main API to update the project design
-        await api.updateProjectDesign(projectId, designData);
-        alert("Design updated successfully!");
+        // Use the new updateImage API with the nested data format
+        await updateImage(projectId, updatePayload);
+        toast.success("Design updated successfully!");
       } else {
-        // For new designs, use the saveImage service
-        const payload = {
-          userId: user._id || user.id,
-          title: "Untitled Design",
+        // For new projects, use the flat payload format as before (or update saveImage if needed)
+        const newProjectPayload = {
+          userId: user?._id || user?.id,
+          title: title,
           isPublic: false,
           data: {
-            layer: layers
+            layer: layers,
+            canvasSize,
+            canvasBgColor,
+            canvasBgImage,
+            zoom,
+            pan
           }
         };
+        const result = await saveImage(newProjectPayload);
+        console.log("Saved response:", result);
 
-        const res = await saveImage(payload);
-        console.log("Saved response:", res);
-
-        alert("Design saved successfully!");
+        toast.success("Design saved successfully!");
 
         // If it's a new save and we got an ID back, navigate to the project URL
-        if (res && (res.id || res._id)) {
-          navigate(`/canva-clone/${res.id || res._id}`);
+        if (result && (result.id || result._id)) {
+          navigate(`/canva-clone/${result.id || result._id}`);
         }
       }
 
@@ -1126,7 +1149,7 @@ const CanvaEditor = () => {
     };
 
     reader.onerror = () => {
-      alert('Failed to read image file. Please try again.');
+      toast.error('Failed to read image file. Please try again.');
       e.target.value = ''; // Reset input
     };
 
@@ -1389,6 +1412,19 @@ const CanvaEditor = () => {
       setDrawingSettings(prev => ({ ...prev, isDrawing: false }));
     }
   };
+  const handleToggleVisibility = async () => {
+    if (!projectId) return;
+    try {
+      const payload = {
+        userId: user?._id || user?.id,
+        isPublic: true // or toggle based on design if state is available
+      };
+      await updateImageVisibility(projectId, payload);
+      toast.success("Visibility updated!");
+    } catch (error) {
+      toast.error("Failed to update visibility");
+    }
+  };
 
 
   const resetEditorToInitialState = useCallback(() => {
@@ -1633,6 +1669,10 @@ const CanvaEditor = () => {
           pan={pan}
           canvasBgColor={canvasBgColor}
           canvasBgImage={canvasBgImage}
+          projectName={projectName}
+          isExistingProject={!!projectId}
+          onToggleVisibility={handleToggleVisibility}
+          userRole={user?.role}
         />
 
         {/* Canvas Area - scrollable container with all pages */}
@@ -1827,6 +1867,13 @@ const CanvaEditor = () => {
           onAddToCanvas={handleAddStyledImageToCanvas}
         />
       )}
+
+      <ProjectNameModal
+        open={isProjectNameModalOpen}
+        onClose={() => setIsProjectNameModalOpen(false)}
+        onConfirm={confirmSave}
+        initialName={projectName}
+      />
     </div>
   );
 };

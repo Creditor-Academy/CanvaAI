@@ -704,7 +704,7 @@ router.put('/projects/:id/design', authenticate, async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Project not found....' });
     }
 
     // Update design

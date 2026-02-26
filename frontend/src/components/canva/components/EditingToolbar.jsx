@@ -42,6 +42,10 @@ const EditingToolbar = ({
     pan,
     canvasBgColor,
     canvasBgImage,
+    projectName,
+    isExistingProject,
+    onToggleVisibility,
+    userRole,
 }) => {
     const [showFontDropdown, setShowFontDropdown] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -120,6 +124,12 @@ const EditingToolbar = ({
                     {/* App Icon */}
                     <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center shadow-sm">
                         <FiFile className="text-white" size={18} />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-bold text-gray-800 truncate max-w-[200px]">
+                            {projectName || 'Untitled Design'}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-medium">Auto-saved</span>
                     </div>
                 </div>
 
@@ -315,13 +325,23 @@ const EditingToolbar = ({
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {isExistingProject && userRole === 'admin' && (
+                            <button
+                                className="flex items-center cursor-pointer gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                                onClick={onToggleVisibility}
+                                title="Toggle Public/Private"
+                            >
+                                <FiShare2 size={16} />
+                                <span>Public</span>
+                            </button>
+                        )}
                         {/* Saving Status */}
                         <button
                             className="flex items-center cursor-pointer gap-2 text-sm mr-2"
                             onClick={onSave}
                         >
                             <FiSave className="animate-pulse text-gray-400" />
-                            <span>Save</span>
+                            <span>{isExistingProject ? "Save" : "Save As"}</span>
                         </button>
                     </div>
                 </div>

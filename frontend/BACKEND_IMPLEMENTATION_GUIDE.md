@@ -213,7 +213,7 @@ router.get('/:id', authenticate, async (req, res) => {
 
     if (!project) {
       return res.status(404).json({ 
-        error: 'Project not found' 
+        error: 'Project not found....' 
       });
     }
 
@@ -273,7 +273,7 @@ router.put('/:id/design', authenticate, async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Project not found...' });
     }
 
     // Store previous design in history (optional)
@@ -333,7 +333,7 @@ router.put('/:id', authenticate, async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Project not found...' });
     }
 
     // Update fields if provided
@@ -383,7 +383,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Project not found....' });
     }
 
     // Soft delete

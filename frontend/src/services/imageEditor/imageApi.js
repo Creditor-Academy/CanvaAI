@@ -51,3 +51,49 @@ export const getImageById = async (imageId) => {
         throw error;
     }
 };
+
+export const deleteImage = async (imageId) => {
+    try {
+        const res = await api.delete(`/api/images/delete/${imageId}`);
+        return res.data;
+    } catch (error) {
+        console.error("Delete Image Error:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const updateImageVisibility = async (imageId, payload) => {
+    try {
+        const res = await api.put(`/api/images/update/visibility/${imageId}`, payload);
+        return res.data;
+    } catch (error) {
+        console.error("Update Image Visibility Error:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const updateImage = async (imageId, payload) => {
+    try {
+        const res = await api.put(`/api/images/update/${imageId}`, payload);
+        return res.data;
+    } catch (error) {
+        console.error("Update Image Error:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const generateImage = async (userId, prompt) => {
+    try {
+        // Updated to use POST as it's more reliable for prompts, 
+        // and matched the URL structure provided by user.
+        const res = await api.post(`/api/image/generate-image/${userId}/${encodeURIComponent(prompt)}`);
+        return res.data;
+    } catch (error) {
+        console.error("Generate Image Error:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+
+
+
