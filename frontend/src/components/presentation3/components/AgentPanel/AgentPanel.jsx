@@ -82,7 +82,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
     try {
       if (mode === "generate-image") {
         console.log("--- AgentPanel: Generating image with prompt:", prompt);
-        const res = await aiService.generateAIImage(prompt);
+        const res = await aiService.generateAIImage(userId, presentationId, prompt);
         if (res.url) {
           addImageLayer(null, res.url, res.key);
         }
