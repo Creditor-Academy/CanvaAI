@@ -288,7 +288,7 @@ const Presentation = () => {
                 }}
               >
                 <FiZap size={16} />
-                Create with AI
+                Create
               </button>
 
             </div>

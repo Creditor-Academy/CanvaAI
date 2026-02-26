@@ -48,7 +48,6 @@ import SmartCrop from "./components/aigenerator/SmartCrop";
 
 import PresentationStudio from "./components/presentationstudio/PresentationStudio";
 import PresentationEditor2 from "./pages/PresentationEditor2";
-
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
@@ -107,6 +106,7 @@ const AppContent = () => {
           <Route path="/analytics" element={<Analatics />} />
           <Route path="/settings" element={<Setting />} />
           <Route path="/help-support" element={<Help />} />
+          
           <Route path="/team" element={<Team />} />
           <Route path="/team/accept" element={<AcceptInvite />} />
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
