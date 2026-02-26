@@ -8,40 +8,61 @@ import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHe
    NORMALIZATION HELPERS
 ========================= */
 
-const normalizeCells = (cells, rows, cols) => {
-  if (!cells || !Array.isArray(cells)) {
-    return Array.from({ length: rows || 0 }, () =>
-      Array.from({ length: cols || 0 }, () => ({
-        content: createInitialValue(),
-        fontFamily: "Arial",
-        fontSize: 14,
-        color: "#ffffff",
-        textAlign: "center",
-      }))
-    );
+const normalizeLayer = (layer) => {
+  if (!layer) return layer;
+
+  let normalizedLayer = { ...layer };
+
+  // 1. Tables
+  if (normalizedLayer.type === "table") {
+    normalizedLayer.cells = normalizeCells(normalizedLayer.cells, normalizedLayer.rows, normalizedLayer.cols);
   }
-  return cells.map((row) =>
-    Array.isArray(row)
-      ? row.map((cell) => {
-        if (typeof cell === "string") {
-          return {
-            content: convertTextToSlate(cell),
-            fontFamily: "Arial",
-            fontSize: 14,
-            color: "#ffffff",
-            textAlign: "center",
-          };
-        }
-        if (cell && typeof cell === "object" && !cell.content) {
-          return {
-            ...cell,
-            content: createInitialValue(),
-          };
-        }
-        return cell;
-      })
-      : []
-  );
+
+  // 2. Images (handle nested src object from AI)
+  if (normalizedLayer.type === "image") {
+    if (typeof normalizedLayer.src === "object" && normalizedLayer.src !== null) {
+      normalizedLayer.imageUrl = normalizedLayer.src.url;
+      normalizedLayer.imageKey = normalizedLayer.src.key;
+      normalizedLayer.src = normalizedLayer.src.url;
+    }
+    if (!normalizedLayer.imageUrl && typeof normalizedLayer.src === "string") {
+      normalizedLayer.imageUrl = normalizedLayer.src;
+    }
+  }
+
+  // 3. Legacy Lists (v2 style hardcoded lists)
+  if (
+    (normalizedLayer.type === "bulleted-list" || normalizedLayer.type === "numbered-list") &&
+    normalizedLayer.children
+  ) {
+    const listType = normalizedLayer.type;
+    normalizedLayer = {
+      ...normalizedLayer,
+      type: "text",
+      content: [
+        {
+          type: listType,
+          children: normalizedLayer.children,
+        },
+      ],
+      fontSize: normalizedLayer.fontSize || 24,
+      fontFamily: normalizedLayer.fontFamily || "Arial",
+      color: normalizedLayer.color || "#000000",
+      textAlign: normalizedLayer.textAlign || "left",
+    };
+    delete normalizedLayer.children;
+  }
+
+  // 4. Migration for old text layers without content
+  if (normalizedLayer.type === "text" && normalizedLayer.text !== undefined && !normalizedLayer.content) {
+    const { text, ...rest } = normalizedLayer;
+    return {
+      ...rest,
+      content: convertTextToSlate(text),
+    };
+  }
+
+  return normalizedLayer;
 };
 
 const normalizeSlide = (slide) => {
@@ -49,64 +70,7 @@ const normalizeSlide = (slide) => {
   return {
     ...slide,
     id: slide.id || nanoid(),
-    layers: slide.layers?.map((layer) => {
-      // 1. Tables
-      if (layer.type === "table") {
-        return {
-          ...layer,
-          cells: normalizeCells(layer.cells, layer.rows, layer.cols),
-        };
-      }
-
-      // 2. Images (handle nested src object from AI)
-      if (layer.type === "image") {
-        const normalizedLayer = { ...layer };
-        if (typeof layer.src === "object" && layer.src !== null) {
-          normalizedLayer.imageUrl = layer.src.url;
-          normalizedLayer.imageKey = layer.src.key;
-          normalizedLayer.src = layer.src.url;
-        }
-        if (!normalizedLayer.imageUrl && typeof layer.src === "string") {
-          normalizedLayer.imageUrl = layer.src;
-        }
-        return normalizedLayer;
-      }
-
-      // 3. Legacy Lists (v2 style hardcoded lists)
-      if (
-        (layer.type === "bulleted-list" || layer.type === "numbered-list") &&
-        layer.children
-      ) {
-        const listType = layer.type;
-        const normalizedLayer = {
-          ...layer,
-          type: "text",
-          content: [
-            {
-              type: listType,
-              children: layer.children,
-            },
-          ],
-          fontSize: layer.fontSize || 24,
-          fontFamily: layer.fontFamily || "Arial",
-          color: layer.color || "#000000",
-          textAlign: layer.textAlign || "left",
-        };
-        delete normalizedLayer.children;
-        return normalizedLayer;
-      }
-
-      // 4. Migration for old text layers without content
-      if (layer.type === "text" && layer.text !== undefined && !layer.content) {
-        const { text, ...rest } = layer;
-        return {
-          ...rest,
-          content: convertTextToSlate(text),
-        };
-      }
-
-      return layer;
-    }),
+    layers: (slide.layers || []).map((layer) => normalizeLayer(layer)),
   };
 };
 
@@ -369,6 +333,37 @@ const usePresentationStore = create((set, get) => {
       }));
     },
 
+    appendLayersToSlide: (slideId, layersData) => {
+      if (!layersData) return;
+      get().saveToHistory();
+
+      // Safe extraction of layers
+      const incomingLayers = Array.isArray(layersData.layers)
+        ? layersData.layers
+        : Array.isArray(layersData)
+          ? layersData
+          : [];
+
+      set((state) => ({
+        slides: state.slides.map((slide) => {
+          if (slide.id !== slideId) return slide;
+
+          const newNormalizedLayers = incomingLayers.map((layer) => {
+            // Regeneration of unique IDs to prevent collisions
+            return normalizeLayer({
+              ...layer,
+              id: nanoid(),
+            });
+          });
+
+          return {
+            ...slide,
+            layers: [...(slide.layers || []), ...newNormalizedLayers],
+          };
+        }),
+      }));
+    },
+
     deleteSlide: (slideId) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
@@ -470,7 +465,7 @@ const usePresentationStore = create((set, get) => {
     getSelectedLayer: () => {
       const { slides, activeSlideId, selectedLayerId } = get();
       const slide = slides.find((s) => s.id === activeSlideId);
-      return slide?.layers.find((l) => l.id === selectedLayerId) || null;
+      return slide?.layers?.find((l) => l.id === selectedLayerId) || null;
     },
 
     deleteSelectedLayer: () => {

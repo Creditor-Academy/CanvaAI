@@ -22,6 +22,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
     activeSlideId,
     appendSlide,
     updateSlide,
+    appendLayersToSlide,
     addImageLayer,
     setActiveSlide
   } = usePresentationStore();
@@ -109,7 +110,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
         console.log("--- AgentPanel: Expand slide response:", res);
 
         if (res.success && res.data) {
-          updateSlide(selectedSlideId, res.data);
+          appendLayersToSlide(selectedSlideId, res.data);
           setActiveSlide(selectedSlideId); // Synchronize view to updated slide
         }
       }
