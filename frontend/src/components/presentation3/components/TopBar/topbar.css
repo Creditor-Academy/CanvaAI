@@ -1,23 +1,23 @@
 /* =========================================
-   ATHENA LMS TOPBAR
+   CANVA-STYLE TOPBAR
 ========================================= */
 
 /* Wrapper */
 .topbar-wrapper {
-  background: linear-gradient(135deg, #6b9aff 0%, #a8cfff 50%, #6b9aff 100%);
-  ;
+  background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   font-family: Inter, sans-serif;
   position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 /* Common row */
 .topbar-row {
   display: flex;
   align-items: center;
-  padding: 10px 24px;
+  padding: 8px 20px;
 }
 
 /* Row 1 */
@@ -39,7 +39,14 @@
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+}
+
+.topbar-brand-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  margin-right: -4px;
 }
 
 /* Right section */
@@ -60,20 +67,20 @@
 ========================================= */
 
 .project-input {
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: 1px solid #dbe3f0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  min-width: 240px;
+  min-width: 220px;
   transition: all 0.2s ease;
 }
 
 .project-input:focus {
   outline: none;
-  border-color: #3b5bdb;
-  box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.15);
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.3);
 }
 
 /* =========================================
@@ -83,18 +90,18 @@
 .nav-btn {
   background: transparent;
   border: none;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 14px;
-  color: #334155;
+  color: #64748b;
   cursor: pointer;
-  padding: 8px 14px;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
   transition: all 0.2s ease;
 }
 
 .nav-btn:hover {
-  background: rgba(59, 91, 219, 0.08);
-  color: #1e293b;
+  background: #f1f5f9;
+  color: #475569;
 }
 
 /* =========================================
@@ -106,13 +113,13 @@
   align-items: center;
   gap: 12px;
 
-  padding: 12px 22px;
-  border-radius: 18px;
+  padding: 8px 18px;
+  border-radius: 12px;
 
   background: #ffffff;
   border: 1px solid #e2e8f0;
 
-  box-shadow: 0 14px 40px rgba(30, 41, 59, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
   transition: all 0.3s ease;
   animation: floatIn 0.3s ease;
@@ -131,7 +138,7 @@
 }
 
 .toolbar-center:hover {
-  box-shadow: 0 18px 48px rgba(30, 41, 59, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 /* =========================================
@@ -141,7 +148,7 @@
 .icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
@@ -150,8 +157,8 @@
 }
 
 .icon-btn:hover {
-  background: rgba(59, 91, 219, 0.08);
-  border-color: rgba(59, 91, 219, 0.2);
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .icon-btn:active {
@@ -159,7 +166,7 @@
 }
 
 .icon-btn svg {
-  color: #334155;
+  color: #64748b;
 }
 
 .icon-btn-danger svg {
@@ -188,19 +195,20 @@
 ========================================= */
 
 .present-btn {
-  background: #ead202;
-  color: #353839;
-  padding: 12px 28px;
-  border-radius: 10px;
+  background: #1d4ed8;
+  color: #ffffff;
+  padding: 8px 22px;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 14px;
   border: none;
   cursor: pointer;
   transition: all 0.25s ease;
 }
 
 .present-btn:hover {
-  background: #2f49b3;
-  box-shadow: 0 8px 20px rgba(59, 91, 219, 0.25);
+  background: #1e40af;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
 }
 
 .present-btn:active {
@@ -222,9 +230,9 @@
 
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
 
-  box-shadow: 0 20px 50px rgba(30, 41, 59, 0.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 
   padding: 8px;
   display: flex;
@@ -244,6 +252,28 @@
   }
 }
 
+/* Shapes Dropdown Grid */
+.dropdown-menu.shapes-dropdown {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  width: 280px;
+  padding: 8px;
+}
+
+.dropdown-menu.shapes-dropdown button {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  grid-column: span 2;
+  margin: 4px 0;
+}
+
+/* Base style for existing dropdown results */
 .dropdown-menu button {
   display: flex;
   align-items: center;
@@ -251,7 +281,7 @@
   background: transparent;
   border: none;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   text-align: left;
@@ -259,7 +289,7 @@
 }
 
 .dropdown-menu button:hover {
-  background: rgba(59, 91, 219, 0.06);
+  background: #f1f5f9;
 }
 
 /* =========================================

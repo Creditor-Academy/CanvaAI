@@ -17,10 +17,18 @@ import {
   Upload,
   Link,
   Trash2,
-  Save
+  Save,
+  Download,
+  Triangle,
+  Diamond,
+  ArrowRight,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
+import { exportToPDF, exportToPPTX } from "../../utils/PresentationExportService";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
   const { user } = useAuth();
@@ -53,10 +61,12 @@ const TopBar = ({ onPresent, onAgentClick }) => {
   const [showShapes, setShowShapes] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
 
   const shapesRef = useRef(null);
   const themeRef = useRef(null);
   const imageOptionsRef = useRef(null);
+  const downloadRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -68,6 +78,9 @@ const TopBar = ({ onPresent, onAgentClick }) => {
       }
       if (imageOptionsRef.current && !imageOptionsRef.current.contains(event.target)) {
         setShowImageOptions(false);
+      }
+      if (downloadRef.current && !downloadRef.current.contains(event.target)) {
+        setShowDownload(false);
       }
     };
 
@@ -95,6 +108,16 @@ const TopBar = ({ onPresent, onAgentClick }) => {
 
         {/* Left: Project name */}
         <div className="topbar-left">
+          {/* Brand Icon (Google Slides Style) */}
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" className="topbar-brand-icon">
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" stroke="#CCCCCC" strokeWidth="0.816">
+              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+            </g>
+            <g id="SVGRepo_iconCarrier">
+              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+            </g>
+          </svg>
           <input
             type="text"
             value={title || ""}
@@ -157,6 +180,35 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             >
               <Save size={18} /> {presentationId ? "Save Changes" : "Save"}
             </button>
+
+            {/* Download Button */}
+            <div className="dropdown" ref={downloadRef}>
+              <button
+                className="nav-btn"
+                onClick={() => setShowDownload(!showDownload)}
+                title="Download Presentation"
+              >
+                <Download size={18} /> Download
+              </button>
+
+              {showDownload && (
+                <div className="dropdown-menu">
+                  <button onClick={() => {
+                    exportToPDF(slides, title);
+                    setShowDownload(false);
+                  }}>
+                    PDF Document (.pdf)
+                  </button>
+                  <button onClick={() => {
+                    exportToPPTX(slides, title);
+                    setShowDownload(false);
+                  }}>
+                    PowerPoint (.pptx)
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* 
             <div className="dropdown" ref={themeRef}>
               <button
                 className="nav-btn"
@@ -174,7 +226,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
               )}
             </div>
 
-            <button className="nav-btn">Share</button>
+            <button className="nav-btn">Share</button> */}
             <button className="nav-btn" onClick={onAgentClick}>Agent</button>
           </div>
 
@@ -245,17 +297,47 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             </button>
 
             {showShapes && (
-              <div className="dropdown-menu">
+              <div className="dropdown-menu shapes-dropdown">
                 <button onClick={() => addShapeLayer("rect")}>
                   <Square size={16} /> Rectangle
+                </button>
+
+                <button onClick={() => addShapeLayer("roundedRect")}>
+                  <Square size={16} style={{ borderRadius: '4px' }} /> Rounded Rect
                 </button>
 
                 <button onClick={() => addShapeLayer("circle")}>
                   <Circle size={16} /> Circle
                 </button>
 
+                <button onClick={() => addShapeLayer("triangle")}>
+                  <Triangle size={16} /> Triangle
+                </button>
+
+                <button onClick={() => addShapeLayer("diamond")}>
+                  <Diamond size={16} /> Diamond
+                </button>
+
                 <button onClick={() => addShapeLayer("line")}>
                   <Minus size={16} /> Line
+                </button>
+
+                <div className="dropdown-divider" />
+
+                <button onClick={() => addShapeLayer("arrowRight")}>
+                  <ArrowRight size={16} /> Right Arrow
+                </button>
+
+                <button onClick={() => addShapeLayer("arrowLeft")}>
+                  <ArrowLeft size={16} /> Left Arrow
+                </button>
+
+                <button onClick={() => addShapeLayer("arrowUp")}>
+                  <ArrowUp size={16} /> Up Arrow
+                </button>
+
+                <button onClick={() => addShapeLayer("arrowDown")}>
+                  <ArrowDown size={16} /> Down Arrow
                 </button>
               </div>
             )}

@@ -242,7 +242,7 @@ const PresentationStudio = ({ onBack }) => {
           <PresentationWorkspace
             layout={layout}
             initialData={finalPresentationData}
-            onBack={handleReset}
+            onBack={handleResetAll}
           />
         </>
       );
