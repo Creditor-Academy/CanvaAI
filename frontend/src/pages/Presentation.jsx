@@ -64,7 +64,7 @@ const Presentation = () => {
   };
 
   // If AI Studio is active, show it
-  
+
 
   // If layout is selected, show workspace
   if (selectedLayout) {
@@ -269,27 +269,27 @@ const Presentation = () => {
                 1920 × 1080px
               </span>
               <button
-  onClick={(e) => {
-    e.stopPropagation();
-    navigate('/ai-presentation');
-  }}
-  style={{
-    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-    color: '#ffffff',
-    padding: '10px 18px',
-    borderRadius: '12px',
-    fontSize: '0.95rem',
-    lineHeight: 1,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    border: 'none',
-    cursor: 'pointer'
-  }}
->
-  <FiZap size={16} />
-  Create with AI
-</button>
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate('/ai-presentation');
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  color: '#ffffff',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  fontSize: '0.95rem',
+                  lineHeight: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <FiZap size={16} />
+                Create
+              </button>
 
             </div>
           </button>

@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { FiTrash2 } from "react-icons/fi";
 import api from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function TemplateTypes() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const { user } = useAuth(); // ⭐ logged in user
+  const isAdmin = user?.role === "admin"; // ⭐ admin check
 
   /* -------- Preview Image -------- */
   const getPreviewImage = (slides = []) => {
@@ -41,12 +45,9 @@ export default function TemplateTypes() {
               "Untitled Presentation",
             image: getPreviewImage(item?.data?.slides || []),
             updatedAt: item?.updatedAt || item?.createdAt,
-
-            // handle spelling mistake also
             presentationId: item?.presentationId || item?.persentationId || null,
           }))
-          // ⭐ only show templates that can actually open
-          .filter((t) => t.presentationId);
+          .filter((t) => t.presentationId); // only usable templates
 
         setTemplates(mapped);
       } catch (err) {
@@ -63,6 +64,21 @@ export default function TemplateTypes() {
   /* -------- Open PPT -------- */
   const openTemplate = (template) => {
     window.open(`/presentation-editor-v3/${template.presentationId}`, "_blank");
+  };
+
+  /* -------- Delete Template (ADMIN ONLY) -------- */
+  const deleteTemplate = async (id, e) => {
+    e.stopPropagation();
+
+    if (!window.confirm("Delete this template?")) return;
+
+    try {
+      await api.deleteAdminTemplate(id); // your delete api
+      setTemplates(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete template");
+    }
   };
 
   const formatDate = (date) => {
@@ -106,6 +122,7 @@ export default function TemplateTypes() {
                 (e.currentTarget.style.transform = "translateY(0)")
               }
             >
+              {/* Preview */}
               <div
                 style={{
                   height: "160px",
@@ -115,8 +132,10 @@ export default function TemplateTypes() {
                   justifyContent: "center",
                 }}
               >
+                
               </div>
 
+              {/* Info */}
               <div style={{ padding: "16px 18px" }}>
                 <div
                   style={{
@@ -139,7 +158,16 @@ export default function TemplateTypes() {
                   }}
                 >
                   <span>Edited {formatDate(item.updatedAt)}</span>
-                  <FiTrash2 color="#ef4444" size={18} />
+
+                  {/* ⭐ DELETE ONLY FOR ADMIN */}
+                  {isAdmin && (
+                    <FiTrash2
+                      color="#ef4444"
+                      size={18}
+                      style={{ cursor: "pointer" }}
+                      onClick={(e) => deleteTemplate(item.id, e)}
+                    />
+                  )}
                 </div>
               </div>
             </div>
