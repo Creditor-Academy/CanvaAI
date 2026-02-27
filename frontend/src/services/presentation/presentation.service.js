@@ -170,3 +170,42 @@ export const deletePresentation = async (id, userId) => {
     return res.data;
 };
 
+/**
+ * Generate image for PPT via API.
+ * POST /api/image/generate-image/:userId/:pptId with body { prompt }.
+ * Response: { created, data: [{ b64_json, revised_prompt, url }] }
+ */
+export const generateAIImage = async (userId, pptId, prompt) => {
+    const url = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
+    const res = await axios.post(url, { prompt }, getAuthHeaders());
+    const first = res.data?.data?.[0];
+    if (!first) throw new Error("No image data in response");
+    return {
+        url: first.url,
+        revised_prompt: first.revised_prompt,
+        b64_json: first.b64_json
+    };
+};
+
+export const generateAISlide = async (userId, pptId, prompt, mediaType) => {
+    const url = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
+    const payload = {
+        slideContent: prompt,
+        mediaStyle: mediaType
+    };
+    console.log(`--- PresentationService: generateAISlide POST ${url}`, payload);
+    const res = await axios.post(url, payload, getAuthHeaders());
+    return res.data;
+};
+
+export const expandAISlide = async (userId, pptId, prompt, mediaType, slideData) => {
+    const url = `${BASE_URL}/api/pp/expand-slide/${userId}/${pptId}`;
+    const payload = {
+        prompt,
+        mediaStyle: mediaType,
+        slideContent: slideData
+    };
+    console.log(`--- PresentationService: expandAISlide POST ${url}`, payload);
+    const res = await axios.post(url, payload, getAuthHeaders());
+    return res.data;
+};

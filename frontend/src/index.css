@@ -32,8 +32,6 @@ body,
 body {
   margin: 0;
   font-family: var(--athena-font-body);
-  background: #ffffff;
-  color: #111827;
 }
 
 /* App content responsive layout aligned with fixed sidebar */

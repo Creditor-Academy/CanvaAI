@@ -10,7 +10,7 @@ import PresentationMode from "./present/PresentationMode";
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
 
-const PresentationWorkspace = () => {
+const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,65 +19,47 @@ const PresentationWorkspace = () => {
 
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Loading if ID is present and we don't have initialData
+  const [isLoading, setIsLoading] = useState(!!id && !initialData);
   const [error, setError] = useState(null);
 
   const { setPresentation, resetPresentation } = usePresentationStore();
 
   useEffect(() => {
-    const loadPresentation = async () => {
-      try {
-        setIsLoading(true);
-
-        // ✅ CASE 1: Data passed from navigation
-        if (passedData) {
-          console.log("Using passed data:", passedData);
-
-          const normalizedData = {
-            id: passedData.id || passedData._id,
-            title: passedData.title,
-            slides:
-              passedData.slides ||
-              (passedData.data && passedData.data.slides) ||
-              []
-          };
-
-          setPresentation(normalizedData);
+    if (initialData) {
+      console.log("--- Workspace: Using initialData from props:", initialData);
+      setPresentation(initialData);
+      setIsLoading(false);
+    } else if (id) {
+      setIsLoading(true);
+      getPresentationById(id)
+        .then((data) => {
+          console.log("--- Workspace: Fetched data for ID:", id, data);
+          // Normalize data if necessary (e.g. if API returns { data: ... })
+          const pptData = data.data || data;
+          // Ensure ID is present in the data passed to store
+          if (!pptData.id && !pptData._id && !pptData.presentationId && id) {
+            pptData.id = id;
+          }
+          // Ensure title is present
+          if (!pptData.title && data.title) {
+            pptData.title = data.title;
+          }
+          setPresentation(pptData);
           setIsLoading(false);
-          return;
-        }
-
-        // ✅ CASE 2: Fetch from API using ID
-        if (id) {
-          const response = await getPresentationById(id);
-
-          const apiData = response.data || response;
-
-          const normalizedData = {
-            id: apiData.id || apiData._id,
-            title: apiData.title,
-            slides:
-              apiData.slides ||
-              (apiData.data && apiData.data.slides) ||
-              []
-          };
-
-          setPresentation(normalizedData);
-        } else {
-          // ✅ CASE 3: New presentation
-          resetPresentation();
-        }
-
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error loading presentation:", err);
-        setError("Failed to load presentation");
-        setIsLoading(false);
-      }
-    };
-
-    loadPresentation();
-  }, [id, passedData, setPresentation, resetPresentation]);
+        })
+        .catch((err) => {
+          console.error("Failed to load presentation:", err);
+          setError("Failed to load presentation");
+          setIsLoading(false);
+        });
+    } else {
+      // New presentation -> Reset store
+      console.log("--- Workspace: New presentation, resetting store.");
+      resetPresentation();
+      setIsLoading(false);
+    }
+  }, [id, initialData, setPresentation, resetPresentation]);
 
   if (isLoading) {
     return (
