@@ -7,24 +7,22 @@ import './styles/OutlineEditor.css';
 const OutlineEditor = ({ outlineData, onFinalize }) => {
   const navigate = useNavigate();
 
+  // ✅ Initialize Slides From outlineData
   const [slides, setSlides] = useState(() => {
-    if (!outlineData || !outlineData.slides) return [];
-
+    if (!outlineData?.slides) return [];
+console.log("Initializing slides from outlineData:", outlineData);
     return outlineData.slides.map((slide, index) => {
       let formattedContent = { mode: 'raw', rawText: '' };
 
-      // ✅ FIX: Handle AI structured content (bulletPoints)
-      if (Array.isArray(slide.content?.bulletPoints) && slide.content.bulletPoints.length > 0) {
+      if (Array.isArray(slide.bullets) && slide.bullets.length > 0) {
         formattedContent = {
           mode: 'bullets',
-          bullets: slide.content.bulletPoints
+          bullets: slide.bullets
         };
-      }
-      // If AI ever sends plain string
-      else if (typeof slide.content === 'string') {
+      } else if (slide.content?.rawText) {
         formattedContent = {
           mode: 'raw',
-          rawText: slide.content
+          rawText: slide.content.rawText
         };
       }
 
@@ -36,9 +34,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         content: formattedContent,
         layout: slide.layout || 'content',
         contentType: slide.contentType || 'paragraph',
-
-        // ✅ FIX: Map image from AI structure
-        image: slide.content?.images?.[0]?.url || null
+        image: slide.content?.images?.[0]?.url || slide.image || null
       };
     });
   });
@@ -46,17 +42,19 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleTitleChange = (index, newTitle) => {
+  // ✅ Title Update
+  const handleTitleChange = (index, value) => {
     const updated = [...slides];
-    updated[index].title = newTitle;
+    updated[index].title = value;
     setSlides(updated);
   };
 
-  const handleContentChange = (index, newContent) => {
+  // ✅ Content Update (auto detect bullets)
+  const handleContentChange = (index, value) => {
     const updated = [...slides];
 
-    if (newContent.includes('•')) {
-      const bullets = newContent
+    if (value.includes('•')) {
+      const bullets = value
         .split('\n')
         .map(line => line.replace('•', '').trim())
         .filter(Boolean);
@@ -68,82 +66,125 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     } else {
       updated[index].content = {
         mode: 'raw',
-        rawText: newContent
+        rawText: value
       };
     }
 
     setSlides(updated);
   };
 
+  // ✅ Insert Slide
   const handleInsertSlide = (index) => {
-    const newSlide = {
-      slideId: `slide-${Date.now()}`,
-      slideNo: slides.length + 1,
-      source: 'user',
-      title: '',
-      content: { mode: 'raw', rawText: '' },
-      layout: 'content',
-      contentType: 'paragraph',
-      image: null
-    };
+    setSlides((prevSlides) => {
+      const newSlide = {
+        slideId: `slide-${Date.now()}`,
+        slideNo: index + 2,
+        source: 'user',
+        title: '',
+        content: { mode: 'raw', rawText: '' },
+        layout: 'content',
+        contentType: 'paragraph',
+        image: null
+      };
 
-    const updated = [...slides];
-    updated.splice(index + 1, 0, newSlide);
-    setSlides(updated);
+      const updated = [...prevSlides];
+      updated.splice(index + 1, 0, newSlide);
+
+      // Recalculate slide numbers
+      updated.forEach((slide, i) => {
+        slide.slideNo = i + 1;
+      });
+
+      return updated;
+    });
   };
 
+  // ✅ Delete Slide
   const handleDeleteSlide = (index) => {
     if (slides.length <= 1) {
       alert('Cannot delete the last slide');
       return;
     }
+
     const updated = slides.filter((_, i) => i !== index);
+
+    // Recalculate slide numbers
+    updated.forEach((slide, i) => {
+      slide.slideId = i + 1;
+    });
+
     setSlides(updated);
   };
 
-  const handleFinalize = async () => {
-    if (isGenerating) return;
+  // ✅ Finalize
+ const handleFinalize = async () => {
+  if (isGenerating) return;
 
-    setIsGenerating(true);
-    setError(null);
+  setIsGenerating(true);
+  setError(null);
 
-    try {
-      const updatedOutline = {
-        ...outlineData,
-        slides: slides.map(slide => ({
-          slideId: slide.slideId,
-          slideNo: slide.slideNo,
-          source: slide.source,
-          title: slide.title,
-          content: slide.content,
-          layout: slide.layout,
-          contentType: slide.contentType,
-          image: slide.image
-        }))
+  try {
+    // ✅ Build fresh slides array from state ONLY
+    const cleanedSlides = slides.map((slide, index) => {
+      return {
+        slideId: slide.slideId,
+        slideNo: index + 1,
+        source: slide.source || "user",
+        title: slide.title || "",
+        layout: slide.layout || "content",
+        contentType: slide.contentType || "paragraph",
+        content:
+          slide.content.mode === "bullets"
+            ? {
+                mode: "bullets",
+                rawText: slide.content.bullets.join("\n"),
+                bullets: slide.content.bullets
+              }
+            : {
+                mode: "raw",
+                rawText: slide.content.rawText || ""
+              },
+        bullets:
+          slide.content.mode === "bullets"
+            ? slide.content.bullets
+            : [],
+        image: slide.image || null
       };
+    });
 
-      const finalPresentation = await finalizePresentation(updatedOutline);
+    // ✅ IMPORTANT: completely override slides
+    const updatedOutline = {
+      ...outlineData,
+      slides: cleanedSlides
+    };
 
-      onFinalize(finalPresentation);
-      navigate('/presentation-editor-v3', {
-  state: { presentationData: finalPresentation }
-});
+    console.log("Slides being sent to backend:", cleanedSlides);
 
-    } catch (error) {
-      console.error('Error finalizing presentation:', error);
-      setError(error.message || 'Failed to finalize presentation.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    const finalPresentation = await finalizePresentation(updatedOutline);
+  console.log("Final presentation response from backend:", finalPresentation);
+    onFinalize(finalPresentation);
 
-  const getContentText = (content) => {
+    navigate("/presentation-editor-v3", {
+      state: { presentationData: finalPresentation }
+    });
+
+  } catch (err) {
+    console.error("Finalize Error:", err);
+    setError(err.message || "Failed to finalize presentation.");
+  } finally {
+    setIsGenerating(false);
+  }
+};
+
+  // ✅ Get Textarea Value
+  const getTextareaValue = (content) => {
     if (!content) return '';
-    if (content.mode === 'raw') return content.rawText || '';
-    if (content.mode === 'bullets' && Array.isArray(content.bullets)) {
-      return content.bullets.map(b => `• ${b}`).join('\n');
+
+    if (content.mode === 'bullets') {
+      return content.bullets?.map(b => `• ${b}`).join('\n') || '';
     }
-    return '';
+
+    return content.rawText || '';
   };
 
   return (
@@ -151,12 +192,15 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
       <div className="outline-editor-container">
         <div className="outline-editor-content">
           <div className="outline-editor-slides">
+
+            {/* ✅ IMPORTANT: render from slides state */}
             {slides.map((slide, index) => (
               <React.Fragment key={slide.slideId}>
                 <div className="outline-editor-slide">
+
                   <div className="outline-editor-slide-header">
                     <div className="outline-editor-slide-number">
-                      {index + 1}
+                      {slide.slideNo}
                     </div>
 
                     <input
@@ -179,7 +223,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                   </div>
 
                   <textarea
-                    value={getContentText(slide.content)}
+                    value={getTextareaValue(slide.content)}
                     onChange={(e) =>
                       handleContentChange(index, e.target.value)
                     }
@@ -193,7 +237,11 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                       <img
                         src={slide.image}
                         alt="Slide Visual"
-                        style={{ width: '100%', marginTop: '10px', borderRadius: '8px' }}
+                        style={{
+                          width: '100%',
+                          marginTop: '10px',
+                          borderRadius: '8px'
+                        }}
                       />
                     </div>
                   )}
@@ -209,6 +257,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                 </div>
               </React.Fragment>
             ))}
+
           </div>
 
           <div className="outline-editor-finalize">
@@ -222,7 +271,9 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
               onClick={handleFinalize}
               disabled={isGenerating || slides.length === 0}
               className={`outline-editor-finalize-button ${
-                isGenerating ? 'outline-editor-finalize-button-disabled' : ''
+                isGenerating
+                  ? 'outline-editor-finalize-button-disabled'
+                  : ''
               }`}
             >
               {isGenerating
@@ -230,6 +281,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                 : 'Generate Final Presentation'}
             </button>
           </div>
+
         </div>
       </div>
     </div>
