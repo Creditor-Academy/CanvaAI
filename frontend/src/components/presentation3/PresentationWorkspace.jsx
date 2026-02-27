@@ -1,72 +1,107 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import SlidesPanel from "./components/SlidesPanel/SlidesPanel";
 import PropertiesPanel from "./components/PropertiesPanel/PropertiesPanel";
 import AgentPanel from "./components/AgentPanel/AgentPanel";
 import TopBar from "./components/TopBar/TopBar";
 import CanvasShell from "./components/Canvas/CanvasShell";
 import PresentationMode from "./present/PresentationMode";
-
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
 
-const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
+const PresentationWorkspace = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
-
   const passedData = location.state?.presentationData;
 
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
-  // Loading if ID is present and we don't have initialData
-  const [isLoading, setIsLoading] = useState(!!id && !initialData);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const { setPresentation, resetPresentation } = usePresentationStore();
+  const { setPresentation, resetPresentation, setPresentationId, setTitle } =
+    usePresentationStore();
 
   useEffect(() => {
-    if (initialData) {
-      console.log("--- Workspace: Using initialData from props:", initialData);
-      setPresentation(initialData);
-      setIsLoading(false);
-    } else if (id) {
-      setIsLoading(true);
-      getPresentationById(id)
-        .then((data) => {
-          console.log("--- Workspace: Fetched data for ID:", id, data);
-          // Normalize data if necessary (e.g. if API returns { data: ... })
-          const pptData = data.data || data;
-          // Ensure ID is present in the data passed to store
-          if (!pptData.id && !pptData._id && !pptData.presentationId && id) {
-            pptData.id = id;
-          }
-          // Ensure title is present
-          if (!pptData.title && data.title) {
-            pptData.title = data.title;
-          }
-          setPresentation(pptData);
+    const loadPresentation = async () => {
+      try {
+        setIsLoading(true);
+
+        // ✅ CASE 1: Data from navigation
+        if (passedData) {
+          const normalized = {
+            id: passedData.id || passedData._id,
+            title: passedData.title || "Untitled Presentation",
+            slides:
+              passedData.slides ||
+              (passedData.data && passedData.data.slides) ||
+              [],
+          };
+
+          setPresentation(normalized);
+          setPresentationId(normalized.id);
+          setTitle(normalized.title);
+
           setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to load presentation:", err);
-          setError("Failed to load presentation");
+          return;
+        }
+
+        // ✅ CASE 2: Data from sessionStorage
+        const storedData = sessionStorage.getItem("presentationData");
+        if (storedData) {
+          const parsed = JSON.parse(storedData);
+
+          const normalized = {
+            id: parsed.id || parsed._id,
+            title: parsed.title || "Untitled Presentation",
+            slides:
+              parsed.slides ||
+              (parsed.data && parsed.data.slides) ||
+              [],
+          };
+
+          setPresentation(normalized);
+          setPresentationId(normalized.id);
+          setTitle(normalized.title);
+
           setIsLoading(false);
-        });
-    } else {
-      // New presentation -> Reset store
-      console.log("--- Workspace: New presentation, resetting store.");
-      resetPresentation();
-      setIsLoading(false);
-    }
-  }, [id, initialData, setPresentation, resetPresentation]);
+          return;
+        }
+
+        // ✅ CASE 3: Fetch using URL id
+        if (id) {
+          const response = await getPresentationById(id);
+          const apiData = response.data || response;
+
+          const normalized = {
+            id: apiData._id || apiData.id,
+            title: apiData.title || "Untitled Presentation",
+            slides:
+              apiData.data?.slides ||
+              apiData.slides ||
+              [],
+          };
+
+          setPresentation(normalized);
+          setPresentationId(normalized.id);
+          setTitle(normalized.title);
+        } else {
+          resetPresentation();
+        }
+
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Error loading presentation:", err);
+        setError("Failed to load presentation");
+        setIsLoading(false);
+      }
+    };
+
+    loadPresentation();
+  }, [id, passedData]);
 
   if (isLoading) {
-    return (
-      <div style={styles.center}>
-        Loading Presentation...
-      </div>
-    );
+    return <div style={styles.center}>Loading Presentation...</div>;
   }
 
   if (error) {
@@ -87,12 +122,10 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
         onPresent={() => setIsPresenting(true)}
         onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
       />
-
       <div style={styles.body}>
         <SlidesPanel />
         <CanvasShell />
         <PropertiesPanel />
-
         <AgentPanel
           isOpen={isAgentPanelOpen}
           onClose={() => setIsAgentPanelOpen(false)}
@@ -103,21 +136,14 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
 };
 
 const styles = {
-  root: {
-    height: "100vh",
-    display: "flex",
-    flexDirection: "column"
-  },
-  body: {
-    flex: 1,
-    display: "flex"
-  },
+  root: { height: "100vh", display: "flex", flexDirection: "column" },
+  body: { flex: 1, display: "flex" },
   center: {
     height: "100vh",
     display: "flex",
     justifyContent: "center",
-    alignItems: "center"
-  }
+    alignItems: "center",
+  },
 };
 
 export default PresentationWorkspace;
