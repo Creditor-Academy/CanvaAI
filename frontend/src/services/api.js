@@ -38,7 +38,7 @@ class ApiService {
         return text;
       }
 
-       if (!response.ok && !data?.unverified)  {
+      if (!response.ok && !data?.unverified) {
         console.error('Response error:', data);
         throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
       }
@@ -559,6 +559,12 @@ class ApiService {
       body: JSON.stringify({ userId, serviceId, base64Image }),
     });
   }
+ // ============= ADMIN CONTENT =============
+async getAdminContents() {
+  return this.request('/api/admin-data/get-all', {
+    headers: getAuthHeaders(),
+  });
+}
 }
 
 export default new ApiService();

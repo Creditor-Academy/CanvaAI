@@ -1,139 +1,151 @@
-import { greasemonkey } from "globals";
-import React from "react";
-import { useNavigate } from "react-router-dom";
-
-const COLORS = {
-  primaryBlue: "#60a5fa",
-  lightGold: "#f8d77d",
-  lightNavy: "#3c82ad",
-};
-const {
-  primaryBlue,
-  lightGold,
-  lightNavy,
-} = COLORS;
-
-const templateTypes = [
-  {
-    name: "Presentation",
-    type: "presentation",
-    bg: primaryBlue,
-    image:
-      "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000",
-  },
-  {
-    name: "Document",
-    type: "document",
-    bg: lightGold,
-    image:
-      "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1000",
-  },
-  {
-    name: "Image Editor",
-    type: "image",
-    bg: lightNavy,
-    image:
-      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1000",
-  },
-];
+import React, { useEffect, useState } from "react";
+import { FiTrash2 } from "react-icons/fi";
+import api from "../../services/api";
 
 export default function TemplateTypes() {
-  const navigate = useNavigate();
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  /* -------- Preview Image -------- */
+  const getPreviewImage = (slides = []) => {
+    if (!Array.isArray(slides) || slides.length === 0) return null;
+
+    const first = slides[0];
+
+    if (first?.layers) {
+      const imgLayer = first.layers.find(
+        (l) => l?.type === "image" && (l?.src || l?.imageUrl)
+      );
+      if (imgLayer) return imgLayer.src || imgLayer.imageUrl;
+    }
+
+    if (first?.image?.url) return first.image.url;
+    if (first?.backgroundImage) return first.backgroundImage;
+
+    return null;
+  };
+
+  /* -------- Fetch Templates -------- */
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const res = await api.getAdminContents();
+        const list = Array.isArray(res?.data) ? res.data : [];
+
+        const mapped = list
+          .map((item, index) => ({
+            id: item?._id || index,
+            name:
+              item?.title ||
+              item?.data?.meta?.topic ||
+              "Untitled Presentation",
+            image: getPreviewImage(item?.data?.slides || []),
+            updatedAt: item?.updatedAt || item?.createdAt,
+
+            // handle spelling mistake also
+            presentationId: item?.presentationId || item?.persentationId || null,
+          }))
+          // ⭐ only show templates that can actually open
+          .filter((t) => t.presentationId);
+
+        setTemplates(mapped);
+      } catch (err) {
+        console.error(err);
+        setTemplates([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTemplates();
+  }, []);
+
+  /* -------- Open PPT -------- */
+  const openTemplate = (template) => {
+    window.open(`/presentation-editor-v3/${template.presentationId}`, "_blank");
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "Recently";
+    return new Date(date).toLocaleDateString();
+  };
+
+  /* -------- UI -------- */
   return (
-    <div style={{ padding: "50px 40px",  }}>
-      
-      {/* Heading */}
-      <h2
-          className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
+    <div style={{ padding: "40px" }}>
+      <h2 className="text-3xl font-bold mb-10">Your Templates</h2>
+
+      {loading ? (
+        <div>Loading...</div>
+      ) : templates.length === 0 ? (
+        <div>No usable templates found</div>
+      ) : (
+        <div
           style={{
-            backgroundImage:
-              "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))",
+            gap: "26px",
           }}
         >
-        Explore templates
-      </h2>
-
-      {/* Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "24px",
-        }}
-      >
-        {templateTypes.map((item) => (
-          <div
-            key={item.type}
-            onClick={() => navigate(`/templates/${item.type}`)}
-            style={{
-              background: item.bg,
-              borderRadius: "18px",
-              padding: "24px",
-              position: "relative",
-              cursor: "pointer",
-              overflow: "hidden",
-              transition: "all 0.3s ease",
-              height: "130px",
-              display: "flex",
-              alignItems: "center",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-5px)";
-              e.currentTarget.style.boxShadow =
-                "0 15px 30px rgba(0,0,0,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            {/* Text */}
+          {templates.map((item) => (
             <div
+              key={item.id}
+              onClick={() => openTemplate(item)}
               style={{
-                fontSize: "20px",
-                fontWeight: "600",
-                color: "#0f172a",
-                zIndex: 2,
+                borderRadius: "18px",
+                overflow: "hidden",
+                background: "#fff",
+                boxShadow: "0 10px 24px rgba(0,0,0,.08)",
+                cursor: "pointer",
+                transition: "0.25s",
               }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.transform = "translateY(-6px)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform = "translateY(0)")
+              }
             >
-              {item.name}
+              <div
+                style={{
+                  height: "160px",
+                  background: "#e5e7eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+              </div>
+
+              <div style={{ padding: "16px 18px" }}>
+                <div
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {item.name}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    color: "#64748b",
+                    fontSize: "14px",
+                  }}
+                >
+                  <span>Edited {formatDate(item.updatedAt)}</span>
+                  <FiTrash2 color="#ef4444" size={18} />
+                </div>
+              </div>
             </div>
-
-            {/* Blended Image */}
-            <img
-              src={item.image}
-              alt={item.name}
-              style={{
-                position: "absolute",
-                right: "0",
-                bottom: "0",
-                height: "100%",
-                width: "55%",
-                objectFit: "cover",
-                borderTopRightRadius: "18px",
-                borderBottomRightRadius: "18px",
-                opacity: 0.55,
-              }}
-            />
-
-            {/* Soft Fade Overlay */}
-            <div
-              style={{
-                position: "absolute",
-                right: "0",
-                bottom: "0",
-                height: "100%",
-                width: "55%",
-                background:
-                  "linear-gradient(to left, rgba(255,255,255,0) 0%, " +
-                  item.bg +
-                  " 85%)",
-              }}
-            />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
