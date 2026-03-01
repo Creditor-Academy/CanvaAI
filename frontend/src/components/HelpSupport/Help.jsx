@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './Help.css';
-import demoAnimation from "../../assets/animate.gif";
 // import ChatModal from './ChatModal'
 // import EmailSupport from './EmailSupport'
 // import PhoneSupport from './PhoneSupport';
@@ -129,8 +128,8 @@ const Help = () => {
     }
   ];
 
-
-  /*-------------------SEARCH FILTER FUNCTION----------------------- */
+  
+/*-------------------SEARCH FILTER FUNCTION----------------------- */
   const filteredFAQs = faqData.filter(faq => {
     const matchesSearch =
       searchQuery === '' ||
@@ -169,7 +168,7 @@ const Help = () => {
   //   setSelectedFilter('Contact');
   // };
 
-
+ 
   //   if (selectedFilter === 'FAQ') {
   //     return (
   //       <>
@@ -404,7 +403,7 @@ const Help = () => {
         </div>
       </div> */}
 
-      {/*-------------------FAQ SECTION----------------------- */}
+{/*-------------------FAQ SECTION----------------------- */}
       <div className="faq-wrapper">
 
         <div className="faq-intro">
@@ -418,8 +417,13 @@ const Help = () => {
             track sales, design easily and automate workflows.
           </p>
 
-          <div className="faq-demo-animation">
-            <img src={demoAnimation} alt="Book demo animation" />
+          <div className="faq-cta">
+            <h3>Still Have Questions?</h3>
+            <p>
+              Our support team is here to help you understand everything
+              about the platform and pricing.
+            </p>
+            <button>Book a Demo</button>
           </div>
         </div>
 
