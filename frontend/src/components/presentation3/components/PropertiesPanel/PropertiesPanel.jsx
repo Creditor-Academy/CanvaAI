@@ -3,7 +3,9 @@ import usePresentationStore from "../../store/usePresentationStore";
 import { debounce } from "lodash";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
+import { withHybridLoader } from "../../utils/withHybridLoader";
 import { toggleBlock, isBlockActive } from "../../editors/slate/slateBlocks";
+import { Link as LinkIcon, X } from "lucide-react";
 import "./properties-panel.css";
 
 const ColorPicker = ({ value, onChange, onHistorySave }) => {
@@ -189,6 +191,9 @@ const PropertiesPanel = () => {
   const { uploadFile, isUploading } = useImageUpload();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [showUrlPopup, setShowUrlPopup] = useState(false);
+  const [tempUrl, setTempUrl] = useState("");
+
 
   const FONTS = [
     "Arial",
@@ -272,11 +277,19 @@ const PropertiesPanel = () => {
                       if (!file) return;
 
                       try {
-                        const pptId = presentationId || "new";
-                        const { url, key } = await uploadFile(file, user?._id, pptId);
+                        await withHybridLoader(
+                          async () => {
+                            const pptId = presentationId || "new";
+                            const { url, key } = await uploadFile(file, user?._id, pptId);
 
-                        setSlideBackgroundImage(activeSlideId, url, key);
-                        e.target.value = ""; // Reset input
+                            setSlideBackgroundImage(activeSlideId, url, key);
+                            e.target.value = ""; // Reset input
+                            
+                            return { url, key };
+                          },
+                          "top",
+                          "Uploading background image..."
+                        );
                       } catch (error) {
                         alert("Failed to upload background image.");
                       }
@@ -288,49 +301,50 @@ const PropertiesPanel = () => {
                 </button>
               </div>
 
-              <div style={{ ...styles.row, marginTop: "8px" }}>
-                <input
-                  type="text"
-                  placeholder="Image URL"
-                  style={{
-                    ...styles.btn,
-                    flex: 1,
-                    textAlign: "left",
-                    paddingLeft: "8px",
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.currentTarget.value) {
-                      setSlideBackgroundImage(
-                        activeSlideId,
-                        e.currentTarget.value
-                      );
-                      e.currentTarget.value = ""; // Clear input
-                    }
-                  }}
-                />
+              <div style={{ ...styles.row, marginTop: "8px", position: "relative" }}>
                 <button
-                  style={{ ...styles.btn }}
-                  onClick={() => {
-                    const urlInput = document.activeElement; // Get the currently focused element
-                    if (
-                      urlInput &&
-                      urlInput.tagName === "INPUT" &&
-                      urlInput.type === "text" &&
-                      urlInput.value
-                    ) {
-                      setSlideBackgroundImage(activeSlideId, urlInput.value);
-                      urlInput.value = ""; // Clear input
-                    } else {
-                      const url = prompt("Enter image URL:");
-                      if (url) {
-                        setSlideBackgroundImage(activeSlideId, url);
-                      }
-                    }
-                  }}
+                  style={{ ...styles.btn, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  onClick={() => setShowUrlPopup(!showUrlPopup)}
                   title="Set background image from URL"
                 >
-                  URL
+                  <LinkIcon size={16} /> Insert from URL
                 </button>
+
+                {showUrlPopup && (
+                  <div className="modal-overlay" onClick={() => setShowUrlPopup(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                      <h3>Add Image from URL</h3>
+                      <input
+                        type="url"
+                        placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                        value={tempUrl}
+                        onChange={(e) => setTempUrl(e.target.value)}
+                        className="url-input-field"
+                      />
+                      <div className="modal-buttons">
+                        <button 
+                          className="secondary-btn" 
+                          onClick={() => setShowUrlPopup(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="primary-btn" 
+                          onClick={() => {
+                            if (tempUrl) {
+                              setSlideBackgroundImage(activeSlideId, tempUrl);
+                              setTempUrl("");
+                              setShowUrlPopup(false);
+                            }
+                          }}
+                          disabled={!tempUrl}
+                        >
+                          Add Image
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {activeSlide.backgroundImage && (
@@ -877,17 +891,20 @@ const PropertiesPanel = () => {
 
             <div style={styles.control}>
               <label style={styles.label}>Border Color</label>
-              <ColorPicker
+              <PaletteColorControl
+                label="Border Color"
                 value={selectedLayer.borderColor || "#000000"}
                 onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateLayerStyle(selectedLayer.id, { borderColor: val }, saveHistory)
+                onColorChange={(color) =>
+                  updateLayerStyle(selectedLayer.id, { borderColor: color }, false)
                 }
               />
             </div>
           </>
         )}
       </div>
+
+
     </div>
   );
 };

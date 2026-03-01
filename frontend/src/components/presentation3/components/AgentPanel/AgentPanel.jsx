@@ -93,7 +93,9 @@ const AgentPanel = ({ isOpen, onClose }) => {
         console.log("--- AgentPanel: Generate slide response:", res);
         if (res.success && res.data) {
           appendSlide(res.data);
-          setActiveSlide(res.data.id);
+          // appendSlide already handles normalization and setActiveSlide internally
+          // onClose() will ensure the workspace view updates immediately to the new slide
+          onClose();
         }
       } else if (mode === "expand-slide") {
         const slideToExpand = slides.find(s => s.id === selectedSlideId);
