@@ -162,7 +162,9 @@
   opacity:1;
 }
 
-
+.outline-editor-textarea {
+  overflow: hidden;
+}
 
 
 .slide-insert-btn{

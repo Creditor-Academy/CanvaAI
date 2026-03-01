@@ -43,10 +43,10 @@ const TableLayer = ({ layer }) => {
                         border: `${layer.borderWidth || 0}px solid ${layer.borderColor || "#e5e7eb"}`,
                         padding: "6px",
                         overflow: "hidden",
+                        color: cell.color || "#ffffff", // Default to white for dark theme consistency
                         fontFamily: cell.fontFamily || "Arial",
                         fontSize: `${cell.fontSize || 14}px`,
                         textAlign: cell.textAlign || "center",
-                        // Inherit from layer if cell prop missing (optional fallback, but prompts says cell has props)
                     };
 
                     return (
@@ -77,7 +77,8 @@ const TableLayer = ({ layer }) => {
                                     style={{
                                         fontFamily: cell.fontFamily,
                                         fontSize: `${cell.fontSize}px`,
-                                        textAlign: cell.textAlign
+                                        textAlign: cell.textAlign,
+                                        color: cell.color || "#ffffff"
                                     }}
                                 />
                             ) : (
@@ -86,7 +87,8 @@ const TableLayer = ({ layer }) => {
                                     style={{
                                         fontFamily: cell.fontFamily,
                                         fontSize: `${cell.fontSize}px`,
-                                        textAlign: cell.textAlign
+                                        textAlign: cell.textAlign,
+                                        color: cell.color || "#ffffff"
                                     }}
                                 />
                             )}

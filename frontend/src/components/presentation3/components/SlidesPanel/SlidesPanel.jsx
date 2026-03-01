@@ -46,7 +46,7 @@ const SlidesPanel = () => {
               const isActive = slide.id === activeSlideId;
 
               return (
-                <div key={slide.id} className="slide-row">
+                <div key={slide.id || index} className="slide-row">
                   <div className="slide-number">
                     {index + 1}
                   </div>
