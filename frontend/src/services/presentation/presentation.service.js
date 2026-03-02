@@ -161,6 +161,14 @@ export const getPresentationById = async (pptId) => {
     return res.data;
 };
 
+export const getAdminTemplates = async () => {
+    // This endpoint was provided as: http://localhost:5000/api/admin-data/get-all/presentations
+    // We use BASE_URL to ensure it works in both dev and prod
+    const res = await axios.get(`${BASE_URL}/api/admin-data/get-all/presentations`, getAuthHeaders());
+    // Assuming the response structure is { success: true, data: [...] } or just an array
+    return res.data?.data || res.data || [];
+};
+
 export const deletePresentation = async (id, userId) => {
     const folderPath = `presentation/${userId}/${id}/`;
     const res = await axios.delete(`${API_URL}/delete/${id}`, {
