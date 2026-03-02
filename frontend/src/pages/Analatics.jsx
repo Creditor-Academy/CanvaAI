@@ -1,8 +1,8 @@
 import React from 'react'
-import AnalyticsDashboard from '../components/analatics/AnalyticsDashboard'
+import CreditsAnalytics from '../components/analatics/AnalyticsDashboard'
 
 export const Analatics = () => {
   return (
-    <AnalyticsDashboard/>
+    <CreditsAnalytics/>
   )
 }
