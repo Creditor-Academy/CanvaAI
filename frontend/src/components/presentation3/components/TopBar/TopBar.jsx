@@ -32,7 +32,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
-import { exportToPDF, exportToPPTX } from "../../utils/PresentationExportService";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
   const { user } = useAuth();
@@ -159,7 +158,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
               style={{ opacity: pastCount === 0 ? 0.5 : 1, cursor: pastCount === 0 ? 'not-allowed' : 'pointer' }}
               onClick={async () => {
                 const { addNotification } = useUIStore.getState();
-                
+
                 try {
                   await withHybridLoader(
                     async () => {
@@ -196,7 +195,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                           addNotification("Presentation saved, but could not retrieve ID. Please refresh.", "warning");
                         }
                       }
-                      
+
                       return { success: true };
                     },
                     "top",
@@ -224,24 +223,34 @@ const TopBar = ({ onPresent, onAgentClick }) => {
 
               {showDownload && (
                 <div className="dropdown-menu">
-                  <button onClick={async () => {
-                    await withHybridLoader(
-                      async () => exportToPDF(slides, title),
-                      "top",
-                      "Exporting to PDF..."
-                    );
-                    setShowDownload(false);
-                  }}>
+                  <button
+                    disabled={!presentationId}
+                    onClick={async () => {
+                      await withHybridLoader(
+                        async () => {
+                          const service = await import("../../../../services/presentation");
+                          await service.exportPresentation(presentationId, "pdf");
+                        },
+                        "top",
+                        "Exporting to PDF..."
+                      );
+                      setShowDownload(false);
+                    }}>
                     PDF Document (.pdf)
                   </button>
-                  <button onClick={async () => {
-                    await withHybridLoader(
-                      async () => exportToPPTX(slides, title),
-                      "top",
-                      "Exporting to PPTX..."
-                    );
-                    setShowDownload(false);
-                  }}>
+                  <button
+                    disabled={!presentationId}
+                    onClick={async () => {
+                      await withHybridLoader(
+                        async () => {
+                          const service = await import("../../../../services/presentation");
+                          await service.exportPresentation(presentationId, "pptx");
+                        },
+                        "top",
+                        "Exporting to PPTX..."
+                      );
+                      setShowDownload(false);
+                    }}>
                     PowerPoint (.pptx)
                   </button>
                 </div>
@@ -431,20 +440,20 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
-            
+
               try {
                 await withHybridLoader(
                   async () => {
                     // presentationId might be null for new presentations
                     const pptId = presentationId || "new";
                     const { url, key } = await uploadFile(file, user?._id, pptId);
-            
+
                     // Add the image layer with S3 URL and Key
                     // We don't store base64 in the store
                     addImageLayer(null, url, key);
-                              
+
                     e.target.value = "";
-                              
+
                     return { url, key };
                   },
                   "top",
@@ -469,14 +478,14 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                   className="url-input-field"
                 />
                 <div className="modal-buttons">
-                  <button 
-                    className="secondary-btn" 
+                  <button
+                    className="secondary-btn"
                     onClick={() => setShowUrlModal(false)}
                   >
                     Cancel
                   </button>
-                  <button 
-                    className="primary-btn" 
+                  <button
+                    className="primary-btn"
                     onClick={handleAddImageFromUrl}
                     disabled={!imageUrlInput.trim()}
                   >

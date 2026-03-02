@@ -37,16 +37,18 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
       getPresentationById(id)
         .then((data) => {
           console.log("--- Workspace: Fetched data for ID:", id, data);
-          // Normalize data if necessary (e.g. if API returns { data: ... })
+
+          // Normalize data if necessary
           const pptData = data.data || data;
-          // Ensure ID is present in the data passed to store
-          if (!pptData.id && !pptData._id && !pptData.presentationId && id) {
-            pptData.id = id;
+
+          // Ensure title is present and prefers data.title
+          pptData.title = data.title || pptData.title || "Untitled Presentation";
+
+          // Ensure ID is present
+          if (!pptData.presentationId && !pptData.id && !pptData._id) {
+            pptData.presentationId = id;
           }
-          // Ensure title is present
-          if (!pptData.title && data.title) {
-            pptData.title = data.title;
-          }
+
           setPresentation(pptData);
           setIsLoading(false);
         })

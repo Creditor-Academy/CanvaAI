@@ -163,7 +163,7 @@ const Presentation = () => {
           }}
         >
           {/* Card 1: 16:9 - Default internal editor logic */}
-          <button
+          <div
             onClick={() => setSelectedLayout(PRESENTATION_LAYOUTS.find(l => l.id === '16-9'))}
             style={{
               display: 'flex',
@@ -292,10 +292,10 @@ const Presentation = () => {
               </button>
 
             </div>
-          </button>
+          </div>
 
           {/* Card 2: New Presentation (was 4:3) - Opens v3 editor */}
-          <button
+          <div
             onClick={openPresentationEditorV3}
             style={{
               display: 'flex',
@@ -413,7 +413,7 @@ const Presentation = () => {
                 Open Editor
               </span>
             </div>
-          </button>
+          </div>
 
           {/* AI Button Card */}
           <div

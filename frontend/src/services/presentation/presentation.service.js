@@ -209,3 +209,45 @@ export const expandAISlide = async (userId, pptId, prompt, mediaType, slideData)
     const res = await axios.post(url, payload, getAuthHeaders());
     return res.data;
 };
+
+export const exportPresentation = async (id, format) => {
+    try {
+        const url = `${BASE_URL}/api/pp/${id}/export?format=${format}`;
+        const response = await axios.get(url, {
+            ...getAuthHeaders(),
+            responseType: 'blob'
+        });
+
+        // Error Handling for Blob Failures
+        if (response.data.type === "application/json") {
+            const text = await response.data.text();
+            const error = JSON.parse(text);
+            throw new Error(error.message || "Export failed");
+        }
+
+        // Filename Handling
+        const contentDisposition = response.headers['content-disposition'];
+        let fileName = `presentation.${format}`;
+
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="(.+)"/);
+            if (match?.[1]) fileName = match[1];
+        }
+
+        const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+
+        // Memory Cleanup
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+
+        return { success: true };
+    } catch (error) {
+        console.error(`Export to ${format} failed:`, error);
+        throw error;
+    }
+};
