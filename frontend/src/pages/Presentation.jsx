@@ -16,13 +16,105 @@ const Presentation = () => {
   const [isCloning, setIsCloning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(null);
 
-  // Inject spin animation
+  // Inject animations
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
       @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
+      }
+
+      @keyframes wave {
+        0% { transform: translateX(0) translateZ(0) scaleY(1); }
+        50% { transform: translateX(-25%) translateZ(0) scaleY(0.8); }
+        100% { transform: translateX(-50%) translateZ(0) scaleY(1); }
+      }
+
+      @keyframes borderTrace {
+        0% { background-position: 0% 0%; }
+        25% { background-position: 100% 0%; }
+        50% { background-position: 100% 100%; }
+        75% { background-position: 0% 100%; }
+        100% { background-position: 0% 0%; }
+      }
+
+      @keyframes glowPulse {
+        0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.08), 0 8px 32px rgba(0,0,0,0.04); }
+        50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.15), 0 8px 32px rgba(0,0,0,0.06); }
+      }
+
+      .wave-bg {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: -1;
+        overflow: hidden;
+      }
+
+      .wave {
+        position: absolute;
+        width: 200%;
+        height: 100%;
+        background: linear-gradient(180deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%);
+        animation: wave 15s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite;
+      }
+
+      .wave:nth-child(2) {
+        top: 30%;
+        background: linear-gradient(180deg, rgba(99, 102, 241, 0.02) 0%, rgba(168, 85, 247, 0.02) 100%);
+        animation: wave 18s cubic-bezier(0.36, 0.45, 0.63, 0.53) -5s infinite;
+      }
+
+      .wave:nth-child(3) {
+        top: 60%;
+        background: linear-gradient(180deg, rgba(99, 102, 241, 0.01) 0%, rgba(168, 85, 247, 0.01) 100%);
+        animation: wave 20s cubic-bezier(0.36, 0.45, 0.63, 0.53) -2s infinite;
+      }
+
+      /* Tracing border animation for AI button */
+      .ai-btn-wrapper {
+        position: relative;
+        border-radius: 24px;
+        padding: 2px;
+        background: linear-gradient(90deg, #1968df, #0ea5e9, #a855f7, #1968df);
+        background-size: 300% 300%;
+        animation: borderTrace 4s linear infinite;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
+
+      .ai-btn-wrapper:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      }
+
+      .ai-btn-inner {
+        border-radius: 22px;
+        background: linear-gradient(135deg, #1968df 0%, #0ea5e9 50%, #1965df 100%);
+        padding: 32px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Glowing section cards */
+      .glow-card {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 24px;
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        padding: 32px;
+        animation: glowPulse 4s ease-in-out infinite;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+      }
+
+      .glow-card:hover {
+        box-shadow: 0 0 45px rgba(99, 102, 241, 0.2), 0 12px 40px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
       }
     `;
     document.head.appendChild(style);
@@ -84,11 +176,10 @@ const Presentation = () => {
     if (isCloning) return;
     setIsCloning(true);
     try {
-      // Clone implementation: Save a new presentation for the user using template data
       const payload = {
         userId: user?._id,
         title: `${template.title} (Copy)`,
-        data: template.data // Assuming template.data contains { slides: [...] }
+        data: template.data
       };
 
       const res = await savePresentation(payload);
@@ -108,190 +199,234 @@ const Presentation = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.content}>
-        {/* Header Section */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={styles.title}>Presentation Hub</h1>
-            <p style={styles.subtitle}>Create professional presentations in seconds with AI or start from scratch.</p>
-          </div>
-        </div>
+    <>
+      {/* Wave Animation Background */}
+      <div className="wave-bg">
+        <div className="wave"></div>
+        <div className="wave"></div>
+        <div className="wave"></div>
+      </div>
 
-        {/* Primary Actions */}
-        <div style={styles.actionGrid}>
-          {/* Create with AI */}
-          <div
-            onClick={() => navigate('/ai-presentation')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
-            }}
-            style={{ ...styles.actionCard, background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' }}
-          >
-            <div style={styles.iconContainer}>
-              <Sparkles size={32} color="#fff" />
-            </div>
+      <div style={styles.container}>
+        <div style={styles.content}>
+          {/* Header Section */}
+          <div style={styles.header}>
             <div>
-              <h2 style={{ ...styles.actionTitle, color: '#fff' }}>Create with AI</h2>
-              <p style={{ ...styles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
-                Let AI generate a complete presentation from your topic.
-              </p>
-            </div>
-            <div style={styles.zapIcon}>
-              <FiZap size={24} color="rgba(255,255,255,0.2)" />
+              <h1 style={styles.title}>Empowering Education</h1>
+              <p style={styles.subtitle}>Create professional presentations in seconds with AI or start from scratch.</p>
             </div>
           </div>
 
-          {/* Create Fresh */}
-          <div
-            onClick={() => navigate('/presentation-editor-v3')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
-            }}
-            style={{ ...styles.actionCard, background: '#fff', border: '1px solid #e2e8f0' }}
-          >
-            <div style={{ ...styles.iconContainer, background: '#f0fdf4' }}>
-              <FiPlus size={32} color="#22c55e" />
-            </div>
-            <div>
-              <h2 style={styles.actionTitle}>Create Fresh</h2>
-              <p style={styles.actionDesc}>
-                Open our advanced editor and start your story from scratch.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Work Section */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <FiClock size={20} />
-            <h2 style={styles.sectionTitle}>Recent Presentations</h2>
-          </div>
-
-          <div style={styles.scrollContainer}>
-            {loading ? (
-              <div style={styles.emptyState}>Loading your work...</div>
-            ) : presentations.length === 0 ? (
-              <div style={styles.emptyCard}>
-                <p>No presentations yet. Start creating!</p>
-              </div>
-            ) : (
-              <div style={styles.grid}>
-                {presentations.map((ppt) => (
-                  <div
-                    key={ppt._id}
-                    onClick={() => navigate(`/presentation-editor-v3/${ppt._id}`)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.borderColor = '#6366f1';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.borderColor = '#e2e8f0';
-                    }}
-                    style={styles.card}
-                  >
-                    <div style={styles.cardPreview}>
-                      <FiFileText size={40} color="#94a3b8" />
-                    </div>
-                    <div style={styles.cardInfo}>
-                      <div style={styles.cardText}>
-                        <h3 style={styles.cardTitle}>{ppt.title || "Untitled"}</h3>
-                        <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
-                      </div>
-                      <button
-                        onClick={(e) => handleDelete(ppt._id, e)}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                        style={{
-                          ...styles.deleteBtn,
-                          opacity: isDeleting === ppt._id ? 0.6 : 1,
-                          cursor: isDeleting === ppt._id ? 'not-allowed' : 'pointer'
-                        }}
-                        disabled={isDeleting === ppt._id}
-                      >
-                        {isDeleting === ppt._id ? (
-                          <div style={{
-                            width: '16px',
-                            height: '16px',
-                            border: '2px solid #ef4444',
-                            borderTop: '2px solid transparent',
-                            borderRadius: '50%',
-                            animation: 'spin 0.6s linear infinite'
-                          }} />
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Templates Section */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <FiLayout size={20} />
-            <h2 style={styles.sectionTitle}>Featured Templates</h2>
-          </div>
-
-          {templatesLoading ? (
-            <div style={styles.emptyState}>Loading templates...</div>
-          ) : (
-            <div style={styles.grid}>
-              {templates.map((tpl) => (
-                <div
-                  key={tpl._id}
-                  onClick={() => handleUseTemplate(tpl)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.borderColor = '#6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                  }}
-                  style={styles.templateCard}
-                >
-                  <div style={styles.templatePreview}>
-                    <FiLayout size={40} color="#6366f1" />
-                    <div style={styles.templateBadge}>Template</div>
-                  </div>
-                  <div style={styles.cardInfo}>
-                    <div style={styles.cardText}>
-                      <h3 style={styles.cardTitle}>{tpl.title}</h3>
-                      <p style={styles.templateAuthor}>Designed by Admin</p>
-                    </div>
-                  </div>
+          {/* Primary Actions */}
+          <div style={styles.actionGrid}>
+            {/* Create with AI — animated tracing border */}
+            <div
+              className="ai-btn-wrapper"
+              onClick={() => navigate('/ai-presentation')}
+            >
+              <div className="ai-btn-inner">
+                <div style={styles.iconContainer}>
+                  <Sparkles size={32} color="#fff" />
                 </div>
-              ))}
+                <div>
+                  <h2 style={{ ...styles.actionTitle, color: '#fff' }}>Create with AI</h2>
+                  <p style={{ ...styles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
+                    Let AI generate a complete presentation from your topic.
+                  </p>
+                </div>
+                <div style={styles.zapIcon}>
+                  <FiZap size={24} color="rgba(255,255,255,0.2)" />
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Create Fresh */}
+            <div
+              onClick={() => navigate('/presentation-editor-v3')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-6px)';
+                e.currentTarget.style.boxShadow = '0 25px 40px -12px rgba(59, 130, 246, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.06)';
+              }}
+              style={{
+                ...styles.actionCard,
+                background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: '1px solid rgba(59, 130, 246, 0.15)',
+                borderRadius: '18px',
+                padding: '24px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <div
+                style={{
+                  ...styles.iconContainer,
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%)',
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 10px 20px rgba(59, 130, 246, 0.25)'
+                }}
+              >
+                <FiPlus size={28} color="#ffffff" />
+              </div>
+
+              <div style={{ marginTop: '18px' }}>
+                <h2
+                  style={{
+                    ...styles.actionTitle,
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    color: '#0f172a'
+                  }}
+                >
+                  Create Fresh
+                </h2>
+                <p
+                  style={{
+                    ...styles.actionDesc,
+                    marginTop: '6px',
+                    color: '#475569',
+                    fontSize: '14px',
+                    lineHeight: '1.6'
+                  }}
+                >
+                  Open our advanced editor and start your story from scratch.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Work Section — Glowing Card */}
+          <div className="glow-card">
+            <div style={styles.sectionHeader}>
+
+              <h2 style={styles.sectionTitle}>Recent Presentations</h2>
+            </div>
+
+            <div style={styles.scrollContainer}>
+              {loading ? (
+                <div style={styles.emptyState}>Loading your work...</div>
+              ) : presentations.length === 0 ? (
+                <div style={styles.emptyCard}>
+                  <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>No presentations yet. Start creating!</p>
+                </div>
+              ) : (
+                <div style={styles.grid}>
+                  {presentations.map((ppt) => (
+                    <div
+                      key={ppt._id}
+                      onClick={() => navigate(`/presentation-editor-v3/${ppt._id}`)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.borderColor = '#6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                      }}
+                      style={styles.card}
+                    >
+                      <div style={styles.cardPreview}>
+                        <FiFileText size={40} color="#94a3b8" />
+                      </div>
+                      <div style={styles.cardInfo}>
+                        <div style={styles.cardText}>
+                          <h3 style={styles.cardTitle}>{ppt.title || "Untitled"}</h3>
+                          <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
+                        </div>
+                        <button
+                          onClick={(e) => handleDelete(ppt._id, e)}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                          style={{
+                            ...styles.deleteBtn,
+                            opacity: isDeleting === ppt._id ? 0.6 : 1,
+                            cursor: isDeleting === ppt._id ? 'not-allowed' : 'pointer'
+                          }}
+                          disabled={isDeleting === ppt._id}
+                        >
+                          {isDeleting === ppt._id ? (
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              border: '2px solid #ef4444',
+                              borderTop: '2px solid transparent',
+                              borderRadius: '50%',
+                              animation: 'spin 0.6s linear infinite'
+                            }} />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Templates Section — Glowing Card */}
+          <div className="glow-card">
+            <div style={styles.sectionHeader}>
+              <FiLayout size={20} color="#0f172a" />
+              <h2 style={styles.sectionTitle}>Featured Templates</h2>
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              {templatesLoading ? (
+                <div style={styles.emptyState}>Loading templates...</div>
+              ) : (
+                <div style={styles.grid}>
+                  {templates.map((tpl) => (
+                    <div
+                      key={tpl._id}
+                      onClick={() => handleUseTemplate(tpl)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.borderColor = '#6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                      }}
+                      style={styles.templateCard}
+                    >
+                      <div style={styles.templatePreview}>
+                        <FiLayout size={40} color="#6366f1" />
+                      </div>
+                      <div style={styles.cardInfo}>
+                        <div style={styles.cardText}>
+                          <h3 style={styles.cardTitle}>{tpl.title}</h3>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
 const styles = {
   container: {
     minHeight: '100vh',
-    background: '#f8fafc',
+    background: 'transparent',
     padding: '40px 20px',
+    position: 'relative',
+    zIndex: 1,
   },
   content: {
     maxWidth: '1200px',
@@ -304,15 +439,20 @@ const styles = {
     marginBottom: '10px',
   },
   title: {
-    fontSize: '2.5rem',
-    fontWeight: 800,
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    fontSize: 'clamp(40px, 8vw, 64px)',
+    fontWeight: 400,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
     color: '#0f172a',
     margin: 0,
   },
   subtitle: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '1.1rem',
     color: '#64748b',
     marginTop: '8px',
+    fontWeight: 400,
   },
   actionGrid: {
     display: 'grid',
@@ -330,10 +470,6 @@ const styles = {
     transition: 'transform 0.2s, box-shadow 0.2s',
     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
     overflow: 'hidden',
-    ':hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-    }
   },
   iconContainer: {
     width: '64px',
@@ -346,11 +482,13 @@ const styles = {
     flexShrink: 0,
   },
   actionTitle: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '1.5rem',
     fontWeight: 700,
     margin: 0,
   },
   actionDesc: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '1rem',
     margin: '4px 0 0',
   },
@@ -360,24 +498,23 @@ const styles = {
     bottom: '-10px',
     opacity: 0.5,
   },
-  section: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
   sectionHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
     color: '#0f172a',
+    marginBottom: '20px',
   },
   sectionTitle: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
+    fontFamily: 'Georgia, "Times New Roman", serif',
+    fontSize: '1.6rem',
+    fontWeight: 400,
     margin: 0,
+    color: '#0f172a',
+    letterSpacing: '-0.01em',
   },
   scrollContainer: {
-    maxHeight: '480px', // Approx 2 rows
+    maxHeight: '480px',
     overflowY: 'auto',
     paddingRight: '10px',
   },
@@ -392,7 +529,7 @@ const styles = {
     border: '1px solid #e2e8f0',
     overflow: 'hidden',
     cursor: 'pointer',
-    transition: 'transform 0.2s',
+    transition: 'transform 0.2s, border-color 0.2s',
   },
   cardPreview: {
     height: '140px',
@@ -411,6 +548,7 @@ const styles = {
     overflow: 'hidden',
   },
   cardTitle: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '1rem',
     fontWeight: 600,
     margin: 0,
@@ -420,6 +558,7 @@ const styles = {
     color: '#0f172a',
   },
   cardDate: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '0.85rem',
     color: '#64748b',
     margin: '2px 0 0',
@@ -431,9 +570,6 @@ const styles = {
     cursor: 'pointer',
     padding: '8px',
     borderRadius: '8px',
-    ':hover': {
-      background: '#fee2e2',
-    }
   },
   templateCard: {
     background: '#fff',
@@ -441,7 +577,7 @@ const styles = {
     border: '1px solid #e2e8f0',
     overflow: 'hidden',
     cursor: 'pointer',
-    transition: 'transform 0.2s',
+    transition: 'transform 0.2s, border-color 0.2s',
   },
   templatePreview: {
     height: '140px',
@@ -451,27 +587,11 @@ const styles = {
     justifyContent: 'center',
     position: 'relative',
   },
-  templateBadge: {
-    position: 'absolute',
-    top: '12px',
-    right: '12px',
-    background: '#6366f1',
-    color: '#fff',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    padding: '4px 8px',
-    borderRadius: '6px',
-  },
-  templateAuthor: {
-    fontSize: '0.85rem',
-    color: '#6366f1',
-    margin: '2px 0 0',
-    fontWeight: 500,
-  },
   emptyState: {
     textAlign: 'center',
     padding: '40px',
     color: '#64748b',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   emptyCard: {
     padding: '60px',

@@ -14,11 +14,13 @@ import Notifications from "./components/Notifications/Notifications";
 import { useParams, useNavigate } from "react-router-dom";
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
+import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
 
 const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
   // Loading if ID is present and we don't have initialData
@@ -34,7 +36,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
       setIsLoading(false);
     } else if (id) {
       setIsLoading(true);
-      getPresentationById(id)
+      getPresentationById(id, user?._id)
         .then((data) => {
           console.log("--- Workspace: Fetched data for ID:", id, data);
 

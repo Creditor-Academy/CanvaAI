@@ -156,15 +156,15 @@ export const listPresentations = async (userId) => {
     return res.data;
 };
 
-export const getPresentationById = async (pptId) => {
-    const res = await axios.get(`${API_URL}/get/ppt/${pptId}`, getAuthHeaders());
+export const getPresentationById = async (pptId, userId) => {
+    const res = await axios.get(`${API_URL}/get/ppt/${pptId}?userId=${userId}`, getAuthHeaders());
     return res.data;
 };
 
 export const getAdminTemplates = async () => {
-    // This endpoint was provided as: http://localhost:5000/api/admin-data/get-all/presentations
+    // Endpoint: http://localhost:5000/api/public/templates/ppt
     // We use BASE_URL to ensure it works in both dev and prod
-    const res = await axios.get(`${BASE_URL}/api/admin-data/get-all/presentations`, getAuthHeaders());
+    const res = await axios.get(`${BASE_URL}/api/public/templates/ppt`, getAuthHeaders());
     // Assuming the response structure is { success: true, data: [...] } or just an array
     return res.data?.data || res.data || [];
 };
