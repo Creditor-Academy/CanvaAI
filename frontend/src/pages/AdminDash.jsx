@@ -4,6 +4,7 @@ import { listPresentations, deletePresentation } from '../services/presentation/
 import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility } from '../services/Admin/admin';
 import { Trash2, Globe, Lock } from 'lucide-react';
 import './AdminDash.css';
+import PresentationThumbnail from '../components/PresentationThumbnail';
 import { useNavigate } from "react-router-dom";
 
 const AdminDash = () => {
@@ -42,8 +43,7 @@ const AdminDash = () => {
           title: ppt.title || "Untitled Presentation",
           category: "presentation",
           createdAt: ppt.createdAt || ppt.updatedAt,
-          preview:
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI6kyGvk51WegGvlf-MdBLorUpRaZ8KfnaEg&s",
+          data: ppt.data,
           url: `/presentation-editor-v3/${ppt._id}`,
           isPublished: publicIds.has(ppt._id) ? true : false,
         }));
@@ -172,7 +172,11 @@ const AdminDash = () => {
 
 
                     <div className="recent-thumb">
-                      <img src={temp.preview} alt="preview" />
+                      {temp.data?.slides?.[0] ? (
+                        <PresentationThumbnail slide={temp.data.slides[0]} width="100%" height="100%" />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: '#94a3b8', fontSize: 14 }}>No preview</div>
+                      )}
                     </div>
 
                     <div className="recent-info">

@@ -4,6 +4,7 @@ import { FiZap, FiPlus, FiFileText, FiLayout, FiClock } from 'react-icons/fi';
 import { Trash2, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { listPresentations, deletePresentation, getAdminTemplates, savePresentation } from '../services/presentation';
+import PresentationThumbnail from '../components/PresentationThumbnail';
 
 const Presentation = () => {
   const navigate = useNavigate();
@@ -334,7 +335,11 @@ const Presentation = () => {
                       style={styles.card}
                     >
                       <div style={styles.cardPreview}>
-                        <FiFileText size={40} color="#94a3b8" />
+                        {ppt.data?.slides?.[0] ? (
+                          <PresentationThumbnail slide={ppt.data.slides[0]} width="100%" height="100%" />
+                        ) : (
+                          <FiFileText size={40} color="#94a3b8" />
+                        )}
                       </div>
                       <div style={styles.cardInfo}>
                         <div style={styles.cardText}>
@@ -380,7 +385,7 @@ const Presentation = () => {
               <h2 style={styles.sectionTitle}>Featured Templates</h2>
             </div>
 
-            <div style={{ marginTop: '20px' }}>
+            <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
               {templatesLoading ? (
                 <div style={styles.emptyState}>Loading templates...</div>
               ) : (
@@ -400,7 +405,11 @@ const Presentation = () => {
                       style={styles.templateCard}
                     >
                       <div style={styles.templatePreview}>
-                        <FiLayout size={40} color="#6366f1" />
+                        {tpl.data?.slides?.[0] ? (
+                          <PresentationThumbnail slide={tpl.data.slides[0]} width="100%" height="100%" />
+                        ) : (
+                          <FiLayout size={40} color="#6366f1" />
+                        )}
                       </div>
                       <div style={styles.cardInfo}>
                         <div style={styles.cardText}>
