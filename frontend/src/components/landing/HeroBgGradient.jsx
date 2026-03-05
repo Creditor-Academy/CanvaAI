@@ -1,8 +1,8 @@
-import React from "react";
-import "./HeroBgGradient.css";
+// import React from "react";
+// import "./HeroBgGradient.css";
 
-const HeroBgGradient = () => {
-  return <div className="hero-bg-gradient" />;
-};
+// const HeroBgGradient = () => {
+//   return <div className="hero-bg-gradient" />;
+// };
 
-export default HeroBgGradient;
+// export default HeroBgGradient;
