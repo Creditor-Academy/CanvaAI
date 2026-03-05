@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { FiZap, FiPlus, FiFileText, FiLayout, FiClock } from 'react-icons/fi';
 import { Trash2, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { listPresentations, deletePresentation, getAdminTemplates, savePresentation } from '../services/presentation';
+import { listPresentations, deletePresentation, getAdminTemplates, savePresentation, getPublicTemplateById } from '../services/presentation';
 import PresentationThumbnail from '../components/PresentationThumbnail';
+import TemplatePreviewModal from '../components/presentation3/TemplatePreviewModal';
 
 const Presentation = () => {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ const Presentation = () => {
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [isCloning, setIsCloning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
 
   // Inject animations
   useEffect(() => {
@@ -174,28 +178,20 @@ const Presentation = () => {
   };
 
   const handleUseTemplate = async (template) => {
-    if (isCloning) return;
-    setIsCloning(true);
+    const tplId = template._id || template.id;
+    navigate(`/presentation-editor-v3/${tplId}?template=true`);
+  };
+
+  const handleViewTemplate = async (template) => {
+    const tplId = template._id || template.id;
     try {
-      const payload = {
-        userId: user?._id,
-        title: `${template.title} (Copy)`,
-        data: template.data
-      };
-
-      const res = await savePresentation(payload);
-      const newId = res.presentationId || res._id || res.id || (res.data && (res.data._id || res.data.id));
-
-      if (newId) {
-        navigate(`/presentation-editor-v3/${newId}`);
-      } else {
-        alert("Failed to create presentation from template.");
-      }
+      const data = await getPublicTemplateById(tplId);
+      setPreviewData(data.data || data);
+      setSelectedTemplateId(tplId);
+      setIsPreviewOpen(true);
     } catch (error) {
-      console.error("Error cloning template:", error);
-      alert("Failed to use template.");
-    } finally {
-      setIsCloning(false);
+      console.error("Error fetching template preview:", error);
+      alert("Failed to load template preview.");
     }
   };
 
@@ -323,7 +319,7 @@ const Presentation = () => {
                   {presentations.map((ppt) => (
                     <div
                       key={ppt._id}
-                      onClick={() => navigate(`/presentation-editor-v3/${ppt._id}`)}
+                      onClick={() => navigate(`/presentation-editor-v3/${ppt._id}?template=false`)}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-4px)';
                         e.currentTarget.style.borderColor = '#6366f1';
@@ -393,7 +389,7 @@ const Presentation = () => {
                   {templates.map((tpl) => (
                     <div
                       key={tpl._id}
-                      onClick={() => handleUseTemplate(tpl)}
+                      onClick={() => handleViewTemplate(tpl)}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-4px)';
                         e.currentTarget.style.borderColor = '#6366f1';
@@ -415,6 +411,17 @@ const Presentation = () => {
                         <div style={styles.cardText}>
                           <h3 style={styles.cardTitle}>{tpl.title}</h3>
                         </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewTemplate(tpl);
+                            }}
+                            style={styles.viewBtn}
+                          >
+                            View
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -422,6 +429,16 @@ const Presentation = () => {
               )}
             </div>
           </div>
+
+          <TemplatePreviewModal
+            isOpen={isPreviewOpen}
+            onClose={() => setIsPreviewOpen(false)}
+            templateData={previewData}
+            onImport={() => {
+              setIsPreviewOpen(false);
+              handleUseTemplate({ _id: selectedTemplateId });
+            }}
+          />
 
         </div>
       </div>
@@ -609,6 +626,17 @@ const styles = {
     border: '2px dashed #e2e8f0',
     textAlign: 'center',
     color: '#64748b',
+  },
+  viewBtn: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: '1px solid #0a5dbbff',
+    backgroundColor: 'transparent',
+    color: '#0a5dbbff',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
   }
 };
 

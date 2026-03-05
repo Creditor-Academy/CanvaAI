@@ -156,8 +156,15 @@ export const listPresentations = async (userId) => {
     return res.data;
 };
 
-export const getPresentationById = async (pptId, userId) => {
-    const res = await axios.get(`${API_URL}/get/ppt/${pptId}?userId=${userId}`, getAuthHeaders());
+export const getPresentationById = async (pptId, userId, template = false) => {
+    const res = await axios.get(`${API_URL}/get/ppt/${pptId}?userId=${userId}&template=${template}`, getAuthHeaders());
+    console.log(res);
+    return res.data;
+};
+
+export const getPublicTemplateById = async (pptId) => {
+    // Endpoint: http://localhost:5000/api/public/templates/ppt/:pptId
+    const res = await axios.get(`${BASE_URL}/api/public/templates/ppt/${pptId}`, getAuthHeaders());
     return res.data;
 };
 
@@ -181,17 +188,37 @@ export const deletePresentation = async (id, userId) => {
 /**
  * Generate image for PPT via API.
  * POST /api/image/generate-image/:userId/:pptId with body { prompt }.
- * Response: { created, data: [{ b64_json, revised_prompt, url }] }
+ * Response can be: { created, data: [{ b64_json, revised_prompt, url }] }
+ * or directly: { url, revised_prompt, b64_json, key }
  */
 export const generateAIImage = async (userId, pptId, prompt) => {
     const url = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
     const res = await axios.post(url, { prompt }, getAuthHeaders());
-    const first = res.data?.data?.[0];
-    if (!first) throw new Error("No image data in response");
+
+    // Support both wrapped (DALL-E style) and unwrapped response structures
+    const first = res.data?.data?.[0] || res.data;
+
+    if (!first || (!first.url && !first.b64_json && !first.base64)) {
+        throw new Error("No image data in response");
+    }
+
+    // Extract key from URL if not provided by backend
+    let key = first.key;
+    if (!key && first.url) {
+        try {
+            const urlObj = new URL(first.url);
+            // pathname usually is /temp/userId/pptId/filename.png
+            key = urlObj.pathname.substring(1);
+        } catch (e) {
+            console.warn("Failed to extract key from URL:", first.url);
+        }
+    }
+
     return {
         url: first.url,
         revised_prompt: first.revised_prompt,
-        b64_json: first.b64_json
+        b64_json: first.b64_json || first.base64,
+        key: key
     };
 };
 
