@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const CanvasStage = ({
   styles,
@@ -36,6 +36,8 @@ const CanvasStage = ({
   handleVThumbMouseDown,
   extraRightPadding = 0
 }) => {
+  const [brokenImages, setBrokenImages] = useState({});
+
   return (
     <div style={{ ...styles.canvasArea, paddingRight: (styles.canvasArea?.padding || 20) + extraRightPadding }} className="custom-scrollbar canvas-scroll" ref={canvasAreaRef}>
       <div ref={contentWrapperRef}
@@ -209,19 +211,29 @@ const CanvasStage = ({
                   />
                 )}
                 {layer.type === 'image' && (
-                  <img
-                    src={layer.src}
-                    alt={layer.name}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      borderRadius: '4px',
-                      filter: `brightness(${layer.brightness || 100}%) contrast(${layer.contrast || 100}%) saturate(${layer.saturation || 100}%) blur(${layer.blur || 0}px)`,
-                      opacity: (layer.opacity || 100) / 100
-                    }}
-                    draggable={false}
-                  />
+                  <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                    <img
+                      src={brokenImages[layer.id] ? `${layer.src}?_retry=${brokenImages[layer.id]}` : layer.src}
+                      alt={layer.name}
+                      onError={() => setBrokenImages(prev => ({ ...prev, [layer.id]: (prev[layer.id] || 0) + 1 }))}
+                      onLoad={() => setBrokenImages(prev => { const c = { ...prev }; delete c[layer.id]; return c })}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        borderRadius: '4px',
+                        filter: `brightness(${layer.brightness || 100}%) contrast(${layer.contrast || 100}%) saturate(${layer.saturation || 100}%) blur(${layer.blur || 0}px)`,
+                        opacity: (layer.opacity || 100) / 100
+                      }}
+                      draggable={false}
+                    />
+                    {brokenImages[layer.id] && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)', color: 'white', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontSize: 12 }}>Image failed to load</div>
+                        <button onClick={(e) => { e.stopPropagation(); setBrokenImages(prev => { const c = { ...prev }; delete c[layer.id]; return c }) }} style={{ padding: '6px 10px', background: '#3182ce', borderRadius: 8, border: 'none', color: 'white', cursor: 'pointer' }}>Retry</button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {layer.type === 'drawing' && (
                   <svg

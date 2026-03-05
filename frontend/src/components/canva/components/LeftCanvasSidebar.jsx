@@ -7,7 +7,9 @@ import {
   FiChevronDown, FiChevronRight, FiCloud, FiMousePointer, FiLayers
 } from 'react-icons/fi'
 import AIImageGenerator from '../AIImageGenerator'
+import { uploadTemporaryImage } from '@/services/imageEditor/imageApi'
 import BackgroundColor from './BackgroundColor'
+import { useAuth } from '@/contexts/AuthContext'
 import { MdDisabledVisible } from 'react-icons/md'
 import { designTemplates } from './DesignLibrary';
 
@@ -114,6 +116,8 @@ const LeftCanvasSidebar = memo(({
   activeTemplateId
 
 }) => {
+  const { user } = useAuth();
+  const currentUserId = user?._id || user?.id || '';
   const [hoveredButtonTooltip, setHoveredButtonTooltip] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [expandedSection, setExpandedSection] = useState(null);
@@ -335,7 +339,7 @@ const LeftCanvasSidebar = memo(({
     <div className="flex flex-col items-center w-full">
       <div className={sidebarContainerStyle}>
         <ParentButton
-          sectionKey="background" icon={<FiGrid size={16} />} label="Canvas"
+          sectionKey="background" icon={<FiGrid size={16} />} label="Bg Color"
           isActive={expandedSection === "background"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
@@ -346,7 +350,7 @@ const LeftCanvasSidebar = memo(({
           tooltipPosition={tooltipPosition}
         />
         <ParentButton
-          sectionKey="text" icon={<FiType size={16} />} label="Text"
+          sectionKey="text" icon={<FiType size={16} />} label="Add Text"
           isActive={expandedSection === "text"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
@@ -379,7 +383,7 @@ const LeftCanvasSidebar = memo(({
           tooltipPosition={tooltipPosition}
         />
         <ParentButton
-          sectionKey="media" icon={<FiImage size={16} />} label="Media"
+          sectionKey="media" icon={<FiImage size={16} />} label="AI Image"
           isActive={expandedSection === "media"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
@@ -390,7 +394,7 @@ const LeftCanvasSidebar = memo(({
           tooltipPosition={tooltipPosition}
         />
         <ParentButton
-          sectionKey="stockImages" icon={<FiLayers size={16} />} label="Template"
+          sectionKey="stockImages" icon={<FiLayers size={16} />} label="BG Images"
           isActive={expandedSection === "stockImages"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
@@ -724,7 +728,55 @@ const LeftCanvasSidebar = memo(({
 
 
       </div>
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={async (e) => {
+          // If parent provided a custom handler, delegate to it
+          if (typeof handleImageUpload === 'function') {
+            handleImageUpload(e);
+            return;
+          }
+
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            try {
+              const base64 = ev.target.result;
+
+              const userIdVal = currentUserId
+              const serviceIdVal = (typeof activeTemplateId !== 'undefined' && activeTemplateId) ? activeTemplateId : `srv-${Date.now()}`;
+
+              const payload = {
+                userId: userIdVal,
+                base64Image: base64,
+                serviceId: serviceIdVal,
+              };
+
+              const json = await uploadTemporaryImage(payload);
+              if (json && json.url) {
+                // Add uploaded image to library/list if handler provided
+                if (typeof handleAddUploadedImage === 'function') {
+                  handleAddUploadedImage({ src: json.url, name: file.name });
+                }
+                // Also notify canvas background setter if available (optional)
+                if (typeof onCanvasBgImageChange === 'function') {
+                  // Do not auto-set background by default; keep commented for optional usage
+                  // onCanvasBgImageChange(json.url);
+                }
+              }
+            } catch (err) {
+              console.error('Error uploading temporary image', err);
+            }
+          };
+          reader.readAsDataURL(file);
+          e.target.value = '';
+        }}
+        className="hidden"
+      />
       <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgFileChange} className="hidden" />
 
       {/* Save Changes Confirmation Modal */}

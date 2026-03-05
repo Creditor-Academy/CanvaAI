@@ -18,7 +18,7 @@ const BASE_ITEMS = [
   { label: "Files", path: "/projects", icon: <FiFolder size={22} /> },
   { label: "PPT", path: "/presentation", icon: <FiLayout size={22} /> },
   { label: "Editor", path: "/editor", icon: <FiFileText size={22} /> },
-  { label: "Image", path: "/canva-clone", icon: <FiFolder size={22} /> }
+  { label: "Image", path: "/create-image", icon: <FiFolder size={22} /> }
 ];
 
 /* ---------------- RAIL ITEM ---------------- */

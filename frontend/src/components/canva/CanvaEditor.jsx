@@ -41,7 +41,7 @@ import {
   SCROLLER_MARGIN
 } from './state/initialState';
 import { GRADIENTS } from './components/BackgroundColor';
-import { saveImage, updateImage, updateImageVisibility } from '@/services/imageEditor/imageApi';
+import { saveImage, updateImage, updateImageVisibility, exportImage, uploadTemporaryImage } from '@/services/imageEditor/imageApi';
 
 const CanvaEditor = () => {
   const { id: projectId } = useParams();
@@ -490,38 +490,60 @@ const CanvaEditor = () => {
     setProjectName(title);
 
     try {
-      // Match the user's required payload format: { title, data: { layer: layers, ... } }
+      // Attach canvas metadata to each layer
+      const layersWithCanvasMeta = layers.map(l => ({
+        ...l,
+        canvasBgColor,
+        canvasBgImage,
+        zoom,
+        pan,
+        canvasSize
+      }));
+
+      // Convert any base64 image layers to temporary URLs before saving
+      const processedLayers = await Promise.all(layersWithCanvasMeta.map(async (lay) => {
+        try {
+          // detect common base64/data URLs
+          const src = lay?.src || lay?.url || lay?.image || '';
+          if (typeof src === 'string' && src.startsWith('data:')) {
+            const payload = {
+              userId: user?._id || user?.id || '',
+              base64Image: src,
+              serviceId: lay.id || `srv-${Date.now()}`,
+            };
+            const resp = await uploadTemporaryImage(payload);
+            if (resp && resp.url) {
+              // replace base64 with returned URL
+              return { ...lay, src: resp.url, url: resp.url, imageUrl: resp.url };
+            }
+          }
+        } catch (e) {
+          console.error('Failed to upload temporary image for layer', lay.id, e);
+        }
+        return lay;
+      }));
+
       const updatePayload = {
         title: title,
         data: {
-          layer: layers,
-          canvasSize,
-          canvasBgColor,
-          canvasBgImage,
-          zoom,
-          pan
+          layer: processedLayers,
+          canvasSize
         }
       };
 
       console.log("Saving design JSON:", JSON.stringify(updatePayload, null, 2));
 
       if (projectId) {
-        // Use the new updateImage API with the nested data format
         await updateImage(projectId, updatePayload);
         toast.success("Design updated successfully!");
       } else {
-        // For new projects, use the flat payload format as before (or update saveImage if needed)
         const newProjectPayload = {
           userId: user?._id || user?.id,
           title: title,
           isPublic: false,
           data: {
-            layer: layers,
-            canvasSize,
-            canvasBgColor,
-            canvasBgImage,
-            zoom,
-            pan
+            layer: processedLayers,
+            canvasSize
           }
         };
         const result = await saveImage(newProjectPayload);
@@ -529,7 +551,6 @@ const CanvaEditor = () => {
 
         toast.success("Design saved successfully!");
 
-        // If it's a new save and we got an ID back, navigate to the project URL
         if (result && (result.id || result._id)) {
           navigate(`/canva-clone/${result.id || result._id}`);
         }
@@ -556,15 +577,53 @@ const CanvaEditor = () => {
     return await exportCanvasAsImage(layers, canvasSize, format, quality, canvasBgColor, canvasBgImage);
   };
 
-  const handleDownloadExport = async () => {
+  const handleDownloadExport = async (format) => {
     if (isExporting) return;
     setIsExporting(true);
     try {
-      const dataUrl = await exportCanvasAsImageWrapper(exportFormat, exportQuality);
+      const fmt = format || exportFormat;
+
+      // If project is saved (has an id), call backend export endpoint to get server-generated file
+      if (projectId) {
+        try {
+          const blob = await exportImage(projectId, fmt);
+
+          // If server returned JSON (error), blob.type will be application/json — handle gracefully
+          if (blob && blob.type && blob.type.includes('application/json')) {
+            const text = await blob.text();
+            let msg = 'Export failed';
+            try {
+              const parsed = JSON.parse(text);
+              msg = parsed.message || parsed.error || JSON.stringify(parsed);
+            } catch (e) {
+              msg = text;
+            }
+            toast.error(msg);
+          } else {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const ext = fmt === 'jpeg' ? 'jpg' : fmt;
+            link.href = url;
+            link.download = `design-${timestamp}.${ext}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }
+          return;
+        } catch (err) {
+          console.error('Backend export failed, falling back to client export:', err);
+          // fallthrough to client-side export
+        }
+      }
+
+      // Fallback: client-side export (works for unsaved/new projects)
+      const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
       if (!dataUrl) return;
       const link = document.createElement('a');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const ext = exportFormat === 'jpeg' ? 'jpg' : 'png';
+      const ext = fmt === 'jpeg' ? 'jpg' : (fmt === 'webp' ? 'webp' : fmt === 'jpg' ? 'jpg' : fmt);
       link.download = `design-${timestamp}.${ext}`;
       link.href = dataUrl;
       document.body.appendChild(link);
@@ -572,7 +631,15 @@ const CanvaEditor = () => {
       document.body.removeChild(link);
       // Optionally persist and download project file (worksheet)
       try {
-        const design = { layers, canvasSize, zoom: 100, pan: { x: 0, y: 0 }, savedAt: Date.now() };
+        const layersWithCanvasMeta = layers.map(l => ({
+          ...l,
+          canvasBgColor,
+          canvasBgImage,
+          zoom: 100,
+          pan: { x: 0, y: 0 },
+          canvasSize
+        }));
+        const design = { layers: layersWithCanvasMeta, canvasSize, savedAt: Date.now() };
         localStorage.setItem('canvaDesign', JSON.stringify(design));
         if (includeProjectFile) {
           const blob = new Blob([JSON.stringify(design, null, 2)], { type: 'application/json' });
@@ -598,7 +665,15 @@ const CanvaEditor = () => {
     setIsSavingWorksheet(true);
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const design = { layers, canvasSize, zoom, pan, savedAt: Date.now() };
+      const layersWithCanvasMeta = layers.map(l => ({
+        ...l,
+        canvasBgColor,
+        canvasBgImage,
+        zoom,
+        pan,
+        canvasSize
+      }));
+      const design = { layers: layersWithCanvasMeta, canvasSize, savedAt: Date.now() };
       const fileName = `design-${timestamp}.json`;
 
       // Feature-detect the File System Access API

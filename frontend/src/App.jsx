@@ -69,7 +69,7 @@ const AppContent = () => {
       {!isFullScreenRoute && <SideBar />}
 
       {/* Navbar */}
-      <Navbar />
+      {!isFullScreenRoute && <Navbar />}
 
       {/* Page Content */}
       <div
@@ -106,7 +106,7 @@ const AppContent = () => {
           <Route path="/analytics" element={<Analatics />} />
           <Route path="/settings" element={<Setting />} />
           <Route path="/help-support" element={<Help />} />
-          
+
           <Route path="/team" element={<Team />} />
           <Route path="/team/accept" element={<AcceptInvite />} />
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />

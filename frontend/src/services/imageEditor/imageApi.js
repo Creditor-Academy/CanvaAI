@@ -8,7 +8,6 @@ const api = axios.create({
     },
 });
 
-// Add a request interceptor to add the auth token
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -82,14 +81,46 @@ export const updateImage = async (imageId, payload) => {
     }
 };
 
-export const generateImage = async (userId, prompt) => {
+export const generateImage = async (userId, imageId, prompt) => {
     try {
-        // Updated to use POST as it's more reliable for prompts, 
-        // and matched the URL structure provided by user.
-        const res = await api.post(`/api/image/generate-image/${userId}/${encodeURIComponent(prompt)}`);
+        const res = await api.post(`/api/image/generate-image/${userId}/${encodeURIComponent(imageId)}`, { prompt });
+        console.log("Generate Image Response:", res.data.url);
+        console.log("Generate Image Response:", res.data);
         return res.data;
     } catch (error) {
         console.error("Generate Image Error:", error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const exportImage = async (imageId, format) => {
+    try {
+        const res = await api.get(`/api/images/export/${imageId}/${format}`, { responseType: 'blob' });
+        return res.data;
+    } catch (error) {
+        console.error('Export Image Error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const uploadTemporaryImage = async (payload) => {
+    try {
+        const res = await api.post('/api/image/upload-image/temperary', payload);
+        return res.data;
+    } catch (error) {
+        console.error('Upload Temporary Image Error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+
+export const getPublicTemplateImages = async () => {
+    try {
+        const res = await api.get('/api/public/templates/images');
+        console.log("Fetched Public Template Images:", res.data);
+        return res.data;
+    } catch (error) {
+        console.error('Get Public Template Images Error:', error.response?.data || error.message);
         throw error;
     }
 };

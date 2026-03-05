@@ -27,39 +27,57 @@ const AIImageGenerator = ({
       setIsGeneratingAI(true);
       setErrorMessage('');
 
-      const userId = user?._id || user?.id || '123'; // Use actual userId or '123' as fallback
-      const data = await generateImage(userId, aiPrompt);
-      const imageB64 = data.data?.[0]?.b64_json || "";
+      const userId = user?._id || user?.id;
+      const imageId = Date.now().toString();
+      const data = await generateImage(userId, imageId, aiPrompt);
 
-      if (imageB64 && imageB64.length > 50) {
-        const imgSrc = `data:image/png;base64,${imageB64}`;
+      let respItem = null;
+      if (Array.isArray(data) && data.length > 0) respItem = data[0];
+      else if (data && Array.isArray(data.data) && data.data.length > 0) respItem = data.data[0];
+      else if (data && (data.url || data.imageUrl)) respItem = data;
+      else respItem = {};
 
-        // Create a new image object
-        const newImage = {
-          id: Date.now().toString(),
-          type: 'image',
-          name: `AI Generated: ${aiPrompt.substring(0, 20)}...`,
-          src: imgSrc,
-          x: 100,
-          y: 100,
-          width: 200,
-          height: 200,
-          visible: true,
-          locked: false,
-          rotation: 0,
-          ...imageSettings
-        };
+      const imageUrl = respItem.url || respItem.imageUrl;
+      if (!imageUrl) {
+        console.error('AI generate returned unexpected response:', data);
+        throw new Error('Invalid image data received from server: missing url');
+      }
 
-        // Call the callback to add image to canvas
-        if (onImageGenerated) {
-          onImageGenerated(newImage);
-        }
+      const imgSrc = imageUrl;
 
-        // Clear the prompt and error after successful generation
+      // Create a new image object (wait to add until URL is confirmed loadable)
+
+      const newImage = {
+        id: imageId,
+        type: 'image',
+        name: `AI Generated: ${aiPrompt.substring(0, 20)}...`,
+        src: imgSrc,
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 200,
+        visible: true,
+        locked: false,
+        rotation: 0,
+        ...imageSettings
+      };
+
+      try {
+        await new Promise((resolve, reject) => {
+          const probe = new Image();
+
+          probe.onload = () => resolve();
+          probe.onerror = (e) => reject(new Error('Failed to load generated image URL: ' + (e?.message || 'error')));
+          probe.src = imgSrc;
+          if (probe.complete) resolve();
+        });
+
+        if (onImageGenerated) onImageGenerated(newImage);
         setAiPrompt('');
         setErrorMessage('');
-      } else {
-        throw new Error('Invalid image data received from server');
+      } catch (err) {
+        console.error('Generated image failed to load:', err);
+        setErrorMessage('Generated image not accessible (CORS or missing file).');
       }
     } catch (error) {
       console.error('Error generating image:', error);
@@ -72,89 +90,46 @@ const AIImageGenerator = ({
   };
 
   return (
-    <div style={{ marginTop: '12px', width: '100%' }}>
+    <div className="mt-3 w-full">
       <input
         type="text"
         placeholder="Enter prompt for AI image..."
         value={aiPrompt}
         onChange={(e) => {
           setAiPrompt(e.target.value);
-          if (errorMessage) setErrorMessage(''); // Clear error when user types
+          if (errorMessage) setErrorMessage('');
         }}
         onKeyPress={(e) => {
           if (e.key === 'Enter' && !isGeneratingAI) {
             handleAIGenerateImage();
           }
         }}
-        style={{
-          width: '100%',
-          padding: '10px 12px',
-          borderRadius: '8px',
-          border: errorMessage ? '1px solid #ef4444' : '1px solid #475569',
-          backgroundColor: '#1e293b',
-          color: '#ffffff',
-          fontSize: '13px',
-          marginBottom: '8px',
-          outline: 'none',
-          boxSizing: 'border-box'
-        }}
+        className={`w-full mb-4 px-3 py-2.5 rounded-lg text-sm text-white bg-slate-800 outline-none box-border transition-colors ${errorMessage
+          ? 'border border-red-500 focus:border-red-500'
+          : 'border border-slate-600 focus:border-purple-500'
+          } ${isGeneratingAI ? 'opacity-60 cursor-not-allowed' : ''}`}
         disabled={isGeneratingAI}
       />
       {errorMessage && (
-        <div style={{
-          padding: '8px 12px',
-          marginBottom: '8px',
-          borderRadius: '6px',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          color: '#fca5a5',
-          fontSize: '12px',
-          lineHeight: '1.4'
-        }}>
+        <div className="p-2 mb-2 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed">
           {errorMessage}
         </div>
       )}
       <button
-        style={{
-          padding: '20px 16px',
-          border: '2px dashed #8b5cf6',
-          borderRadius: '12px',
-          background: hoveredOption === 'generate-ai'
-            ? 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)'
-            : 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)',
-          cursor: isGeneratingAI ? 'not-allowed' : 'pointer',
-          margin: '0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '14px',
-          fontWeight: '600',
-          width: '100%',
-          justifyContent: 'center',
-          transition: 'all 0.3s ease',
-          color: '#ffffff',
-          boxShadow: hoveredOption === 'generate-ai'
-            ? '0 6px 16px rgba(139, 92, 246, 0.4)'
-            : '0 4px 12px rgba(139, 92, 246, 0.3)',
-          minHeight: '90px',
-          borderColor: hoveredOption === 'generate-ai' ? '#a855f7' : '#8b5cf6',
-          transform: hoveredOption === 'generate-ai' ? 'translateY(-2px)' : 'translateY(0)',
-          opacity: isGeneratingAI ? 0.6 : 1
-        }}
+        className={`py-5 px-4 border-2 border-dashed border-purple-500 rounded-xl w-full flex flex-col items-center justify-center gap-2.5 text-sm font-semibold text-white transition-all duration-300 min-h-[90px] ${hoveredOption === 'generate-ai' && !isGeneratingAI
+          ? 'bg-gradient-to-r from-purple-700 to-blue-600 border-purple-400'
+          : 'bg-gradient-to-r from-purple-500 to-blue-500 shadow-md shadow-purple-600/30 border-purple-500'
+          } ${isGeneratingAI
+            ? 'opacity-60 cursor-not-allowed'
+            : 'cursor-pointer hover:shadow-xl'
+          }`}
         onMouseEnter={() => !isGeneratingAI && setHoveredOption('generate-ai')}
         onMouseLeave={() => setHoveredOption(null)}
         onClick={handleAIGenerateImage}
         disabled={isGeneratingAI}
       >
-        <FiZap size={20} color="#ffffff" />
-        <span style={{
-          color: '#ffffff',
-          fontSize: '13px',
-          fontWeight: '600',
-          textAlign: 'center',
-          lineHeight: '1.2'
-        }}>
+        <FiZap size={20} className="text-white" />
+        <span className="text-white text-xs font-semibold text-center leading-tight">
           {isGeneratingAI ? 'Generating...' : 'Generate with AI'}
         </span>
       </button>
@@ -163,7 +138,5 @@ const AIImageGenerator = ({
 };
 
 export default AIImageGenerator;
-
-
 
 

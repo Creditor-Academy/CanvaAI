@@ -200,6 +200,10 @@ const RightSidebar = ({
 
         {selectedLayer && !isRightSidebarCollapsed && (
           <div className="mt-5 p-4 bg-gray-50 rounded-lg">
+            <div className="flex gap-4 mb-4">
+              <button className='bg-blue-500 text-white px-4 py-2 rounded cursor-pointer'>Forward</button>
+              <button className='bg-blue-500 text-white px-4 py-2 rounded cursor-pointer'>Backward</button>
+            </div>
             <h4 className="mb-4 text-base">Properties</h4>
 
             <div className="mb-4 pb-3 border-b border-gray-200">
@@ -329,4 +333,6 @@ const RightSidebar = ({
   )
 }
 
-export default RightSidebar
+export default RightSidebar;
+
+
