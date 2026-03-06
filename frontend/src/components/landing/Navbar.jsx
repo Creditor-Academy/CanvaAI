@@ -11,10 +11,9 @@ const Navbar = () => {
       <div className="nav-inner">
         <div className="nav-left">
           <a href="/" className="brand">
-            <div className="brand-mark">A</div>
+            <div className="brand-mark">D</div>
             <div className="brand-text">
-              <strong>Athena</strong>
-              <span className="brand-sub">AI</span>
+              <strong>Designova AI</strong>
             </div>
           </a>
         </div>

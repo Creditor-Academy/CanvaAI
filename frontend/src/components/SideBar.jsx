@@ -2,11 +2,12 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiGrid,
-  FiPlus,
   FiFolder,
   FiFileText,
   FiLayout,
-  FiShield
+  FiActivity,
+  FiShield,
+  FiImage
 } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -14,11 +15,11 @@ import { useAuth } from "../contexts/AuthContext";
 
 const BASE_ITEMS = [
   { label: "Home", path: "/home", icon: <FiGrid size={22} /> },
-  { label: "Create", path: "/create", icon: <FiPlus size={22} /> },
   { label: "Files", path: "/projects", icon: <FiFolder size={22} /> },
   { label: "PPT", path: "/presentation", icon: <FiLayout size={22} /> },
   { label: "Editor", path: "/editor", icon: <FiFileText size={22} /> },
-  { label: "Image", path: "/canva-clone", icon: <FiFolder size={22} /> }
+  { label: "Image", path: "/canva-clone", icon: <FiImage size={22} /> },
+  { label: "Analytics", path: "/analytics", icon: <FiActivity size={22} /> }
 ];
 
 /* ---------------- RAIL ITEM ---------------- */
@@ -37,7 +38,7 @@ const RailItem = ({ active, label, icon, onClick }) => (
       gap: 2,
       padding: "6px 0",
       cursor: "pointer",
-      color: active ? "#000000" : "#1e293b",
+      color: active ? "#000000" : "#54565a",
       transition: "all .18s ease",
     }}
   >
@@ -49,7 +50,7 @@ const RailItem = ({ active, label, icon, onClick }) => (
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: active ? "#60a5fa" : "transparent",
+        background: active ? "#4988C4" : "transparent",
         transition: "all .18s ease",
       }}
     >
@@ -91,7 +92,7 @@ const SideBar = () => {
   };
  
   return (
-    <aside
+   <aside
   style={{
     position: "fixed",
     left: 0,
@@ -99,14 +100,18 @@ const SideBar = () => {
     height: "calc(100vh - 52px)",
     width: 63,
 
-    /* NEW CLEAN GLASS BACKGROUND */
-    background: "linear-gradient(135deg,#e0f2ff 0%,#eff6ff 40%,#ffffff 100%)",
+    /* LIGHT GLASS BACKGROUND */
+    background: "rgba(193, 221, 245)",
 
-    /* REMOVE BORDER EFFECT */
-    border: "none",
+    /* REAL GLASS BLUR */
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
 
-    /* ADD DEPTH SHADOW (real SaaS feel) */
-    boxShadow: "2px 0 10px rgba(15,23,42,0.05)",
+    /* Subtle border */
+    borderRight: "1px solid rgba(0, 0, 0, 0.06)",
+
+    /* Soft depth shadow */
+    boxShadow: "4px 0 20px rgba(0,0,0,0.05)",
 
     display: "flex",
     flexDirection: "column",
