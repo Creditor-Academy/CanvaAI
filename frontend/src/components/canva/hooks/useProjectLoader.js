@@ -19,6 +19,29 @@ export const useProjectLoader = (
 
   useEffect(() => {
     if (projectId) {
+      // If a prefill payload was stored (from template/admin), use it first
+      try {
+        const key = `prefill_project_${projectId}`
+        const raw = sessionStorage.getItem(key)
+        if (raw) {
+          const imageProject = JSON.parse(raw)
+          const layers = imageProject.data?.layer || []
+          setLayers(layers)
+          if (imageProject.title) setProjectName(imageProject.title)
+          if (imageProject.data?.canvasSize) {
+            setCanvasSize(imageProject.data.canvasSize)
+            setZoom(imageProject.data.zoom || 80)
+            setPan(imageProject.data.pan || { x: 0, y: 0 })
+          }
+          if (imageProject.data?.canvasBgColor) setCanvasBgColor(imageProject.data.canvasBgColor)
+          if (imageProject.data?.canvasBgImage) setCanvasBgImage(imageProject.data.canvasBgImage)
+          // remove the prefill so it doesn't persist
+          sessionStorage.removeItem(key)
+          return
+        }
+      } catch (err) {
+        console.warn('Failed to apply prefill project from sessionStorage', err)
+      }
       const loadData = async () => {
         try {
           // Try loading from regular project API first

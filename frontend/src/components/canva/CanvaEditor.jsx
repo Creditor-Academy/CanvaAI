@@ -12,7 +12,7 @@ import TextStyleModal from './TextStyleModal';
 import RightSidebar from './components/RightSidebar';
 import CanvasArea from './canvas/CanvasArea';
 import LeftCanvasSidebar from './components/LeftCanvasSidebar';
-import ProjectNameModal from './ProjectNameModal';
+import ProjectNameModal from './components/ProjectNameModal';
 
 // Import hooks
 import { useAuth } from '../../contexts/AuthContext';
@@ -474,11 +474,25 @@ const CanvaEditor = () => {
   };
 
   //Handle save canva design (new + existing)
-  const handleSave = () => {
+  const handleSave = (title) => {
     if (!user) {
       alert("Please login to save your design");
       return;
     }
+
+    // If caller provided a title (e.g. from ProjectNameModal), use it.
+    if (title && typeof title === 'string') {
+      confirmSave(title);
+      return;
+    }
+
+    // If this is an existing project, save immediately using current project name
+    if (projectId) {
+      confirmSave(projectName);
+      return;
+    }
+
+    // No title and not an existing project: open project-name modal (fallback)
     setIsProjectNameModalOpen(true);
   };
 
@@ -1047,27 +1061,88 @@ const CanvaEditor = () => {
     }
   }, []);
 
-  // Add styled image to canvas
+  // Add styled image to canvas (robust: validates URL, preloads to get dimensions)
   const handleAddStyledImageToCanvas = (imageUrl) => {
-    const newLayer = {
-      id: Date.now().toString(),
-      type: 'image',
-      src: imageUrl,
-      x: canvasSize.width / 2 - 100,
-      y: canvasSize.height / 2 - 100,
-      width: 200,
-      height: 200,
-      opacity: 100,
-      brightness: 100,
-      contrast: 100,
-      blur: 0,
-      cornerRadius: 0,
-      strokeWidth: 0,
-      strokeColor: '#000000',
-      shadows: { enabled: false }
-    };
-    setLayers(prev => [...prev, newLayer]);
-    saveToHistory();
+    try {
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        console.error('handleAddStyledImageToCanvas: invalid imageUrl', imageUrl);
+        return;
+      }
+
+      const id = Date.now().toString();
+
+      const addLayer = (width = 200, height = 200) => {
+        const newLayer = {
+          id,
+          type: 'image',
+          src: imageUrl,
+          x: Math.max(0, Math.round(canvasSize.width / 2 - width / 2)),
+          y: Math.max(0, Math.round(canvasSize.height / 2 - height / 2)),
+          width: Math.round(width),
+          height: Math.round(height),
+          opacity: 100,
+          brightness: 100,
+          contrast: 100,
+          blur: 0,
+          cornerRadius: 0,
+          strokeWidth: 0,
+          strokeColor: '#000000',
+          shadows: { enabled: false },
+          visible: true,
+          locked: false,
+          rotation: 0,
+          name: 'AI Styled Image'
+        };
+
+        setLayers(prev => {
+          const newLayers = [...prev, newLayer];
+          saveToHistory(newLayers);
+          return newLayers;
+        });
+        setSelectedLayer(id);
+      };
+
+      // Try to preload the image to get natural dimensions
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const maxWidth = Math.min(canvasSize.width * 0.6, img.naturalWidth || 200);
+          const maxHeight = Math.min(canvasSize.height * 0.6, img.naturalHeight || 200);
+          let width = img.naturalWidth || 200;
+          let height = img.naturalHeight || 200;
+
+          if (width > maxWidth || height > maxHeight) {
+            const scale = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.max(100, width * scale);
+            height = Math.max(100, height * scale);
+          }
+
+          if (width < 100) {
+            const scale = 100 / width;
+            width = 100;
+            height = Math.round(height * scale);
+          }
+          if (height < 100) {
+            const scale = 100 / height;
+            height = 100;
+            width = Math.round(width * scale);
+          }
+
+          addLayer(width, height);
+        } catch (err) {
+          console.error('Error sizing preloaded image, falling back to defaults', err);
+          addLayer();
+        }
+      };
+      img.onerror = (err) => {
+        console.warn('Failed to preload styled image, adding with default size', err);
+        addLayer();
+      };
+      img.src = imageUrl;
+    } catch (err) {
+      console.error('handleAddStyledImageToCanvas error', err);
+    }
   };
 
   // Shape settings handler
@@ -1943,12 +2018,6 @@ const CanvaEditor = () => {
         />
       )}
 
-      <ProjectNameModal
-        open={isProjectNameModalOpen}
-        onClose={() => setIsProjectNameModalOpen(false)}
-        onConfirm={confirmSave}
-        initialName={projectName}
-      />
     </div>
   );
 };
