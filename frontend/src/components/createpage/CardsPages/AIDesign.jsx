@@ -48,19 +48,39 @@ export const AIDesign = () => {
     return () => clearInterval(timer);
   }, [isLoading]);
 
+  /* ---------------- AUTO SCROLL TO LOADER ---------------- */
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const timer = setTimeout(() => {
+      const el = previewRef.current;
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+
+      const absoluteTop = rect.top + window.pageYOffset;
+
+      // loader ko viewport ke exact middle me lane ka calculation
+      const offset = absoluteTop - (window.innerHeight / 2) + (rect.height / 2);
+
+      window.scrollTo({
+        top: offset,
+        behavior: "smooth"
+      });
+    }, 220); // transition + margin render hone ka wait
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   /* ---------------- GENERATE ---------------- */
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
-    setIsLoading(true);
     setGeneratedImage(null);
+    setProgress(5);
+    setIsLoading(true);
 
-    setTimeout(() => {
-      previewRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    }, 150);
+
 
     try {
       const res = await api.post("/api/generate-logo", { prompt });
@@ -223,11 +243,16 @@ export const AIDesign = () => {
       </div>
 
       {/* ---------------- RESULT SECTION ---------------- */}
-      <div ref={previewRef}
-        className="relative z-30 flex flex-col items-center pt-[85vh] pb-24">
+      <div
+        ref={previewRef}
+        className={`relative z-30 flex flex-col items-center transition-all duration-500 ${isLoading || generatedImage
+          ? "mt-32 mb-24 opacity-100"
+          : "h-0 overflow-hidden opacity-0"
+          }`}
+      >
 
         {isLoading && (
-          <div className="w-[420px] max-w-full">
+          <div className="w-[420px] max-w-full mt-20">
 
             <div className="h-3 bg-white/10 rounded-full overflow-hidden">
               <div
@@ -244,15 +269,15 @@ export const AIDesign = () => {
         )}
 
         {generatedImage && !isLoading && (
-          <div className="relative group w-[420px] max-w-full mt-6">
+          <div className="relative group w-[420px] max-w-full mt-20">
 
             <img
               src={generatedImage}
-              className=" mt-30 rounded-3xl shadow-2xl"
+              className="  rounded-3xl shadow-2xl"
               alt=""
             />
 
-            <div className="mt-30 absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+            <div className="  absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
 
               <button
                 onClick={() => setActivePreview(generatedImage)}
