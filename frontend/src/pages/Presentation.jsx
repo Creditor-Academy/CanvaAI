@@ -162,6 +162,31 @@ const Presentation = () => {
     fetchTemplates();
   }, []);
 
+  const getSlideData = (item) => {
+    if (!item?.data) return null;
+    let data = item.data;
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) { return null; }
+    }
+    // Return first slide or the data itself if it has layers
+    return data.slides?.[0] || (data.layers ? data : null);
+  };
+
+  const getSlideCount = (item) => {
+    if (item.slideCount !== undefined) return item.slideCount;
+    const data = getSlideData(item);
+    if (!data) return 0;
+    // If it has slides array
+    let rawData = item.data;
+    if (typeof rawData === 'string') {
+      try { rawData = JSON.parse(rawData); } catch (e) { }
+    }
+    if (Array.isArray(rawData?.slides)) return rawData.slides.length;
+    return rawData?.layers ? 1 : 0;
+  };
+
   const handleDelete = async (id, e) => {
     e.stopPropagation();
 
@@ -331,8 +356,8 @@ const Presentation = () => {
                       style={styles.card}
                     >
                       <div style={styles.cardPreview}>
-                        {ppt.data?.slides?.[0] ? (
-                          <PresentationThumbnail slide={ppt.data.slides[0]} width="100%" height="100%" />
+                        {getSlideData(ppt) ? (
+                          <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
                         ) : (
                           <FiFileText size={40} color="#94a3b8" />
                         )}
@@ -340,7 +365,15 @@ const Presentation = () => {
                       <div style={styles.cardInfo}>
                         <div style={styles.cardText}>
                           <h3 style={styles.cardTitle}>{ppt.title || "Untitled"}</h3>
-                          <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
+                            {getSlideCount(ppt) > 0 && (
+                              <div style={styles.slideBadge}>
+                                <FiLayout size={12} style={{ marginRight: '4px' }} />
+                                {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={(e) => handleDelete(ppt._id, e)}
@@ -401,8 +434,8 @@ const Presentation = () => {
                       style={styles.templateCard}
                     >
                       <div style={styles.templatePreview}>
-                        {tpl.data?.slides?.[0] ? (
-                          <PresentationThumbnail slide={tpl.data.slides[0]} width="100%" height="100%" />
+                        {getSlideData(tpl) ? (
+                          <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
                         ) : (
                           <FiLayout size={40} color="#6366f1" />
                         )}
@@ -410,6 +443,12 @@ const Presentation = () => {
                       <div style={styles.cardInfo}>
                         <div style={styles.cardText}>
                           <h3 style={styles.cardTitle}>{tpl.title}</h3>
+                          {getSlideCount(tpl) > 0 && (
+                            <div style={styles.slideBadge}>
+                              <FiLayout size={12} style={{ marginRight: '4px' }} />
+                              {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
+                            </div>
+                          )}
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
@@ -637,6 +676,17 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 0.2s',
+  },
+  slideBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: '0.75rem',
+    color: '#0a5dbbff',
+    backgroundColor: '#eff6ff',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontWeight: 600,
+    marginTop: '4px',
   }
 };
 

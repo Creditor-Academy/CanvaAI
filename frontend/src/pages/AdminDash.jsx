@@ -6,6 +6,7 @@ import { Trash2, Globe, Lock } from 'lucide-react';
 import './AdminDash.css';
 import PresentationThumbnail from '../components/PresentationThumbnail';
 import { useNavigate } from "react-router-dom";
+import { FiLayout } from "react-icons/fi";
 
 const AdminDash = () => {
   const { user } = useAuth();
@@ -59,6 +60,30 @@ const AdminDash = () => {
 
     fetchAllData();
   }, [user?._id]);
+
+  const getSlideData = (data) => {
+    if (!data) return null;
+    let parsedData = data;
+    if (typeof data === 'string') {
+      try {
+        parsedData = JSON.parse(data);
+      } catch (e) { return null; }
+    }
+    // Return first slide or the data itself if it has layers
+    return parsedData.slides?.[0] || (parsedData.layers ? parsedData : null);
+  };
+
+  const getSlideCount = (data) => {
+    if (!data) return 0;
+    let parsedData = data;
+    if (typeof data === 'string') {
+      try {
+        parsedData = JSON.parse(data);
+      } catch (e) { return 0; }
+    }
+    if (Array.isArray(parsedData.slides)) return parsedData.slides.length;
+    return parsedData.layers ? 1 : 0;
+  };
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
@@ -172,8 +197,8 @@ const AdminDash = () => {
 
 
                     <div className="recent-thumb">
-                      {temp.data?.slides?.[0] ? (
-                        <PresentationThumbnail slide={temp.data.slides[0]} width="100%" height="100%" />
+                      {getSlideData(temp.data) ? (
+                        <PresentationThumbnail slide={getSlideData(temp.data)} width="100%" height="100%" />
                       ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: '#94a3b8', fontSize: 14 }}>No preview</div>
                       )}
@@ -216,6 +241,12 @@ const AdminDash = () => {
 
                       <span className="recent-date">
                         {new Date(temp.createdAt).toLocaleDateString()}
+                        {getSlideCount(temp.data) > 0 && (
+                          <span className="slide-badge">
+                            <FiLayout size={12} style={{ marginRight: '4px' }} />
+                            {getSlideCount(temp.data)} {getSlideCount(temp.data) === 1 ? 'Slide' : 'Slides'}
+                          </span>
+                        )}
                       </span>
                     </div>
 

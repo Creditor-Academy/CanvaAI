@@ -4,7 +4,9 @@ import { X, ExternalLink } from 'lucide-react';
 const TemplatePreviewModal = ({ isOpen, onClose, templateData, onImport }) => {
     if (!isOpen || !templateData) return null;
 
-    const slides = templateData.data?.slides || [];
+    const slides = Array.isArray(templateData.data?.slides)
+        ? templateData.data.slides
+        : (templateData.data?.layers ? [templateData.data] : []);
 
     return (
         <div style={styles.overlay} onClick={onClose}>
