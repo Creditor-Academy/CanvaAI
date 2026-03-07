@@ -39,6 +39,27 @@ const ColorPicker = ({ value, onChange, onHistorySave }) => {
 };
 
 const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
+  const isInteracting = React.useRef(false);
+
+  const resetInteraction = React.useCallback(
+    debounce(() => {
+      isInteracting.current = false;
+    }, 500),
+    []
+  );
+
+  const handleChange = (e) => {
+    const val = Number(e.target.value);
+
+    if (!isInteracting.current) {
+      if (onHistorySave) onHistorySave();
+      isInteracting.current = true;
+    }
+
+    onChange(val, false);
+    resetInteraction();
+  };
+
   return (
     <div style={styles.control}>
       <label style={styles.label}>{label}</label>
@@ -48,8 +69,7 @@ const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
           min={min}
           max={max}
           value={value}
-          onChange={(e) => onChange(Number(e.target.value), false)}
-          onMouseUp={onHistorySave}
+          onChange={handleChange}
           style={{ flex: 1 }}
         />
         <input
@@ -59,7 +79,8 @@ const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
           value={value}
           onChange={(e) => {
             const val = Number(e.target.value);
-            onChange(val, true); // Immediate save for direct number input
+            if (onHistorySave) onHistorySave();
+            onChange(val, false); // onChange usage in PropertiesPanel usually expects false if manual save called
           }}
           style={{ width: "50px" }}
         />
@@ -89,6 +110,16 @@ const PaletteColorControl = ({
   onColorChange,
   onHistorySave,
 }) => {
+  const isInteracting = useRef(false);
+
+  // Debounced reset to clear the interaction flag after user stops dragging
+  const resetInteraction = React.useCallback(
+    debounce(() => {
+      isInteracting.current = false;
+    }, 500),
+    []
+  );
+
   const inputRef = useRef(null);
   const currentColor = value || "#ffffff";
 
@@ -101,13 +132,23 @@ const PaletteColorControl = ({
   const handleCustomChange = (e) => {
     const newColor = e.target.value;
     if (!newColor) return;
-    if (onHistorySave) onHistorySave();
-    onColorChange(newColor);
+
+    // Only save history at the START of a continuous interaction (drag/hover)
+    if (!isInteracting.current) {
+      if (onHistorySave) onHistorySave();
+      isInteracting.current = true;
+    }
+
+    // Update state without saving history (live preview)
+    onColorChange(newColor, false);
+
+    // Reset flag if no updates for 500ms
+    resetInteraction();
   };
 
   const handleSwatchClick = (color) => {
     if (onHistorySave) onHistorySave();
-    onColorChange(color);
+    onColorChange(color, true); // Immediate save for discrete click
   };
 
   return (
@@ -254,8 +295,8 @@ const PropertiesPanel = () => {
               label="Background"
               value={activeSlide.background}
               onHistorySave={saveToHistory}
-              onColorChange={(color) =>
-                updateSlideBackground(activeSlideId, color, true)
+              onColorChange={(color, save) =>
+                updateSlideBackground(activeSlideId, color, save)
               }
             />
 
@@ -284,7 +325,7 @@ const PropertiesPanel = () => {
 
                             setSlideBackgroundImage(activeSlideId, url, key);
                             e.target.value = ""; // Reset input
-                            
+
                             return { url, key };
                           },
                           "top",
@@ -322,14 +363,14 @@ const PropertiesPanel = () => {
                         className="url-input-field"
                       />
                       <div className="modal-buttons">
-                        <button 
-                          className="secondary-btn" 
+                        <button
+                          className="secondary-btn"
                           onClick={() => setShowUrlPopup(false)}
                         >
                           Cancel
                         </button>
-                        <button 
-                          className="primary-btn" 
+                        <button
+                          className="primary-btn"
                           onClick={() => {
                             if (tempUrl) {
                               setSlideBackgroundImage(activeSlideId, tempUrl);
@@ -491,10 +532,10 @@ const PropertiesPanel = () => {
                   label="Border Color"
                   value={selectedLayer.borderColor || "#e5e7eb"}
                   onHistorySave={saveToHistory}
-                  onColorChange={(color) =>
+                  onColorChange={(color, save) =>
                     updateLayerStyle(selectedLayer.id, {
                       borderColor: color,
-                    })
+                    }, save)
                   }
                 />
                 <div className="property-row">
@@ -558,27 +599,40 @@ const PropertiesPanel = () => {
         {selectedLayer?.type === "shape" && (
           <>
             <h3 style={styles.heading}>Shape</h3>
-            <div style={styles.control}>
-              <label style={styles.label}>Shape Color</label>
-              <ColorPicker
-                value={
-                  selectedLayer.shapeType === "line" ||
-                    selectedLayer.shapeType === "arrow"
-                    ? selectedLayer.stroke
-                    : selectedLayer.fill
-                }
-                onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) => {
-                  const isLineOrArrow =
-                    selectedLayer.shapeType === "line" ||
-                    selectedLayer.shapeType === "arrow";
 
-                  updateShapeLayer(selectedLayer.id, {
-                    [isLineOrArrow ? "stroke" : "fill"]: val,
-                  }, saveHistory);
-                }}
+            {/* 1. Fill Color (Hidden for Line/Arrow) */}
+            {selectedLayer.shapeType !== "line" && selectedLayer.shapeType !== "arrow" && (
+              <PaletteColorControl
+                label="Fill Color"
+                value={selectedLayer.fillColor || "#ffffff"}
+                onHistorySave={saveToHistory}
+                onColorChange={(color, save) =>
+                  updateShapeLayer(selectedLayer.id, { fillColor: color }, save)
+                }
               />
-            </div>
+            )}
+
+            {/* 2. Stroke Color */}
+            <PaletteColorControl
+              label="Stroke Color"
+              value={selectedLayer.strokeColor || "#000000"}
+              onHistorySave={saveToHistory}
+              onColorChange={(color, save) =>
+                updateShapeLayer(selectedLayer.id, { strokeColor: color }, save)
+              }
+            />
+
+            {/* 3. Stroke Width */}
+            <RangeControl
+              label={`Stroke Width (${selectedLayer.strokeWidth ?? 0}px)`}
+              value={selectedLayer.strokeWidth ?? 0}
+              min={0}
+              max={20}
+              onHistorySave={saveToHistory}
+              onChange={(val, save) =>
+                updateShapeLayer(selectedLayer.id, { strokeWidth: val }, save)
+              }
+            />
           </>
         )}
 
@@ -628,7 +682,7 @@ const PropertiesPanel = () => {
                   : selectedLayer.color
               }
               onHistorySave={saveToHistory}
-              onColorChange={(color) => {
+              onColorChange={(color, save) => {
                 if (editingLayerId) {
                   window.dispatchEvent(
                     new CustomEvent("slate-apply-mark", {
@@ -641,9 +695,9 @@ const PropertiesPanel = () => {
                       detail: { format: "color", value: color },
                     })
                   );
-                  updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { color: color });
+                  updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { color: color }, save);
                 } else {
-                  applyGlobalTextStyle(selectedLayer.id, { color });
+                  applyGlobalTextStyle(selectedLayer.id, { color }, save);
                 }
               }}
             />
@@ -895,8 +949,8 @@ const PropertiesPanel = () => {
                 label="Border Color"
                 value={selectedLayer.borderColor || "#000000"}
                 onHistorySave={saveToHistory}
-                onColorChange={(color) =>
-                  updateLayerStyle(selectedLayer.id, { borderColor: color }, false)
+                onColorChange={(color, save) =>
+                  updateLayerStyle(selectedLayer.id, { borderColor: color }, save)
                 }
               />
             </div>
