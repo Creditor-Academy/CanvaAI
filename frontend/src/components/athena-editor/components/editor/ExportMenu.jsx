@@ -16,6 +16,8 @@ import {
 } from '../ui/dropdown-menu';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
+import DOMPurify from 'dompurify';
+import { exportEditorPagesToPDF } from '../../../../utils/pdfExport';
 
 export const ExportMenu = ({ getHTML, documentTitle }) => {
   const [isExporting, setIsExporting] = useState(false);
@@ -23,10 +25,51 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
   const exportAsPDF = async () => {
     setIsExporting(true);
     try {
-      window.print();
-      toast.success('Opening print dialog for PDF export');
+      // Use the new page-based PDF export that matches editor pages exactly
+      await exportEditorPagesToPDF({
+        filename: `${documentTitle || 'document'}.pdf`,
+        scale: 2 // High quality export
+      });
+      
+      toast.success('PDF exported successfully with exact page matching');
     } catch (error) {
-      toast.error('Failed to export as PDF');
+      console.error('PDF export error:', error);
+      toast.error(`Failed to export as PDF: ${error.message}`);
+      
+      // Fallback to print method if page-based export fails
+      try {
+        const raw = typeof getHTML === 'function' ? getHTML() : '';
+        const safe = DOMPurify.sanitize(raw || '<p></p>');
+        const w = window.open('', '_blank', 'noopener,noreferrer');
+        if (!w) {
+          toast.error('Popup blocked. Please allow popups to export.');
+          return;
+        }
+        const styles = `
+          *{box-sizing:border-box}
+          body{font-family:Inter,Arial,sans-serif;margin:0;color:#111827;line-height:1.5}
+          img{max-width:100%;height:auto;display:block}
+          .page{width:100%;margin:0 auto;background:#fff;display:block;}
+          .content{padding:40px}
+          div[data-type="page-break"]{page-break-after:always;break-after:page;height:0;margin:0;border:none;display:block;visibility:hidden;}
+          ul, ol, li { page-break-inside: avoid; break-inside: avoid; }
+          p { page-break-inside: auto; }
+          @page { size: A4; margin: 0.5in; }
+          @media print { body{margin:0} .page{min-height:auto} }
+        `;
+        w.document.open();
+        w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${documentTitle || 'Document'}</title><style>${styles}</style></head><body><div class="page"><div class="content">${safe}</div></div></body></html>`);
+        w.document.close();
+        w.focus();
+        setTimeout(() => {
+          try { w.print(); } catch { void 0 }
+          w.close();
+        }, 300);
+        toast.success('Opening print dialog for PDF export (fallback method)');
+      } catch (printError) {
+        console.error('Print fallback also failed:', printError);
+        toast.error('Both PDF export methods failed');
+      }
     } finally {
       setIsExporting(false);
     }
@@ -133,7 +176,7 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
       <DropdownMenuContent align="end" className="bg-white border shadow-lg min-w-[160px]">
         <DropdownMenuItem onClick={exportAsPDF} className="cursor-pointer">
           <FileText className="w-4 h-4 mr-2" />
-          PDF (Print)
+          PDF (Exact Pages)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={exportAsHTML} className="cursor-pointer">
           <FileCode className="w-4 h-4 mr-2" />

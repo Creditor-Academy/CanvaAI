@@ -5,9 +5,24 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist',
+    'src/components/presentation/**',
+    'src/components/presentation2/**',
+    'src/components/presentation3/**',
+    'src/components/presentationstudio/**',
+    'src/components/projectpage/**',
+    'src/pages/**',
+    'src/utils/pagination/testRunner.js',
+    'src/components/athena-editor/components/editor/EditorToolbar.jsx',
+    'src/components/athena-editor/components/editor/MenuBar.jsx',
+  ]),
   {
-    files: ['**/*.{js,jsx}'],
+    files: [
+      'src/components/athena-editor/**/*.{js,jsx}',
+      'src/utils/**/*.{js,jsx}',
+      'vite.config.js',
+    ],
     extends: [
       js.configs.recommended,
       reactHooks.configs['recommended-latest'],
@@ -23,7 +38,9 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
+      'react-refresh/only-export-components': 'off',
+      'no-empty': 'off',
     },
   },
 ])

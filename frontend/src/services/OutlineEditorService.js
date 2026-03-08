@@ -56,7 +56,7 @@ export const finalizePresentation = async (outlineData) => {
             .split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0)
-            .map(line => line.replace(/^[•\-\*]\s*/, '')) // Remove bullet markers
+            .map(line => line.replace(/^[•\-*]\s*/, ''))
             .filter(line => line.length > 0);
           // If no bullets found, treat as single item
           if (content.length === 0 && rawText.trim()) {
@@ -70,8 +70,8 @@ export const finalizePresentation = async (outlineData) => {
           const rightText = rightMatch ? rightMatch[1].trim() : '';
           
           content = {
-            left: leftText ? leftText.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l) : [],
-            right: rightText ? rightText.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l) : []
+            left: leftText ? leftText.split('\n').map(l => l.replace(/^[•\-*]\s*/, '').trim()).filter(l => l) : [],
+            right: rightText ? rightText.split('\n').map(l => l.replace(/^[•\-*]\s*/, '').trim()).filter(l => l) : []
           };
         } else {
           // For paragraph, use raw text as string

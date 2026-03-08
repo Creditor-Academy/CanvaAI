@@ -12,6 +12,7 @@ const TableExtension = Node.create({
   },
 
   atom: true,
+  group: 'block',
 
   addAttributes() {
     return {

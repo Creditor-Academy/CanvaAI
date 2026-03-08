@@ -6,3 +6,9 @@
   overflow: hidden;
   height: 100vh;
 }
+
+/* Prevent Chrome's scroll anchoring behavior */
+.editor-scroll-container,
+.editor-page {
+  overflow-anchor: none;
+}

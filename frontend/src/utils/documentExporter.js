@@ -15,7 +15,7 @@ export class DocumentExporter {
       includePageNumbers = true,
       includeHeader = true,
       includeFooter = true,
-      margin = { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 }, // Google Docs standard margins (25.4mm = 1 inch)
+      margin = { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 }, // Docs standard margins (25.4mm = 1 inch)
       theme = "light",
       compress = true
     } = options;
@@ -25,14 +25,13 @@ export class DocumentExporter {
     try {
       toastId = toast.loading('Preparing PDF export...');
 
-      // Initialize PDF with proper settings
-      // Use Google Docs dimensions (794px x 1123px) converted to mm
-      const googleDocsWidth = 794; // pixels
-      const googleDocsHeight = 1123; // pixels
+      // Initialize PDF with precise A4 at 96dpi
+      const DocsWidth = 793.7;   // px (210mm)
+      const DocsHeight = 1122.5; // px (297mm)
       
       // Convert pixels to mm (assuming 96 DPI -> 1px = 0.264583mm)
-      const widthMM = googleDocsWidth * 0.264583;
-      const heightMM = googleDocsHeight * 0.264583;
+      const widthMM = DocsWidth * 0.264583;
+      const heightMM = DocsHeight * 0.264583;
       
       const pdf = new jsPDF({
         orientation: "portrait",
@@ -80,7 +79,7 @@ export class DocumentExporter {
   }
 
   static async generatePDFPages(pdf, content, options) {
-    const { title, includePageNumbers, includeHeader, includeFooter, margin, theme } = options;
+    const { title, includePageNumbers, includeHeader, includeFooter, margin, theme, defaultLineHeight, lineSpacingBoost = 1.2 } = options;
     
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -96,9 +95,16 @@ export class DocumentExporter {
     
     let currentY = margin.top;
 
-    // Helper function to get line height - EXACT calculation
-    const getLineHeight = (fontSize) => {
-      return fontSize * PT_TO_MM * 1.15; // 1.15 is line spacing factor
+    // Helper to compute line height (pt → mm) honoring per-block lineHeight factor
+    const getLineHeight = (fontSize, factor = 1.15) => fontSize * PT_TO_MM * (factor || 1.15);
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const getLF = (style) => {
+      const lf = style?.lineHeight;
+      const base = (typeof lf === 'number' && lf > 0.5 && lf < 5)
+        ? lf
+        : (typeof defaultLineHeight === 'number' ? defaultLineHeight : 1.5);
+      const boosted = base * (typeof lineSpacingBoost === 'number' ? lineSpacingBoost : 1.2);
+      return clamp(boosted, 1.05, 3.0);
     };
 
     // Helper function to check if new page is needed - FIXED
@@ -159,7 +165,8 @@ export class DocumentExporter {
         switch (section.type) {
           case 'heading': {
             const fontSize = 20 - (section.level * 1.5);
-            const lineHeight = getLineHeight(fontSize);
+            const lf = getLF(section.style);
+            const lineHeight = getLineHeight(fontSize, lf);
             
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(fontSize);
@@ -174,16 +181,18 @@ export class DocumentExporter {
             
             pdf.text(lines, margin.left, currentY, {
               maxWidth: pageWidth - margin.left - margin.right,
-              lineHeightFactor: 1.15
+              lineHeightFactor: lf
             });
             
-            currentY += requiredHeight + (lineHeight * 0.6); // Proportional spacing
+            const afterMM = section.style?.marginAfterMM ?? (lineHeight * 0.4);
+            currentY += requiredHeight + afterMM;
             break;
           }
 
           case 'paragraph': {
             const fontSize = 11;
-            const lineHeight = getLineHeight(fontSize);
+            const lf = getLF(section.style);
+            const lineHeight = getLineHeight(fontSize, lf);
             
             pdf.setFont('helvetica', section.style?.bold ? 'bold' : 'normal');
             pdf.setFontSize(fontSize);
@@ -218,7 +227,7 @@ export class DocumentExporter {
               pdf.text(linesToWrite, x, currentY, {
                 align: section.style?.align || 'left',
                 maxWidth: pageWidth - margin.left - margin.right,
-                lineHeightFactor: 1.15
+                lineHeightFactor: lf
               });
               
               currentY += linesToWrite.length * lineHeight;
@@ -227,8 +236,51 @@ export class DocumentExporter {
                 addNewPage();
               }
             }
-            
-            currentY += lineHeight * 0.6; // Proportional paragraph spacing
+            const afterMM = section.style?.marginAfterMM ?? (lineHeight * 0.3);
+            currentY += afterMM;
+            break;
+          }
+          
+          case 'blockquote': {
+            const fontSize = 11;
+            const lf = getLF(section.style);
+            const lineHeight = getLineHeight(fontSize, lf);
+            const indent = 6;
+            const pad = 1.5;
+            const textX = margin.left + indent + 2;
+            const maxWidth = pageWidth - textX - margin.right;
+            pdf.setFont('helvetica', 'italic');
+            pdf.setFontSize(fontSize);
+            pdf.setTextColor(themeColors.quote[0], themeColors.quote[1], themeColors.quote[2]);
+            const lines = pdf.splitTextToSize(section.text, maxWidth);
+            let remainingLines = [...lines];
+            while (remainingLines.length > 0) {
+              const availableSpace = effectiveBottom - currentY;
+              const maxLinesThisPage = Math.floor(availableSpace / lineHeight);
+              if (maxLinesThisPage <= 0) {
+                addNewPage();
+                continue;
+              }
+              const linesThisPage = Math.min(maxLinesThisPage, remainingLines.length);
+              const linesToWrite = remainingLines.slice(0, linesThisPage);
+              remainingLines = remainingLines.slice(linesThisPage);
+              pdf.setDrawColor(themeColors.quote[0], themeColors.quote[1], themeColors.quote[2]);
+              pdf.setLineWidth(0.6);
+              const blockHeight = linesToWrite.length * lineHeight;
+              const lineX = margin.left + indent;
+              const lineY1 = currentY - pad;
+              const lineY2 = currentY + blockHeight + pad;
+              pdf.line(lineX, lineY1, lineX, lineY2);
+              pdf.text(linesToWrite, textX, currentY + pad, {
+                maxWidth,
+                lineHeightFactor: lf
+              });
+              currentY += blockHeight + pad * 2;
+              if (remainingLines.length > 0) {
+                addNewPage();
+              }
+            }
+            currentY += lineHeight * 0.4;
             break;
           }
 
@@ -316,11 +368,11 @@ export class DocumentExporter {
 
           case 'list': {
             const fontSize = 11;
-            const lineHeight = getLineHeight(fontSize);
+            const lf = getLF(section.style);
+            const lineHeight = getLineHeight(fontSize, lf);
             
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(fontSize);
-            pdf.setTextColor(themeColors.text[0], themeColors.text[1], themeColors.text[2]);
             
             for (const item of section.items) {
               const prefix = section.ordered ? `${item.index}. ` : '• ';
@@ -344,9 +396,10 @@ export class DocumentExporter {
                 const linesToWrite = remainingLines.slice(0, linesThisPage);
                 remainingLines = remainingLines.slice(linesThisPage);
                 
-                // Write lines with proper indentation
-                linesToWrite.forEach((line, index) => {
-                  pdf.text(line, indent, currentY + (index * lineHeight));
+                // Write lines with proper indentation and spacing
+                pdf.text(linesToWrite, indent, currentY, {
+                  maxWidth: pageWidth - indent - margin.right,
+                  lineHeightFactor: lf,
                 });
                 
                 currentY += linesToWrite.length * lineHeight;
@@ -357,10 +410,15 @@ export class DocumentExporter {
               }
             }
             
-            currentY += lineHeight * 0.6; // Proportional list spacing
+            const afterMM = section.style?.marginAfterMM ?? (lineHeight * 0.25);
+            currentY += afterMM;
             break;
           }
 
+          case 'pageBreak': {
+            addNewPage();
+            break;
+          }
           default:
             console.warn('Unknown section type:', section.type);
             break;
@@ -428,6 +486,214 @@ export class DocumentExporter {
     } finally {
       if (toastId) toast.dismiss(toastId);
     }
+  }
+
+  static async printDocument(editor, options = {}) {
+    const { title = 'Document' } = options;
+    try {
+      const html = editor?.getHTML ? editor.getHTML() : '';
+      const safe = DOMPurify.sanitize(html || '<p></p>');
+      const w = window.open('', '_blank', 'noopener,noreferrer');
+      const styles = `
+        *{box-sizing:border-box}
+        body{font-family:Inter,Arial,sans-serif;padding:0.5in;margin:0;color:#111827;line-height:1.5}
+        img{max-width:100%;height:auto;display:block}
+        .page{width:794px;min-height:1123px;margin:0 auto;background:#fff}
+        .content{padding:96px}
+        div[data-type="page-break"]{page-break-after:always;height:0;margin:0;border:none}
+        @page { size: A4; margin: 0.5in }
+        @media print { body{margin:0} }
+      `;
+      if (w) {
+        w.document.open();
+        w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${styles}</style></head><body><div class="page"><div class="content">${safe}</div></div></body></html>`);
+        w.document.close();
+        w.focus();
+        const doPrint = () => {
+          setTimeout(() => {
+            try { w.print(); } catch { void 0 }
+            w.close();
+          }, 300);
+        };
+        if (w.onload === null) {
+          w.onload = doPrint;
+        } else {
+          doPrint();
+        }
+      } else {
+        // Popup blocked – use hidden iframe fallback to print only content
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow?.document;
+        if (!doc) {
+          document.body.removeChild(iframe);
+          throw new Error('Unable to access print frame');
+        }
+        doc.open();
+        doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${styles}</style></head><body><div class="page"><div class="content">${safe}</div></div></body></html>`);
+        doc.close();
+        iframe.onload = () => {
+          setTimeout(() => {
+            try { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); } catch { void 0 }
+            document.body.removeChild(iframe);
+          }, 300);
+        };
+      }
+    } catch (e) {
+      console.error('Print error:', e);
+      toast.error('Failed to print document');
+    }
+  }
+
+  // ==================== HTML / MD / TXT / EPUB / JSON ====================
+  static async exportToHTML(editor, options = {}) {
+    const { filename = 'document.html', title = 'Document' } = options;
+    const html = editor?.getHTML ? editor.getHTML() : '';
+    const safe = DOMPurify.sanitize(html || '<p></p>');
+    const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>
+    body { font-family: Inter, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; color: #111827; line-height: 1.6; }
+    h1, h2, h3, h4, h5, h6 { margin: 1.25rem 0 0.5rem; }
+    p { margin: 0.5rem 0; }
+    blockquote { border-left: 3px solid #94a3b8; padding-left: 1rem; margin-left: 0; color: #475569; }
+    img { max-width: 100%; height: auto; display: block; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+    th { background-color: #f8fafc; }
+  </style>
+</head>
+<body>${safe}</body>
+</html>`;
+    const blob = new Blob([fullHTML], { type: 'text/html' });
+    saveAs(blob, filename);
+  }
+
+  static exportToMarkdown(editor, options = {}) {
+    const { filename = 'document.md' } = options;
+    const html = editor?.getHTML ? editor.getHTML() : '';
+    const safe = DOMPurify.sanitize(html || '');
+    // Simple HTML → Markdown conversion
+    let md = safe
+      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+      .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+      .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
+      .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
+      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+      .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+      .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+      .replace(/<u[^>]*>(.*?)<\/u>/gi, '<u>$1</u>')
+      .replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~')
+      .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (m, p1) => {
+        const text = p1.replace(/<[^>]+>/g, '').trim();
+        return text ? `> ${text}\n\n` : '';
+      })
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+      .replace(/<\/(ul|ol)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const blob = new Blob([md], { type: 'text/markdown' });
+    saveAs(blob, filename);
+  }
+
+  static exportToPlainText(editor, options = {}) {
+    const { filename = 'document.txt' } = options;
+    const html = editor?.getHTML ? editor.getHTML() : '';
+    const safe = DOMPurify.sanitize(html || '');
+    const text = safe
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .trim();
+    const blob = new Blob([text], { type: 'text/plain' });
+    saveAs(blob, filename);
+  }
+
+  static async exportToJSON(editor, options = {}) {
+    const { filename = 'document.json' } = options;
+    const json = editor?.getJSON ? editor.getJSON() : {};
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    saveAs(blob, filename);
+  }
+
+  static async exportToEPUB(editor, options = {}) {
+    const { filename = 'document.epub', title = 'Document', author = 'Athena Editor' } = options;
+    const html = editor?.getHTML ? editor.getHTML() : '';
+    const safe = DOMPurify.sanitize(html || '<p></p>');
+
+    const zip = new JSZip();
+    // Required EPUB files
+    zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+    zip.folder('META-INF').file('container.xml',
+      `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+    const oebps = zip.folder('OEBPS');
+    oebps.file('content.xhtml',
+      `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>${title}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+${safe}
+</body>
+</html>`);
+    oebps.file('styles.css',
+      `body{font-family:serif;line-height:1.6;margin:1em}
+img{max-width:100%;height:auto}
+blockquote{border-left:3px solid #999;padding-left:1em;color:#555}`);
+    oebps.file('content.opf',
+      `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:${crypto.randomUUID ? crypto.randomUUID() : Date.now()}</dc:identifier>
+    <dc:title>${title}</dc:title>
+    <dc:creator>${author}</dc:creator>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+    <item id="css" href="styles.css" media-type="text/css"/>
+  </manifest>
+  <spine>
+    <itemref idref="content"/>
+  </spine>
+</package>`);
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, filename);
   }
 
   static createDOCXContent(content, options) {
@@ -509,16 +775,27 @@ export class DocumentExporter {
   static processContentNodes(nodes, sections, level = 0) {
     for (const node of nodes) {
       switch (node.type) {
+        case 'pageBreak':
+          sections.push({ type: 'pageBreak' });
+          break;
         case 'heading':
           sections.push({
             type: 'heading',
             level: node.attrs?.level || 1,
-            text: this.extractTextFromNode(node)
+            text: this.extractTextFromNode(node),
+            style: this.extractBlockStyle(node)
           });
           break;
 
         case 'paragraph':
           this.processParagraphNode(node, sections);
+          break;
+        
+        case 'blockquote':
+          sections.push({
+            type: 'blockquote',
+            text: this.extractTextFromNode(node)
+          });
           break;
 
         case 'bulletList':
@@ -528,7 +805,8 @@ export class DocumentExporter {
           sections.push({
             type: 'list',
             ordered: node.type === 'orderedList',
-            items
+            items,
+            style: this.extractBlockStyle(node)
           });
           break;
         }
@@ -586,7 +864,10 @@ export class DocumentExporter {
         sections.push({
           type: 'paragraph',
           text,
-          style: this.extractStyleFromTextNode(node)
+          style: {
+            ...this.extractStyleFromTextNode(node),
+            ...this.extractBlockStyle(node)
+          }
         });
       }
       buffer = '';
@@ -702,6 +983,35 @@ export class DocumentExporter {
       }
     }
     
+    return style;
+  }
+
+  // Extract per-block style attributes (line-height, text align, margins)
+  static extractBlockStyle(node) {
+    const style = {};
+    const PX_TO_MM = 0.264583;
+    // line-height factor (editor stores numeric like 1, 1.15, 1.5)
+    if (node?.attrs?.lineHeight) {
+      const lf = parseFloat(node.attrs.lineHeight);
+      if (!Number.isNaN(lf) && lf > 0.5 && lf < 5) style.lineHeight = lf;
+    }
+    // text align
+    if (node?.attrs?.textAlign) {
+      style.align = node.attrs.textAlign;
+    }
+    // margin-top / margin-bottom encoded in 'style' attribute (e.g. "margin-top: 8px; margin-bottom: 6px")
+    if (node?.attrs?.style && typeof node.attrs.style === 'string') {
+      const mt = /margin-top:\s*([0-9.]+)px/i.exec(node.attrs.style);
+      const mb = /margin-bottom:\s*([0-9.]+)px/i.exec(node.attrs.style);
+      if (mt) {
+        const px = parseFloat(mt[1]);
+        if (!Number.isNaN(px)) style.marginBeforeMM = px * PX_TO_MM;
+      }
+      if (mb) {
+        const px = parseFloat(mb[1]);
+        if (!Number.isNaN(px)) style.marginAfterMM = px * PX_TO_MM;
+      }
+    }
     return style;
   }
 

@@ -125,7 +125,7 @@ export const FormatControls = ({ editor }) => {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className={`h-9 w-9 rounded-lg transition-all duration-300 ${hasListFormatting() ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-50 text-blue-600"}`}>
+          <Button variant="ghost" size="icon" onMouseDown={(e)=>{e.preventDefault(); e.stopPropagation();}} onPointerDown={(e)=>{e.preventDefault(); e.stopPropagation();}} className={`h-9 w-9 rounded-lg transition-all duration-300 ${hasListFormatting() ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-50 text-blue-600"}`}>
             <List className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -150,7 +150,7 @@ export const FormatControls = ({ editor }) => {
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className={`h-9 w-9 rounded-lg transition-all duration-300 ${hasTextAlignment() || editor.isActive({ textAlign: 'left' }) ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-50 text-blue-600"}`}>
+          <Button variant="ghost" size="icon" onMouseDown={(e)=>{e.preventDefault(); e.stopPropagation();}} onPointerDown={(e)=>{e.preventDefault(); e.stopPropagation();}} className={`h-9 w-9 rounded-lg transition-all duration-300 ${hasTextAlignment() || editor.isActive({ textAlign: 'left' }) ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-50 text-blue-600"}`}>
             <AlignLeft className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>

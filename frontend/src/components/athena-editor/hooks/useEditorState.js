@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useEditorContext } from '../contexts/EditorContext';
+import { useEditorContext } from '../contexts/EditorContent';
 
 // Custom hook to manage editor state with context fallback
 export const useEditorState = (initialState = {}) => {

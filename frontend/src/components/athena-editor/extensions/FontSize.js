@@ -9,6 +9,24 @@ export const FontSize = Mark.create({
     };
   },
 
+  addAttributes() {
+    return {
+      fontSize: {
+        default: null,
+        parseHTML: element => element.style.fontSize,
+        renderHTML: attributes => {
+          if (!attributes.fontSize) {
+            return {};
+          }
+
+          return {
+            style: `font-size: ${attributes.fontSize}`,
+          };
+        },
+      },
+    };
+  },
+
   parseHTML() {
     return [
       {

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { 
+import {
   Search,
   Replace,
   ArrowUp,
@@ -19,11 +19,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const FindReplaceModal = ({ 
-  isOpen, 
-  onClose, 
+const FindReplaceModal = ({
+  isOpen,
+  onClose,
   editor,
-  isReplaceMode = false 
+  isReplaceMode = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [replaceTerm, setReplaceTerm] = useState('');
@@ -41,32 +41,59 @@ const FindReplaceModal = ({
       return [];
     }
 
-    const content = editor.getText();
+    const { doc } = editor.state;
+    let textContent = '';
+    const positions = [];
+
+    // Map the actual document text precisely to ProseMirror node positions
+    doc.descendants((node, pos) => {
+      if (node.isText) {
+        for (let i = 0; i < node.text.length; i++) {
+          textContent += node.text[i];
+          positions.push(pos + i);
+        }
+      } else if (node.isBlock && textContent.length > 0 && textContent[textContent.length - 1] !== '\n') {
+        textContent += '\n';
+        positions.push(pos);
+      }
+    });
+
     let flags = 'g';
-    if (matchCase) flags += 'i';
-    
-    let regexPattern = searchTerm;
+    if (!matchCase) flags += 'i'; // If not case sensitive, apply ignore-case flag
+
+    // Escape standard regex characters in search term
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let regexPattern = escapeRegExp(searchTerm);
+
     if (wholeWord) {
-      regexPattern = `\\b${searchTerm}\\b`;
+      regexPattern = `\\b${regexPattern}\\b`;
     }
-    
+
     try {
       const regex = new RegExp(regexPattern, flags);
       const foundMatches = [];
       let match;
-      
-      while ((match = regex.exec(content)) !== null) {
-        foundMatches.push({
-          index: match.index,
-          match: match[0],
-          length: match[0].length
-        });
+
+      while ((match = regex.exec(textContent)) !== null) {
+        if (match[0].length === 0) break; // Prevent infinite loop on empty matches
+
+        const startIndex = match.index;
+        const endIndex = match.index + match[0].length - 1;
+
+        // Ensure positions map correctly back to Prosemirror limits
+        if (positions[startIndex] !== undefined && positions[endIndex] !== undefined) {
+          foundMatches.push({
+            from: positions[startIndex],
+            to: positions[endIndex] + 1, // +1 because Tiptap selection 'to' is exclusive
+            match: match[0]
+          });
+        }
       }
-      
+
       setMatches(foundMatches);
       return foundMatches;
     } catch (error) {
-      console.error('Invalid regex pattern:', error);
+      console.error('Invalid search pattern:', error);
       setMatches([]);
       return [];
     }
@@ -75,27 +102,24 @@ const FindReplaceModal = ({
   // Highlight current match
   const highlightMatch = (matchIndex) => {
     if (!editor || matches.length === 0) return;
-    
+
     const match = matches[matchIndex];
     if (!match) return;
-    
-    // Convert text position to editor position
-    const { state } = editor;
-    const pos = editor.view.posAtCoords({ left: 0, top: match.index });
-    
-    if (pos) {
-      editor.commands.setTextSelection({
-        from: match.index,
-        to: match.index + match.length
-      });
-      editor.commands.focus();
-    }
+
+    // Perform selection exactly at the proseMirror document nodes mapped!
+    editor.commands.setTextSelection({
+      from: match.from,
+      to: match.to
+    });
+
+    editor.commands.focus();
+    editor.commands.scrollIntoView(); // Scrolls correctly into view
   };
 
   // Find next match
   const findNext = () => {
     if (matches.length === 0) return;
-    
+
     const nextIndex = (currentMatchIndex + 1) % matches.length;
     setCurrentMatchIndex(nextIndex);
     highlightMatch(nextIndex);
@@ -104,7 +128,7 @@ const FindReplaceModal = ({
   // Find previous match
   const findPrevious = () => {
     if (matches.length === 0) return;
-    
+
     const prevIndex = currentMatchIndex === 0 ? matches.length - 1 : currentMatchIndex - 1;
     setCurrentMatchIndex(prevIndex);
     highlightMatch(prevIndex);
@@ -113,44 +137,54 @@ const FindReplaceModal = ({
   // Replace current match
   const replaceCurrent = () => {
     if (!editor || matches.length === 0) return;
-    
+
     const match = matches[currentMatchIndex];
     if (!match) return;
-    
+
+    // Set selection directly on the match and insert!
+    editor.commands.setTextSelection({
+      from: match.from,
+      to: match.to
+    });
     editor.commands.insertContent(replaceTerm);
     toast.success('Replaced current match');
-    
-    // Find next match after replacement
+
+    // Re-evaluate matches immediately after replacement alters the document flow
     setTimeout(() => {
-      findAllMatches();
-      if (matches.length > 0) {
-        const newIndex = currentMatchIndex % matches.length;
+      const newMatches = findAllMatches();
+      if (newMatches.length > 0) {
+        // Because the current match was just removed, its index essentially passed down to the next valid match
+        const newIndex = Math.min(currentMatchIndex, newMatches.length - 1);
         setCurrentMatchIndex(newIndex);
         highlightMatch(newIndex);
       }
-    }, 100);
+    }, 50);
   };
 
   // Replace all matches
   const replaceAll = () => {
     if (!editor || !searchTerm || matches.length === 0) return;
-    
+
     try {
-      let flags = 'g';
-      if (matchCase) flags += 'i';
-      
-      let regexPattern = searchTerm;
-      if (wholeWord) {
-        regexPattern = `\\b${searchTerm}\\b`;
-      }
-      
-      const regex = new RegExp(regexPattern, flags);
-      const newContent = editor.getText().replace(regex, replaceTerm);
-      
-      editor.commands.setContent(newContent);
+      let tr = editor.state.tr;
+
+      // Iterate exactly in backwards flow so earlier replace modifications don't skew the index limits of matches later down!
+      const reversedMatches = [...matches].reverse();
+
+      reversedMatches.forEach(m => {
+        tr.insertText(replaceTerm, m.from, m.to);
+      });
+
+      editor.view.dispatch(tr);
+
       toast.success(`Replaced ${matches.length} occurrences`);
-      onClose();
+      findAllMatches();
+
+      if (!isReplaceMode) {
+        onClose();
+      }
     } catch (error) {
+      console.error(error);
       toast.error('Error replacing text');
     }
   };
@@ -176,8 +210,8 @@ const FindReplaceModal = ({
   }, [isOpen]);
 
   // Get current match text
-  const currentMatchText = matches.length > 0 
-    ? `${currentMatchIndex + 1} of ${matches.length}` 
+  const currentMatchText = matches.length > 0
+    ? `${currentMatchIndex + 1} of ${matches.length}`
     : '0 of 0';
 
   return (
@@ -189,7 +223,7 @@ const FindReplaceModal = ({
             {isReplaceMode ? 'Find and Replace' : 'Find'}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           {/* Search Input */}
           <div className="space-y-2">
@@ -239,7 +273,7 @@ const FindReplaceModal = ({
                 Match case
               </Label>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

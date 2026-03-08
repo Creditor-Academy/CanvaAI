@@ -24,6 +24,22 @@ export const useKeyboardShortcuts = (editor, handlers = {}) => {
             const isShift = e.shiftKey;
             const isAlt = e.altKey;
 
+            // Undo / Redo fallbacks to ensure reliability across platforms
+            if (isMod && !isShift && e.key.toLowerCase() === 'z') {
+                if (editor) {
+                    e.preventDefault();
+                    editor.chain().focus().undo().run();
+                }
+                return;
+            }
+            if ((isMod && isShift && e.key.toLowerCase() === 'z') || (isMod && e.key.toLowerCase() === 'y')) {
+                if (editor) {
+                    e.preventDefault();
+                    editor.chain().focus().redo().run();
+                }
+                return;
+            }
+
             // Save: Ctrl + S
             if (isMod && e.key === 's') {
                 e.preventDefault();

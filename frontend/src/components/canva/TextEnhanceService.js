@@ -23,12 +23,33 @@ export const enhanceText = async (text, isHeading = false) => {
     }),
   });
 
+  // Check content type before parsing
+  const contentType = response.headers.get('content-type') || '';
+  
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to enhance text');
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    
+    if (contentType.includes('application/json')) {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } else {
+      const errorText = await response.text();
+      console.error('Non-JSON error response:', errorText.substring(0, 200));
+      if (response.status === 404) {
+        errorMessage = `API endpoint not found: ${API_ENDPOINT}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
 
-  const data = await response.json();
+  let data;
+  if (contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    console.error('Non-JSON response from text-enhance API:', text.substring(0, 200));
+    throw new Error(`Unexpected response format (HTTP ${response.status})`);
+  }
   
   if (!data.enhancedText) {
     throw new Error('No enhanced text received');

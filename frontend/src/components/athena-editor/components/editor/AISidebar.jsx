@@ -48,6 +48,7 @@ export const AISidebar = ({
   onGenerate,
   selectedText,
   onTransformText,
+  className,
 }) => {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -118,7 +119,7 @@ export const AISidebar = ({
                   return newMsgs;
                 });
               }
-            } catch (e) { }
+            } catch (e) { void 0 }
           }
         }
       }
@@ -174,7 +175,7 @@ export const AISidebar = ({
                   fullContent += parsed.content;
                   setGeneratedContent(fullContent);
                 }
-              } catch (e) { }
+              } catch (e) { void 0 }
             }
           }
         }
@@ -197,7 +198,7 @@ export const AISidebar = ({
             animate={{ x: 0, opacity: 1, scale: 1 }}
             exit={{ x: '100%', opacity: 0, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="w-[340px] border-l border-slate-200/60 bg-white/80 backdrop-blur-xl flex flex-col h-full shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-50 relative overflow-hidden"
+            className={`w-[340px] border-l border-slate-200/60 bg-white/80 backdrop-blur-xl flex flex-col h-full shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-50 relative overflow-hidden ${className || ''}`}
           >
             {/* Soft background glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl -z-10 pointer-events-none transform translate-x-1/2 -translate-y-1/2" />

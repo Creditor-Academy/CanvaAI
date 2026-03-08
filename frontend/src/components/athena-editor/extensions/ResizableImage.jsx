@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useEditorContext } from '../contexts/EditorContent.jsx';
 
 // Resizable Image View Component
 const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
@@ -11,6 +12,7 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
     height: node.attrs.height || 200
   });
 
+  const { zoom = 100 } = useEditorContext() || {};
   const containerRef = useRef(null);
   const imgRef = useRef(null);
   const startPos = useRef({ x: 0, y: 0 });
@@ -39,59 +41,66 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
     }
   };
 
-  const onResize = (e) => {
+  const onResize = useCallback((e) => {
     if (!isResizing || !activeHandle) return;
 
-    const dx = e.clientX - startPos.current.x;
-    const dy = e.clientY - startPos.current.y;
+    // Acknowledge the editor's zoom level for accurate movement
+    const currentZoom = (zoom || 100) / 100;
+    const dx = (e.clientX - startPos.current.x) / currentZoom;
+    const dy = (e.clientY - startPos.current.y) / currentZoom;
 
     let newWidth = startDims.current.width;
     let newHeight = startDims.current.height;
 
+    // Professional convention: Shifting LOCKS aspect ratio. 
+    // If not shifted, we might want to lock by default for corners but free for edges.
+    // However, to keep it simple and robust, let's stick to a clear rule.
     const isShiftPressed = e.shiftKey;
+    const lockAspect = !isShiftPressed; // Locked by default, unlocked with Shift
 
     switch (activeHandle) {
       case 'bottom-right':
         newWidth = startDims.current.width + dx;
-        newHeight = isShiftPressed ? startDims.current.height + dy : newWidth / aspectRatio.current;
+        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height + dy;
         break;
       case 'bottom-left':
         newWidth = startDims.current.width - dx;
-        newHeight = isShiftPressed ? startDims.current.height + dy : newWidth / aspectRatio.current;
+        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height + dy;
         break;
       case 'top-right':
         newWidth = startDims.current.width + dx;
-        newHeight = isShiftPressed ? startDims.current.height - dy : newWidth / aspectRatio.current;
+        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height - dy;
         break;
       case 'top-left':
         newWidth = startDims.current.width - dx;
-        newHeight = isShiftPressed ? startDims.current.height - dy : newWidth / aspectRatio.current;
+        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height - dy;
         break;
       case 'right':
         newWidth = startDims.current.width + dx;
-        if (!isShiftPressed) newHeight = newWidth / aspectRatio.current;
+        if (lockAspect && !activeHandle.includes('-')) newHeight = newWidth / aspectRatio.current;
         break;
       case 'left':
         newWidth = startDims.current.width - dx;
-        if (!isShiftPressed) newHeight = newWidth / aspectRatio.current;
+        if (lockAspect && !activeHandle.includes('-')) newHeight = newWidth / aspectRatio.current;
         break;
       case 'bottom':
         newHeight = startDims.current.height + dy;
-        if (!isShiftPressed) newWidth = newHeight * aspectRatio.current;
+        if (lockAspect && !activeHandle.includes('-')) newWidth = newHeight * aspectRatio.current;
         break;
       case 'top':
         newHeight = startDims.current.height - dy;
-        if (!isShiftPressed) newWidth = newHeight * aspectRatio.current;
+        if (lockAspect && !activeHandle.includes('-')) newWidth = newHeight * aspectRatio.current;
         break;
     }
 
-    newWidth = Math.max(50, newWidth);
+    // Constraints: Don't allow tiny images or wider than A4/Screen (increased limit to 2000px)
+    newWidth = Math.max(50, Math.min(newWidth, 2000));
     newHeight = Math.max(50, newHeight);
 
     setDimensions({ width: Math.round(newWidth), height: Math.round(newHeight) });
-  };
+  }, [isResizing, activeHandle, zoom]);
 
-  const onResizeStop = () => {
+  const onResizeStop = useCallback(() => {
     if (isResizing) {
       setIsResizing(false);
       setActiveHandle(null);
@@ -100,10 +109,12 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
         height: dimensions.height
       });
     }
-  };
+  }, [isResizing, dimensions, updateAttributes]);
 
   useEffect(() => {
     if (isResizing) {
+      // NOTE: We don't include 'dimensions' in dependency to avoid re-adding listeners every pixel
+      // We rely on the refs for start values and local state for visual update
       window.addEventListener('mousemove', onResize);
       window.addEventListener('mouseup', onResizeStop);
       return () => {
@@ -111,13 +122,13 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
         window.removeEventListener('mouseup', onResizeStop);
       };
     }
-  }, [isResizing, dimensions]);
+  }, [isResizing, onResize, onResizeStop]);
 
   const handleImageLoad = () => {
     if (imgRef.current && !node.attrs.width) {
       const naturalWidth = imgRef.current.naturalWidth;
       const naturalHeight = imgRef.current.naturalHeight;
-      const initialWidth = Math.min(naturalWidth, 600);
+      const initialWidth = Math.min(naturalWidth, 2000);
       const initialHeight = Math.round(initialWidth * (naturalHeight / naturalWidth));
 
       setDimensions({ width: initialWidth, height: initialHeight });
@@ -128,19 +139,19 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
   const alignment = node.attrs.align || 'left';
 
   const containerStyle = {
-    display: alignment === 'center' ? 'flex' : 'inline-block',
-    justifyContent: alignment === 'center' ? 'center' : 'none',
-    width: alignment === 'center' ? '100%' : 'auto',
-    float: alignment === 'center' ? 'none' : alignment,
-    margin: alignment === 'center' ? '1rem 0' : '0.5rem',
-    clear: alignment === 'center' ? 'both' : 'none',
-    verticalAlign: 'bottom'
+    display: 'block',
+    textAlign: alignment === 'center' ? 'center' : alignment,
+    width: '100%',
+    clear: 'both',
+    margin: '1rem 0',
+    lineHeight: 0
   };
 
   const wrapperStyle = {
     position: 'relative',
     display: 'inline-block',
     lineHeight: 0,
+    maxWidth: '100%',
     outline: selected ? '2px solid #3b82f6' : 'none',
     transition: 'outline 0.1s ease-in-out',
     borderRadius: `${node.attrs.borderRadius || 0}px`,
@@ -226,7 +237,7 @@ export const ResizableImage = Node.create({
 
   addOptions() {
     return {
-      inline: true,
+      inline: false,
       allowBase64: true,
       HTMLAttributes: {
         class: 'resizable-image',
@@ -234,8 +245,8 @@ export const ResizableImage = Node.create({
     };
   },
 
-  inline: true,
-  group: 'inline',
+  inline: false,
+  group: 'block',
   draggable: true,
   selectable: true,
 

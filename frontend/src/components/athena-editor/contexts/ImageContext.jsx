@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useCallback } from 'react';
 
 // Initial state for image management
 const initialImageState = {
@@ -227,98 +227,98 @@ export const ImageProvider = ({ children, initialData = {} }) => {
     ...initialData
   });
 
-  // Action creators
-  const setSelectedFiles = (files) => {
+  // Action creators - memoized to prevent context value instability
+  const setSelectedFiles = useCallback((files) => {
     dispatch({ type: IMAGE_ACTIONS.SET_SELECTED_FILES, payload: files });
-  };
+  }, []);
 
-  const setImagePreview = (preview) => {
+  const setImagePreview = useCallback((preview) => {
     dispatch({ type: IMAGE_ACTIONS.SET_IMAGE_PREVIEW, payload: preview });
-  };
+  }, []);
 
-  const setUploadProgress = (progress) => {
+  const setUploadProgress = useCallback((progress) => {
     dispatch({ type: IMAGE_ACTIONS.SET_UPLOAD_PROGRESS, payload: progress });
-  };
+  }, []);
 
-  const setImageUploading = (uploading) => {
+  const setImageUploading = useCallback((uploading) => {
     dispatch({ type: IMAGE_ACTIONS.SET_IMAGE_UPLOADING, payload: uploading });
-  };
+  }, []);
 
-  const updateImageProperties = (properties) => {
+  const updateImageProperties = useCallback((properties) => {
     dispatch({ type: IMAGE_ACTIONS.UPDATE_IMAGE_PROPERTIES, payload: properties });
-  };
+  }, []);
 
-  const setImageModal = (show) => {
+  const setImageModal = useCallback((show) => {
     dispatch({ type: IMAGE_ACTIONS.SET_IMAGE_MODAL, payload: show });
-  };
+  }, []);
 
-  const setImageInsertMethod = (method) => {
+  const setImageInsertMethod = useCallback((method) => {
     dispatch({ type: IMAGE_ACTIONS.SET_IMAGE_INSERT_METHOD, payload: method });
-  };
+  }, []);
 
-  const setImageUrl = (url) => {
+  const setImageUrl = useCallback((url) => {
     dispatch({ type: IMAGE_ACTIONS.SET_IMAGE_URL, payload: url });
-  };
+  }, []);
 
-  const setImageSearchQuery = (query) => {
+  const setImageSearchQuery = useCallback((query) => {
     dispatch({ type: IMAGE_ACTIONS.SET_IMAGE_SEARCH_QUERY, payload: query });
-  };
+  }, []);
 
-  const setUnsplashImages = (images) => {
+  const setUnsplashImages = useCallback((images) => {
     dispatch({ type: IMAGE_ACTIONS.SET_UNSPLASH_IMAGES, payload: images });
-  };
+  }, []);
 
-  const setLoadingImages = (loading) => {
+  const setLoadingImages = useCallback((loading) => {
     dispatch({ type: IMAGE_ACTIONS.SET_LOADING_IMAGES, payload: loading });
-  };
+  }, []);
 
-  const setSelectedImageAlt = (alt) => {
+  const setSelectedImageAlt = useCallback((alt) => {
     dispatch({ type: IMAGE_ACTIONS.SET_SELECTED_IMAGE_ALT, payload: alt });
-  };
+  }, []);
 
-  const setMediaElements = (elements) => {
+  const setMediaElements = useCallback((elements) => {
     dispatch({ type: IMAGE_ACTIONS.SET_MEDIA_ELEMENTS, payload: elements });
-  };
+  }, []);
 
-  const setSelectedMedia = (media) => {
+  const setSelectedMedia = useCallback((media) => {
     dispatch({ type: IMAGE_ACTIONS.SET_SELECTED_MEDIA, payload: media });
-  };
+  }, []);
 
-  const setMediaPanel = (show) => {
+  const setMediaPanel = useCallback((show) => {
     dispatch({ type: IMAGE_ACTIONS.SET_MEDIA_PANEL, payload: show });
-  };
+  }, []);
 
-  const setWatermarks = (watermarks) => {
+  const setWatermarks = useCallback((watermarks) => {
     dispatch({ type: IMAGE_ACTIONS.SET_WATERMARKS, payload: watermarks });
-  };
+  }, []);
 
-  const setShapes = (shapes) => {
+  const setShapes = useCallback((shapes) => {
     dispatch({ type: IMAGE_ACTIONS.SET_SHAPES, payload: shapes });
-  };
+  }, []);
 
-  const setDrawingMode = (mode) => {
+  const setDrawingMode = useCallback((mode) => {
     dispatch({ type: IMAGE_ACTIONS.SET_DRAWING_MODE, payload: mode });
-  };
+  }, []);
 
-  const setDrawingColor = (color) => {
+  const setDrawingColor = useCallback((color) => {
     dispatch({ type: IMAGE_ACTIONS.SET_DRAWING_COLOR, payload: color });
-  };
+  }, []);
 
-  const setDrawingStrokeWidth = (width) => {
+  const setDrawingStrokeWidth = useCallback((width) => {
     dispatch({ type: IMAGE_ACTIONS.SET_DRAWING_STROKE_WIDTH, payload: width });
-  };
+  }, []);
 
-  const addMediaElement = (element) => {
+  const addMediaElement = useCallback((element) => {
     dispatch({ type: IMAGE_ACTIONS.ADD_MEDIA_ELEMENT, payload: element });
-  };
+  }, []);
 
-  const removeMediaElement = (index) => {
+  const removeMediaElement = useCallback((index) => {
     dispatch({ type: IMAGE_ACTIONS.REMOVE_MEDIA_ELEMENT, payload: index });
-  };
+  }, []);
 
-  const clearSelectedFiles = () => {
+  const clearSelectedFiles = useCallback(() => {
     dispatch({ type: IMAGE_ACTIONS.CLEAR_SELECTED_FILES });
-  };
+  }, []);
 
   // Memoized context value
   const contextValue = useMemo(() => ({

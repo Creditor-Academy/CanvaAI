@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useCallback } from 'react';
 
 // Initial state
 const initialState = {
@@ -15,7 +15,7 @@ const initialState = {
   },
   lastSaved: new Date(),
   saveStatus: 'saved',
-  
+
   // Formatting state
   currentFont: 'Arial',
   currentFontSize: 11,
@@ -23,20 +23,20 @@ const initialState = {
   currentHighlight: '#ffff00',
   lineSpacing: 1.15,
   activeHeadingLevel: 0,
-  
+
   // UI state
   zoom: 100,
   showRuler: false,
   showGrid: false,
   spellCheckEnabled: true,
   isDarkMode: false,
-  
+
   // Editor features
   showReferencesPanel: false,
   isAISidebarOpen: false,
   showTemplateSidebar: false,
   showExportDialog: false,
-  
+
   // Export options
   exportFormat: 'pdf',
   exportOptions: {
@@ -68,56 +68,57 @@ const editorReducer = (state, action) => {
         ...state,
         documentStats: { ...state.documentStats, ...action.payload }
       };
-    
+
     case ACTIONS.UPDATE_FORMATTING:
       return {
         ...state,
         ...action.payload
       };
-    
+
     case ACTIONS.UPDATE_UI_STATE:
       return {
         ...state,
         ...action.payload
       };
-    
+
     case ACTIONS.UPDATE_EDITOR_FEATURES:
       return {
         ...state,
         ...action.payload
       };
-    
+
     case ACTIONS.UPDATE_EXPORT_OPTIONS:
       return {
         ...state,
         exportOptions: { ...state.exportOptions, ...action.payload }
       };
-    
+
     case ACTIONS.SET_DOCUMENT_TITLE:
       return {
         ...state,
         documentTitle: action.payload
       };
-    
+
     case ACTIONS.SET_SAVE_STATUS:
       return {
         ...state,
         saveStatus: action.payload
       };
-    
+
     case ACTIONS.SET_LAST_SAVED:
       return {
         ...state,
         lastSaved: action.payload
       };
-    
+
     default:
       return state;
   }
 };
 
-// Create context
-const EditorContext = createContext();
+// Create contexts
+const EditorStateContext = createContext();
+const EditorActionsContext = createContext();
 
 // Provider component
 export const EditorProvider = ({ children, initialData = {} }) => {
@@ -126,75 +127,98 @@ export const EditorProvider = ({ children, initialData = {} }) => {
     ...initialData
   });
 
-  // Action creators
-  const updateDocumentStats = (stats) => {
+  // Action creators - memoized to be stable
+  const updateDocumentStats = useCallback((stats) => {
     dispatch({ type: ACTIONS.UPDATE_DOCUMENT_STATS, payload: stats });
-  };
+  }, []);
 
-  const updateFormatting = (formatting) => {
+  const updateFormatting = useCallback((formatting) => {
     dispatch({ type: ACTIONS.UPDATE_FORMATTING, payload: formatting });
-  };
+  }, []);
 
-  const updateUIState = (uiState) => {
+  const updateUIState = useCallback((uiState) => {
     dispatch({ type: ACTIONS.UPDATE_UI_STATE, payload: uiState });
-  };
+  }, []);
 
-  const updateEditorFeatures = (features) => {
+  const updateEditorFeatures = useCallback((features) => {
     dispatch({ type: ACTIONS.UPDATE_EDITOR_FEATURES, payload: features });
-  };
+  }, []);
 
-  const updateExportOptions = (options) => {
+  const updateExportOptions = useCallback((options) => {
     dispatch({ type: ACTIONS.UPDATE_EXPORT_OPTIONS, payload: options });
-  };
+  }, []);
 
-  const setDocumentTitle = (title) => {
+  const setDocumentTitle = useCallback((title) => {
     dispatch({ type: ACTIONS.SET_DOCUMENT_TITLE, payload: title });
-  };
+  }, []);
 
-  const setSaveStatus = (status) => {
+  const setSaveStatus = useCallback((status) => {
     dispatch({ type: ACTIONS.SET_SAVE_STATUS, payload: status });
-  };
+  }, []);
 
-  const setLastSaved = (date) => {
+  const setLastSaved = useCallback((date) => {
     dispatch({ type: ACTIONS.SET_LAST_SAVED, payload: date });
-  };
+  }, []);
 
-  // Memoized context value
-  const contextValue = useMemo(() => ({
-    state,
-    dispatch,
-    actions: {
-      updateDocumentStats,
-      updateFormatting,
-      updateUIState,
-      updateEditorFeatures,
-      updateExportOptions,
-      setDocumentTitle,
-      setSaveStatus,
-      setLastSaved
-    }
-  }), [state]);
+  const actions = useMemo(() => ({
+    updateDocumentStats,
+    updateFormatting,
+    updateUIState,
+    updateEditorFeatures,
+    updateExportOptions,
+    setDocumentTitle,
+    setSaveStatus,
+    setLastSaved
+  }), [
+    updateDocumentStats,
+    updateFormatting,
+    updateUIState,
+    updateEditorFeatures,
+    updateExportOptions,
+    setDocumentTitle,
+    setSaveStatus,
+    setLastSaved
+  ]);
 
   return (
-    <EditorContext.Provider value={contextValue}>
-      {children}
-    </EditorContext.Provider>
+    <EditorActionsContext.Provider value={actions}>
+      <EditorStateContext.Provider value={state}>
+        {children}
+      </EditorStateContext.Provider>
+    </EditorActionsContext.Provider>
   );
 };
 
-// Custom hook to use the editor context
-export const useEditorContext = () => {
-  const context = useContext(EditorContext);
-  if (!context) {
-    throw new Error('useEditorContext must be used within an EditorProvider');
+// Custom hook to use the editor state
+export const useEditorState = () => {
+  const context = useContext(EditorStateContext);
+  if (context === undefined) {
+    throw new Error('useEditorState must be used within an EditorProvider');
   }
   return context;
 };
 
+// Custom hook to use the editor actions
+export const useEditorActions = () => {
+  const context = useContext(EditorActionsContext);
+  if (context === undefined) {
+    throw new Error('useEditorActions must be used within an EditorProvider');
+  }
+  return context;
+};
+
+// Legacy compatibility hook
+export const useEditorContext = () => {
+  const state = useEditorState();
+  const actions = useEditorActions();
+  return { state, actions };
+};
+
 // Custom hooks for specific state groups
 export const useDocumentState = () => {
-  const { state, actions } = useEditorContext();
-  
+  const state = useEditorState();
+  const actions = useEditorActions();
+
   return {
     documentTitle: state.documentTitle,
     documentStats: state.documentStats,
@@ -208,8 +232,9 @@ export const useDocumentState = () => {
 };
 
 export const useFormattingState = () => {
-  const { state, actions } = useEditorContext();
-  
+  const state = useEditorState();
+  const actions = useEditorActions();
+
   return {
     currentFont: state.currentFont,
     currentFontSize: state.currentFontSize,
@@ -222,8 +247,9 @@ export const useFormattingState = () => {
 };
 
 export const useUIState = () => {
-  const { state, actions } = useEditorContext();
-  
+  const state = useEditorState();
+  const actions = useEditorActions();
+
   return {
     zoom: state.zoom,
     showRuler: state.showRuler,
@@ -235,8 +261,9 @@ export const useUIState = () => {
 };
 
 export const useEditorFeatures = () => {
-  const { state, actions } = useEditorContext();
-  
+  const state = useEditorState();
+  const actions = useEditorActions();
+
   return {
     showReferencesPanel: state.showReferencesPanel,
     isAISidebarOpen: state.isAISidebarOpen,

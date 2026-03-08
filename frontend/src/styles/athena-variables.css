@@ -48,3 +48,16 @@ button,
 a {
   font-family: var(--athena-font-body);
 }
+
+/* ===== Spell Check Error Styling ===== */
+.spell-error {
+  text-decoration: underline wavy #ff0000;
+  text-underline-offset: 2px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.spell-error:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+  cursor: help;
+}

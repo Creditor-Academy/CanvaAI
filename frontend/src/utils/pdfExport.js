@@ -146,6 +146,121 @@ export const exportToPDF = async (elementId, options = {}) => {
   }
 };
 
+// Export editor pages to PDF with exact page matching (Google Docs style)
+export const exportEditorPagesToPDF = async (options = {}) => {
+  const {
+    filename = 'document.pdf',
+    scale = 2 // Higher scale for better quality
+  } = options;
+
+  try {
+    // Get all editor page elements
+    const pageElements = document.querySelectorAll('.page');
+    
+    if (pageElements.length === 0) {
+      throw new Error('No pages found to export');
+    }
+
+    // Create PDF with exact A4 dimensions in points
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt', // Use points for precise A4 matching
+      format: 'a4' // Standard A4 format
+    });
+
+    // A4 dimensions in points (72 DPI)
+    const A4_WIDTH_PT = 595.28;
+    const A4_HEIGHT_PT = 841.89;
+
+    console.log(`Exporting ${pageElements.length} pages to PDF...`);
+
+    // Export each page individually
+    for (let i = 0; i < pageElements.length; i++) {
+      const pageElement = pageElements[i];
+      
+      // Skip if page is not visible or is a blank placeholder
+      if (pageElement.classList.contains('not-reached') || 
+          pageElement.querySelector('.page__placeholder')) {
+        continue;
+      }
+
+      try {
+        // Log actual page dimensions for debugging
+        const pageRect = pageElement.getBoundingClientRect();
+        console.log(`Page ${i + 1} actual dimensions: ${pageRect.width}x${pageRect.height}px`);
+        
+        // Capture the full page element (not just content) to preserve layout
+        const canvas = await html2canvas(pageElement, {
+          scale: scale,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          // Remove any transforms that might affect layout
+          ignoreElements: (element) => {
+            return element.classList?.contains('page__number') || 
+                   element.classList?.contains('page__placeholder');
+          }
+        });
+
+        // Convert canvas to image data
+        const imgData = canvas.toDataURL('image/png');
+
+        // Add new page if not the first page
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        // Calculate aspect ratio to maintain proportions while fitting A4
+        const canvasAspectRatio = canvas.width / canvas.height;
+        const a4AspectRatio = A4_WIDTH_PT / A4_HEIGHT_PT;
+        
+        let imgWidth, imgHeight;
+        
+        if (canvasAspectRatio > a4AspectRatio) {
+          // Canvas is wider relative to A4 - fit to width
+          imgWidth = A4_WIDTH_PT;
+          imgHeight = A4_WIDTH_PT / canvasAspectRatio;
+        } else {
+          // Canvas is taller relative to A4 - fit to height
+          imgHeight = A4_HEIGHT_PT;
+          imgWidth = A4_HEIGHT_PT * canvasAspectRatio;
+        }
+
+        // Center the image on the page
+        const x = (A4_WIDTH_PT - imgWidth) / 2;
+        const y = (A4_HEIGHT_PT - imgHeight) / 2;
+
+        // Add the captured page to PDF with proper scaling and centering
+        pdf.addImage(
+          imgData,
+          'PNG',
+          x,                    // X position (centered)
+          y,                    // Y position (centered)
+          imgWidth,             // Scaled width
+          imgHeight             // Scaled height
+        );
+
+        console.log(`Page ${i + 1} exported (${canvas.width}x${canvas.height} → ${imgWidth}x${imgHeight}pt at ${x},${y})`);
+
+      } catch (pageError) {
+        console.warn(`Failed to export page ${i + 1}:`, pageError);
+        // Continue with next page instead of failing completely
+      }
+    }
+
+    // Save the PDF
+    pdf.save(filename);
+    
+    console.log(`PDF exported successfully: ${pdf.getNumberOfPages()} pages`);
+    return true;
+
+  } catch (error) {
+    console.error('Error exporting editor pages to PDF:', error);
+    throw error;
+  }
+};
+
+// Legacy export function (kept for backward compatibility)
 export const exportEditorContentToPDF = async (editorContent, options = {}) => {
   const {
     filename = 'document.pdf',

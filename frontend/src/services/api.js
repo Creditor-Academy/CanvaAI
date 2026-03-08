@@ -38,7 +38,7 @@ class ApiService {
         return text;
       }
 
-       if (!response.ok && !data?.unverified)  {
+      if (!response.ok && !data?.unverified) {
         console.error('Response error:', data);
         throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
       }
@@ -557,6 +557,31 @@ class ApiService {
         ...getAuthHeaders(),
       },
       body: JSON.stringify({ userId, serviceId, base64Image }),
+    });
+  }
+
+  // ============= ATHENA EDITOR DOCUMENTS =============
+  // Save a document's TipTap JSON to backend (MongoDB)
+  async saveEditorDocument(documentData) {
+    // documentData: { title, content, metadata, savedAt }
+    return this.request('/api/editor-documents', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  async updateEditorDocument(id, documentData) {
+    return this.request(`/api/editor-documents/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  async getEditorDocument(id) {
+    return this.request(`/api/editor-documents/${id}`, {
+      headers: getAuthHeaders(),
     });
   }
 }

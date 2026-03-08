@@ -1,4 +1,3 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, FileText } from 'lucide-react';
 
 export const DocumentOutline = ({
@@ -9,30 +8,27 @@ export const DocumentOutline = ({
   documentTitle,
   collapsedSections,
   onToggleCollapse,
+  className,
 }) => {
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ x: '-100%', opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '-100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="w-64 border-r border-blue-200 bg-gradient-to-b from-blue-50 to-blue-100 flex flex-col h-full"
+    <div
+      className={`w-64 border-r border-blue-200 bg-gradient-to-b from-blue-50 to-blue-100 flex flex-col h-full ${className || ''}`}
+      style={{ display: isOpen ? 'flex' : 'none' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-blue-600" />
+          <span className="font-medium text-sm">Outline</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 rounded hover:bg-blue-200 transition-colors"
+          title="Close outline"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-blue-200">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <span className="font-medium text-sm">Outline</span>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-blue-200 text-blue-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          <X className="w-4 h-4 text-blue-600" />
+        </button>
+      </div>
 
           {/* Document Title */}
           <div className="px-4 py-3 border-b border-blue-200">
@@ -51,16 +47,16 @@ export const DocumentOutline = ({
               <nav className="space-y-0.5">
                 {headings.map((heading, index) => {
                   const isCollapsed = collapsedSections?.has(heading.id);
-                  const hasChildren = headings.some(h => 
-                    h.pos > heading.pos && 
-                    h.level > heading.level && 
-                    !headings.some(between => 
-                      between.pos > heading.pos && 
-                      between.pos < h.pos && 
+                  const hasChildren = headings.some(h =>
+                    h.pos > heading.pos &&
+                    h.level > heading.level &&
+                    !headings.some(between =>
+                      between.pos > heading.pos &&
+                      between.pos < h.pos &&
                       between.level <= heading.level
                     )
                   );
-                  
+
                   return (
                     <div key={`${heading.id}-${index}`}>
                       <button
@@ -76,8 +72,8 @@ export const DocumentOutline = ({
                             }}
                             className="p-0.5 rounded hover:bg-gray-200"
                           >
-                            <ChevronRight 
-                              className={`w-3 h-3 flex-shrink-0 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} 
+                            <ChevronRight
+                              className={`w-3 h-3 flex-shrink-0 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
                             />
                           </button>
                         )}
@@ -89,10 +85,10 @@ export const DocumentOutline = ({
                           H{heading.level}
                         </span>
                       </button>
-                      
+
                       {/* Collapsible indicator */}
                       {isCollapsed && hasChildren && (
-                        <div 
+                        <div
                           className="text-xs text-gray-400 px-4 py-1 italic"
                           style={{ paddingLeft: `${(heading.level) * 12 + 16}px` }}
                         >
@@ -112,8 +108,6 @@ export const DocumentOutline = ({
               {headings.length} heading{headings.length !== 1 ? 's' : ''}
             </p>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </div>
   );
 };

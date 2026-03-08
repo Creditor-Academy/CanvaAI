@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import {
   Link,
   Image as ImageIcon,
@@ -27,12 +28,15 @@ import { Label } from '../../ui/label';
 import { Separator } from '../../ui/separator';
 import { ToolbarButton } from '../../ui/ToolbarButton';
 import { toast } from 'sonner';
+import { runWithSavedSelection, preventEditorBlur, saveSelection } from '../focusUtils';
 
 export const InsertControls = ({ editor, handleInsertImage }) => {
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [selectedRows, setSelectedRows] = useState(0);
   const [selectedCols, setSelectedCols] = useState(0);
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const tablePickerRef = useRef(null);
+  const tableButtonRef = useRef(null);
 
   if (!editor) return null;
 
@@ -63,7 +67,7 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const url = formData.get('imageUrl');
-    
+
     if (url && editor) {
       editor
         .chain()
@@ -103,23 +107,100 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
 
   // Table
   const insertTable = (rows, cols) => {
-    if (editor) {
-      editor
-        .chain()
-        .focus()
-        .insertTable({ rows: rows, cols: cols, withHeaderRow: true })
-        .run();
-      toast.success(`${rows}x${cols} table inserted`);
-      setShowTablePicker(false);
-      setSelectedRows(0);
-      setSelectedCols(0);
+    console.log('[InsertControls] insertTable called with', rows, 'x', cols);
+
+    if (!editor) {
+      toast.error('Editor not available');
+      return;
     }
+
+    // Close the picker first
+    setShowTablePicker(false);
+    setSelectedRows(0);
+    setSelectedCols(0);
+
+    // Use setTimeout to ensure the popover close doesn't interfere
+    // with the editor focus restoration
+    setTimeout(() => {
+      try {
+        console.log('[InsertControls] executing insertTable command');
+        
+        // Focus editor first
+        editor.commands.focus();
+        
+        // Insert table using insertContent since Tiptap Table doesn't have insertTable command
+        const tableHTML = `
+          <table style="border-collapse: collapse; width: 100%; border: 2px solid black;">
+            <tr>
+              ${Array(cols).fill().map(() => 
+                '<th style="border: 2px solid black; padding: 8px; min-width: 50px; background-color: #f0f0f0;">Header</th>'
+              ).join('')}
+            </tr>
+            ${Array(rows - 1).fill().map(() => 
+              `<tr>
+                ${Array(cols).fill().map(() => 
+                  '<td style="border: 2px solid black; padding: 8px; min-width: 50px;">Cell</td>'
+                ).join('')}
+              </tr>`
+            ).join('')}
+          </table>
+        `;
+        
+        const result = editor.chain().focus().insertContent(tableHTML).run();
+        
+        console.log('[InsertControls] insertTable result:', result);
+        if (result) {
+          toast.success(`${rows}×${cols} table inserted`);
+        } else {
+          console.warn('[InsertControls] insertTable returned false');
+          toast.error('Failed to insert table');
+        }
+      } catch (err) {
+        console.error('[InsertControls] Table insertion error:', err);
+        toast.error('Could not insert table: ' + err.message);
+      }
+    }, 50);
   };
 
   const handleTablePickerHover = (row, col) => {
+    console.log('[InsertControls] handleTablePickerHover:', row, 'x', col);
     setSelectedRows(row);
     setSelectedCols(col);
   };
+
+  // Position the table picker dropdown
+  useEffect(() => {
+    if (showTablePicker && tableButtonRef.current && tablePickerRef.current) {
+      const buttonRect = tableButtonRef.current.getBoundingClientRect();
+      const pickerElement = tablePickerRef.current;
+
+      // Position the dropdown below the button
+      pickerElement.style.left = `${buttonRect.left}px`;
+      pickerElement.style.top = `${buttonRect.bottom + 8}px`; // 8px margin
+    }
+  }, [showTablePicker]);
+
+  // Close table picker when clicking outside
+  useEffect(() => {
+    if (!showTablePicker) return;
+
+    const handleClickOutside = (event) => {
+      if (tablePickerRef.current && !tablePickerRef.current.contains(event.target)) {
+        const tableContainer = event.target.closest('[data-table-container]') ||
+          event.target.closest('[data-table-button]') ||
+          event.target.closest('.table-button') ||
+          event.target.closest('button[data-icon="table"]');
+        if (!tableContainer) {
+          setShowTablePicker(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTablePicker]);
 
   const renderTablePickerGrid = () => {
     const gridSize = 8;
@@ -133,7 +214,11 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
             key={`${row}-${col}`}
             className={`w-4 h-4 border border-gray-300 ${isSelected ? 'bg-blue-500' : 'bg-white'} hover:bg-blue-300 cursor-pointer transition-colors`}
             onMouseEnter={() => handleTablePickerHover(row, col)}
-            onClick={() => insertTable(row, col)}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('[InsertControls] Grid cell clicked:', row, 'x', col);
+              insertTable(row, col);
+            }}
           />
         );
       }
@@ -159,7 +244,7 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
         .focus()
         .setHorizontalRule()
         .run();
-      
+
       toast.success(`Section break (${type}) inserted`);
     }
   };
@@ -193,9 +278,9 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors relative">
-                <input 
-                  type="file" 
-                  accept="image/*" 
+                <input
+                  type="file"
+                  accept="image/*"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   onChange={handleLocalImageUpload}
                 />
@@ -215,22 +300,41 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
       </Dialog>
 
       {/* Table */}
-      <Popover open={showTablePicker} onOpenChange={setShowTablePicker}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <TableIcon className="h-4 w-4" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-3" align="start">
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">Insert Table</h4>
-            <p className="text-sm text-muted-foreground">
-              Select table dimensions
-            </p>
+      <div className="relative inline-block" data-table-container="true" ref={tableButtonRef}>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => {
+            console.log('[InsertControls] Table button clicked');
+            setShowTablePicker(!showTablePicker);
+          }}
+          onMouseDown={(e) => { 
+            console.log('[InsertControls] Table button mousedown, preventing default');
+            e.preventDefault(); 
+            if (editor) saveSelection(editor); 
+          }} 
+          className="h-8 w-8 p-0 hover:bg-gray-100"
+          data-table-button="true"
+        >
+          <TableIcon className="h-4 w-4" />
+        </Button>
+
+        {/* Table Picker Dropdown - Rendered in Portal to escape overflowing containers */}
+        {showTablePicker && ReactDOM.createPortal(
+          <div
+            className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200"
+            ref={tablePickerRef}
+            style={{
+              position: 'fixed',
+              zIndex: 9999,
+              backgroundColor: 'white',
+            }}
+          >
             {renderTablePickerGrid()}
-          </div>
-        </PopoverContent>
-      </Popover>
+          </div>,
+          document.body
+        )}
+      </div>
 
       {/* Breaks */}
       <ToolbarButton
@@ -238,7 +342,7 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
         icon={Minus}
         tooltip="Horizontal Rule"
       />
-      
+
       <ToolbarButton
         onClick={() => editor.chain().focus().setPageBreak().run()}
         icon={Split}

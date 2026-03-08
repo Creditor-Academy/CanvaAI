@@ -3,17 +3,34 @@ import { toast } from 'sonner';
 const API_BASE_URL = 'http://localhost:5000/api/ai';
 
 // Helper for streaming API calls
-export const callAIStreamAPI = async (endpoint, body, onChunk) => {
+export const callAIStreamAPI = async (endpoint, body, onChunk, signal) => {
   try {
     const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, stream: true })
+      body: JSON.stringify({ ...body, stream: true }),
+      signal
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Connection failed');
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type') || '';
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      if (contentType.includes('application/json')) {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } else {
+        // For HTML responses (like 404 pages), read as text
+        const errorText = await response.text();
+        console.error('Non-JSON error response:', errorText.substring(0, 200));
+        if (response.status === 404) {
+          errorMessage = `API endpoint not found: /api/ai/${endpoint}`;
+        } else if (response.status === 500) {
+          errorMessage = 'Server error occurred';
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const reader = response.body.getReader();
@@ -61,7 +78,19 @@ const callAIGenerateAPI = async (prompt, temperature = 0.7) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, temperature })
     });
-    const data = await response.json();
+    
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error('Non-JSON response from generate API:', text.substring(0, 200));
+      throw new Error(`Unexpected response format (HTTP ${response.status})`);
+    }
+    
     if (!response.ok) throw new Error(data.error || 'Server Error');
     return data.result;
   } catch (error) {
@@ -71,18 +100,31 @@ const callAIGenerateAPI = async (prompt, temperature = 0.7) => {
   }
 };
 
-const callAITransformAPI = async (action, text, temperature = 0.7, onChunk) => {
+const callAITransformAPI = async (action, text, temperature = 0.7, onChunk, signal) => {
   if (onChunk) {
-    return await callAIStreamAPI('transform', { action, text, temperature }, onChunk);
+    return await callAIStreamAPI('transform', { action, text, temperature }, onChunk, signal);
   }
 
   try {
     const response = await fetch(`${API_BASE_URL}/transform`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, text, temperature })
+      body: JSON.stringify({ action, text, temperature }),
+      signal
     });
-    const data = await response.json();
+    
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error('Non-JSON response from transform API:', text.substring(0, 200));
+      throw new Error(`Unexpected response format (HTTP ${response.status})`);
+    }
+    
     if (!response.ok) throw new Error(data.error || 'Server Error');
     return data.result;
   } catch (error) {
@@ -98,7 +140,19 @@ export const generateAIImage = async (prompt, options = {}) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, ...options })
     });
-    const data = await response.json();
+    
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error('Non-JSON response from image API:', text.substring(0, 200));
+      throw new Error(`Unexpected response format (HTTP ${response.status})`);
+    }
+    
     if (!response.ok) throw new Error(data.error || 'Image Generation Failed');
     return data.result;
   } catch (error) {
@@ -108,12 +162,12 @@ export const generateAIImage = async (prompt, options = {}) => {
   }
 };
 
-export const generateDocument = async (params, onChunk) => {
+export const generateDocument = async (params, onChunk, options = {}) => {
   const { topic, pages, tone, type, temperature = 0.7 } = params;
   const prompt = `Write a comprehensive ${tone} ${type} about "${topic}". Provide enough content to fill approximately ${pages} page(s). Use proper Markdown formatting including headings, bullet points, and paragraphs. Make sure there is an Introduction, Main Content, and Conclusion.`;
 
   if (onChunk) {
-    return await callAIStreamAPI('chat', { messages: [{ role: 'user', content: prompt }], temperature }, onChunk);
+    return await callAIStreamAPI('chat', { messages: [{ role: 'user', content: prompt }], temperature }, onChunk, options.signal);
   }
 
   const result = await callAIGenerateAPI(prompt, temperature);
@@ -121,18 +175,18 @@ export const generateDocument = async (params, onChunk) => {
 };
 
 export const rewriteText = async (text, options = {}) => {
-  const { temperature = 0.7, onChunk } = options;
-  return await callAITransformAPI('enhance', text, temperature, onChunk);
+  const { temperature = 0.7, onChunk, signal } = options;
+  return await callAITransformAPI('enhance', text, temperature, onChunk, signal);
 };
 
 export const expandText = async (text, options = {}) => {
-  const { temperature = 0.7, onChunk } = options;
-  return await callAITransformAPI('expand', text, temperature, onChunk);
+  const { temperature = 0.7, onChunk, signal } = options;
+  return await callAITransformAPI('expand', text, temperature, onChunk, signal);
 };
 
 export const summarizeText = async (text, options = {}) => {
-  const { temperature = 0.7, onChunk } = options;
-  return await callAITransformAPI('summarize', text, temperature, onChunk);
+  const { temperature = 0.7, onChunk, signal } = options;
+  return await callAITransformAPI('summarize', text, temperature, onChunk, signal);
 };
 
 export const changeTone = async (text, tone = 'professional', options = {}) => {

@@ -48,89 +48,63 @@ const Indent = Extension.create({
   addCommands() {
     return {
       indent: () => ({ state, dispatch, editor }) => {
-        console.log('Indent command called');
-        console.log('State:', state);
-        console.log('Dispatch:', !!dispatch);
-        console.log('Editor:', editor);
+        let tr = state.tr;
+        let changed = false;
         
         const { selection } = state;
         const { from, to } = selection;
-        console.log('Selection from:', from, 'to:', to);
 
-        // Create a new transaction
-        let tr = state.tr;
-        let indentApplied = false;
-        
         state.doc.nodesBetween(from, to, (node, pos) => {
-          console.log('Processing node:', node.type.name, 'attrs:', node.attrs);
-          if (editor.isActive('listItem') || node.type.name === 'paragraph' || node.type.name === 'heading') {
+          // Skip non-editable nodes like pages
+          if (node.type.name === 'page') return true;
+          
+          // Only process textblock nodes that can be indented
+          if (node.isTextblock && (node.type.name === 'paragraph' || node.type.name === 'heading' || node.type.name === 'listItem')) {
             const currentIndent = node.attrs.indent || 0;
-            console.log('Current indent:', currentIndent);
-            if (currentIndent < this.options.levels) {
-              const newIndent = currentIndent + 1;
-              console.log('Setting new indent:', newIndent);
-              
-              // Update attributes directly on the transaction
+            const newIndent = Math.min(currentIndent + 1, this.options.levels);
+            
+            if (newIndent !== currentIndent) {
               tr = tr.setNodeAttribute(pos, 'indent', newIndent);
-              indentApplied = true;
-              return false;
+              changed = true;
             }
           }
-          return true;
+          return true; // Continue traversing
         });
 
-        if (indentApplied && dispatch) {
-          // Dispatch the transaction
-          dispatch(tr);
-          console.log('Dispatched transaction');
-          return true;
-        }
+        if (!changed) return false;
 
-        console.log('Indent command returning false');
-        return false;
+        if (dispatch) dispatch(tr);
+        return true;
       },
 
       outdent: () => ({ state, dispatch, editor }) => {
-        console.log('Outdent command called');
-        console.log('State:', state);
-        console.log('Dispatch:', !!dispatch);
-        console.log('Editor:', editor);
+        let tr = state.tr;
+        let changed = false;
         
         const { selection } = state;
         const { from, to } = selection;
-        console.log('Selection from:', from, 'to:', to);
 
-        // Create a new transaction
-        let tr = state.tr;
-        let outdentApplied = false;
-        
         state.doc.nodesBetween(from, to, (node, pos) => {
-          console.log('Processing node:', node.type.name, 'attrs:', node.attrs);
-          if (editor.isActive('listItem') || node.type.name === 'paragraph' || node.type.name === 'heading') {
+          // Skip non-editable nodes like pages
+          if (node.type.name === 'page') return true;
+          
+          // Only process textblock nodes that can be indented
+          if (node.isTextblock && (node.type.name === 'paragraph' || node.type.name === 'heading' || node.type.name === 'listItem')) {
             const currentIndent = node.attrs.indent || 0;
-            console.log('Current indent:', currentIndent);
-            if (currentIndent > 0) {
-              const newIndent = Math.max(0, currentIndent - 1);
-              console.log('Setting new indent:', newIndent);
-              
-              // Update attributes directly on the transaction
+            const newIndent = Math.max(currentIndent - 1, 0);
+            
+            if (newIndent !== currentIndent) {
               tr = tr.setNodeAttribute(pos, 'indent', newIndent);
-              outdentApplied = true;
-              return false;
+              changed = true;
             }
           }
-          return true;
+          return true; // Continue traversing
         });
 
-        if (outdentApplied && dispatch) {
-          // Dispatch the transaction
-          dispatch(tr);
-          console.log('Dispatched transaction');
-          return true;
-        }
+        if (!changed) return false;
 
-        console.log('Outdent command returning false');
-        return false;
+        if (dispatch) dispatch(tr);
+        return true;
       },
     };
   },
@@ -143,7 +117,12 @@ const Indent = Extension.create({
         }
         return this.editor.commands.indent();
       },
-      'Shift-Tab': () => this.editor.commands.outdent(),
+      'Shift-Tab': () => {
+        if (this.editor.isActive('listItem')) {
+          return false;
+        }
+        return this.editor.commands.outdent();
+      },
     };
   },
 });
