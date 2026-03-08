@@ -23,6 +23,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         mode: "raw",
         rawText: slide.content?.rawText || "",
       },
+      bullets: slide.bullets || [],
       layout: slide.layout || "content",
       contentType: slide.contentType || "paragraph",
       image:
@@ -147,7 +148,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
           mode: "raw",
           rawText: slide.content.rawText || "",
         },
-        bullets: [],
+        bullets: slide.bullets || [],
         image: slide.image || null,
       }));
 
@@ -250,6 +251,17 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                     placeholder="Enter slide content"
                     rows={4}
                   />
+
+                  {slide.bullets && slide.bullets.length > 0 && (
+                    <div className="outline-editor-bullets-container">
+                      <div className="outline-editor-label">Bullet Points</div>
+                      <ul className="outline-editor-bullets-list">
+                        {slide.bullets.map((bullet, i) => (
+                          <li key={i} className="outline-editor-bullet-item">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {slide.image && (
                     <div className="outline-editor-image-preview">

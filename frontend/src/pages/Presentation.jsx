@@ -204,7 +204,7 @@ const Presentation = () => {
 
   const handleUseTemplate = async (template) => {
     const tplId = template._id || template.id;
-    navigate(`/presentation-editor-v3/${tplId}?template=true`);
+    window.open(`/presentation-editor-v3/${tplId}?template=true`, '_blank');
   };
 
   const handleViewTemplate = async (template) => {
@@ -244,7 +244,7 @@ const Presentation = () => {
             {/* Create with AI — animated tracing border */}
             <div
               className="ai-btn-wrapper"
-              onClick={() => navigate('/ai-presentation')}
+              onClick={() => window.open('/ai-presentation', '_blank')}
             >
               <div className="ai-btn-inner">
                 <div style={styles.iconContainer}>
@@ -264,7 +264,7 @@ const Presentation = () => {
 
             {/* Create Fresh */}
             <div
-              onClick={() => navigate('/presentation-editor-v3')}
+              onClick={() => window.open('/presentation-editor-v3', '_blank')}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-6px)';
                 e.currentTarget.style.boxShadow = '0 25px 40px -12px rgba(59, 130, 246, 0.25)';
@@ -344,7 +344,7 @@ const Presentation = () => {
                   {presentations.map((ppt) => (
                     <div
                       key={ppt._id}
-                      onClick={() => navigate(`/presentation-editor-v3/${ppt._id}?template=false`)}
+                      onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-4px)';
                         e.currentTarget.style.borderColor = '#6366f1';
