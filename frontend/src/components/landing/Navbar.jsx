@@ -7,9 +7,9 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="nav-root">
-      <div className="nav-inner">
-        <div className="nav-left">
+    <header className="navv-root">
+      <div className="navv-inner">
+        <div className="navv-left">
           <a href="/" className="brand">
             <div className="brand-mark">D</div>
             <div className="brand-text">
@@ -18,34 +18,14 @@ const Navbar = () => {
           </a>
         </div>
 
-        <nav className={`nav-links ${open ? "open" : ""}`}>
-          <a href="#features" className="nav-link">Features</a>
-          <a href="#create" className="nav-link">Create</a>
-          <a href="#projects" className="nav-link">Projects</a>
-          <a href="#favorites" className="nav-link">Favorites</a>
-          <a href="#team" className="nav-link">Team</a>
-          <a href="#analytics" className="nav-link">Analytics</a>
+        <nav className={`navv-links ${open ? "open" : ""}`}>
+          <a href="#features" className="navv-link">Features</a>
+          <a href="#how-it-works" className="navv-link">How It Works</a>
+          <a href="#faq" className="navv-link">FAQ</a>
         </nav>
 
         <div className="nav-actions">
-          <a className="btn btn-ghost nav-btn" href="/login">Log in</a>
-          <a className="btn btn-cta nav-btn" href="/login">Get Started</a>
-
-          <button
-            className="theme-btn"
-            aria-label="Toggle dark mode"
-            onClick={() => {
-              const root = document.querySelector('.landing-page');
-              if (!root) return;
-              const isDark = root.classList.contains('dark');
-              root.classList.toggle('dark', !isDark);
-              localStorage.setItem('landingTheme', !isDark ? 'dark' : 'light');
-            }}
-          >
-            {document.querySelector('.landing-page')?.classList.contains('dark') ? <FiSun /> : <FiMoon />}
-          </button>
-
-          {/* removed unused alternate theme button */}
+          <a className="btn btn-ghost navv-btn" href="/login">Log in</a>
 
           <button
             className={`hamburger ${open ? "is-active" : ""}`}

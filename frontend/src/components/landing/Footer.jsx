@@ -3,71 +3,83 @@ import "./Footer.css";
 
 const Footer = () => {
   return (
-    <footer className="footer-wrapper">
+    <footer className="footer">
+      {/* FOOTER MAIN */}
 
-      {/* floating logo */}
-      <div className="footer-floating-logo">
-        ✳
-      </div>
+      <div className="footer-main">
 
-      <div className="footer-container">
+        <div className="footer-overlay"></div>
 
-        {/* center heading */}
-        <div className="footer-center">
-          <h2 className="footer-title">Designova AI</h2>
-          <p className="footer-tagline">
-            Where intelligent creativity begins
-          </p>
+        <div className="footer-content">
 
-          <div className="footer-buttons">
-            <button className="footer-btn primary">Start Creating</button>
-            <button className="footer-btn secondary">Join Now</button>
-          </div>
-        </div>
+          {/* LOGO SECTION */}
 
-        <div className="footer-grid">
+          <div className="footer-col logo-section">
 
-          {/* contact */}
-          <div className="footer-column">
-            <h4>Contact</h4>
+            <div className="logo">
+              <div className="logo-circle">D</div>
+              <h3>Designova</h3>
+            </div>
 
             <p>
-              Address
+              Designova AI helps creators generate presentations,
+              documents and visuals instantly with powerful AI tools.
             </p>
 
-            <p>Email</p>
-
-            <div className="footer-social">
-              <a href="#">Twitter ↗</a>
-              <a href="#">LinkedIn ↗</a>
-              <a href="#">GitHub ↗</a>
+            <div className="social-icons">
+              <span>f</span>
+              <span>t</span>
+              <span>▶</span>
             </div>
+
           </div>
 
-          {/* product */}
-          <div className="footer-column">
-            <h4>Product</h4>
-            <a href="#">Presentation Builder</a>
-            <a href="#">Document Generator</a>
-            <a href="#">Image Creator</a>
-            <a href="#">AI Tools</a>
+          {/* NAVIGATION */}
+
+          <div className="footer-col">
+            <h4>Navigation</h4>
+            <a href="#">Home</a>
+            <a href="#">Pages</a>
+            <a href="#">About Us</a>
+            <a href="#">Services</a>
+            <a href="#">404</a>
           </div>
 
-          {/* company */}
-          <div className="footer-column">
-            <h4>Company</h4>
-            <a href="#">About</a>
-            <a href="#">Help Center</a>
+          {/* QUICK LINK */}
+
+          <div className="footer-col">
+            <h4>Quick Link</h4>
+            <a href="#">Contact Us</a>
+            <a href="#">FAQs</a>
+            <a href="#">Blog</a>
+            <a href="#">Gallery</a>
+            <a href="#">Pricing</a>
+          </div>
+
+          {/* WORK HOURS */}
+
+          <div className="footer-col">
+            <h4>Work Hours</h4>
+
+            <p className="work-time">7 AM - 5 PM, Mon - Sat</p>
+
+            <p>
+              Our support team is available during working
+              hours to help you with Designova AI tools.
+            </p>
+
+            <button className="call-btn">Call Us</button>
+
           </div>
 
         </div>
 
-        {/* bottom legal */}
         <div className="footer-bottom">
-          © {new Date().getFullYear()} Athena AI — Empowering Creativity
+          © {new Date().getFullYear()} Designova AI — All Rights Reserved
         </div>
 
       </div>
+
     </footer>
   );
 };

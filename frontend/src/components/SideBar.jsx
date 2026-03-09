@@ -101,17 +101,9 @@ const SideBar = () => {
     width: 63,
 
     /* LIGHT GLASS BACKGROUND */
-    background: "rgba(193, 221, 245)",
+    background: "#d0e9ff",
 
-    /* REAL GLASS BLUR */
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-
-    /* Subtle border */
-    borderRight: "1px solid rgba(0, 0, 0, 0.06)",
-
-    /* Soft depth shadow */
-    boxShadow: "4px 0 20px rgba(0,0,0,0.05)",
+  
 
     display: "flex",
     flexDirection: "column",

@@ -2,10 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiSettings, FiBell } from "react-icons/fi";
 import api from "../services/api";
-// add at top
 import { FiLogOut, FiUser } from "react-icons/fi";
-
-// Top navbar with profile hover preview (same data as sidebar)
 
 const TopNavbar = () => {
   const navigate = useNavigate();
@@ -14,7 +11,6 @@ const TopNavbar = () => {
 
   const profileRef = useRef(null);
 
-  // profile states
   const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
 
@@ -31,6 +27,7 @@ const TopNavbar = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
   useEffect(() => {
     const handler = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
@@ -48,7 +45,7 @@ const TopNavbar = () => {
       try {
         const data = await api.getProfile();
         if (mounted) setProfile(data || null);
-      } catch { }
+      } catch {}
     })();
     return () => (mounted = false);
   }, []);
@@ -57,11 +54,7 @@ const TopNavbar = () => {
     <header
       className="fixed top-0 left-0 right-0 h-[52px] flex items-center justify-between px-5 z-[100]"
       style={{
-        background: "rgba(193, 221, 245, 0.65)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
-        borderBottom: "1px solid rgba(0,0,0,0.06)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.04)"
+        background: "#d0e9ff",
       }}
     >
       {/* LEFT LOGO */}
@@ -77,30 +70,31 @@ const TopNavbar = () => {
         {/* HELP */}
         <button
           onClick={() => navigate("/help-support")}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)]  transition"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)] transition"
         >
           <FiHelpCircle size={18} />
         </button>
-
-
 
         {/* NOTIFICATIONS */}
         <div ref={notifRef}>
           <button
             onClick={() => setOpenNotif(!openNotif)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)]  transition relative"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)] transition relative"
           >
             <FiBell size={18} />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
           {openNotif && (
-            <div className="absolute right-0 mt-3 w-72 rounded-xl shadow-2xl p-3"
+            <div
+              className="absolute right-0 mt-3 w-72 rounded-xl shadow-2xl p-3"
               style={{
-                background: "rgba(255,255,255)",
+                background: "#ffffff",
                 border: "1px solid rgba(0,0,0,0.06)"
-              }}>
+              }}
+            >
               <p className="text-sm text-slate-600 mb-2">Notifications</p>
+
               <div className="space-y-2 text-sm">
                 <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer text-slate-800">
                   Your presentation is ready
@@ -116,8 +110,7 @@ const TopNavbar = () => {
           )}
         </div>
 
-        {/* PROFILE AVATAR */}
-        {/* PROFILE AVATAR */}
+        {/* PROFILE */}
         <div className="relative" ref={profileRef}>
           <div
             onClick={() => setopenProfile(!openProfile)}
@@ -134,20 +127,17 @@ const TopNavbar = () => {
             )}
           </div>
 
-          {/* CLICK DROPDOWN */}
-
-
           {openProfile && (
-            <div className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
+            <div
+              className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
               style={{
-                background: "rgba(255,255,255)",
+                background: "#ffffff",
                 border: "1px solid rgba(0,0,0,0.06)"
-              }}>
-
+              }}
+            >
               {/* PROFILE HEADER */}
               <div className="flex flex-col items-center px-5 pt-5 pb-4">
 
-                {/* BIG AVATAR */}
                 <div className="w-16 h-16 rounded-full bg-[#60a5fa] text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
                   {profile?.avatar ? (
                     <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
@@ -159,19 +149,18 @@ const TopNavbar = () => {
                   )}
                 </div>
 
-                {/* NAME */}
                 <div className="font-semibold text-slate-800 text-sm text-center">
                   {profile?.firstName
                     ? `${profile.firstName} ${profile.lastName || ""}`
                     : profile?.email?.split("@")[0]}
                 </div>
 
-                {/* EMAIL */}
                 <div className="text-xs text-slate-500 text-center mt-1 break-all">
                   {profile?.email}
                 </div>
               </div>
-              {/* CREDITS INFO (DEMO) */}
+
+              {/* CREDITS */}
               <div className="mt-4 w-full px-3">
                 <div className="flex justify-between text-xs text-slate-500 mb-1">
                   <span>Total Credits</span>
@@ -179,11 +168,8 @@ const TopNavbar = () => {
                     {credits.used} / {credits.total}
                   </span>
                 </div>
-
-
               </div>
 
-              {/* DIVIDER */}
               <div className="h-px bg-slate-200"></div>
 
               {/* ACTIONS */}
@@ -214,8 +200,6 @@ const TopNavbar = () => {
               </div>
             </div>
           )}
-
-
         </div>
       </div>
     </header>

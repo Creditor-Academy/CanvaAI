@@ -161,7 +161,7 @@ const AuthPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(135deg,#0c4a6ecc,#1e40afcc,#0ea5e9cc)] p-6">
 
       <motion.div
-  initial={{ opacity: 0, y: 60, scale: 0.95 }}
+  initial={{ opacity: 0, y: 40, scale: 0.95 }}
   animate={{ opacity: 1, y: 0, scale: 1 }}
   transition={{ duration: 0.7, ease: "easeOut" }}
   className="relative max-w-[900px] w-full min-h-[560px] bg-white rounded-[30px] shadow-2xl overflow-hidden"
