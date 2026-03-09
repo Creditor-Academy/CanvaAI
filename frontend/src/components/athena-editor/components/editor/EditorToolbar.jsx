@@ -670,49 +670,42 @@ export const EditorToolbar = ({
   }, [showTablePicker]);
 
   const insertTable = (rows, cols) => {
-    console.log('[EditorToolbar] insertTable called:', rows, 'x', cols);
     if (!editor) {
       toast.error('Editor not available');
       return;
     }
 
-    console.log('[EditorToolbar] editor.isDestroyed:', editor.isDestroyed);
-    console.log('[EditorToolbar] selection:', editor.state?.selection?.from, '->', editor.state?.selection?.to);
-
     try {
-      // Focus editor first
-      editor.commands.focus();
-      
-      // Insert table using HTML for better compatibility
-      const tableHTML = `
-        <table style="border-collapse: collapse; width: 100%; border: 2px solid black;">
-          <tr>
-            ${Array(cols).fill().map(() => 
-              '<th style="border: 2px solid black; padding: 8px; min-width: 50px; background-color: #f0f0f0;">Header</th>'
-            ).join('')}
-          </tr>
-          ${Array(rows - 1).fill().map(() => 
-            `<tr>
-              ${Array(cols).fill().map(() => 
-                '<td style="border: 2px solid black; padding: 8px; min-width: 50px;">Cell</td>'
-              ).join('')}
-            </tr>`
-          ).join('')}
-        </table>
-      `;
-      
-      const result = editor.chain().focus().insertContent(tableHTML).run();
-      
-      console.log('[EditorToolbar] insertTable result:', result);
-      if (result) {
-        toast.success(`${rows}x${cols} table inserted`);
-      } else {
-        console.warn('[EditorToolbar] insertTable returned false');
-        toast.error('Failed to insert table');
-      }
+      // Close picker first
       setShowTablePicker(false);
       setSelectedRows(0);
       setSelectedCols(0);
+
+      // Insert table HTML directly
+      const tableHTML = `
+        <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
+          <tbody>
+            ${Array.from({ length: rows }, (_, rowIndex) => `
+              <tr>
+                ${Array.from({ length: cols }, () => `
+                  <${rowIndex === 0 ? 'th' : 'td'} 
+                    style="border: 2px solid #333; padding: 8px; min-width: 60px; ${rowIndex === 0 ? 'background-color: #e0e0e0; font-weight: bold;' : ''}">
+                    <p></p>
+                  </${rowIndex === 0 ? 'th' : 'td'}>
+                `).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      const result = editor.chain().focus().insertContent(tableHTML).run();
+      
+      if (result) {
+        toast.success(`${rows}×${cols} table inserted`);
+      } else {
+        toast.error('Failed to insert table');
+      }
     } catch (err) {
       console.error('[EditorToolbar] Table insertion error:', err);
       toast.error('Could not insert table: ' + err.message);

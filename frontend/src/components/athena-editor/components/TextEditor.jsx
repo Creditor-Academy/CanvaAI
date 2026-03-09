@@ -50,6 +50,7 @@ import HeaderMenuBar from './editor/HeaderMenuBar';
 import { FindReplaceModal } from './editor/FindReplaceModal';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../../../services/api';
 import {
   Bold,
   Italic,
@@ -259,6 +260,7 @@ const TONES = [
 const EXPORT_FORMATS = [
   { label: "PDF", value: "pdf", icon: FileText },
   { label: "DOCX", value: "docx", icon: FileText },
+  { label: "EPUB", value: "epub", icon: FileText },
   { label: "Markdown", value: "md", icon: FileText },
   { label: "HTML", value: "html", icon: FileText },
   { label: "Plain Text", value: "txt", icon: FileText },
@@ -723,36 +725,41 @@ export const EditorToolbar = ({
     }
 
     try {
-      // Use TipTap's native insertTable command (requires @tiptap/extension-table)
-      const result = editor
-        .chain()
-        .focus()
-        .insertTable({ rows, cols, withHeaderRow: true })
-        .run();
+      // Insert table using HTML for reliable compatibility
+      const tableHTML = `
+        <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
+          <tbody>
+            ${Array.from({ length: rows }, (_, rowIndex) => `
+              <tr>
+                ${Array.from({ length: cols }, () => `
+                  <${rowIndex === 0 ? 'th' : 'td'} 
+                    style="border: 2px solid #333; padding: 8px; min-width: 60px; ${rowIndex === 0 ? 'background-color: #e0e0e0; font-weight: bold;' : ''}">
+                    <p></p>
+                  </${rowIndex === 0 ? 'th' : 'td'}>
+                `).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
 
+      const result = editor.chain().focus().insertContent(tableHTML).run();
+      
       if (result) {
         toast.success(`${rows}×${cols} table inserted`);
       } else {
-        // Fallback: try without header row
-        const fallback = editor
-          .chain()
-          .focus()
-          .insertTable({ rows, cols, withHeaderRow: false })
-          .run();
-
-        if (fallback) {
-          toast.success(`${rows}×${cols} table inserted`);
-        } else {
-          toast.error('Failed to insert table — check Table extension is registered');
-        }
+        toast.error('Failed to insert table');
       }
 
       setShowTablePicker(false);
       setSelectedRows(0);
       setSelectedCols(0);
     } catch (err) {
-      console.error('[EditorToolbar] Table insertion error:', err);
+      console.error('[TextEditor] Table insertion error:', err);
       toast.error('Could not insert table: ' + err.message);
+      setShowTablePicker(false);
+      setSelectedRows(0);
+      setSelectedCols(0);
     }
   };
 
@@ -771,11 +778,19 @@ export const EditorToolbar = ({
         cells.push(
           <div
             key={`${row}-${col}`}
-            className={`w-5 h-5 border border-gray-200 ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-white'} hover:bg-blue-50 cursor-pointer transition-colors`}
+            className={`w-5 h-5 border border-gray-300 rounded-sm ${
+              isSelected 
+                ? 'bg-blue-500 border-blue-600 shadow-sm' 
+                : 'bg-white hover:bg-blue-100'
+            } cursor-pointer transition-all duration-150 transform hover:scale-110`}
             onMouseEnter={() => handleTablePickerHover(row, col)}
             onMouseDown={(e) => {
               preventEditorBlur(e);
               insertTable(row, col);
+            }}
+            style={{
+              gridColumn: col,
+              gridRow: row
             }}
           />
         );
@@ -784,11 +799,19 @@ export const EditorToolbar = ({
 
     return (
       <div className="p-2">
-        <div className="grid grid-cols-10 gap-0.5 bg-white p-1">
+        <div 
+          className="grid gap-0.5 bg-white p-1"
+          style={{
+            gridTemplateColumns: `repeat(${gridSize}, min-content)`,
+            gridTemplateRows: `repeat(${gridSize}, min-content)`
+          }}
+        >
           {cells}
         </div>
-        <div className="text-center mt-2 text-sm text-gray-600 font-medium">
-          {selectedRows > 0 && selectedCols > 0 ? `${selectedCols} x ${selectedRows}` : 'Select table size'}
+        <div className="text-center mt-3 text-sm text-gray-700 font-semibold min-w-[120px]">
+          {selectedRows > 0 && selectedCols > 0 
+            ? `${selectedCols} × ${selectedRows} Table` 
+            : 'Select table size'}
         </div>
       </div>
     );
@@ -2905,12 +2928,14 @@ export const EditorToolbar = ({
           {/* Table Picker Dropdown - Rendered in Portal to escape overflowing containers */}
           {showTablePicker && ReactDOM.createPortal(
             <div
-              className="fixed z-9999 bg-white rounded-lg shadow-xl border border-gray-200"
+              className="rounded-lg shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-200"
               ref={tablePickerRef}
               style={{
                 position: 'fixed',
                 zIndex: 9999,
                 backgroundColor: 'white',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                padding: '8px'
               }}
             >
               {renderTablePickerGrid()}
@@ -3836,6 +3861,7 @@ const TextEditorContent = () => {
   const paginationTimeoutRef = useRef(null);
   const pagesUpdateTimeoutRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
+  const handleAutoSaveRef = useRef(null);
   const lastPaginationContentRef = useRef('');
   const paragraphHeightCacheRef = useRef(new Map());
 
@@ -3903,7 +3929,7 @@ const TextEditorContent = () => {
       if (pagesUpdateTimeoutRef.current) clearTimeout(pagesUpdateTimeoutRef.current);
       pagesUpdateTimeoutRef.current = setTimeout(() => { if (editorInstance?.state?.doc) dynamicManualPagination(editorInstance); }, 400);
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-      autoSaveTimeoutRef.current = setTimeout(() => handleAutoSave(), 3000);
+      autoSaveTimeoutRef.current = setTimeout(() => handleAutoSaveRef.current?.(), 3000);
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
       const { from, to } = editorInstance.state.selection;
@@ -3957,7 +3983,7 @@ const TextEditorContent = () => {
 
   const handlePaste = useCallback(() => {}, []);
 
-  const handleAutoSave = useCallback(() => {
+  const handleAutoSave = useCallback(async () => {
     if (!editor) return;
     try {
       const html = editor.getHTML();
@@ -3973,19 +3999,241 @@ const TextEditorContent = () => {
           localStorage.setItem('athena_documents', JSON.stringify(updated));
         } catch (e) { console.warn('Could not sync to document list:', e); }
       }
-      setLastSaved(new Date());
-      setSaveStatus('saved');
-    } catch (error) { console.error('Auto-save error:', error); }
-  }, [editor, documentTitle, setLastSaved, setSaveStatus]);
+      
+      // Save to backend (MongoDB)
+      const token = localStorage.getItem('token');
+      if (token && activeDocId && activeDocId.startsWith('doc_')) {
+        try {
+          // Check if this is a backend-synced document by checking for mongodb_id in localStorage
+          const mongoId = localStorage.getItem(`athena_doc_mongo_${activeDocId}`);
+          
+          if (mongoId) {
+            // Update existing document
+            await api.updateEditorDocument(mongoId, {
+              title: documentTitle,
+              content: editor.getJSON(),
+              html: html
+            });
+          } else {
+            // Create new document
+            const result = await api.saveEditorDocument({
+              title: documentTitle,
+              content: editor.getJSON(),
+              html: html
+            });
+            // Store the MongoDB ID for future updates
+            localStorage.setItem(`athena_doc_mongo_${activeDocId}`, result.id);
+          }
+          
+          setLastSaved(new Date());
+          setSaveStatus('saved');
+        } catch (backendError) {
+          console.warn('Backend save failed, but local save succeeded:', backendError);
+          // Still update local state even if backend fails
+          setLastSaved(new Date());
+          setSaveStatus('error');
+        }
+      } else {
+        setLastSaved(new Date());
+        setSaveStatus('saved');
+      }
+    } catch (error) { 
+      console.error('Auto-save error:', error);
+      setSaveStatus('error');
+    }
+  }, [editor, documentTitle, setLastSaved, setSaveStatus, api]);
+  
+  // Wire handleAutoSave to ref to avoid TDZ and stale closures
+  handleAutoSaveRef.current = handleAutoSave;
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!editor) return;
     try {
-      localStorage.setItem('text-editor-document', JSON.stringify({ title: documentTitle, html: editor.getHTML(), savedAt: new Date().toISOString() }));
-      setLastSaved(new Date()); setSaveStatus('saved');
-      toast.success('Document saved successfully!');
-    } catch (error) { toast.error('Failed to save document'); }
-  }, [editor, documentTitle, setLastSaved, setSaveStatus]);
+      // Create comprehensive JSON export with all document features
+      const documentData = {
+        // Document Metadata
+        metadata: {
+          title: documentTitle || 'Untitled Document',
+          createdAt: new Date().toISOString(),
+          savedAt: new Date().toISOString(),
+          version: '1.0',
+          application: 'Athena Editor',
+          applicationVersion: '1.0.0'
+        },
+        
+        // Document Content
+        content: {
+          html: editor.getHTML(),
+          text: editor.getText(),
+          json: editor.getJSON()
+        },
+        
+        // Document Statistics
+        statistics: {
+          characterCount: editor.getText().length,
+          wordCount: editor.getText().trim().split(/\s+/).filter(w => w.length > 0).length,
+          paragraphCount: editor.state.doc.childCount,
+          selection: {
+            from: editor.state.selection.from,
+            to: editor.state.selection.to,
+            anchor: editor.state.selection.anchor,
+            head: editor.state.selection.head
+          }
+        },
+        
+        // Document Styles and Formatting
+        styles: {
+          marks: editor.getAttributes('textStyle'),
+          activeStyles: {
+            bold: editor.isActive('bold'),
+            italic: editor.isActive('italic'),
+            underline: editor.isActive('underline'),
+            strike: editor.isActive('strike'),
+            code: editor.isActive('code'),
+            link: editor.isActive('link')
+          }
+        },
+        
+        // Document Structure
+        structure: {
+          headings: [],
+          paragraphs: [],
+          lists: [],
+          tables: [],
+          images: [],
+          links: []
+        },
+        
+        // Editor State
+        editorState: {
+          zoom: zoom,
+          isEditable: editor.isEditable,
+          isFocused: editor.isFocused
+        }
+      };
+      
+      // Extract document structure by traversing the document
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          documentData.structure.headings.push({
+            level: node.attrs.level,
+            content: node.textContent,
+            position: pos
+          });
+        } else if (node.type.name === 'paragraph') {
+          documentData.structure.paragraphs.push({
+            content: node.textContent,
+            position: pos,
+            marks: node.marks.map(m => ({ type: m.type.name, attrs: m.attrs }))
+          });
+        } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList') {
+          documentData.structure.lists.push({
+            type: node.type.name,
+            content: node.textContent,
+            position: pos
+          });
+        } else if (node.type.name === 'table') {
+          documentData.structure.tables.push({
+            rows: node.childCount,
+            position: pos
+          });
+        } else if (node.type.name === 'image') {
+          documentData.structure.images.push({
+            src: node.attrs.src,
+            alt: node.attrs.alt,
+            position: pos
+          });
+        }
+        
+        // Extract links from marks
+        node.marks.forEach(mark => {
+          if (mark.type.name === 'link') {
+            documentData.structure.links.push({
+              href: mark.attrs.href,
+              text: node.textContent,
+              position: pos
+            });
+          }
+        });
+      });
+      
+      // Save to localStorage as backup
+      localStorage.setItem('text-editor-document', JSON.stringify({
+        title: documentTitle,
+        html: editor.getHTML(),
+        savedAt: new Date().toISOString()
+      }));
+      
+      // Save to backend (MongoDB)
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const activeDocId = localStorage.getItem('athena_active_doc_id');
+          const mongoId = localStorage.getItem(`athena_doc_mongo_${activeDocId}`);
+          
+          if (mongoId) {
+            await api.updateEditorDocument(mongoId, {
+              title: documentTitle,
+              content: editor.getJSON(),
+              html: editor.getHTML()
+            });
+          } else {
+            const result = await api.saveEditorDocument({
+              title: documentTitle,
+              content: editor.getJSON(),
+              html: editor.getHTML()
+            });
+            if (activeDocId) {
+              localStorage.setItem(`athena_doc_mongo_${activeDocId}`, result.id);
+            }
+          }
+          
+          setLastSaved(new Date());
+          setSaveStatus('saved');
+          toast.success('Document saved to backend successfully! 💾');
+        } catch (backendError) {
+          console.error('Backend save error:', backendError);
+          toast.error('Failed to save to backend: ' + (backendError.message || 'Unknown error'));
+          setSaveStatus('error');
+          return; // Stop here if backend save fails
+        }
+      } else {
+        // No token - just local save
+        setLastSaved(new Date());
+        setSaveStatus('saved');
+        toast.success('Document saved locally! 💾');
+      }
+      
+      try {
+        // Create and download JSON file (local export) - separate operation
+        const jsonString = JSON.stringify(documentData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${documentTitle || 'document'}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast.success('Document exported as JSON successfully! 📄');
+      } catch (exportError) {
+        console.warn('JSON export failed, but document was saved:', exportError);
+        // Don't show error for export failure since save succeeded
+      }
+      
+    } catch (error) {
+      console.error('❌ Save error:', error);
+      console.error('Error stack:', error.stack);
+      // Only show error if it's not just an export failure
+      if (error.message && error.message.includes('export')) {
+        console.warn('Export failed but document was saved');
+      } else {
+        toast.error('Failed to save document: ' + (error.message || 'Unknown error'));
+      }
+    }
+  }, [editor, documentTitle, zoom, setLastSaved, setSaveStatus, api]);
 
   const handlePrint = useCallback(async () => {
     if (!editor) return;
@@ -4004,6 +4252,7 @@ const TextEditorContent = () => {
       switch (exportFormat) {
         case 'pdf': await exportToPDF(editor, options); break;
         case 'docx': await exportToDOCX(editor, options); break;
+        case 'epub': await exportToEPUB(editor, options); break;
         case 'md': await exportToMarkdown(editor, options); break;
         case 'txt': await exportToPlainText(editor, options); break;
         case 'html': await exportToHTML(editor, options); break;
@@ -4012,7 +4261,7 @@ const TextEditorContent = () => {
       }
     } catch (error) { toast.error('Export failed'); }
     finally { updateEditorFeatures({ showExportDialog: false }); }
-  }, [editor, documentTitle, exportFormat, updateEditorFeatures, exportToPDF, exportToDOCX, exportToMarkdown, exportToPlainText, exportToHTML, exportToJSON]);
+  }, [editor, documentTitle, exportFormat, updateEditorFeatures, exportToPDF, exportToDOCX, exportToEPUB, exportToMarkdown, exportToPlainText, exportToHTML, exportToJSON]);
 
   const openExportDialog = useCallback(() => { updateEditorFeatures({ showExportDialog: true }); }, [updateEditorFeatures]);
 
@@ -4177,21 +4426,9 @@ const TextEditorContent = () => {
             />
           </div>
           <div className="flex items-center gap-4">
-            {lastSaved && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-              </div>
-            )}
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600" onClick={() => setShowVersionHistory(true)}>
-                <History className="w-4 h-4" />
-              </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600" onClick={() => setIsOutlineOpen(!isOutlineOpen)}>
                 <PanelLeft className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600" onClick={() => setIsStarred(!isStarred)}>
-                <Star className={`w-4 h-4 ${isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
               </Button>
             </div>
             <HeaderMenuBar

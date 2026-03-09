@@ -3,10 +3,16 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 // Helper to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  return {
-    'Authorization': `Bearer ${token}`,
+  const headers = {
     'Content-Type': 'application/json',
   };
+  
+  // Only add Authorization header if token exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 class ApiService {
@@ -20,8 +26,12 @@ class ApiService {
     };
 
     try {
-      // console.log(`Making request to: ${url}`); // Uncomment for debugging API calls
-      // console.log('Request headers:', config.headers); // Optional debug
+      console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+      console.log('Request headers:', config.headers);
+      if (options.body) {
+        console.log('Request body:', JSON.parse(options.body));
+      }
+      
       const response = await fetch(url, config);
       const contentType = response.headers.get('content-type') || '';
       let data;
@@ -38,6 +48,11 @@ class ApiService {
         return text;
       }
 
+      console.log(`📊 API Response status: ${response.status}`);
+      if (data) {
+        console.log('Response data:', data);
+      }
+      
       if (!response.ok && !data?.unverified) {
         console.error('Response error:', data);
         throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
@@ -45,7 +60,8 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('❌ API Error:', error.message);
+      console.error('Full error:', error);
       throw error;
     }
   }

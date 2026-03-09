@@ -642,23 +642,35 @@ export class DocumentExporter {
 
   static async exportToEPUB(editor, options = {}) {
     const { filename = 'document.epub', title = 'Document', author = 'Athena Editor' } = options;
-    const html = editor?.getHTML ? editor.getHTML() : '';
-    const safe = DOMPurify.sanitize(html || '<p></p>');
+    
+    let toastId = null;
+    
+    try {
+      toastId = toast.loading('Preparing EPUB export...');
+      
+      const html = editor?.getHTML ? editor.getHTML() : '';
+      const safe = DOMPurify.sanitize(html || '<p></p>');
 
-    const zip = new JSZip();
-    // Required EPUB files
-    zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
-    zip.folder('META-INF').file('container.xml',
-      `<?xml version="1.0"?>
+      const zip = new JSZip();
+      
+      // Required EPUB files
+      zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+      
+      // META-INF/container.xml
+      zip.folder('META-INF').file('container.xml',
+        `<?xml version="1.0"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
 </container>`);
 
-    const oebps = zip.folder('OEBPS');
-    oebps.file('content.xhtml',
-      `<?xml version="1.0" encoding="utf-8"?>
+      // OEBPS folder
+      const oebps = zip.folder('OEBPS');
+      
+      // Content XHTML
+      oebps.file('content.xhtml',
+        `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
@@ -667,21 +679,88 @@ export class DocumentExporter {
   <link rel="stylesheet" type="text/css" href="styles.css"/>
 </head>
 <body>
+  <h1>${title}</h1>
 ${safe}
 </body>
 </html>`);
-    oebps.file('styles.css',
-      `body{font-family:serif;line-height:1.6;margin:1em}
-img{max-width:100%;height:auto}
-blockquote{border-left:3px solid #999;padding-left:1em;color:#555}`);
-    oebps.file('content.opf',
-      `<?xml version="1.0" encoding="UTF-8"?>
+      
+      // Styles CSS
+      oebps.file('styles.css',
+        `body {
+  font-family: Georgia, serif;
+  line-height: 1.6;
+  margin: 1em;
+  color: #333;
+}
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.2em 0 0.5em;
+  font-weight: bold;
+}
+h1 { font-size: 2em; }
+h2 { font-size: 1.5em; }
+h3 { font-size: 1.25em; }
+p {
+  margin: 0.8em 0;
+  text-indent: 1.5em;
+}
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+}
+blockquote {
+  border-left: 3px solid #999;
+  padding-left: 1em;
+  margin: 1em 0;
+  color: #555;
+  font-style: italic;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+ul, ol {
+  margin: 0.8em 0;
+  padding-left: 2em;
+}
+li {
+  margin: 0.3em 0;
+}
+code {
+  font-family: monospace;
+  background-color: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+pre {
+  background-color: #f5f5f5;
+  padding: 1em;
+  overflow-x: auto;
+  border: 1px solid #ddd;
+}`);
+      
+      // Content OPF (package file)
+      oebps.file('content.opf',
+        `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="bookid">urn:uuid:${crypto.randomUUID ? crypto.randomUUID() : Date.now()}</dc:identifier>
+    <dc:identifier id="bookid">urn:uuid:${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}</dc:identifier>
     <dc:title>${title}</dc:title>
     <dc:creator>${author}</dc:creator>
     <dc:language>en</dc:language>
+    <dc:publisher>Athena Editor</dc:publisher>
+    <dc:date>${new Date().toISOString().split('T')[0]}</dc:date>
   </metadata>
   <manifest>
     <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
@@ -692,8 +771,18 @@ blockquote{border-left:3px solid #999;padding-left:1em;color:#555}`);
   </spine>
 </package>`);
 
-    const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, filename);
+      // Generate and save
+      const blob = await zip.generateAsync({ type: 'blob' });
+      saveAs(blob, filename);
+      
+      toast.success('EPUB exported successfully! 📚');
+      
+    } catch (error) {
+      console.error('EPUB export error:', error);
+      toast.error('Failed to export EPUB: ' + error.message);
+    } finally {
+      if (toastId) toast.dismiss(toastId);
+    }
   }
 
   static createDOCXContent(content, options) {
