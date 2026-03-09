@@ -4,109 +4,244 @@ import { createShapeLayer, createImageLayer } from "../models/presentationModel"
 import useHistoryStore from "./useHistoryStore";
 import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
 
+
+// Helper to ensure colors are in #rrggbb format for <input type="color">
+export const normalizeColor = (color) => {
+  if (!color || typeof color !== "string") return "#000000";
+  // Convert #rgb to #rrggbb
+  if (color.length === 4 && color.startsWith("#")) {
+    return "#" + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+  }
+  // If it's not a hex color (like 'transparent' or 'red'), return black or a default for picker
+  if (!color.startsWith("#")) {
+    // For picker, we need a valid hex. For style, we can keep the original.
+    // We'll handle this in the components using normalizeColor for pickers only.
+    return color;
+  }
+  return color;
+};
+
+const normalizeTableLayer = (layer) => {
+  if (!layer || layer.type !== "table") return layer;
+
+  // 🔒 Skip normalization if table is already properly structured
+  if (
+    Array.isArray(layer.cells) &&
+    Array.isArray(layer.cells[0]) &&
+    Array.isArray(layer.cells[0][0]?.content)
+  ) {
+    return layer;
+  }
+
+  // 0. Handle nested content object if AI provided it that way
+  let source = layer;
+  if (layer.content && typeof layer.content === "object" && !Array.isArray(layer.content)) {
+    // If the content object has rows/cols/cells, it's a nested data format
+    if (layer.content.rows || layer.content.cols || layer.content.cells) {
+      source = layer.content;
+    }
+  }
+
+  // 1. Determine dimensions and format
+  let headers = source.headerRow || source.headers;
+  let dataRows = Array.isArray(source.rows) ? source.rows : (source.rowsData || source.rows_data || []);
+  let cells = source.cells;
+
+  let nRows = typeof source.rows === "number" ? source.rows : 0;
+  let nCols = typeof source.cols === "number" ? source.cols : 0;
+
+  // Format B: headerRow + rows[][] array
+  if (Array.isArray(headers) && Array.isArray(dataRows)) {
+    nRows = dataRows.length + 1;
+    nCols = headers.length;
+  }
+  // Format A / 2D: Infer dimensions if missing
+  else if (Array.isArray(cells) && cells.length > 0) {
+    if (!nRows || !nCols) {
+      if (Array.isArray(cells[0])) {
+        nRows = cells.length;
+        nCols = cells[0].length;
+      } else {
+        let maxR = 0; let maxC = 0;
+        cells.forEach(c => {
+          const r = c.row ?? 0; const col = c.col ?? 0;
+          if (r > maxR) maxR = r;
+          if (col > maxC) maxC = col;
+        });
+        nRows = maxR + 1;
+        nCols = maxC + 1;
+      }
+    }
+  }
+
+  nRows = Math.max(nRows, 1);
+  nCols = Math.max(nCols, 1);
+
+  // 2. Create clean grid with unique object references (Deep Clone Pattern)
+  const grid = Array.from({ length: nRows }, () =>
+    Array.from({ length: nCols }, () => ({
+      content: createInitialValue(),
+      fontSize: 14,
+      color: "#000000",
+      fontFamily: "Arial",
+      textAlign: "center",
+    }))
+  );
+
+  const toSlate = (raw) => {
+    if (!raw) return createInitialValue();
+    // Handle cell object vs raw content
+    const data = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? (raw.content || raw) : raw;
+
+    if (typeof data === "string") return convertTextToSlate(data);
+    if (Array.isArray(data)) return JSON.parse(JSON.stringify(data)); // Deep clone Slate array
+
+    if (typeof data === "object") {
+      const { text, ...marks } = data;
+      return [
+        {
+          type: "paragraph",
+          children: [{ text: text || "", ...marks }],
+        },
+      ];
+    }
+    return createInitialValue();
+  };
+
+  // 3. Fill grid
+  if (Array.isArray(headers) && Array.isArray(dataRows)) {
+    headers.forEach((h, c) => {
+      if (c < nCols) {
+        grid[0][c].content = toSlate(h);
+        if (grid[0][c].content[0]?.children[0]) {
+          grid[0][c].content[0].children[0].bold = true;
+        }
+      }
+    });
+    dataRows.forEach((row, r) => {
+      if (Array.isArray(row) && (r + 1) < nRows) {
+        row.forEach((cell, c) => {
+          if (c < nCols) grid[r + 1][c].content = toSlate(cell);
+        });
+      }
+    });
+  } else if (Array.isArray(cells)) {
+    const is2D = Array.isArray(cells[0]);
+    cells.forEach((item, idx) => {
+      if (is2D) {
+        const r = idx;
+        if (r < nRows) {
+          item.forEach((cell, c) => {
+            if (c < nCols) grid[r][c].content = toSlate(cell);
+          });
+        }
+      } else {
+        const r = item.row ?? Math.floor(idx / nCols);
+        const c = item.col ?? (idx % nCols);
+        if (r < nRows && c < nCols) grid[r][c].content = toSlate(item);
+      }
+    });
+  }
+
+  return {
+    ...layer,
+    rows: nRows,
+    cols: nCols,
+    cells: grid,
+    borderWidth: layer.borderWidth ?? 1,
+    borderColor: normalizeColor(layer.borderColor || "#000000"),
+    tableBgColor: normalizeColor(layer.tableBgColor || "transparent"),
+  };
+};
+
+const normalizeCells = (cells, rows, cols) => {
+  // Legacy helper - kept for compatibility but normalizeTableLayer is preferred
+  return Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => ({
+      content: createInitialValue(),
+      fontSize: 14,
+      color: "#000000",
+      fontFamily: "Arial",
+      textAlign: "center",
+    }))
+  );
+};
+
 /* =========================
    NORMALIZATION HELPERS
 ========================= */
 
-const normalizeCells = (cells, rows, cols) => {
-  if (!cells || !Array.isArray(cells)) {
-    return Array.from({ length: rows || 0 }, () =>
-      Array.from({ length: cols || 0 }, () => ({
-        content: createInitialValue(),
-        fontFamily: "Arial",
-        fontSize: 14,
-        color: "#ffffff",
-        textAlign: "center",
-      }))
-    );
+const normalizeLayer = (layer, forceNewId = false) => {
+  if (!layer) return layer;
+
+  let normalizedLayer = {
+    ...layer,
+    id: forceNewId ? nanoid() : (layer.id || nanoid()),
+  };
+
+  // 1. Tables
+  if (normalizedLayer.type === "table") {
+    normalizedLayer = normalizeTableLayer(normalizedLayer);
   }
-  return cells.map((row) =>
-    Array.isArray(row)
-      ? row.map((cell) => {
-        if (typeof cell === "string") {
-          return {
-            content: convertTextToSlate(cell),
-            fontFamily: "Arial",
-            fontSize: 14,
-            color: "#ffffff",
-            textAlign: "center",
-          };
-        }
-        if (cell && typeof cell === "object" && !cell.content) {
-          return {
-            ...cell,
-            content: createInitialValue(),
-          };
-        }
-        return cell;
-      })
-      : []
-  );
+
+  // 2. Images (handle nested src object from AI)
+  if (normalizedLayer.type === "image") {
+    if (typeof normalizedLayer.src === "object" && normalizedLayer.src !== null) {
+      normalizedLayer.imageUrl = normalizedLayer.src.url;
+      normalizedLayer.imageKey = normalizedLayer.src.key;
+      normalizedLayer.src = normalizedLayer.src.url;
+    }
+    if (!normalizedLayer.imageUrl && typeof normalizedLayer.src === "string") {
+      normalizedLayer.imageUrl = normalizedLayer.src;
+    }
+  }
+
+  // General Color Normalization
+  if (normalizedLayer.color) normalizedLayer.color = normalizeColor(normalizedLayer.color);
+  if (normalizedLayer.backgroundColor) normalizedLayer.backgroundColor = normalizeColor(normalizedLayer.backgroundColor);
+
+  // 3. Legacy Lists (v2 style hardcoded lists)
+  if (
+    (normalizedLayer.type === "bulleted-list" || normalizedLayer.type === "numbered-list") &&
+    normalizedLayer.children
+  ) {
+    const listType = normalizedLayer.type;
+    normalizedLayer = {
+      ...normalizedLayer,
+      type: "text",
+      content: [
+        {
+          type: listType,
+          children: normalizedLayer.children,
+        },
+      ],
+      fontSize: normalizedLayer.fontSize || 24,
+      fontFamily: normalizedLayer.fontFamily || "Arial",
+      color: normalizedLayer.color || "#000000",
+      textAlign: normalizedLayer.textAlign || "left",
+    };
+    delete normalizedLayer.children;
+  }
+
+  // 4. Migration for old text layers without content
+  if (normalizedLayer.type === "text" && normalizedLayer.text !== undefined && !normalizedLayer.content) {
+    const { text, ...rest } = normalizedLayer;
+    return {
+      ...rest,
+      content: convertTextToSlate(text),
+    };
+  }
+
+  return normalizedLayer;
 };
 
-const normalizeSlide = (slide) => {
+const normalizeSlide = (slide, forceNewId = false) => {
   if (!slide) return slide;
+
   return {
     ...slide,
-    id: slide.id || nanoid(),
-    layers: slide.layers?.map((layer) => {
-      // 1. Tables
-      if (layer.type === "table") {
-        return {
-          ...layer,
-          cells: normalizeCells(layer.cells, layer.rows, layer.cols),
-        };
-      }
-
-      // 2. Images (handle nested src object from AI)
-      if (layer.type === "image") {
-        const normalizedLayer = { ...layer };
-        if (typeof layer.src === "object" && layer.src !== null) {
-          normalizedLayer.imageUrl = layer.src.url;
-          normalizedLayer.imageKey = layer.src.key;
-          normalizedLayer.src = layer.src.url;
-        }
-        if (!normalizedLayer.imageUrl && typeof layer.src === "string") {
-          normalizedLayer.imageUrl = layer.src;
-        }
-        return normalizedLayer;
-      }
-
-      // 3. Legacy Lists (v2 style hardcoded lists)
-      if (
-        (layer.type === "bulleted-list" || layer.type === "numbered-list") &&
-        layer.children
-      ) {
-        const listType = layer.type;
-        const normalizedLayer = {
-          ...layer,
-          type: "text",
-          content: [
-            {
-              type: listType,
-              children: layer.children,
-            },
-          ],
-          fontSize: layer.fontSize || 24,
-          fontFamily: layer.fontFamily || "Arial",
-          color: layer.color || "#000000",
-          textAlign: layer.textAlign || "left",
-        };
-        delete normalizedLayer.children;
-        return normalizedLayer;
-      }
-
-      // 4. Migration for old text layers without content
-      if (layer.type === "text" && layer.text !== undefined && !layer.content) {
-        const { text, ...rest } = layer;
-        return {
-          ...rest,
-          content: convertTextToSlate(text),
-        };
-      }
-
-      return layer;
-    }),
+    id: forceNewId ? nanoid() : (slide.id || nanoid()),
+    layers: (slide.layers || []).map((layer) => normalizeLayer(layer, forceNewId)),
   };
 };
 
@@ -351,7 +486,7 @@ const usePresentationStore = create((set, get) => {
 
     appendSlide: (slideData) => {
       get().saveToHistory();
-      const normalizedSlide = normalizeSlide(slideData);
+      const normalizedSlide = normalizeSlide(slideData, true);
       set((state) => ({
         slides: [...state.slides, normalizedSlide],
         activeSlideId: normalizedSlide.id,
@@ -366,6 +501,37 @@ const usePresentationStore = create((set, get) => {
         slides: state.slides.map((s) =>
           s.id === slideId ? { ...normalizedSlide, id: slideId } : s
         ),
+      }));
+    },
+
+    appendLayersToSlide: (slideId, layersData) => {
+      if (!layersData) return;
+      get().saveToHistory();
+
+      // Safe extraction of layers
+      const incomingLayers = Array.isArray(layersData.layers)
+        ? layersData.layers
+        : Array.isArray(layersData)
+          ? layersData
+          : [];
+
+      set((state) => ({
+        slides: state.slides.map((slide) => {
+          if (slide.id !== slideId) return slide;
+
+          const newNormalizedLayers = incomingLayers.map((layer) => {
+            // Regeneration of unique IDs to prevent collisions
+            return normalizeLayer({
+              ...layer,
+              id: nanoid(),
+            });
+          });
+
+          return {
+            ...slide,
+            layers: [...(slide.layers || []), ...newNormalizedLayers],
+          };
+        }),
       }));
     },
 
@@ -470,7 +636,7 @@ const usePresentationStore = create((set, get) => {
     getSelectedLayer: () => {
       const { slides, activeSlideId, selectedLayerId } = get();
       const slide = slides.find((s) => s.id === activeSlideId);
-      return slide?.layers.find((l) => l.id === selectedLayerId) || null;
+      return slide?.layers?.find((l) => l.id === selectedLayerId) || null;
     },
 
     deleteSelectedLayer: () => {
@@ -1129,6 +1295,7 @@ const usePresentationStore = create((set, get) => {
         slides: state.slides.map((slide) => normalizeSlide(slide)),
       }));
     },
+    normalizeColor,
   };
 });
 

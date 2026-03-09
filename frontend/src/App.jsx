@@ -65,10 +65,7 @@ const AppContent = () => {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
 
-      {/* Sidebar */}
       {!isFullScreenRoute && <SideBar />}
-
-      {/* Navbar */}
       {!isFullScreenRoute && <Navbar />}
 
       {/* Page Content */}
@@ -174,3 +171,4 @@ function App() {
 }
 
 export default App;
+

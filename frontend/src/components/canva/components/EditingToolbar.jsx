@@ -437,12 +437,12 @@ const EditingToolbar = ({
                         )}
 
                         {/* Effects Button (for any selected layer) */}
-                        {selectedLayer && (
+                        {/* {selectedLayer && (
                             <button onClick={onEffects} className={btnOutline}>
                                 <FiZap size={15} className="text-amber-500" />
                                 <span className="text-xs">Effects</span>
                             </button>
-                        )}
+                        )} */}
                     </div>
 
                     {/* Right section - Action buttons */}

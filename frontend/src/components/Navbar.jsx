@@ -18,6 +18,11 @@ const TopNavbar = () => {
   const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
 
+  const [credits, setCredits] = useState({
+    total: 100,
+    used: 35,
+  });
+
   /* -------------------- Close notification on outside click -------------------- */
   useEffect(() => {
     const handler = (e) => {
@@ -49,9 +54,18 @@ const TopNavbar = () => {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-[52px] bg-[linear-gradient(135deg,#e0f2ff_0%,#eff6ff_40%,#ffffff_100%)] shadow-[0_2px_10px_rgba(15,23,42,0.06)] flex items-center justify-between px-5 z-[100]">
+    <header
+      className="fixed top-0 left-0 right-0 h-[52px] flex items-center justify-between px-5 z-[100]"
+      style={{
+        background: "rgba(193, 221, 245, 0.65)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        borderBottom: "1px solid rgba(0,0,0,0.06)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.04)"
+      }}
+    >
       {/* LEFT LOGO */}
-      <div className="flex items-center gap-3 text-slate-800 font-semibold text-[16px] tracking-wide">
+      <div className="flex items-center gap-3 text-[#54565a] font-semibold text-[16px] tracking-wide">
         <div className="w-8 h-8 rounded-lg bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center font-bold">
           D
         </div>
@@ -63,7 +77,7 @@ const TopNavbar = () => {
         {/* HELP */}
         <button
           onClick={() => navigate("/help-support")}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-sky-100 hover:text-sky-700 transition"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)]  transition"
         >
           <FiHelpCircle size={18} />
         </button>
@@ -74,14 +88,18 @@ const TopNavbar = () => {
         <div ref={notifRef}>
           <button
             onClick={() => setOpenNotif(!openNotif)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-sky-100 hover:text-sky-700 transition relative"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)]  transition relative"
           >
             <FiBell size={18} />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
           {openNotif && (
-            <div className="absolute right-0 mt-3 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3">
+            <div className="absolute right-0 mt-3 w-72 rounded-xl shadow-2xl p-3"
+              style={{
+                background: "rgba(255,255,255)",
+                border: "1px solid rgba(0,0,0,0.06)"
+              }}>
               <p className="text-sm text-slate-600 mb-2">Notifications</p>
               <div className="space-y-2 text-sm">
                 <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer text-slate-800">
@@ -117,72 +135,89 @@ const TopNavbar = () => {
           </div>
 
           {/* CLICK DROPDOWN */}
-          
 
-              {openProfile && (
-                <div className="absolute right-0 mt-3 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden z-50">
 
-                  {/* PROFILE HEADER */}
-                  <div className="flex flex-col items-center px-5 pt-5 pb-4">
+          {openProfile && (
+            <div className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
+              style={{
+                background: "rgba(255,255,255)",
+                border: "1px solid rgba(0,0,0,0.06)"
+              }}>
 
-                    {/* BIG AVATAR */}
-                    <div className="w-16 h-16 rounded-full bg-[#60a5fa] text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
-                      {profile?.avatar ? (
-                        <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <>
-                          {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
-                          {(profile?.lastName?.[0] || profile?.email?.[1] || "").toUpperCase()}
-                        </>
-                      )}
-                    </div>
+              {/* PROFILE HEADER */}
+              <div className="flex flex-col items-center px-5 pt-5 pb-4">
 
-                    {/* NAME */}
-                    <div className="font-semibold text-slate-800 text-sm text-center">
-                      {profile?.firstName
-                        ? `${profile.firstName} ${profile.lastName || ""}`
-                        : profile?.email?.split("@")[0]}
-                    </div>
-
-                    {/* EMAIL */}
-                    <div className="text-xs text-slate-500 text-center mt-1 break-all">
-                      {profile?.email}
-                    </div>
-                  </div>
-
-                  {/* DIVIDER */}
-                  <div className="h-px bg-slate-200"></div>
-
-                  {/* ACTIONS */}
-                  <div className="py-2 text-sm">
-
-                    <button
-                      onClick={() => {
-                       navigate("/settings", { state: { profile } });
-                        setopenProfile(false);
-                      }}
-                      className="w-full px-4 py-2 flex items-center gap-3 hover:bg-slate-100 text-slate-700"
-                    >
-                      <FiUser size={16} />
-                      Personal Settings
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem("token");
-                        navigate("/login", { replace: true });
-                      }}
-                      className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-50 text-red-600"
-                    >
-                      <FiLogOut size={16} />
-                      Logout
-                    </button>
-
-                  </div>
+                {/* BIG AVATAR */}
+                <div className="w-16 h-16 rounded-full bg-[#60a5fa] text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
+                  {profile?.avatar ? (
+                    <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
+                      {(profile?.lastName?.[0] || profile?.email?.[1] || "").toUpperCase()}
+                    </>
+                  )}
                 </div>
-              )}
-            
-          
+
+                {/* NAME */}
+                <div className="font-semibold text-slate-800 text-sm text-center">
+                  {
+                  profile?.firstName
+                    ? `${profile.firstName} ${profile.lastName || ""}`
+                    : profile?.email?.split("@")[0]
+                    }
+                </div>
+
+                {/* EMAIL */}
+                <div className="text-xs text-slate-500 text-center mt-1 break-all">
+                  {profile?.email}
+                </div>
+              </div>
+              {/* CREDITS INFO (DEMO) */}
+              <div className="mt-4 w-full px-3">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>Total Credits</span>
+                  <span>
+                    {credits.used} / {credits.total}
+                  </span>
+                </div>
+
+
+              </div>
+
+              {/* DIVIDER */}
+              <div className="h-px bg-slate-200"></div>
+
+              {/* ACTIONS */}
+              <div className="py-2 text-sm">
+
+                <button
+                  onClick={() => {
+                    navigate("/settings", { state: { profile } });
+                    setopenProfile(false);
+                  }}
+                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-slate-100 text-slate-700"
+                >
+                  <FiUser size={16} />
+                  Personal Settings
+                </button>
+
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("token");
+                    navigate("/login", { replace: true });
+                  }}
+                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-50 text-red-600"
+                >
+                  <FiLogOut size={16} />
+                  Logout
+                </button>
+
+              </div>
+            </div>
+          )}
+
+
         </div>
       </div>
     </header>

@@ -22,6 +22,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
     activeSlideId,
     appendSlide,
     updateSlide,
+    appendLayersToSlide,
     addImageLayer,
     setActiveSlide
   } = usePresentationStore();
@@ -92,7 +93,9 @@ const AgentPanel = ({ isOpen, onClose }) => {
         console.log("--- AgentPanel: Generate slide response:", res);
         if (res.success && res.data) {
           appendSlide(res.data);
-          setActiveSlide(res.data.id);
+          // appendSlide already handles normalization and setActiveSlide internally
+          // onClose() will ensure the workspace view updates immediately to the new slide
+          onClose();
         }
       } else if (mode === "expand-slide") {
         const slideToExpand = slides.find(s => s.id === selectedSlideId);
@@ -109,7 +112,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
         console.log("--- AgentPanel: Expand slide response:", res);
 
         if (res.success && res.data) {
-          updateSlide(selectedSlideId, res.data);
+          appendLayersToSlide(selectedSlideId, res.data);
           setActiveSlide(selectedSlideId); // Synchronize view to updated slide
         }
       }

@@ -34,12 +34,14 @@ export const saveImage = async (payload) => {
 export const getUserImages = async (userId) => {
     try {
         const res = await api.get(`/api/images/list/${userId}`);
+        console.log("Fetched User Images:", res.data);
         return res.data;
     } catch (error) {
         console.error("Get User Images Error:", error.response?.data || error.message);
         throw error;
     }
 };
+
 
 export const getImageById = async (imageId) => {
     try {

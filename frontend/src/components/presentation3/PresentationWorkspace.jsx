@@ -7,6 +7,10 @@ import TopBar from "./components/TopBar/TopBar";
 import CanvasShell from "./components/Canvas/CanvasShell";
 import PresentationMode from "./present/PresentationMode";
 
+import TopProgressBar from "./components/TopProgressBar/TopProgressBar";
+import AILoaderOverlay from "./components/AILoaderOverlay/AILoaderOverlay";
+import Notifications from "./components/Notifications/Notifications";
+
 import { useParams, useNavigate } from "react-router-dom";
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
@@ -72,25 +76,30 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   }
 
   return (
-    <div style={styles.root}>
-      <TopBar
-        onPresent={() => setIsPresenting(true)}
-        onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
-      />
-
-      <div style={styles.body}>
-        <SlidesPanel />
-
-        <CanvasShell />
-
-        <PropertiesPanel />
-
-        <AgentPanel
-          isOpen={isAgentPanelOpen}
-          onClose={() => setIsAgentPanelOpen(false)}
+    <>
+      <TopProgressBar />
+      <AILoaderOverlay />
+      <Notifications />
+      <div style={styles.root} className="presentation-workspace-root">
+        <TopBar
+          onPresent={() => setIsPresenting(true)}
+          onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
         />
+
+        <div style={styles.body}>
+          <SlidesPanel />
+
+          <CanvasShell />
+
+          <PropertiesPanel />
+
+          <AgentPanel
+            isOpen={isAgentPanelOpen}
+            onClose={() => setIsAgentPanelOpen(false)}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 const styles = {

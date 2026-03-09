@@ -1,3 +1,5 @@
+//import { title } from "node:process";
+
 const API_BASE_URL = '/api/pp';
 
 // Helper to get auth headers
@@ -20,7 +22,8 @@ export const finalizePresentation = async (outlineData) => {
   const meta = {
     topic: outlineData.meta?.topic || outlineData.topic || '',
     tone: outlineData.meta?.tone || outlineData.tone || 'professional',
-    slideCount: outlineData.meta?.slideCount || outlineData.slides?.length || 0
+    slideCount:outlineData.slides ? outlineData.slides.length : 0,
+    mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'minimal'
   };
 
   // Transform slides to backend format
@@ -36,7 +39,7 @@ export const finalizePresentation = async (outlineData) => {
       contentType = 'bullets';
     } else if (!['paragraph', 'bullets', 'comparison'].includes(contentType)) {
       // If contentType is invalid, try to infer from content structure
-      if (Array.isArray(slide.content) || (slide.content && slide.content.mode === 'bullets')) {
+      if (Array.isArray(slide.content) || (slide.bullets && slide.content.mode === 'bullets')) {
         contentType = 'bullets';
       } else if (slide.content && slide.content.mode === 'comparison') {
         contentType = 'comparison';
@@ -154,7 +157,7 @@ export const finalizePresentation = async (outlineData) => {
   }
 
   const responseData = await response.json();
-  
+  console.log('Received response from finalize-ppt:', responseData);
   // Transform backend response to frontend format
   // Backend returns: { success: true, presentationId, data: { meta, slides, ... } }
   // Frontend expects: { success: true, presentationId, meta, slides }
@@ -163,7 +166,8 @@ export const finalizePresentation = async (outlineData) => {
       success: true,
       presentationId: responseData.presentationId,
       meta: responseData.data.meta,
-      slides: responseData.data.slides
+      // title: responseData.data.title || responseData.data.meta?.topic || '',
+      slides: responseData.data.data.slides
     };
   }
 
