@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { HiOutlinePresentationChartLine } from "react-icons/hi2";
-import { IoDocument } from "react-icons/io5";
+import { IoDocumentTextOutline } from "react-icons/io5";
 import { CiImageOn } from "react-icons/ci";
 import homepageImage from "../../assets/homepage.png";
 
@@ -11,19 +11,22 @@ const FEATURES = [
     name: "Presentation Builder",
     icon: HiOutlinePresentationChartLine,
     route: "/presentation",
-    desc: "Generate stunning presentation slides instantly with our Presentation Builder."
+    desc: "Generate stunning presentation slides instantly with our Presentation Builder.",
+    image: "https://images.unsplash.com/photo-1573167507387-6b4b98cb7c13?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NTl8fHByZXNlbnRhdGlvbnxlbnwwfHwwfHx8MA%3D%3D"
   },
   {
     name: "Image Editor",
     icon: CiImageOn,
     route: "/canva-clone",
-    desc: "Create and enhance visuals using powerful Image Editor tools."
+    desc: "Create and enhance visuals using powerful Image Editor tools.",
+    image: "https://images.unsplash.com/photo-1575936123452-b67c3203c357?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8aW1hZ2V8ZW58MHx8MHx8fDA%3D"
   },
   {
     name: "Document Workspace",
-    icon: IoDocument,
+    icon: IoDocumentTextOutline,
     route: "/editor",
-    desc: "Write professional documents faster with our Document Workspace."
+    desc: "Write professional documents faster with our Document Workspace.",
+    image: "https://images.unsplash.com/photo-1635859890085-ec8cb5466806?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
   }
 ];
 
@@ -42,7 +45,7 @@ const TOOLS = [
   },
   {
     name: "AI-Document Workspace",
-    icon: IoDocument,
+    icon: IoDocumentTextOutline,
     route: "/create/content-writer",
     desc: "Create professional documents faster with intelligent AI writing assistance."
   }
@@ -71,7 +74,7 @@ export default function Dashboard() {
       {/* HERO SECTION */}
 
       <motion.section
-        className="relative w-full py-16 px-6"
+        className="relative w-full py-12 px-6"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: false }}
@@ -80,23 +83,23 @@ export default function Dashboard() {
 
         <div className="absolute inset-0 -z-10 " />
 
-        <div className="max-w-7xl -mt-10 h-[480px] rounded-2xl overflow-hidden shadow-xl relative">
+        <div className="max-w-7xl -mt-10 h-[280px] rounded-2xl overflow-hidden shadow-xl relative">
 
           <div className="absolute inset-0">
 
             <img
-              src="https://i.pinimg.com/736x/79/b4/d4/79b4d4c366baaa4ff87cc0b4786ee91e.jpg"
+              src="https://i.pinimg.com/1200x/4c/49/cc/4c49cc9b0f4cb6764c38815faa5f567c.jpg"
               alt="hero"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover "
             />
 
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-[#0b1b4a]/80" />
+            <div className="absolute inset-0 " />
 
           </div>
 
           <motion.div
             style={{ y: heroY }}
-            className="relative z-10 text-center text-white px-6 pt-[80px] pb-[180px]"
+            className="relative z-10 text-center text-black px-6 pt-[20px] pb-[20px]"
           >
 
             <p className="uppercase tracking-widest text-sm mb-4 opacity-90">
@@ -107,11 +110,6 @@ export default function Dashboard() {
               Create Presentations, Images and <br />
               Documents with AI
             </h1>
-
-            <p className="mt-6 text-lg max-w-2xl mx-auto opacity-90">
-              Build professional presentations, edit images, craft documents —
-              or let AI generate everything instantly for you.
-            </p>
 
             <button
               onClick={scrollToTools}
@@ -130,93 +128,117 @@ export default function Dashboard() {
 
       {/* FEATURES */}
 
-     <section className="max-w-6xl mx-auto -mt-12 px-24 py-20">
-
-  <div className="text-center mb-14">
-
-    <h2 className="text-4xl font-bold text-black">
-      Powerful Features
-    </h2>
-
-    <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
-      Build presentations, design images and create documents faster with
-      intelligent AI powered tools.
-    </p>
-
-  </div>
 
 
-  <div className="grid md:grid-cols-3 gap-8 mt-14">
+      {/* FEATURES */}
 
-    {FEATURES.map((feature, i) => {
+      <section className="max-w-6xl mx-auto px-6 py-24">
 
-  const Icon = feature.icon;
+        <div className="text-center mb-16">
 
-  return (
+          <h2 className="text-4xl font-bold text-[#0c4a6e]">
+            Our Features
+          </h2>
 
-    <motion.div
-      key={i}
-      onClick={() => navigate(feature.route)}
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      whileHover={{ x: -3, y: -3 }}
-      transition={{ duration: 0.2 }}
-      viewport={{ once: false }}
-      className="w-[300px] rounded-xl overflow-hidden
-      border-2 border-black/40
-      shadow-[4px_4px_0px_#000000B3]
-      bg-[#f8fbff]
-      cursor-pointer
-      hover:shadow-[6px_6px_0px_#000000B3]
-      transition-all"
-    >
-
-      {/* HEADER */}
-
-      <div className="bg-gradient-to-r from-[#fefff7] via-[#fdffed] to-[#fcffcc] px-6 py-6">
-
-        <div className="flex justify-between items-center mb-4">
-
-          <div className="text-[#0c4a6e]">
-            <Icon size={26} />
-          </div>
-
-          <div className="bg-yellow-200 text-[#0c4a6e] px-3 py-1 rounded-full text-xs font-semibold">
-            Tool
-          </div>
+          <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
+            Build presentations, design images and create documents faster with
+            intelligent AI powered tools.
+          </p>
 
         </div>
 
-        <h3 className="text-xl font-bold text-[#0c4a6e] mb-1">
-          {feature.name}
-        </h3>
 
-        <p className="text-sm text-slate-600">
-          Designova Feature
-        </p>
+        <div className="grid md:grid-cols-3 gap-10">
 
-      </div>
+          {FEATURES.map((feature, i) => {
+
+            const Icon = feature.icon;
+
+            return (
+
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -8 }}
+                transition={{ duration: 0.35 }}
+                className="bg-gradient-to-b from-[#eef5ff] to-white
+          rounded-3xl shadow-xl overflow-hidden"
+              >
+
+                {/* Top Image Area */}
+
+                <div className="relative h-44  flex items-center justify-center">
+
+                  <div className="relative h-40 w-80 overflow-hidden rounded-3xl mt-4">
+
+                    <img
+                      src={feature.image}
+                      alt={feature.name}
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* soft overlay like reference image */}
+
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-transparent to-transparent"></div>
+
+                  </div>
+
+                  {/* Floating Circle Button */}
+
+                  <div className="absolute -bottom-6 right-6 w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center">
+
+                    <div className="w-10 h-10 rounded-full bg-[#2563eb] flex items-center justify-center text-white">
+                      <Icon size={18} />
+                    </div>
+
+                  </div>
+
+                </div>
 
 
-      {/* CONTENT */}
+                {/* Content */}
 
-      <div className="bg-white px-6 py-6">
+                <div className="pt-10 pb-8 px-8">
 
-        <p className="text-sm text-slate-600 text-center">
-          {feature.desc}
-        </p>
+                  <h3 className="text-xl font-semibold text-[#0c4a6e] mb-3">
+                    {feature.name}
+                  </h3>
 
-      </div>
+                  <p className="text-slate-600 text-sm mb-6">
+                    {feature.desc}
+                  </p>
 
-    </motion.div>
+                  <button
+                    onClick={() => navigate(feature.route)}
+                    className="
+              bg-[#e6f7ff]
+              text-black
+              rounded-full
+              px-5 py-[7px]
+              text-sm
+              font-medium
+              transition-all
+              duration-300
+              shadow-[inset_0_-20px_15px_-14px_rgba(56,189,248,0.18),0_1px_2px_rgba(56,189,248,0.12),0_2px_4px_rgba(56,189,248,0.12)]
+              hover:scale-105
+              hover:-rotate-1
+              "
+                  >
+                    Open Tool →
+                  </button>
 
-  )
+                </div>
 
-})}
+              </motion.div>
 
-  </div>
+            )
 
-</section>
+          })}
+
+        </div>
+
+      </section>
 
 
       {/* AI TOOLS */}
@@ -228,8 +250,6 @@ export default function Dashboard() {
           <div className="sticky top-0 h-screen flex items-center">
 
             <div className="flex items-center gap-12">
-
-              {/* TEXT */}
 
               <div className="max-w-lg">
 
@@ -248,9 +268,6 @@ export default function Dashboard() {
                 </p>
 
               </div>
-
-
-              {/* IMAGE */}
 
               <motion.img
                 src={homepageImage}
@@ -323,7 +340,7 @@ export default function Dashboard() {
 
         </div>
 
-        <svg className="absolute bottom-0 left-0 w-full rotate-180 -mb-2" viewBox="0 0 1440 100">
+        <svg className="absolute bottom-0 left-0 w-full rotate-180 -mb-1" viewBox="0 0 1440 100">
           <path fill="#f9fafb" d="M0,40 C360,120 1080,0 1440,80 L1440,0 L0,0 Z" />
         </svg>
 

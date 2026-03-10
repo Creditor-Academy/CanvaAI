@@ -1,8 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
-import { FiHelpCircle, FiSettings, FiBell } from "react-icons/fi";
+import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
 import api from "../services/api";
-import { FiLogOut, FiUser } from "react-icons/fi";
 
 const TopNavbar = () => {
   const navigate = useNavigate();
@@ -10,99 +9,130 @@ const TopNavbar = () => {
   const notifRef = useRef(null);
 
   const profileRef = useRef(null);
-
   const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
 
-  const [credits, setCredits] = useState({
+  const [credits] = useState({
     total: 100,
     used: 35,
   });
 
-  /* -------------------- Close notification on outside click -------------------- */
+  /* ---------------- Close notification outside click ---------------- */
+
   useEffect(() => {
     const handler = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) setOpenNotif(false);
+      if (notifRef.current && !notifRef.current.contains(e.target))
+        setOpenNotif(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  /* ---------------- Close profile outside click ---------------- */
+
   useEffect(() => {
     const handler = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
+      if (profileRef.current && !profileRef.current.contains(e.target))
         setopenProfile(false);
-      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* --------------------------- Fetch profile from API -------------------------- */
+  /* ---------------- Fetch profile ---------------- */
+
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
         const data = await api.getProfile();
         if (mounted) setProfile(data || null);
       } catch {}
     })();
+
     return () => (mounted = false);
   }, []);
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 h-[52px] flex items-center justify-between px-5 z-[100]"
+      className="fixed z-[100] flex items-center justify-between px-5"
       style={{
-        background: "#d0e9ff",
+        top: 12,
+        left: 90,
+        right: 20,
+        height: 52,
+
+        /* GLASS BACKGROUND */
+        background: "rgba(255,255,255,0.35)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+
+        /* BORDER */
+        border: "1px solid rgba(59,130,246,0.2)",
+
+        borderRadius: 16,
+
+        /* FLOAT SHADOW */
+        boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
       }}
     >
       {/* LEFT LOGO */}
-      <div className="flex items-center gap-3 text-[#54565a] font-semibold text-[16px] tracking-wide">
-        <div className="w-8 h-8 rounded-lg bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center font-bold">
+
+      <div className="flex items-center gap-3 text-slate-700 font-semibold text-[16px] tracking-wide">
+        <div className="w-8 h-8 rounded-lg bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center font-bold text-white">
           D
         </div>
+
         DesignovaAI
       </div>
 
       {/* RIGHT ACTIONS */}
+
       <div className="flex items-center gap-2 relative">
+
         {/* HELP */}
+
         <button
           onClick={() => navigate("/help-support")}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)] transition"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-yellow-100 transition"
         >
           <FiHelpCircle size={18} />
         </button>
 
         {/* NOTIFICATIONS */}
+
         <div ref={notifRef}>
           <button
             onClick={() => setOpenNotif(!openNotif)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)] transition relative"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-yellow-100 transition relative"
           >
             <FiBell size={18} />
+
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
           {openNotif && (
             <div
-              className="absolute right-0 mt-3 w-72 rounded-xl shadow-2xl p-3"
+              className="absolute right-0 mt-3 w-72 rounded-xl shadow-xl p-3"
               style={{
-                background: "#ffffff",
-                border: "1px solid rgba(0,0,0,0.06)"
+                background: "rgba(255,255,255,0.9)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(0,0,0,0.06)",
               }}
             >
               <p className="text-sm text-slate-600 mb-2">Notifications</p>
 
               <div className="space-y-2 text-sm">
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer text-slate-800">
+                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">
                   Your presentation is ready
                 </div>
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer text-slate-800">
+
+                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">
                   AI generated new design
                 </div>
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer text-slate-800">
+
+                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">
                   File exported successfully
                 </div>
               </div>
@@ -111,14 +141,18 @@ const TopNavbar = () => {
         </div>
 
         {/* PROFILE */}
+
         <div className="relative" ref={profileRef}>
           <div
             onClick={() => setopenProfile(!openProfile)}
-            className="w-8 h-8 rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] 
-               flex items-center justify-center text-white text-sm font-semibold cursor-pointer overflow-hidden"
+            className="w-8 h-8 rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center text-white text-sm font-semibold cursor-pointer overflow-hidden"
           >
             {profile?.avatar ? (
-              <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
+              <img
+                src={profile.avatar}
+                alt="avatar"
+                className="w-full h-full object-cover"
+              />
             ) : (
               <span>
                 {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
@@ -131,16 +165,19 @@ const TopNavbar = () => {
             <div
               className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
               style={{
-                background: "#ffffff",
-                border: "1px solid rgba(0,0,0,0.06)"
+                background: "rgba(255,255,255,0.95)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(0,0,0,0.06)",
               }}
             >
-              {/* PROFILE HEADER */}
               <div className="flex flex-col items-center px-5 pt-5 pb-4">
-
-                <div className="w-16 h-16 rounded-full bg-[#60a5fa] text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
+                <div className="w-16 h-16 rounded-full bg-blue-400 text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
                   {profile?.avatar ? (
-                    <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                    <img
+                      src={profile.avatar}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <>
                       {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
@@ -160,21 +197,20 @@ const TopNavbar = () => {
                 </div>
               </div>
 
-              {/* CREDITS */}
-              <div className="mt-4 w-full px-3">
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>Total Credits</span>
-                  <span>
-                    {credits.used} / {credits.total}
-                  </span>
-                </div>
+              {/* credits */}
+
+              <div className="px-4 pb-2 text-xs text-slate-500 flex justify-between">
+                <span>Total Credits</span>
+                <span>
+                  {credits.used} / {credits.total}
+                </span>
               </div>
 
               <div className="h-px bg-slate-200"></div>
 
-              {/* ACTIONS */}
-              <div className="py-2 text-sm">
+              {/* actions */}
 
+              <div className="py-2 text-sm">
                 <button
                   onClick={() => {
                     navigate("/settings", { state: { profile } });
@@ -196,11 +232,11 @@ const TopNavbar = () => {
                   <FiLogOut size={16} />
                   Logout
                 </button>
-
               </div>
             </div>
           )}
         </div>
+
       </div>
     </header>
   );

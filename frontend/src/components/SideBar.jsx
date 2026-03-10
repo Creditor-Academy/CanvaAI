@@ -14,12 +14,12 @@ import { useAuth } from "../contexts/AuthContext";
 /* ---------------- NAV ITEMS ---------------- */
 
 const BASE_ITEMS = [
-  { label: "Home", path: "/home", icon: <FiGrid size={22} /> },
-  { label: "Files", path: "/projects", icon: <FiFolder size={22} /> },
-  { label: "PPT", path: "/presentation", icon: <FiLayout size={22} /> },
-  { label: "Editor", path: "/editor", icon: <FiFileText size={22} /> },
-  { label: "Image", path: "/canva-clone", icon: <FiImage size={22} /> },
-  { label: "Analytics", path: "/analytics", icon: <FiActivity size={22} /> }
+  { label: "Home", path: "/home", icon: <FiGrid size={20} /> },
+  { label: "PPT", path: "/presentation", icon: <FiLayout size={20} /> },
+  { label: "Editor", path: "/editor", icon: <FiFileText size={20} /> },
+  { label: "Image", path: "/canva-clone", icon: <FiImage size={20} /> },
+  { label: "Files", path: "/projects", icon: <FiFolder size={20} /> },
+  { label: "Analytics", path: "/analytics", icon: <FiActivity size={20} /> }
 ];
 
 /* ---------------- RAIL ITEM ---------------- */
@@ -28,7 +28,7 @@ const RailItem = ({ active, label, icon, onClick }) => (
   <button
     onClick={onClick}
     style={{
-      width: 63,
+      width: 56,
       border: "none",
       background: "transparent",
       display: "flex",
@@ -38,26 +38,40 @@ const RailItem = ({ active, label, icon, onClick }) => (
       gap: 2,
       padding: "6px 0",
       cursor: "pointer",
-      color: active ? "#000000" : "#54565a",
-      transition: "all .18s ease",
+      color: active ? "#1e40af" : "#4b5563",
+      transition: "all .18s ease"
     }}
   >
     <div
       style={{
-        width: 38,
-        height: 38,
-        borderRadius: 12,
+        width: 32,
+        height: 32,
+        borderRadius: 10,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: active ? "#4988C4" : "transparent",
-        transition: "all .18s ease",
+
+        /* ACTIVE BLUE */
+        background: active
+          ? "rgba(59,130,246,0.9)"
+          : "rgba(255,255,255,0.45)",
+
+        color: active ? "#fff" : "#374151",
+
+        backdropFilter: "blur(6px)",
+        transition: "all .18s ease"
       }}
     >
       {icon}
     </div>
 
-    <span style={{ fontSize: 11, textAlign: "center" }}>
+    <span
+      style={{
+        fontSize: 10,
+        textAlign: "center",
+        fontWeight: 500
+      }}
+    >
       {label}
     </span>
   </button>
@@ -70,7 +84,6 @@ const SideBar = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
 
-  /* Inject admin item only if admin logged */
   const ITEMS = React.useMemo(() => {
     if (!isAdmin) return BASE_ITEMS;
 
@@ -79,7 +92,7 @@ const SideBar = () => {
       {
         label: "Admin",
         path: "/admin-dash",
-        icon: <FiShield size={22} />
+        icon: <FiShield size={20} />
       }
     ];
   }, [isAdmin]);
@@ -87,32 +100,46 @@ const SideBar = () => {
   const go = (path) => {
     if (path === "/canva-clone")
       window.open(window.location.origin + path, "_blank");
-    else
-      navigate(path);
+    else navigate(path);
   };
- 
+
   return (
-   <aside
-  style={{
-    position: "fixed",
-    left: 0,
-    top: 52,
-    height: "calc(100vh - 52px)",
-    width: 63,
+    <aside
+      style={{
+        position: "fixed",
+        left: 18,
 
-    /* LIGHT GLASS BACKGROUND */
-    background: "#d0e9ff",
+        /* slightly lower center */
+        top: "54%",
+        transform: "translateY(-50%)",
 
-  
+        width: 56,
 
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    zIndex: 99,
-  }}
->
+        /* GLASS BACKGROUND (white 10%) */
+        background: "rgba(255,255,255,0.28)",
+
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+
+        /* BLUE BORDER (60%) */
+        border: "1px solid rgba(59,130,246,0.25)",
+
+        /* rounded top bottom */
+        borderRadius: 20,
+
+        padding: "8px 0",
+
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
+
+        /* soft floating shadow */
+        boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+
+        zIndex: 9999
+      }}
+    >
       {ITEMS.map((item) => (
         <RailItem
           key={item.path}
