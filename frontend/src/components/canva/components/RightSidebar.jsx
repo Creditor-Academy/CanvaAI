@@ -229,15 +229,6 @@ const RightSidebar = ({
 
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex gap-4 gap-2 w-full ml-2 flex-col ">
-                    <label className="flex items-center gap-1.5 text-[13px] text-gray-600 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isHeading}
-                        onChange={(e) => setIsHeading(e.target.checked)}
-                        className="cursor-pointer"
-                      />
-                      <span>Is Heading</span>
-                    </label>
 
                     <TextEnhanceButton
                       onClick={handleEnhanceText}

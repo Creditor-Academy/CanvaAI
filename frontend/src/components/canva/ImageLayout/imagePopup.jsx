@@ -1,7 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { X, Download, Image as ImageIcon, ZoomIn } from "lucide-react";
+import { useAuth } from '../../../contexts/AuthContext'
+import { cloneImage } from '../../../services/imageEditor/imageApi'
+import { toast } from 'sonner'
 
 const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
+    const { isAdmin } = useAuth()
+    const [importing, setImporting] = useState(false)
     if (!image) return null;
 
     return (
@@ -94,11 +99,37 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                             </button>
 
                             <button
-                                onClick={() => onImport(image)}
-                                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30 focus:ring-4 focus:ring-blue-200 flex items-center gap-2 group"
+                                onClick={async () => {
+                                    // If admin, delegate to parent handler (existing behavior)
+                                    if (isAdmin) return onImport(image)
+
+                                    // Non-admin: clone via API then open cloned project
+                                    const targetId = image.imageId || image._id
+                                    try {
+                                        setImporting(true)
+                                        const resp = await cloneImage(targetId)
+                                        const newId = resp?.data?._id || resp?.imageId || resp?.data?.imageId || resp?._id || targetId
+                                        try {
+                                            const payload = resp.data || resp
+                                            sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify(payload))
+                                            sessionStorage.setItem(`prefill_import_flag_${newId}`, '1')
+                                        } catch (err) {
+                                            console.warn('Failed to store cloned prefill project', err)
+                                        }
+                                        window.open(`/canva-clone/${newId}`, '_blank')
+                                        toast.success('Template imported to your account')
+                                    } catch (err) {
+                                        console.error('Clone/import failed', err)
+                                        toast.error('Failed to import template')
+                                    } finally {
+                                        setImporting(false)
+                                    }
+                                }}
+                                disabled={importing}
+                                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30 focus:ring-4 focus:ring-blue-200 flex items-center gap-2 group disabled:opacity-60"
                             >
                                 <Download className="w-4 h-4 group-hover:animate-bounce" />
-                                Import Template
+                                {importing ? 'Importing...' : 'Import Template'}
                             </button>
                         </div>
                     </div>
@@ -109,3 +140,6 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
 };
 
 export default ImagePopup;
+
+
+

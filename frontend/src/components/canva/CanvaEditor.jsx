@@ -267,6 +267,17 @@ const CanvaEditor = () => {
   // Load project data
   useProjectLoader(setLayers, setCanvasSize, setZoom, setPan, setCanvasBgColor, setCanvasBgImage, setProjectName);
 
+  // Determine whether this project was opened via import-prefill (treat as new)
+  const [isPrefillImport, setIsPrefillImport] = useState(false);
+  useEffect(() => {
+    try {
+      if (projectId) {
+        const flag = typeof window !== 'undefined' && sessionStorage.getItem(`prefill_import_flag_${projectId}`);
+        setIsPrefillImport(!!flag);
+      }
+    } catch (e) { }
+  }, [projectId]);
+
   // Add default heading when page opens and there are no layers
   const hasInitializedRef = useRef(false);
   const projectLoadTimeoutRef = useRef(null);
@@ -1562,20 +1573,6 @@ const CanvaEditor = () => {
       setDrawingSettings(prev => ({ ...prev, isDrawing: false }));
     }
   };
-  const handleToggleVisibility = async () => {
-    if (!projectId) return;
-    try {
-      const payload = {
-        userId: user?._id || user?.id,
-        isPublic: true // or toggle based on design if state is available
-      };
-      await updateImageVisibility(projectId, payload);
-      toast.success("Visibility updated!");
-    } catch (error) {
-      toast.error("Failed to update visibility");
-    }
-  };
-
 
   const resetEditorToInitialState = useCallback(() => {
     // Reset canvas
@@ -1820,8 +1817,7 @@ const CanvaEditor = () => {
           canvasBgColor={canvasBgColor}
           canvasBgImage={canvasBgImage}
           projectName={projectName}
-          isExistingProject={!!projectId}
-          onToggleVisibility={handleToggleVisibility}
+          isExistingProject={!!projectId && !isPrefillImport}
           userRole={user?.role}
         />
 

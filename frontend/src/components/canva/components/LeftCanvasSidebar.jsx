@@ -165,13 +165,67 @@ const LeftCanvasSidebar = memo(({
 
 
   const shapeConfigs = [
+    {
+      key: 'line', label: 'Line', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ), size: [200, 6]
+    },
     { key: 'rectangle', label: 'Rectangle', icon: <FiSquare size={18} />, size: [120, 120] },
+    {
+      key: 'roundedRectangle', label: 'Rounded Rect', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="6" width="18" height="12" rx="3" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      ), size: [180, 120]
+    },
     { key: 'circle', label: 'Circle', icon: <FiCircle size={18} />, size: [160, 160] },
+    {
+      key: 'ellipse', label: 'Ellipse', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="12" cy="12" rx="8" ry="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      ), size: [160, 100]
+    },
     { key: 'triangle', label: 'Triangle', icon: <FiTriangle size={18} />, size: [200, 200] },
+    {
+      key: 'rightTriangle', label: 'Right Triangle', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 4v16h16L4 4z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      ), size: [200, 200]
+    },
     { key: 'star', label: 'Star', icon: <FiStar size={18} />, size: [240, 240] },
+    { key: 'star6', label: '6-Point Star', icon: <FiStar size={18} />, size: [260, 260] },
     { key: 'heart', label: 'Heart', icon: <FiHeart size={18} />, size: [280, 280] },
+    {
+      key: 'diamond', label: 'Diamond', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="12,3 20,12 12,21 4,12" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      ), size: [160, 160]
+    },
+    {
+      key: 'pentagon', label: 'Pentagon', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="12,3 20,9 16,20 8,20 4,9" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      ), size: [180, 180]
+    },
+    {
+      key: 'hexagon', label: 'Hexagon', icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="12,2 20,7 20,17 12,22 4,17 4,7" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      ), size: [180, 180]
+    },
+    { key: 'arrow', label: 'Arrow', icon: <FiArrowRight size={18} />, size: [360, 360] },
+    
+    { key: 'arrowLeft', label: 'Left Arrow', icon: <FiArrowLeft size={18} />, size: [200, 200] },
+    { key: 'arrowUp', label: 'Up Arrow', icon: <FiArrowUp size={18} />, size: [200, 200] },
+    { key: 'arrowDown', label: 'Down Arrow', icon: <FiArrowDown size={18} />, size: [200, 200] },
     { key: 'cloud', label: 'Cloud', icon: <FiCloud size={18} />, size: [440, 440] },
-    { key: 'arrowRight', label: 'Arrow', icon: <FiArrowRight size={18} />, size: [360, 360] },
   ];
 
   const textConfigs = [
@@ -463,7 +517,7 @@ const LeftCanvasSidebar = memo(({
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("shapes")}
         >
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             {shapeConfigs.map(({ key, label, icon, size }) => (
               <button
                 key={key}
@@ -471,7 +525,6 @@ const LeftCanvasSidebar = memo(({
                 onClick={() => { handleAddElement(size[0], size[1], key); setSelectedTool('select'); }}
               >
                 {icon}
-                <span className="text-[11px] font-medium">{label}</span>
               </button>
             ))}
           </div>

@@ -1,4 +1,5 @@
-import { getUserImages, deleteImage } from '@/services/imageEditor/imageApi'
+import { getUserImages, deleteImage, updateImageVisibility } from '@/services/imageEditor/imageApi'
+import { Globe, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import React, { useEffect, useState } from 'react'
@@ -23,6 +24,7 @@ const ImageDash = () => {
     const [error, setError] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [thumbnails, setThumbnails] = useState({})
+    const [visLoading, setVisLoading] = useState({})
 
     useEffect(() => {
         let mounted = true
@@ -100,8 +102,25 @@ const ImageDash = () => {
     }, [images, thumbnails])
 
     const handleDelete = async (imageId) => {
-        if (!window.confirm('Are you sure you want to delete this design?')) return
         try {
+            const img = images.find(i => i._id === imageId)
+            if (!img) return
+
+            const confirmMsg = img.isPublic
+                ? 'Your data is published. Do you want to delete it?'
+                : 'Are you sure you want to delete this design?'
+
+            if (!window.confirm(confirmMsg)) return
+
+            // If published, first unpublish so it is removed from public listings
+            if (img.isPublic) {
+                try {
+                    await updateImageVisibility(imageId, { userId, isPublic: false })
+                } catch (err) {
+                    console.warn('Failed to unpublish before delete', err)
+                }
+            }
+
             await deleteImage(imageId)
             setImages(prev => prev.filter(img => img._id !== imageId))
             setThumbnails(prev => { const copy = { ...prev }; delete copy[imageId]; return copy })
@@ -109,6 +128,21 @@ const ImageDash = () => {
         } catch (err) {
             console.error('Delete error', err)
             toast.error('Failed to delete design')
+        }
+    }
+
+    const handleVisibilityChange = async (imageId, currentStatus) => {
+        try {
+            setVisLoading(prev => ({ ...prev, [imageId]: true }))
+            const payload = { userId, isPublic: !currentStatus }
+            await updateImageVisibility(imageId, payload)
+            setImages(prev => prev.map(img => img._id === imageId ? { ...img, isPublic: !currentStatus } : img))
+            toast.success(!currentStatus ? 'Image published' : 'Image unpublished')
+        } catch (err) {
+            console.error('Update visibility error', err)
+            toast.error('Failed to update visibility')
+        } finally {
+            setVisLoading(prev => { const copy = { ...prev }; delete copy[imageId]; return copy })
         }
     }
 
@@ -180,8 +214,42 @@ const ImageDash = () => {
                                     </div>
 
                                     <div className="p-5">
-                                        <div className="flex items-start justify-between">
-                                            <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
+                                        <div className='flex justify-between'>
+                                            <div className="flex items-start justify-between">
+                                                <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleVisibilityChange(image._id, image.isPublic);
+                                                }}
+                                                disabled={!!visLoading[image._id]}
+                                                aria-busy={!!visLoading[image._id]}
+                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm ${image.isPublic
+                                                    ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                                    } ${visLoading[image._id] ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                title={image.isPublic ? "Unpublish image" : "Publish image"}
+                                            >
+                                                {visLoading[image._id] ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                        <span className="text-xs">Updating...</span>
+                                                    </>
+                                                ) : (image.isPublic ? (
+                                                    <>
+                                                        <Globe size={14} />
+                                                        Published
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Lock size={14} />
+                                                        Private
+                                                    </>
+                                                ))}
+                                            </button>
+
                                         </div>
                                         <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
                                             <span className="flex items-center gap-1">{new Date(image.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>

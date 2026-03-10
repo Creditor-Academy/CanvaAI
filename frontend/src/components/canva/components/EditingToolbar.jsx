@@ -47,7 +47,6 @@ const EditingToolbar = ({
     canvasBgImage,
     projectName,
     isExistingProject,
-    onToggleVisibility,
     userRole,
 }) => {
     const [showFontDropdown, setShowFontDropdown] = useState(false);
@@ -119,16 +118,9 @@ const EditingToolbar = ({
     const isTextLayer = selectedLayer && layer?.type === 'text';
     const isImageLayer = selectedLayer && layer?.type === 'image';
 
-    // Handle save with conditional modal
+    // Handle save: always show ProjectNameModal (even for existing projects)
     const handleSaveClick = () => {
-        if (isExistingProject) {
-            // Directly save without showing modal
-            onSave();
-            setSaveSuccess(true);
-        } else {
-            // Show modal for new projects
-            setShowProjectNameModal(true);
-        }
+        setShowProjectNameModal(true);
     };
 
     const handleProjectNameConfirm = (name) => {
@@ -426,23 +418,9 @@ const EditingToolbar = ({
                                     <FiRotateCw size={15} />
                                     <span className="text-xs">Flip</span>
                                 </button>
-                                {/* <button
-                                    onClick={onStartCrop}
-                                    className={isCropping ? btnActive : btnOutline}
-                                >
-                                    <FiCrop size={15} />
-                                    <span className="text-xs">Crop</span>
-                                </button> */}
                             </div>
                         )}
 
-                        {/* Effects Button (for any selected layer) */}
-                        {/* {selectedLayer && (
-                            <button onClick={onEffects} className={btnOutline}>
-                                <FiZap size={15} className="text-amber-500" />
-                                <span className="text-xs">Effects</span>
-                            </button>
-                        )} */}
                     </div>
 
                     {/* Right section - Action buttons */}
@@ -500,17 +478,6 @@ const EditingToolbar = ({
                             }
                         </div>
 
-                        {/* Public/Private Toggle for Admins */}
-                        {isExistingProject && userRole === 'admin' && (
-                            <button
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                onClick={onToggleVisibility}
-                                title="Toggle Public/Private"
-                            >
-                                <FiShare2 size={16} />
-                                <span className="hidden sm:inline">Public</span>
-                            </button>
-                        )}
 
                         {/* Save Button */}
                         <div className="relative" ref={saveButtonRef}>

@@ -37,6 +37,8 @@ export const useProjectLoader = (
           if (imageProject.data?.canvasBgImage) setCanvasBgImage(imageProject.data.canvasBgImage)
           // remove the prefill so it doesn't persist
           sessionStorage.removeItem(key)
+          // remove the import flag if present
+          try { sessionStorage.removeItem(`prefill_import_flag_${projectId}`) } catch (e) { }
           return
         }
       } catch (err) {

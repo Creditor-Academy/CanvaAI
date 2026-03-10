@@ -5,6 +5,7 @@ import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility }
 import { Trash2, Globe, Lock } from 'lucide-react';
 import './AdminDash.css';
 import { useNavigate } from "react-router-dom";
+import ImageDash from '@/components/canva/ImageLayout/imageDash';
 
 const AdminDash = () => {
   const { user } = useAuth();
@@ -279,8 +280,10 @@ const AdminDash = () => {
           </div>
         </div>
       )}
+      <ImageDash />
     </div>
   );
 };
 
 export default AdminDash;
+

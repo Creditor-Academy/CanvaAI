@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { getPublicTemplateImages, deleteImage } from '../../../services/imageEditor/imageApi'
+import { getPublicTemplateImages, deleteImage, cloneImage } from '../../../services/imageEditor/imageApi'
 import { exportCanvasAsImage } from '../export/exportCanvasAsImage'
 import { toast } from 'sonner'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -14,16 +14,40 @@ const ImageAdmin = () => {
     const [selectedImage, setSelectedImage] = useState(null)
 
 
-    const handleImport = (image) => {
-        const targetId = image.imageId || image._id
+    const handleImport = async (image) => {
+        const targetId = image.imageId || image._id;
 
-        try {
-            sessionStorage.setItem(`prefill_project_${targetId}`, JSON.stringify(image))
-        } catch (err) {
-            console.warn('Failed to store prefill project', err)
+        // Admins open the template directly (existing template metadata)
+        if (isAdmin) {
+            try {
+                sessionStorage.setItem(`prefill_project_${targetId}`, JSON.stringify(image));
+            } catch (err) {
+                console.warn('Failed to store prefill project', err);
+            }
+
+            window.open(`/canva-clone/${targetId}`, '_blank');
+            return;
         }
 
-        window.open(`/canva-clone/${targetId}`, '_blank')
+        // Non-admins: clone the template into their account, then open the cloned item
+        try {
+            const resp = await cloneImage(targetId);
+            const newId = resp?.data?._id || resp?.imageId || resp?.data?.imageId || resp?._id || targetId;
+
+            try {
+                const payload = resp.data || resp;
+                sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify(payload));
+                sessionStorage.setItem(`prefill_import_flag_${newId}`, '1');
+            } catch (err) {
+                console.warn('Failed to store cloned prefill project', err);
+            }
+
+            window.open(`/canva-clone/${newId}`, '_blank');
+            toast.success('Template imported to your account');
+        } catch (err) {
+            console.error('Clone/import failed', err);
+            toast.error('Failed to import template');
+        }
     }
 
 
@@ -135,7 +159,7 @@ const ImageAdmin = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Template Management</h1>
-                        <p className="text-slate-500 mt-1">Manage public templates and creative assets</p>
+                        <p className="text-slate-500 mt-1">Use the template library to manage your creative assets</p>
                     </div>
                 </div>
 
@@ -205,7 +229,7 @@ const ImageAdmin = () => {
                                             </h3>
                                             <button
                                                 onClick={() => setSelectedImage(image)}
-                                               className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition cursor-pointer"
+                                                className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition cursor-pointer"
                                             >
                                                 View
                                             </button>
@@ -244,18 +268,6 @@ const ImageAdmin = () => {
                                 </svg>
                             </div>
                             <h3 className="text-xl font-bold text-slate-800 mb-2">No templates yet</h3>
-                            <p className="text-slate-500 text-sm mb-8">Create your first template to get started with the template library.</p>
-                            <a
-                                href="/canva-clone"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                Create Template
-                            </a>
                         </div>
                     </div>
                 ))}

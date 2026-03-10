@@ -63,6 +63,7 @@ export const deleteImage = async (imageId) => {
     }
 };
 
+
 export const updateImageVisibility = async (imageId, payload) => {
     try {
         const res = await api.put(`/api/images/update/visibility/${imageId}`, payload);
@@ -127,6 +128,15 @@ export const getPublicTemplateImages = async () => {
     }
 };
 
-
+// Clone a public template into the current user's account
+export const cloneImage = async (pptId) => {
+    try {
+        const res = await api.get(`/api/images/clone/${pptId}`);
+        return res.data;
+    } catch (error) {
+        console.error('Clone Image Error:', error.response?.data || error.message);
+        throw error;
+    }
+};
 
 
