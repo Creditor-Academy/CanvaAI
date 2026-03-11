@@ -22,18 +22,26 @@ export const finalizePresentation = async (outlineData) => {
   const meta = {
     topic: outlineData.meta?.topic || outlineData.topic || '',
     tone: outlineData.meta?.tone || outlineData.tone || 'professional',
-    slideCount:outlineData.slides ? outlineData.slides.length : 0,
-    mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'minimal'
+    slideCount: outlineData.slides ? outlineData.slides.length : 0,
+    mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'no-media',
+    theme: outlineData.meta?.theme || {
+      name: 'Default',
+      slideBackground: '#ffffff',
+      titleColor: '#000000',
+      bodyColor: '#333333',
+      accentColor: '#3b82f6'
+    }
   };
+
 
   // Transform slides to backend format
   // Backend expects content as: string (paragraph), array (bullets), or object (comparison)
   const slides = outlineData.slides.map(slide => {
     let content = slide.content;
-    
+
     // Normalize contentType to match backend enum: 'paragraph', 'bullets', 'comparison'
     let contentType = slide.contentType || 'paragraph';
-    
+
     // Map invalid values to valid enum values
     if (contentType === 'list') {
       contentType = 'bullets';
@@ -71,7 +79,7 @@ export const finalizePresentation = async (outlineData) => {
           const rightMatch = rawText.match(/Right:\s*([\s\S]*?)$/i);
           const leftText = leftMatch ? leftMatch[1].trim() : '';
           const rightText = rightMatch ? rightMatch[1].trim() : '';
-          
+
           content = {
             left: leftText ? leftText.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l) : [],
             right: rightText ? rightText.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l) : []
@@ -116,7 +124,7 @@ export const finalizePresentation = async (outlineData) => {
   if (!meta.topic || meta.topic.trim() === '') {
     throw new Error('Topic is required to finalize presentation');
   }
-  
+
   if (slides.length === 0) {
     throw new Error('At least one slide is required to finalize presentation');
   }
@@ -145,14 +153,14 @@ export const finalizePresentation = async (outlineData) => {
     } catch (e) {
       errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
     }
-    
+
     const errorMessage = errorData.details || errorData.error || `Failed to finalize presentation: ${response.status}`;
     console.error('Finalize presentation error:', {
       status: response.status,
       statusText: response.statusText,
       errorData: errorData
     });
-    
+
     throw new Error(errorMessage);
   }
 
