@@ -137,7 +137,9 @@ const styles = {
   },
   body: {
     flex: 1,
-    display: "flex"
+    display: "flex",
+    position: "relative",
+    overflow: "hidden"
   }
 };
 

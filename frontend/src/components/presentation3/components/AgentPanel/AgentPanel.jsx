@@ -83,13 +83,15 @@ const AgentPanel = ({ isOpen, onClose }) => {
     try {
       if (mode === "generate-image") {
         console.log("--- AgentPanel: Generating image with prompt:", prompt);
-        const res = await aiService.generateAIImage(userId, presentationId, prompt);
+        const activeSlide = slides.find(s => s.id === activeSlideId);
+        const res = await aiService.generateAIImage(userId, presentationId, prompt, activeSlide);
         if (res.url) {
           addImageLayer(null, res.url, res.key);
         }
       } else if (mode === "generate-slide") {
         console.log("--- AgentPanel: Generating slide. Payload check:", { userId, presentationId, prompt, mediaType });
-        const res = await aiService.generateAISlide(userId, presentationId, prompt, mediaType);
+        const presentationData = { slides };
+        const res = await aiService.generateAISlide(userId, presentationId, prompt, mediaType, presentationData);
         console.log("--- AgentPanel: Generate slide response:", res);
         if (res.success && res.data) {
           appendSlide(res.data);

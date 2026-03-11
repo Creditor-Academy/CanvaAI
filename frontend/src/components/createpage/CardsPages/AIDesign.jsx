@@ -8,10 +8,20 @@ export const AIDesign = () => {
   const previewRef = useRef(null);
 
   const [prompt, setPrompt] = useState("");
+  const [selectedStyle, setSelectedStyle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [generatedImage, setGeneratedImage] = useState(null);
+  const [generatedImages, setGeneratedImages] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]);
   const [activePreview, setActivePreview] = useState(null);
+
+  const styles = ["Realistic", "Anime", "Cartoon", "Sketch", "Painting"];
+  const mockImages = [
+    "https://images.unsplash.com/photo-1673328021673-17902775371d?w=600&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1611521448635-a3a774ee7c7d?w=600&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=600&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1690037704521-f614da226dac?w=600&auto=format&fit=crop&q=60"
+  ];
 
   /* ---------------- BACKGROUND IMAGES ---------------- */
   const bgImages = [
@@ -73,27 +83,33 @@ export const AIDesign = () => {
   }, [isLoading]);
 
   /* ---------------- GENERATE ---------------- */
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerate = () => {
+    if (!prompt.trim() || !selectedStyle) return;
 
-    setGeneratedImage(null);
+    setGeneratedImages([]);
+    setSelectedImages([]);
     setProgress(5);
     setIsLoading(true);
 
-
-
-    try {
-      const res = await api.post("/api/generate-logo", { prompt });
-      const data = res.data;
-
-      const clean = data.imageBase64.replace(/\s/g, "");
-      const img = `data:${data.mimeType};base64,${clean}`;
-
+    setTimeout(() => {
       setProgress(100);
-      setGeneratedImage(img);
-    } finally {
+      setGeneratedImages(mockImages);
       setTimeout(() => setIsLoading(false), 400);
-    }
+    }, 3000);
+  };
+
+  const toggleImageSelection = (imgUrl) => {
+    setSelectedImages((prev) =>
+      prev.includes(imgUrl)
+        ? prev.filter((url) => url !== imgUrl)
+        : [...prev, imgUrl]
+    );
+  };
+
+  const handleImport = () => {
+    if (selectedImages.length === 0) return;
+    alert(`Importing ${selectedImages.length} images... redirecting to Image Editor!`);
+    // navigate("/edito", { state: { images: selectedImages } });
   };
 
   const openInEditor = () => {
@@ -209,6 +225,12 @@ export const AIDesign = () => {
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGenerate();
+                  }
+                }}
                 className="w-full bg-transparent outline-none resize-none text-lg min-h-[80px] text-black pt-3 pl-3"
               />
 
@@ -216,8 +238,11 @@ export const AIDesign = () => {
 
             <button
               onClick={handleGenerate}
-              disabled={isLoading}
-              className="bg-[linear-gradient(180deg,#f7971e_0%,#ffd200_100%)] px-8 py-3 rounded-2xl font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_14px_28px_rgba(250,204,21,0.45)]"
+              disabled={isLoading || !prompt.trim() || !selectedStyle}
+              className={`px-8 py-3 rounded-2xl font-semibold whitespace-nowrap transition-all duration-200 ${isLoading || !prompt.trim() || !selectedStyle
+                  ? "bg-gray-400 text-gray-700 opacity-70 cursor-not-allowed"
+                  : "bg-[linear-gradient(180deg,#f7971e_0%,#ffd200_100%)] hover:-translate-y-[2px] text-black hover:shadow-[0_14px_28px_rgba(250,204,21,0.45)]"
+                }`}
             >
               Generate
             </button>
@@ -225,14 +250,30 @@ export const AIDesign = () => {
           </div>
         </div>
 
+        {/* STYLE SELECTOR */}
+        <div className="mt-8 flex flex-wrap justify-center gap-3 relative z-20">
+          {styles.map((s) => (
+            <button
+              key={s}
+              onClick={() => setSelectedStyle(s)}
+              className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${selectedStyle === s
+                  ? "bg-[linear-gradient(180deg,#f7971e_0%,#ffd200_100%)] text-black shadow-lg scale-105"
+                  : "bg-white/20 text-[#0c4a6e] hover:bg-white/40 hover:text-black backdrop-blur-md border border-white/20"
+                }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
         {/* EXAMPLES */}
-        {!generatedImage && !isLoading && (
-          <div className="mt-10 flex flex-wrap justify-center gap-3 max-w-3xl">
+        {generatedImages.length === 0 && !isLoading && (
+          <div className="mt-8 flex flex-wrap justify-center gap-3 max-w-3xl">
             {examplePrompts.map((ex, i) => (
               <button
                 key={i}
                 onClick={() => setPrompt(ex)}
-                className="bg-white/80 hover:bg-white/20 border border-white/15 px-4 py-2 rounded-full text-sm backdrop-blur-md"
+                className="bg-white/80 hover:bg-white border border-white/15 px-4 py-2 text-[#0c4a6e] rounded-full text-sm backdrop-blur-md transition-all shadow-sm hover:shadow-md"
               >
                 {ex}
               </button>
@@ -245,53 +286,94 @@ export const AIDesign = () => {
       {/* ---------------- RESULT SECTION ---------------- */}
       <div
         ref={previewRef}
-        className={`relative z-30 flex flex-col items-center transition-all duration-500 ${isLoading || generatedImage
-          ? "mt-32 mb-24 opacity-100"
-          : "h-0 overflow-hidden opacity-0"
+        className={`relative z-30 flex flex-col items-center transition-all duration-500 w-full max-w-6xl ${isLoading || generatedImages.length > 0
+            ? "mt-24 mb-24 opacity-100"
+            : "h-0 overflow-hidden opacity-0"
           }`}
       >
-
         {isLoading && (
-          <div className="w-[420px] max-w-full mt-20">
-
-            <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-[420px] max-w-full mt-10">
+            <div className="h-3 bg-white/30 rounded-full overflow-hidden shadow-inner">
               <div
                 className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
-
-            <p className="mt-4 text-gray-600 text-center">
-              {Math.floor(progress)}% Generating image...
+            <p className="mt-4 text-[#0c4a6e] font-semibold text-center">
+              {Math.floor(progress)}% Generating designs...
             </p>
-
           </div>
         )}
 
-        {generatedImage && !isLoading && (
-          <div className="relative group w-[420px] max-w-full mt-20">
+        {generatedImages.length > 0 && !isLoading && (
+          <div className="flex flex-col items-center w-full mt-10 px-4 animate-fade-in-up">
+            <div className="flex gap-6 overflow-x-auto pb-8 w-full custom-scrollbar justify-start xl:justify-center">
+              {generatedImages.map((img, idx) => {
+                const isSelected = selectedImages.includes(img);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => toggleImageSelection(img)}
+                    className={`relative w-[280px] h-[280px] shrink-0 rounded-3xl cursor-pointer transition-all duration-300 select-none bg-white ${isSelected
+                        ? "ring-4 ring-amber-500 scale-[1.02] shadow-[0_20px_40px_rgba(245,158,11,0.25)]"
+                        : "shadow-xl hover:-translate-y-2 hover:shadow-2xl ring-1 ring-[#0c4a6e]/10"
+                      }`}
+                  >
+                    <img
+                      src={img}
+                      className="w-full h-full object-cover rounded-3xl"
+                      alt=""
+                      draggable={false}
+                    />
 
-            <img
-              src={generatedImage}
-              className="  rounded-3xl shadow-2xl"
-              alt=""
-            />
+                    {/* Hover Overlay */}
+                    <div className={`absolute inset-0 bg-black/30 rounded-3xl flex flex-col items-center justify-center gap-3 opacity-0 transition duration-300 ${isSelected ? "hidden" : "hover:opacity-100"}`}>
+                      <span className="bg-white text-black px-6 py-2 rounded-full font-semibold shadow-lg">
+                        Select
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActivePreview(img); }}
+                        className="text-white text-sm border border-white/50 px-4 py-1.5 rounded-full hover:bg-white/20 backdrop-blur-sm transition"
+                      >
+                        Preview 🔍
+                      </button>
+                    </div>
 
-            <div className="  absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-
-              <button
-                onClick={() => setActivePreview(generatedImage)}
-                className="bg-white text-black px-6 py-2 rounded-xl font-medium"
-              >
-                View
-              </button>
-
+                    {/* Selected Checkmark */}
+                    {isSelected && (
+                      <div className="absolute top-4 right-4 bg-amber-500 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg z-10 transition-transform scale-in">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
+            <button
+              onClick={handleImport}
+              disabled={selectedImages.length === 0}
+              className={`mt-4 px-10 py-4 rounded-3xl font-bold text-lg transition-all shadow-xl ${selectedImages.length === 0
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                  : "bg-[#0c4a6e] text-white hover:scale-105 hover:bg-[#072a42] border border-[#0c4a6e]"
+                }`}
+            >
+              Import Selected ({selectedImages.length})
+            </button>
           </div>
         )}
-
       </div>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(12, 74, 110, 0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(12, 74, 110, 0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(12, 74, 110, 0.4); }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+        @keyframes scale-in { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .scale-in { animation: scale-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+      `}</style>
 
       {/* ---------------- MODAL ---------------- */}
       {activePreview &&

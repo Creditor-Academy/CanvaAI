@@ -191,9 +191,10 @@ export const deletePresentation = async (id, userId) => {
  * Response can be: { created, data: [{ b64_json, revised_prompt, url }] }
  * or directly: { url, revised_prompt, b64_json, key }
  */
-export const generateAIImage = async (userId, pptId, prompt) => {
+
+export const generateAIImage = async (userId, pptId, prompt, activeSlideData) => {
     const url = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
-    const res = await axios.post(url, { prompt }, getAuthHeaders());
+    const res = await axios.post(url, { prompt, activeSlideData }, getAuthHeaders());
 
     // Support both wrapped (DALL-E style) and unwrapped response structures
     const first = res.data?.data?.[0] || res.data;
@@ -222,10 +223,10 @@ export const generateAIImage = async (userId, pptId, prompt) => {
     };
 };
 
-export const generateAISlide = async (userId, pptId, prompt, mediaType) => {
+export const generateAISlide = async (userId, pptId, prompt, mediaType, presentationData) => {
     const url = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
     const payload = {
-        slideContent: prompt,
+        slideContent: `User Request: ${prompt}\n\nExisting Presentation Context (JSON): ${JSON.stringify(presentationData)}`,
         mediaStyle: mediaType
     };
     console.log(`--- PresentationService: generateAISlide POST ${url}`, payload);

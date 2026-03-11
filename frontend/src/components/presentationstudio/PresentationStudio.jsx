@@ -149,35 +149,25 @@ const PresentationStudio = ({ onBack }) => {
 
 
 
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [imageStyle, setImageStyle] = useState(null);
+
   // Step 1: Generate Outline
-  const handleGenerateOutline = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerateOutline = async (payload) => {
+    if (!payload?.topic?.trim()) return;
 
     setIsGenerating(true);
     setError(null);
     setProgress(0);
 
     try {
-
-      // start both together
       const progressPromise = startFakeProgress();
+      const apiPromise = generateOutline(payload);
 
-      const apiPromise = generateOutline({
-        topic: prompt,
-        tone: tone?.toLowerCase(),
-        length: parseInt(length),
-        mediaStyle: mediaStyle,
-        outlineText: outlineText
-      });
-
-      // wait until loader reaches 95
       await progressPromise;
-
-      // wait api (if not completed yet)
       const response = await apiPromise;
-
-      // now finish 95 → 100 instantly smooth
       await finishProgress();
+
 
       const transformedOutline = transformOutlineResponse(response);
 
@@ -287,6 +277,10 @@ const PresentationStudio = ({ onBack }) => {
           setLength={setLength}
           mediaStyle={mediaStyle}
           setMediaStyle={setMediaStyle}
+          imageStyle={imageStyle}
+          setImageStyle={setImageStyle}
+          selectedTheme={selectedTheme}
+          setSelectedTheme={setSelectedTheme}
           useBrandStyle={useBrandStyle}
           setUseBrandStyle={setUseBrandStyle}
           showAdvanced={showAdvanced}
