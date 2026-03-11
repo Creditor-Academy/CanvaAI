@@ -6,6 +6,7 @@ export const toggleBlock = (editor, format) => {
     const isActive = isBlockActive(editor, format);
     const isList = LIST_TYPES.includes(format);
 
+    // Always unwrap existing lists first to prevent nesting and allow switching types
     Transforms.unwrapNodes(editor, {
         match: n =>
             !Editor.isEditor(n) &&
@@ -17,6 +18,7 @@ export const toggleBlock = (editor, format) => {
     const newProperties = {
         type: isActive ? 'paragraph' : isList ? 'list-item' : format,
     };
+
     Transforms.setNodes(editor, newProperties);
 
     if (!isActive && isList) {

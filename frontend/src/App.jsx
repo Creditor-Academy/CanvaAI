@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import { Toaster } from "sonner";
 
 import SideBar from "./components/SideBar";
+import Navbar from "./components/Navbar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 
 import { Home } from './pages/Home';
@@ -47,7 +48,6 @@ import SmartCrop from "./components/aigenerator/SmartCrop";
 
 import PresentationStudio from "./components/presentationstudio/PresentationStudio";
 import PresentationEditor2 from "./pages/PresentationEditor2";
-
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import EditorIntro from './pages/EditorIntro';
@@ -55,11 +55,7 @@ import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 
 
-
-
-
 const AppContent = () => {
-  const { isCollapsed, isMobile } = useSidebar();
   const location = useLocation();
 
   // Check if current route is a full-screen route (no sidebar)
@@ -71,16 +67,6 @@ const AppContent = () => {
     location.pathname.startsWith('/editor/') ||
     location.pathname.startsWith('/presentation-editor-v3');
 
-  const getContentMargin = () => {
-    if (isFullScreenRoute) return "0px";
-    if (isMobile) return "0px";
-    return isCollapsed ? "60px" : "260px";
-  };
-  // React.useEffect(() => {
-  //   window.dispatchEvent(new Event("resize"));
-  // }, [location.pathname]);
-
-
   return (
     <div
       style={{
@@ -89,8 +75,8 @@ const AppContent = () => {
         background: "#f8fafc"
       }}
     >
-
       {!isFullScreenRoute && <SideBar />}
+      {!isFullScreenRoute && <Navbar />}
 
       <div
         className="app-content"
@@ -120,19 +106,16 @@ const AppContent = () => {
           <Route path="/projects/templates" element={<Templates />} />
           <Route path="/templates/:category" element={<CategoryTemplates />} />
           <Route path="/ai-generator" element={<AiGenerator />} />
-          <Route
-            path="/ai-generator/presentation-studio"
-            element={<PresentationStudio />}
-          />
+          <Route path="/ai-generator/presentation-studio" element={<PresentationStudio />} />
           <Route path="/presentation-studio" element={<PresentationStudio />} />
           <Route path="/ai-presentation" element={<PresentationStudio />} />
-
 
           <Route path="/image-editor" element={<ImageEdit />} />
           <Route path="/video-maker" element={<VideoMaker />} />
           <Route path="/analytics" element={<Analatics />} />
           <Route path="/settings" element={<Setting />} />
           <Route path="/help-support" element={<Help />} />
+          
           <Route path="/team" element={<Team />} />
           <Route path="/team/accept" element={<AcceptInvite />} />
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
@@ -143,18 +126,11 @@ const AppContent = () => {
           <Route path="/brand-kit" element={<Brandkit />} />
           <Route path="/brand-kit-result" element={<BrandKitResult />} />
           <Route path="/brand-kit-detail" element={<BrandKitDetail />} />
-          <Route path="/docGenerator" element={<DocumentGenerator />} />
-          {/* <Route path="/editor" element={<EditorPage />} /> */}
-
+          <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/docGenerator" element={<DocumentGenerator />} />
           <Route path="/editor" element={<EditorTabPage />} />
           <Route path="/editor-intro" element={<EditorIntro />} />
-
-          <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
-
-          {/* New Dashboard Route */}
-
 
           <Route
             path="/admin-dash"
@@ -167,10 +143,12 @@ const AppContent = () => {
 
           <Route path="/presentation" element={<Presentation />} />
         </Routes>
+
       </div>
     </div>
   );
 };
+
 
 function App() {
   return (
@@ -178,62 +156,25 @@ function App() {
       <SidebarProvider>
         <Router>
           <Toaster position="top-right" richColors />
+
           <Routes>
-            {/* PUBLIC ROUTES */}
+
+            {/* PUBLIC */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
             <Route path="/verify" element={<VerifyUserPage />} />
             <Route path="/forget-password" element={<ForgetPassword />} />
 
-            {/* Full-screen Presentation Editor - No sidebar */}
-            <Route
-              path="/presentation-editor"
-              element={
-                <ProtectedRoute>
-                  <PresentationEditor2 />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/presentation-editor/:id"
-              element={
-                <ProtectedRoute>
-                  <PresentationEditor2 />
-                </ProtectedRoute>
-              }
-            />
+            {/* FULLSCREEN EDITORS */}
+            <Route path="/presentation-editor" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+            <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+            <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
+            <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
 
+            {/* MAIN APP */}
+            <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
 
-            {/* Presentation Editor v3 (new canvas-based editor) */}
-            <Route
-              path="/presentation-editor-v3"
-              element={
-                <ProtectedRoute>
-                  <PresentationWorkspace />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/presentation-editor-v3/:id"
-              element={
-                <ProtectedRoute>
-                  <PresentationWorkspace />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* PROTECTED ROUTES */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <AppContent />
-                </ProtectedRoute>
-              }
-            />
           </Routes>
         </Router>
       </SidebarProvider>

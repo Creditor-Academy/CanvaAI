@@ -104,6 +104,7 @@ const VerifyUserPage = () => {
         { email, otp: finalOtp }
       );
 
+      console.log(res);
       setMsg({
         text: res.data.message,
         type: "success"

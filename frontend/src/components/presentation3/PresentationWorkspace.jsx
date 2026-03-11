@@ -7,23 +7,32 @@ import TopBar from "./components/TopBar/TopBar";
 import CanvasShell from "./components/Canvas/CanvasShell";
 import PresentationMode from "./present/PresentationMode";
 
+import TopProgressBar from "./components/TopProgressBar/TopProgressBar";
+import AILoaderOverlay from "./components/AILoaderOverlay/AILoaderOverlay";
+import Notifications from "./components/Notifications/Notifications";
+
 import { useParams, useNavigate } from "react-router-dom";
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
 
-const PresentationWorkspace = () => {
+const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(!!id); // Loading if ID is present
+  // Loading if ID is present and we don't have initialData
+  const [isLoading, setIsLoading] = useState(!!id && !initialData);
   const [error, setError] = useState(null);
 
   const { setPresentation, resetPresentation } = usePresentationStore();
 
   useEffect(() => {
-    if (id) {
+    if (initialData) {
+      console.log("--- Workspace: Using initialData from props:", initialData);
+      setPresentation(initialData);
+      setIsLoading(false);
+    } else if (id) {
       setIsLoading(true);
       getPresentationById(id)
         .then((data) => {
@@ -48,10 +57,11 @@ const PresentationWorkspace = () => {
         });
     } else {
       // New presentation -> Reset store
+      console.log("--- Workspace: New presentation, resetting store.");
       resetPresentation();
       setIsLoading(false);
     }
-  }, [id, setPresentation, resetPresentation]);
+  }, [id, initialData, setPresentation, resetPresentation]);
 
   if (isLoading) {
     return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>Loading Presentation...</div>;
@@ -66,25 +76,30 @@ const PresentationWorkspace = () => {
   }
 
   return (
-    <div style={styles.root}>
-      <TopBar
-        onPresent={() => setIsPresenting(true)}
-        onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
-      />
-
-      <div style={styles.body}>
-        <SlidesPanel />
-
-        <CanvasShell />
-
-        <PropertiesPanel />
-
-        <AgentPanel
-          isOpen={isAgentPanelOpen}
-          onClose={() => setIsAgentPanelOpen(false)}
+    <>
+      <TopProgressBar />
+      <AILoaderOverlay />
+      <Notifications />
+      <div style={styles.root} className="presentation-workspace-root">
+        <TopBar
+          onPresent={() => setIsPresenting(true)}
+          onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
         />
+
+        <div style={styles.body}>
+          <SlidesPanel />
+
+          <CanvasShell />
+
+          <PropertiesPanel />
+
+          <AgentPanel
+            isOpen={isAgentPanelOpen}
+            onClose={() => setIsAgentPanelOpen(false)}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 const styles = {

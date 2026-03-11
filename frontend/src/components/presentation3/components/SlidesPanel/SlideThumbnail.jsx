@@ -2,9 +2,10 @@ import React from "react";
 
 
 import { SlateStaticRenderer } from "../../editors/slate/slateRenderer";
+import ShapeRenderer from "../shapes/ShapeRenderer";
 
-const THUMB_WIDTH = 160;
-const THUMB_HEIGHT = 90;
+const THUMB_WIDTH = 100;
+const THUMB_HEIGHT = 56.25;
 const SCALE = THUMB_WIDTH / 960;
 
 const SlideThumbnail = ({ slide, isActive, onClick }) => {
@@ -32,7 +33,7 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
           position: "relative",
         }}
       >
-        {slide.layers.map((layer) => {
+        {slide.layers?.map((layer) => {
           if (layer.type === "text") {
             return (
               <div
@@ -83,10 +84,6 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
           }
 
           if (layer.type === "shape") {
-            let borderRadius = "0px";
-            if (layer.shapeType === "roundRect") borderRadius = "12px";
-            if (layer.shapeType === "circle") borderRadius = "50%";
-
             return (
               <div
                 key={layer.id}
@@ -95,26 +92,18 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   left: layer.x,
                   top: layer.y,
                   width: layer.width,
-                  height:
-                    layer.shapeType === "line" ||
-                      layer.shapeType === "arrow"
-                      ? Math.max(2, layer.strokeWidth || 2)
-                      : layer.height,
-                  background: layer.fill,
-                  borderRadius,
-                  border:
-                    layer.shapeType === "line" ||
-                      layer.shapeType === "arrow"
-                      ? `2px solid ${layer.stroke}`
-                      : "none",
+                  height: layer.height,
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
-              />
+              >
+                <ShapeRenderer layer={layer} />
+              </div>
             );
           }
 
           if (layer.type === "table") {
+            const DEFAULT_EMPTY_SLATE_VALUE = [{ type: "paragraph", children: [{ text: "" }] }];
             return (
               <div
                 key={layer.id}
@@ -127,24 +116,30 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   display: "grid",
                   gridTemplateColumns: `repeat(${layer.cols}, 1fr)`,
                   gridTemplateRows: `repeat(${layer.rows}, 1fr)`,
-                  border: `${layer.borderWidth || 1}px solid ${layer.borderColor || "#e5e7eb"
-                    }`,
+                  border: `${layer.borderWidth || 1}px solid ${layer.borderColor || "#e5e7eb"}`,
                   backgroundColor: layer.tableBgColor || "transparent",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
               >
-                {Array.from({
-                  length: layer.rows * layer.cols,
-                }).map((_, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      border: `${layer.borderWidth || 1}px solid ${layer.borderColor || "#e5e7eb"
-                        }`,
-                    }}
-                  />
-                ))}
+                {layer.cells?.map((row, r) =>
+                  row.map((cell, c) => (
+                    <div
+                      key={`${r}-${c}`}
+                      style={{
+                        border: `${layer.borderWidth || 1}px solid ${layer.borderColor || "#e5e7eb"}`,
+                        padding: "1px", // Minimal padding for thumbnails
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: cell?.textAlign === "left" ? "flex-start" : cell?.textAlign === "right" ? "flex-end" : "center",
+                        overflow: "hidden",
+                        color: cell?.color || layer.color || "#ffffff"
+                      }}
+                    >
+                      <SlateStaticRenderer value={cell?.content || DEFAULT_EMPTY_SLATE_VALUE} />
+                    </div>
+                  ))
+                )}
               </div>
             );
           }

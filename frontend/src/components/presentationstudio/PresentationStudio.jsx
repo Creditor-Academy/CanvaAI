@@ -73,7 +73,7 @@ const PresentationStudio = ({ onBack }) => {
         if (typeof slide.content === 'string') {
           content = { mode: 'raw', rawText: slide.content };
         } else if (Array.isArray(slide.content)) {
-          content = { mode: 'bullets', bullets: slide.content };
+          content = { mode: 'bullets', bullets: slide.bullets };
         } else if (typeof slide.content === 'object' && slide.content !== null) {
           if (slide.content.left && slide.content.right) {
             content = {
@@ -88,6 +88,7 @@ const PresentationStudio = ({ onBack }) => {
       }
 
       return {
+        bullets: slide.bullets || (content.mode === 'bullets' ? content.bullets : []),
         slideId: `slide-${slide.slideNo || index + 1}`,
         slideNo: slide.slideNo || index + 1,
         source: 'ai',
@@ -242,7 +243,7 @@ const PresentationStudio = ({ onBack }) => {
           <PresentationWorkspace
             layout={layout}
             initialData={finalPresentationData}
-            onBack={handleReset}
+            onBack={handleResetAll}
           />
         </>
       );

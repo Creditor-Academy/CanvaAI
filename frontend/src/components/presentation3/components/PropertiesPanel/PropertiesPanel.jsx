@@ -3,6 +3,9 @@ import usePresentationStore from "../../store/usePresentationStore";
 import { debounce } from "lodash";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
+import { withHybridLoader } from "../../utils/withHybridLoader";
+import { toggleBlock, isBlockActive } from "../../editors/slate/slateBlocks";
+import { Link as LinkIcon, X } from "lucide-react";
 import "./properties-panel.css";
 
 const ColorPicker = ({ value, onChange, onHistorySave }) => {
@@ -170,6 +173,8 @@ const PropertiesPanel = () => {
     alignLayer,
     addTableRow,
     addTableColumn,
+    removeTableRow,
+    removeTableColumn,
     saveToHistory,
     updateLayerStyle,
     applyGlobalTextStyle,
@@ -178,6 +183,7 @@ const PropertiesPanel = () => {
     selectionMarks,
     editingCell, // Add editingCell
     updateTableCell, // Add updateTableCell
+    activeEditor,
     presentationId,
   } = usePresentationStore();
 
@@ -185,6 +191,9 @@ const PropertiesPanel = () => {
   const { uploadFile, isUploading } = useImageUpload();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [showUrlPopup, setShowUrlPopup] = useState(false);
+  const [tempUrl, setTempUrl] = useState("");
+
 
   const FONTS = [
     "Arial",
@@ -268,11 +277,19 @@ const PropertiesPanel = () => {
                       if (!file) return;
 
                       try {
-                        const pptId = presentationId || "new";
-                        const { url, key } = await uploadFile(file, user?._id, pptId);
+                        await withHybridLoader(
+                          async () => {
+                            const pptId = presentationId || "new";
+                            const { url, key } = await uploadFile(file, user?._id, pptId);
 
-                        setSlideBackgroundImage(activeSlideId, url, key);
-                        e.target.value = ""; // Reset input
+                            setSlideBackgroundImage(activeSlideId, url, key);
+                            e.target.value = ""; // Reset input
+                            
+                            return { url, key };
+                          },
+                          "top",
+                          "Uploading background image..."
+                        );
                       } catch (error) {
                         alert("Failed to upload background image.");
                       }
@@ -284,49 +301,50 @@ const PropertiesPanel = () => {
                 </button>
               </div>
 
-              <div style={{ ...styles.row, marginTop: "8px" }}>
-                <input
-                  type="text"
-                  placeholder="Image URL"
-                  style={{
-                    ...styles.btn,
-                    flex: 1,
-                    textAlign: "left",
-                    paddingLeft: "8px",
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.currentTarget.value) {
-                      setSlideBackgroundImage(
-                        activeSlideId,
-                        e.currentTarget.value
-                      );
-                      e.currentTarget.value = ""; // Clear input
-                    }
-                  }}
-                />
+              <div style={{ ...styles.row, marginTop: "8px", position: "relative" }}>
                 <button
-                  style={{ ...styles.btn }}
-                  onClick={() => {
-                    const urlInput = document.activeElement; // Get the currently focused element
-                    if (
-                      urlInput &&
-                      urlInput.tagName === "INPUT" &&
-                      urlInput.type === "text" &&
-                      urlInput.value
-                    ) {
-                      setSlideBackgroundImage(activeSlideId, urlInput.value);
-                      urlInput.value = ""; // Clear input
-                    } else {
-                      const url = prompt("Enter image URL:");
-                      if (url) {
-                        setSlideBackgroundImage(activeSlideId, url);
-                      }
-                    }
-                  }}
+                  style={{ ...styles.btn, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  onClick={() => setShowUrlPopup(!showUrlPopup)}
                   title="Set background image from URL"
                 >
-                  URL
+                  <LinkIcon size={16} /> Insert from URL
                 </button>
+
+                {showUrlPopup && (
+                  <div className="modal-overlay" onClick={() => setShowUrlPopup(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                      <h3>Add Image from URL</h3>
+                      <input
+                        type="url"
+                        placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                        value={tempUrl}
+                        onChange={(e) => setTempUrl(e.target.value)}
+                        className="url-input-field"
+                      />
+                      <div className="modal-buttons">
+                        <button 
+                          className="secondary-btn" 
+                          onClick={() => setShowUrlPopup(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="primary-btn" 
+                          onClick={() => {
+                            if (tempUrl) {
+                              setSlideBackgroundImage(activeSlideId, tempUrl);
+                              setTempUrl("");
+                              setShowUrlPopup(false);
+                            }
+                          }}
+                          disabled={!tempUrl}
+                        >
+                          Add Image
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {activeSlide.backgroundImage && (
@@ -469,18 +487,16 @@ const PropertiesPanel = () => {
                 <span>Table Style</span>
               </div>
               <div className="accordion-content">
-                <div className="property-row">
-                  <label>Border Color</label>
-                  <input
-                    type="color"
-                    value={selectedLayer.borderColor || "#e5e7eb"}
-                    onChange={(e) =>
-                      updateLayerStyle(selectedLayer.id, {
-                        borderColor: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+                <PaletteColorControl
+                  label="Border Color"
+                  value={selectedLayer.borderColor || "#e5e7eb"}
+                  onHistorySave={saveToHistory}
+                  onColorChange={(color) =>
+                    updateLayerStyle(selectedLayer.id, {
+                      borderColor: color,
+                    })
+                  }
+                />
                 <div className="property-row">
                   <label>Border Width ({selectedLayer.borderWidth || 1}px)</label>
                   <input
@@ -495,6 +511,42 @@ const PropertiesPanel = () => {
                     }
                   />
                 </div>
+              </div>
+            </div>
+
+            <div style={styles.control}>
+              <label style={styles.label}>Table Structure</label>
+              <div style={styles.row}>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  onClick={() => addTableRow(selectedLayer.id)}
+                >
+                  + Row
+                </button>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  onClick={() => addTableColumn(selectedLayer.id)}
+                >
+                  + Col
+                </button>
+              </div>
+              <div style={{ ...styles.row, marginTop: "8px" }}>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  disabled={selectedLayer.rows <= 1}
+                  onClick={() => removeTableRow(selectedLayer.id)}
+                  title={selectedLayer.rows <= 1 ? "Cannot remove last row" : "Remove Row"}
+                >
+                  - Row
+                </button>
+                <button
+                  style={{ ...styles.btn, flex: 1 }}
+                  disabled={selectedLayer.cols <= 1}
+                  onClick={() => removeTableColumn(selectedLayer.id)}
+                  title={selectedLayer.cols <= 1 ? "Cannot remove last column" : "Remove Column"}
+                >
+                  - Col
+                </button>
               </div>
             </div>
           </>
@@ -556,7 +608,6 @@ const PropertiesPanel = () => {
                   const val = Number(e.target.value);
                   if (editingLayerId) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
-                    updateTextLayer(selectedLayer.id, { fontSize: val }, false);
                   } else if (editingCell) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
                     // Also update cell prop directly for container style
@@ -584,7 +635,6 @@ const PropertiesPanel = () => {
                       detail: { format: "color", value: color },
                     })
                   );
-                  updateTextLayer(selectedLayer.id, { color }, false);
                 } else if (editingCell) {
                   window.dispatchEvent(
                     new CustomEvent("slate-apply-mark", {
@@ -610,7 +660,6 @@ const PropertiesPanel = () => {
                   const val = e.target.value;
                   if (editingLayerId) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
-                    updateTextLayer(selectedLayer.id, { fontFamily: val }, false);
                   } else if (editingCell) {
                     window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
                     updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontFamily: val });
@@ -653,15 +702,13 @@ const PropertiesPanel = () => {
             )}
 
 
-            {/* Bold / Italic / Underline */}
+            {/* Bold / Italic / Underline / Lists */}
             <div style={styles.control}>
               <label style={styles.label}>Style</label>
               <div style={styles.row}>
                 <button
                   onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
-                    } else if (editingCell) {
+                    if (editingLayerId || editingCell) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
                     } else {
                       const newVal = selectedLayer.fontWeight === "bold" ? "normal" : "bold";
@@ -686,9 +733,7 @@ const PropertiesPanel = () => {
 
                 <button
                   onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
-                    } else if (editingCell) {
+                    if (editingLayerId || editingCell) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
                     } else {
                       const newVal = selectedLayer.fontStyle === "italic" ? "normal" : "italic";
@@ -713,9 +758,7 @@ const PropertiesPanel = () => {
 
                 <button
                   onClick={() => {
-                    if (editingLayerId) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
-                    } else if (editingCell) {
+                    if (editingLayerId || editingCell) {
                       window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
                     } else {
                       const newVal = selectedLayer.textDecoration === "underline" ? "none" : "underline";
@@ -736,6 +779,40 @@ const PropertiesPanel = () => {
                   }}
                 >
                   U
+                </button>
+
+                {/* Bullet List */}
+                <button
+                  onClick={() => {
+                    if (activeEditor) toggleBlock(activeEditor, "bulleted-list");
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{
+                    ...styles.btn,
+                    background: (activeEditor && isBlockActive(activeEditor, "bulleted-list")) ? "#2563eb" : "#f3f4f6",
+                    color: (activeEditor && isBlockActive(activeEditor, "bulleted-list")) ? "#fff" : "#000",
+                  }}
+                  title="Bullet List"
+                >
+                  •
+                </button>
+
+                {/* Numbered List */}
+                <button
+                  onClick={() => {
+                    if (activeEditor) toggleBlock(activeEditor, "numbered-list");
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{
+                    ...styles.btn,
+                    background: (activeEditor && isBlockActive(activeEditor, "numbered-list")) ? "#2563eb" : "#f3f4f6",
+                    color: (activeEditor && isBlockActive(activeEditor, "numbered-list")) ? "#fff" : "#000",
+                    fontWeight: "600",
+                    fontSize: "10px"
+                  }}
+                  title="Numbered List"
+                >
+                  1.
                 </button>
               </div>
             </div>
@@ -782,66 +859,6 @@ const PropertiesPanel = () => {
         {/* ========================= */}
         {/* TABLE PROPERTIES */}
         {/* ========================= */}
-        {selectedLayer?.type === "table" && (
-          <>
-            <h3 style={styles.heading}>Table</h3>
-
-            {/* Font Size - REMOVED, now covered in Text section */}
-            {/* <div style={styles.control}>
-               ... 
-            </div> */}
-
-            {/* Border Color */}
-            <div style={styles.control}>
-              <label style={styles.label}>Border Color</label>
-              <ColorPicker
-                value={selectedLayer.borderColor || "#d1d5db"}
-                onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateTextLayer(selectedLayer.id, {
-                    borderColor: val,
-                  }, saveHistory)
-                }
-              />
-            </div>
-
-            {/* Text Color - REMOVED, covered in Text section */}
-
-            {/* Alignment - REMOVED, covered in Text section */}
-
-            {/* Style Controls - REMOVED, individual cell styling via Slate */}\n
-
-            {/* Link support for Table (Simplified) */}
-            <div style={styles.control}>
-              <label style={styles.label}>Table Link (Future: per cell)</label>
-              <input
-                type="text"
-                placeholder="https://example.com"
-                value={selectedLayer.link || ""}
-                onChange={(e) => updateTextLayer(selectedLayer.id, { link: e.target.value })}
-              />
-            </div>
-
-            {/* Add Row / Column Buttons */}
-            <div style={styles.control}>
-              <label style={styles.label}>Table Structure</label>
-              <div style={styles.row}>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => addTableRow(selectedLayer.id)}
-                >
-                  + Row
-                </button>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => addTableColumn(selectedLayer.id)}
-                >
-                  + Column
-                </button>
-              </div>
-            </div>
-          </>
-        )}
 
         {/* ========================= */}
         {/* IMAGE PROPERTIES */}
@@ -874,17 +891,20 @@ const PropertiesPanel = () => {
 
             <div style={styles.control}>
               <label style={styles.label}>Border Color</label>
-              <ColorPicker
+              <PaletteColorControl
+                label="Border Color"
                 value={selectedLayer.borderColor || "#000000"}
                 onHistorySave={saveToHistory}
-                onChange={(val, saveHistory) =>
-                  updateLayerStyle(selectedLayer.id, { borderColor: val }, saveHistory)
+                onColorChange={(color) =>
+                  updateLayerStyle(selectedLayer.id, { borderColor: color }, false)
                 }
               />
             </div>
           </>
         )}
       </div>
+
+
     </div>
   );
 };
