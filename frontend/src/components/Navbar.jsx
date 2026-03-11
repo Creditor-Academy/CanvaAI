@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
 import api from "../services/api";
+import logo from "../assets/logo.png";
 
 const TopNavbar = () => {
   const navigate = useNavigate();
@@ -59,9 +60,9 @@ const TopNavbar = () => {
       className="fixed z-[100] flex items-center justify-between px-5"
       style={{
         top: 12,
-        left: 90,
-        right: 20,
-        height: 52,
+        left: 40,
+        right: 40,
+        height: 62,
 
         /* GLASS BACKGROUND */
         background: "rgba(255,255,255,0.35)",
@@ -79,12 +80,15 @@ const TopNavbar = () => {
     >
       {/* LEFT LOGO */}
 
-      <div className="flex items-center gap-3 text-slate-700 font-semibold text-[16px] tracking-wide">
-        <div className="w-8 h-8 rounded-lg bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center font-bold text-white">
-          D
-        </div>
-
-        DesignovaAI
+      <div className="flex items-center -ml-6">
+        <img
+          src={logo}
+          alt="Designova Logo"
+          className="h-25 object-contain cursor-pointer"
+          onClick={() => navigate("/dashboard")}
+        />
+        <div className="flex items-center  text-slate-700 font-semibold text-[16px] tracking-wide">Designova</div>
+        
       </div>
 
       {/* RIGHT ACTIONS */}

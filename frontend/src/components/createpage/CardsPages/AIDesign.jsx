@@ -78,43 +78,19 @@ export const AIDesign = () => {
     navigate("/edito", { state: { image: activePreview } });
   };
 
-  const downloadImage = async () => {
-    const res = await fetch(activePreview);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "ai-image.png";
-    a.click();
-
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className="h-screen bg-blue-100 relative overflow-hidden flex flex-col ">
+    <div className="h-screen bg-[#e9f4ff] relative overflow-hidden flex flex-col">
 
-      {/* GRID BACKGROUND */}
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg,#e5e7eb 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
+     
 
       {/* HERO */}
       <div className="text-center pt-30 z-10 pl-10">
-
         <h1 className="text-4xl font-bold text-blue-900">
           AI IMAGE GENERATOR
         </h1>
-
         <p className="text-blue-700 text-sm mt-1">
           Generate original images with AI
         </p>
-
       </div>
 
       {/* MAIN */}
@@ -181,7 +157,6 @@ export const AIDesign = () => {
                         alt=""
                       />
 
-                      {/* HOVER TITLE */}
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition">
                         {style.name}
                       </div>
@@ -198,14 +173,12 @@ export const AIDesign = () => {
             <button
               onClick={handleGenerate}
               disabled={!prompt || !selectedStyle}
-              className="w-full mt-4 bg-blue-800 hover:bg-blue-900 text-white py-2 rounded-lg font-semibold disabled:opacity-40"
+              className="w-full mt-4 bg-blue-800 hover:bg-blue-900 text-white py-2.5 rounded-full font-semibold disabled:opacity-40"
             >
               Generate
             </button>
 
           </div>
-
-          {/* RIGHT PANEL (unchanged) */}
 
           {/* RIGHT PANEL */}
           <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center">
@@ -294,7 +267,7 @@ export const AIDesign = () => {
                 <button
                   onClick={handleImport}
                   disabled={!selectedImages.length}
-                  className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-6 py-2 rounded-lg text-sm disabled:opacity-40"
+                  className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-6 py-2 rounded-full text-sm disabled:opacity-40"
                 >
                   Import Selected ({selectedImages.length})
                 </button>
@@ -311,7 +284,7 @@ export const AIDesign = () => {
       {/* MODAL */}
       {activePreview &&
         createPortal(
-          <div className="fixed inset-0 bg-blue-900/95 flex items-center justify-center z-[999]">
+          <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-[999]">
 
             <button
               onClick={() => setActivePreview(null)}
@@ -329,13 +302,6 @@ export const AIDesign = () => {
               />
 
               <div className="flex gap-6 justify-center mt-6">
-
-                <button
-                  onClick={downloadImage}
-                  className="bg-white px-6 py-2 rounded-lg"
-                >
-                  Download
-                </button>
 
                 <button
                   onClick={openEditor}

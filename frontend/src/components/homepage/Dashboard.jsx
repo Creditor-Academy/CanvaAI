@@ -1,234 +1,412 @@
-import React, { useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { HiOutlinePresentationChartLine } from "react-icons/hi2";
-import { IoDocumentTextOutline } from "react-icons/io5";
-import { CiImageOn } from "react-icons/ci";
-import homepageImage from "../../assets/homepage.png";
+import { motion, AnimatePresence } from "framer-motion";
 
-const FEATURES = [
-  {
-    name: "Presentation Builder",
-    icon: HiOutlinePresentationChartLine,
-    route: "/presentation",
-    desc: "Generate stunning presentation slides instantly with our Presentation Builder.",
-    image: "https://images.unsplash.com/photo-1573167507387-6b4b98cb7c13?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NTl8fHByZXNlbnRhdGlvbnxlbnwwfHwwfHx8MA%3D%3D"
-  },
-  {
-    name: "Image Editor",
-    icon: CiImageOn,
-    route: "/canva-clone",
-    desc: "Create and enhance visuals using powerful Image Editor tools.",
-    image: "https://images.unsplash.com/photo-1575936123452-b67c3203c357?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8aW1hZ2V8ZW58MHx8MHx8fDA%3D"
-  },
-  {
-    name: "Document Workspace",
-    icon: IoDocumentTextOutline,
-    route: "/editor",
-    desc: "Write professional documents faster with our Document Workspace.",
-    image: "https://images.unsplash.com/photo-1635859890085-ec8cb5466806?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  }
-];
+import {
+HiOutlinePresentationChartLine,
+HiOutlineDocumentText
+} from "react-icons/hi2";
+
+import { FaRegImage } from "react-icons/fa";
+
+import {
+FiPlus,
+FiChevronLeft,
+FiChevronRight,
+FiX,
+FiZap
+} from "react-icons/fi";
+
+import logo from "../../assets/logo.png";
+import api from "../../services/api";
 
 const TOOLS = [
-  {
-    name: "AI-Presentation Builder",
-    icon: HiOutlinePresentationChartLine,
-    route: "/ai-presentation",
-    desc: "Design AI-powered presentations with smart layouts and instant content generation."
-  },
-  {
-    name: "AI-Image Editor",
-    icon: CiImageOn,
-    route: "/create/ai-design",
-    desc: "Enhance, edit and generate stunning visuals using advanced AI tools."
-  },
-  {
-    name: "AI-Document Workspace",
-    icon: IoDocumentTextOutline,
-    route: "/create/content-writer",
-    desc: "Create professional documents faster with intelligent AI writing assistance."
-  }
+{
+name: "PPT",
+icon: HiOutlinePresentationChartLine,
+route: "/presentation",
+color: "bg-blue-600 text-white"
+},
+{
+name: "Image",
+icon: FaRegImage,
+route: "/canva-clone",
+color: "bg-yellow-400 text-black"
+},
+{
+name: "Doc",
+icon: HiOutlineDocumentText,
+route: "/editor",
+color: "bg-blue-500 text-white"
+},
+{
+name: "AI PPT",
+icon: HiOutlinePresentationChartLine,
+route: "/ai-presentation",
+color: "bg-blue-700 text-white"
+},
+{
+name: "AI Image",
+icon: FaRegImage,
+route: "/create/ai-design",
+color: "bg-yellow-300 text-black"
+},
+{
+name: "AI Doc",
+icon: HiOutlineDocumentText,
+route: "/create/content-writer",
+color: "bg-blue-800 text-white"
+}
 ];
 
 export default function Dashboard() {
 
-  const navigate = useNavigate();
-  const sectionRef = useRef(null);
+const navigate = useNavigate();
 
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"]
-  });
+const [profile,setProfile] = useState(null);
+const [page,setPage] = useState(0);
+const [showCreate,setShowCreate] = useState(false);
+const [tab,setTab] = useState("manual");
 
-  const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -80]);
+const templates = Array.from({ length: 24 }, (_, i) => i + 1);
+const perPage = 8;
 
-  const scrollToTools = () => {
-    sectionRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+useEffect(()=>{
 
-  return (
+let mounted=true;
 
-    <div className="min-h-screen bg-[#f9fafb] overflow-x-hidden">
+(async()=>{
 
-      {/* HERO SECTION */}
+  try{
+    const data = await api.getProfile();
+    if(mounted) setProfile(data || null);
+  }catch{}
 
-      <motion.section
-        className="relative w-full py-12 px-6"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: false }}
-        transition={{ duration: 1 }}
-      >
+})();
 
-        <div className="absolute inset-0 -z-10 " />
+return ()=> mounted=false;
 
-        <div className="max-w-7xl -mt-10 h-[280px] rounded-2xl overflow-hidden shadow-xl relative">
+},[]);
 
-          <div className="absolute inset-0">
+const fullName =
+profile?.firstName
+? `${profile.firstName} ${profile.lastName || ""}`
+: profile?.email?.split("@")[0] || "User";
 
-            <img
-              src="https://i.pinimg.com/1200x/4c/49/cc/4c49cc9b0f4cb6764c38815faa5f567c.jpg"
-              alt="hero"
-              className="w-full h-full object-cover "
-            />
+const tokens = profile?.tokens || 120;
 
-            <div className="absolute inset-0 " />
+const visibleTemplates = templates.slice(
+page * perPage,
+page * perPage + perPage
+);
 
-          </div>
+const manualTools = [
+{
+icon:HiOutlinePresentationChartLine,
+title:"Presentation",
+route:"/presentation"
+},
+{
+icon:FaRegImage,
+title:"Image",
+route:"/canva-clone"
+},
+{
+icon:HiOutlineDocumentText,
+title:"Document",
+route:"/editor"
+}
+];
 
-          <motion.div
-            style={{ y: heroY }}
-            className="relative z-10 text-center text-black px-6 pt-[20px] pb-[20px]"
-          >
+const aiTools = [
+{
+icon:HiOutlinePresentationChartLine,
+title:"AI PPT",
+route:"/ai-presentation"
+},
+{
+icon:FaRegImage,
+title:"AI Image",
+route:"/create/ai-design"
+},
+{
+icon:HiOutlineDocumentText,
+title:"AI Doc",
+route:"/create/content-writer"
+}
+];
 
-            <p className="uppercase tracking-widest text-sm mb-4 opacity-90">
-              Designova AI Workspace
-            </p>
+return (
 
-            <h1 className="md:text-[38px] font-bold leading-tight">
-              Create Presentations, Images and <br />
-              Documents with AI
-            </h1>
+<div className="bg-[#eef4ff] min-h-screen">
 
-            <button
-              onClick={scrollToTools}
-              className="mt-8 px-8 py-3 bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 text-[#0c4a6e] rounded-lg font-semibold
-              hover:scale-105 hover:shadow-xl hover:shadow-blue-300/40 transition"
-            >
-              Try AI Tools →
-            </button>
+  <div className="ml-[60px] pt-24 px-14">
 
-          </motion.div>
+    {/* HERO */}
 
-        </div>
+    <motion.div
+      initial={{opacity:0,y:40}}
+      animate={{opacity:1,y:0}}
+      className="bg-gradient-to-r from-[#0f3c68] to-[#1e5aa5] rounded-3xl p-12 shadow-xl flex justify-between items-center"
+    >
 
-      </motion.section>
+      <div className="flex items-center ">
 
+        <img src={logo} className="h-26"/>
 
-      {/* FEATURES */}
+        <div>
 
+          <h1 className="text-3xl font-bold text-white">
+            Welcome, {fullName} 👋
+          </h1>
 
-
-      {/* FEATURES */}
-
-      <section className="max-w-6xl mx-auto px-6 py-24">
-
-        <div className="text-center mb-16">
-
-          <h2 className="text-4xl font-bold text-[#0c4a6e]">
-            Our Features
-          </h2>
-
-          <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
-            Build presentations, design images and create documents faster with
-            intelligent AI powered tools.
+          <p className="text-blue-200">
+            Create presentations, images and documents using AI
           </p>
 
         </div>
 
+      </div>
 
-        <div className="grid md:grid-cols-3 gap-10">
+      <div className="bg-white px-6 py-4 rounded-xl shadow flex items-center gap-6">
 
-          {FEATURES.map((feature, i) => {
+        <div>
 
-            const Icon = feature.icon;
+          <p className="text-xs text-gray-500">
+            Available Tokens
+          </p>
 
-            return (
+          <p className="text-2xl font-bold text-blue-800">
+            {tokens}
+          </p>
+
+        </div>
+
+        <button className="bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2 rounded-lg font-semibold">
+          Renew
+        </button>
+
+      </div>
+
+    </motion.div>
+
+    {/* EXPLORE */}
+
+    <div className="flex justify-between items-center mt-16">
+
+      <h2 className="text-2xl font-bold text-blue-900">
+        Explore Tools
+      </h2>
+
+      <button
+        onClick={()=>setShowCreate(true)}
+        className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2 rounded-full font-semibold shadow"
+      >
+        <FiPlus/>
+        Create
+      </button>
+
+    </div>
+
+    {/* TOOLS */}
+
+    <div className="flex justify-center gap-16 mt-10 flex-wrap">
+
+      {TOOLS.map((tool,i)=>{
+
+        const Icon = tool.icon;
+
+        return(
+
+          <motion.div
+            key={i}
+            whileHover={{scale:1.08}}
+            onClick={()=>navigate(tool.route)}
+            className="flex flex-col items-center cursor-pointer"
+          >
+
+            <div
+              className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md ${tool.color}`}
+            >
+
+              <Icon size={24}/>
+
+            </div>
+
+            <p className="text-sm mt-3 text-blue-900 font-medium">
+              {tool.name}
+            </p>
+
+          </motion.div>
+
+        )
+
+      })}
+
+    </div>
+
+    {/* TEMPLATES */}
+
+    <div className="mt-20 pb-20">
+
+      <h2 className="text-2xl font-bold text-blue-900 mb-8">
+        Ready Templates
+      </h2>
+
+      <div className="grid grid-cols-4 gap-6">
+
+        {visibleTemplates.map((i)=>(
+
+          <motion.div
+            key={i}
+            whileHover={{scale:1.05}}
+            className="bg-white rounded-xl shadow border border-blue-100 overflow-hidden"
+          >
+
+            <img
+              src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&sig=${i}`}
+              className="h-36 w-full object-cover"
+            />
+
+            <div className="p-4">
+
+              <h3 className="font-semibold text-blue-900 text-sm">
+                Template {i}
+              </h3>
+
+              <p className="text-xs text-gray-500">
+                Editable layout
+              </p>
+
+            </div>
+
+          </motion.div>
+
+        ))}
+
+      </div>
+
+      <div className="flex justify-center gap-4 mt-8">
+
+        <button
+          disabled={page===0}
+          onClick={()=>setPage(page-1)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-1 disabled:opacity-40"
+        >
+          <FiChevronLeft/>
+          Prev
+        </button>
+
+        <button
+          disabled={(page+1)*perPage>=templates.length}
+          onClick={()=>setPage(page+1)}
+          className="bg-yellow-400 text-black px-4 py-2 rounded-lg flex items-center gap-1"
+        >
+          Next
+          <FiChevronRight/>
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  {/* CREATE MODAL */}
+
+  <AnimatePresence>
+
+  {showCreate && (
+
+    <motion.div
+      initial={{opacity:0}}
+      animate={{opacity:1}}
+      exit={{opacity:0}}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+    >
+
+      <motion.div
+        initial={{y:-30,opacity:0}}
+        animate={{y:0,opacity:1}}
+        exit={{y:-20,opacity:0}}
+        className="bg-white rounded-3xl shadow-2xl w-[700px] p-10 relative"
+      >
+
+        <button
+          onClick={()=>setShowCreate(false)}
+          className="absolute top-6 right-6 text-gray-500"
+        >
+          <FiX size={22}/>
+        </button>
+
+        <h2 className="text-2xl font-bold text-blue-900 mb-6">
+          Quick Start
+        </h2>
+
+        <div className="flex bg-gray-100 rounded-full p-1 w-fit mb-8">
+
+          <button
+            onClick={()=>setTab("manual")}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition
+            ${tab==="manual"
+              ? "bg-blue-600 text-white shadow"
+              : "text-gray-600"
+            }`}
+          >
+            Manual
+          </button>
+
+          <button
+            onClick={()=>setTab("ai")}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition
+            ${tab==="ai"
+              ? "bg-yellow-400 text-black shadow"
+              : "text-gray-600"
+            }`}
+          >
+            AI
+          </button>
+
+        </div>
+
+        {/* IMPROVED CARDS */}
+
+        <motion.div
+          key={tab}
+          initial={{opacity:0,y:10}}
+          animate={{opacity:1,y:0}}
+          className="grid grid-cols-3 gap-6"
+        >
+
+          {(tab==="manual" ? manualTools : aiTools).map((tool,i)=>{
+
+            const Icon = tool.icon;
+
+            return(
 
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -8 }}
-                transition={{ duration: 0.35 }}
-                className="bg-gradient-to-b from-[#eef5ff] to-white
-          rounded-3xl shadow-xl overflow-hidden"
+                whileHover={{scale:1.06,y:-4}}
+                onClick={()=>navigate(tool.route)}
+                className="cursor-pointer p-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50 shadow-sm hover:shadow-xl transition flex flex-col items-center justify-center gap-3 h-[130px] relative"
               >
 
-                {/* Top Image Area */}
+                <div className={`w-12 h-12 flex items-center justify-center rounded-xl
+                ${tab==="ai" ? "bg-yellow-100 text-yellow-600" : "bg-blue-100 text-blue-600"}`}>
 
-                <div className="relative h-44  flex items-center justify-center">
-
-                  <div className="relative h-40 w-80 overflow-hidden rounded-3xl mt-4">
-
-                    <img
-                      src={feature.image}
-                      alt={feature.name}
-                      className="w-full h-full object-cover"
-                    />
-
-                    {/* soft overlay like reference image */}
-
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-transparent to-transparent"></div>
-
-                  </div>
-
-                  {/* Floating Circle Button */}
-
-                  <div className="absolute -bottom-6 right-6 w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center">
-
-                    <div className="w-10 h-10 rounded-full bg-[#2563eb] flex items-center justify-center text-white">
-                      <Icon size={18} />
-                    </div>
-
-                  </div>
+                  <Icon size={22}/>
 
                 </div>
 
+                <p className="font-semibold text-blue-900 text-sm">
+                  {tool.title}
+                </p>
 
-                {/* Content */}
-
-                <div className="pt-10 pb-8 px-8">
-
-                  <h3 className="text-xl font-semibold text-[#0c4a6e] mb-3">
-                    {feature.name}
-                  </h3>
-
-                  <p className="text-slate-600 text-sm mb-6">
-                    {feature.desc}
-                  </p>
-
-                  <button
-                    onClick={() => navigate(feature.route)}
-                    className="
-              bg-[#e6f7ff]
-              text-black
-              rounded-full
-              px-5 py-[7px]
-              text-sm
-              font-medium
-              transition-all
-              duration-300
-              shadow-[inset_0_-20px_15px_-14px_rgba(56,189,248,0.18),0_1px_2px_rgba(56,189,248,0.12),0_2px_4px_rgba(56,189,248,0.12)]
-              hover:scale-105
-              hover:-rotate-1
-              "
-                  >
-                    Open Tool →
-                  </button>
-
-                </div>
+                {tab==="ai" && (
+                  <span className="absolute top-3 right-3 text-yellow-500">
+                    <FiZap size={16}/>
+                  </span>
+                )}
 
               </motion.div>
 
@@ -236,159 +414,18 @@ export default function Dashboard() {
 
           })}
 
-        </div>
+        </motion.div>
 
-      </section>
+      </motion.div>
 
+    </motion.div>
 
-      {/* AI TOOLS */}
+  )}
 
-      <section ref={sectionRef} className="relative bg-gradient-to-b from-blue-90 via-blue-100 to-[#0b1b4a]/60 -mt-5">
+  </AnimatePresence>
 
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-34 px-6 py-32">
+</div>
 
-          <div className="sticky top-0 h-screen flex items-center">
-
-            <div className="flex items-center gap-12">
-
-              <div className="max-w-lg">
-
-                <p className="text-[#0c4a6e] text-sm font-semibold mb-3">
-                  Your Needs, Our Solution
-                </p>
-
-                <h2 className="text-6xl font-extrabold text-[#0c4a6e]">
-                  Explore Powerful <br />
-                  AI Tools
-                </h2>
-
-                <p className="text-slate-600 mt-5 mb-8">
-                  Create presentations, generate images and write documents
-                  faster with our AI powered workspace.
-                </p>
-
-              </div>
-
-              <motion.img
-                src={homepageImage}
-                className="w-64"
-                animate={{ y: [0, -12, 0] }}
-                transition={{ duration: 4, repeat: Infinity }}
-              />
-
-            </div>
-
-          </div>
-
-
-          <div className="space-y-10">
-
-            {TOOLS.map((tool, i) => {
-
-              const Icon = tool.icon;
-
-              return (
-
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 80 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: false }}
-                  whileHover={{
-                    scale: 1.05,
-                    rotateX: 5,
-                    rotateY: -5
-                  }}
-                  className="bg-white p-8 rounded-2xl border border-slate-200
-                  shadow-md hover:shadow-xl transition"
-                >
-
-                  <div className="flex items-start gap-5">
-
-                    <div className="w-12 h-12 bg-[#0c4a6e] text-white rounded-lg flex items-center justify-center">
-                      <Icon size={22} />
-                    </div>
-
-                    <div>
-
-                      <h3 className="text-xl font-semibold mb-2">
-                        {tool.name}
-                      </h3>
-
-                      <p className="text-slate-600 text-sm mb-4">
-                        {tool.desc}
-                      </p>
-
-                      <button
-                        onClick={() => navigate(tool.route)}
-                        className="text-sm font-medium text-[#0c4a6e] hover:underline"
-                      >
-                        Open Tool →
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                </motion.div>
-
-              )
-
-            })}
-
-          </div>
-
-        </div>
-
-        <svg className="absolute bottom-0 left-0 w-full rotate-180 -mb-1" viewBox="0 0 1440 100">
-          <path fill="#f9fafb" d="M0,40 C360,120 1080,0 1440,80 L1440,0 L0,0 Z" />
-        </svg>
-
-      </section>
-
-
-      {/* TEMPLATE SECTION */}
-
-      <motion.section className="max-w-6xl mx-auto px-6 pb-24">
-
-        <h2 className="text-3xl font-bold mb-12 text-center">
-          Ready-to-Use Templates
-        </h2>
-
-        <div className="grid md:grid-cols-3 gap-8">
-
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <motion.div
-              key={i}
-              whileHover={{ scale: 1.05 }}
-              className="relative bg-white rounded-2xl overflow-hidden shadow-md border"
-            >
-
-              <img
-                src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&auto=format&fit=crop&sig=${i}`}
-                className="h-52 w-full object-cover"
-              />
-
-              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center text-white font-semibold">
-                Use Template
-              </div>
-
-              <div className="p-5">
-                <p className="font-semibold">Template {i}</p>
-                <p className="text-sm mt-1">
-                  Fully customizable professional layout.
-                </p>
-              </div>
-
-            </motion.div>
-          ))}
-
-        </div>
-
-      </motion.section>
-
-    </div>
-
-  );
+);
 
 }
