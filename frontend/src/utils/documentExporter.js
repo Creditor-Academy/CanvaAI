@@ -634,10 +634,207 @@ export class DocumentExporter {
   }
 
   static async exportToJSON(editor, options = {}) {
-    const { filename = 'document.json' } = options;
-    const json = editor?.getJSON ? editor.getJSON() : {};
-    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
-    saveAs(blob, filename);
+   const { filename = 'document.json', includePagination= true } = options;
+    
+    if (!editor) {
+      throw new Error('Editor not available');
+    }
+
+   const json = editor.getJSON ? editor.getJSON() : {};
+    
+    // If pagination is requested, calculate and add page structure
+    if (includePagination) {
+     const paginationData = this.calculatePaginationForExport(editor);
+      
+     const enrichedJson = {
+        ...json,
+        metadata: {
+          ...json.metadata,
+          exportedAt: new Date().toISOString(),
+         paginationEnabled: true,
+          totalPages: paginationData.totalPages,
+          usableHeightPerContent: paginationData.usableHeight,
+         margins: {
+            top: paginationData.marginTop,
+            bottom: paginationData.marginBottom,
+            left: paginationData.marginLeft,
+            right: paginationData.marginRight
+          }
+        },
+       pages: paginationData.pages
+      };
+      
+     const blob = new Blob([JSON.stringify(enrichedJson, null, 2)], { type: 'application/json' });
+      saveAs(blob, filename);
+    } else {
+     const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+      saveAs(blob, filename);
+    }
+  }
+
+  /**
+   * Calculate pagination structure that matches what's visible on screen per page
+   * Uses the EXACT same layout calculator as the virtual scroll pagination engine
+   */
+  static calculatePaginationForExport(editor) {
+    // Import the ACTUAL pagination engine functions
+   const { calculateFullBlockHeight, blockMarginBottom } = require('./pagination/layoutCalculator');
+   const { USABLE_HEIGHT_PX, USABLE_WIDTH_PX, PAGE_MARGIN_TOP_PX, PAGE_MARGIN_BOTTOM_PX, PAGE_MARGIN_LEFT_PX, PAGE_MARGIN_RIGHT_PX } = require('./pagination/constants');
+    
+   const content = this.extractStructuredContent(editor);
+    
+   const pages = [];
+    let currentPage = {
+     pageNumber: 1,
+      blocks: [],
+      usedHeight: 0,
+      availableHeight: USABLE_HEIGHT_PX
+    };
+    
+    // Process each content block and assign to pages
+    // This logic MATCHES paginationEngine.js paginate() method
+    for (const block of content) {
+      // Convert extracted block back to ProseMirror-like node structure
+     const proseMirrorNode = this.convertBlockToProseMirrorNode(block);
+      
+      // Use the REAL layout calculator (same as virtual scroll)
+     const fullHeight = calculateFullBlockHeight(proseMirrorNode, {}, USABLE_WIDTH_PX);
+      
+      // Check if block fits on current page (MATCHES paginationEngine.js line 124)
+      if (currentPage.usedHeight + fullHeight > USABLE_HEIGHT_PX) {
+        // Save current page and start new one
+       pages.push(currentPage);
+        currentPage = {
+         pageNumber: pages.length + 1,
+          blocks: [],
+          usedHeight: 0,
+          availableHeight: USABLE_HEIGHT_PX
+        };
+      }
+      
+      // Add block to current page with EXACT height calculation
+      currentPage.blocks.push({
+        ...block,
+       height: fullHeight,  // Full layout height including margin-bottom
+       contentHeight: fullHeight - blockMarginBottom(proseMirrorNode),
+       marginBottom: blockMarginBottom(proseMirrorNode),
+        positionInPage: currentPage.blocks.length
+      });
+      currentPage.usedHeight += fullHeight;
+    }
+    
+    // Add the last page
+    if (currentPage.blocks.length > 0) {
+     pages.push(currentPage);
+    }
+    
+    return {
+     pages,
+      totalPages: pages.length,
+      usableHeight: USABLE_HEIGHT_PX,
+      usableWidth: USABLE_WIDTH_PX,
+     marginTop: PAGE_MARGIN_TOP_PX,
+     marginBottom: PAGE_MARGIN_BOTTOM_PX,
+     marginLeft: PAGE_MARGIN_LEFT_PX,
+     marginRight: PAGE_MARGIN_RIGHT_PX
+    };
+  }
+
+  /**
+   * Convert extracted block back to ProseMirror-like node for layout calculator
+   */
+  static convertBlockToProseMirrorNode(block) {
+    // Create a minimal ProseMirror-like node structure
+    // that the layout calculator can work with
+    return {
+      type: { name: block.type },
+      attrs: {
+        level: block.level,
+        ...block.attrs
+      },
+     content: block.content ? {
+        forEach: (fn) => {
+          if (Array.isArray(block.content)) {
+            block.content.forEach(fn);
+          }
+        }
+      } : null,
+      textContent: block.text || '',
+      text: block.text || ''
+    };
+  }
+
+  /**
+   * Calculate the height a block will occupy on a page
+   * This matches the layout calculator used by the virtual scroll pagination
+   */
+  static calculateBlockHeight(block, usableWidth) {
+   const DEFAULT_FONT_SIZE = 16;
+   const DEFAULT_LINE_HEIGHT = 1.5;
+   const PADDING_BOTTOM = 12; // Standard paragraph spacing
+    
+    switch (block.type) {
+      case 'heading': {
+       const sizes = { 1: 32, 2: 28, 3: 24, 4: 20, 5: 18, 6: 16 };
+       const fontSize = sizes[block.level] || DEFAULT_FONT_SIZE;
+       const lineHeight= fontSize * DEFAULT_LINE_HEIGHT;
+       const lines = Math.ceil(block.text.length / (usableWidth * 0.15)); // Approx chars per line
+        return (lines * lineHeight) + PADDING_BOTTOM;
+      }
+      
+      case 'paragraph': {
+       const fontSize = block.style?.fontSize || DEFAULT_FONT_SIZE;
+       const lineHeight = fontSize * (block.style?.lineHeight || DEFAULT_LINE_HEIGHT);
+       const charsPerLine = Math.floor(usableWidth * 0.6); // Approx based on font size
+       const lines = Math.ceil((block.text.length || 1) / charsPerLine);
+        return (lines * lineHeight) + PADDING_BOTTOM;
+      }
+      
+      case 'blockquote': {
+       const fontSize = DEFAULT_FONT_SIZE;
+       const lineHeight = fontSize * DEFAULT_LINE_HEIGHT;
+       const charsPerLine = Math.floor(usableWidth * 0.55);
+       const lines= Math.ceil((block.text.length || 1) / charsPerLine);
+        return (lines * lineHeight) + PADDING_BOTTOM + 16; // Extra padding for quote styling
+      }
+      
+      case 'list': {
+       const fontSize = DEFAULT_FONT_SIZE;
+       const lineHeight = fontSize * DEFAULT_LINE_HEIGHT;
+        let totalHeight= 0;
+        
+        for (const item of block.items) {
+         const charsPerLine = Math.floor(usableWidth * 0.55);
+         const lines = Math.ceil((item.text.length || 1) / charsPerLine);
+          totalHeight += (lines * lineHeight) + 4; // Item spacing
+        }
+        
+        return totalHeight + PADDING_BOTTOM;
+      }
+      
+      case 'image': {
+       const aspectRatio = block.height / block.width;
+       const displayWidth = Math.min(block.width, usableWidth);
+       const displayHeight = displayWidth * aspectRatio;
+        return displayHeight + PADDING_BOTTOM;
+      }
+      
+      case 'table': {
+       const rowHeight= 30; // Approximate row height
+       const headerHeight= 35;
+       const numRows = block.rows?.length || 0;
+        return headerHeight + (numRows * rowHeight) + PADDING_BOTTOM;
+      }
+      
+      case 'pageBreak': {
+        return USABLE_HEIGHT; // Force new page
+      }
+      
+      default: {
+        // Default estimation for unknown types
+        return 40 + PADDING_BOTTOM;
+      }
+    }
   }
 
   static async exportToEPUB(editor, options = {}) {

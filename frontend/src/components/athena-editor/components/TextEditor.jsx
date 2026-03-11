@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { StarterKit } from '@tiptap/starter-kit';
+import Document from '@tiptap/extension-document';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -21,6 +22,7 @@ import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../extensions/Indent.js';
+import { addHeadingStyles } from '../extensions/Page.js';  // Only need heading styles function
 import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
 import TableExtension from '../extensions/TableExtension.js';
@@ -477,7 +479,7 @@ export const EditorToolbar = ({
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [lineSpacingMenuOpen, setLineSpacingMenuOpen] = useState(false);
-  const [pageMargins, setPageMargins] = useState({ top: 72, bottom: 72, left: 72, right: 72 });
+  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 96, right: 96 });
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
@@ -1375,10 +1377,16 @@ export const EditorToolbar = ({
             toast.success('Link inserted');
           }
           break;
-        case 'page_break':
-          runWithSavedSelection(editor, (chain) => chain.setHorizontalRule());
+        case 'page_break': {
+          const { state: pbState } = editor;
+          const { $from: pbFrom } = pbState.selection;
+          const pbDepth   = pbFrom.depth;
+          const pbTopEnd  = pbDepth > 0 ? pbFrom.end(1) + 1 : pbFrom.pos;
+          const pbInsertPos = Math.min(pbTopEnd, pbState.doc.content.size);
+          editor.chain().insertContentAt(pbInsertPos, { type: 'pageBreak' }).run();
           toast.success('Page break inserted');
           break;
+        }
         case 'date':
           const date = new Date().toLocaleDateString();
           runWithSavedSelection(editor, (chain) => chain.insertContent(date));
@@ -3745,22 +3753,7 @@ export const EditorToolbar = ({
 
 
 // ─── Add heading styles helper ────────────────────────────────────────────────
-const addHeadingStyles = () => {
-  const styleId = 'athena-heading-styles';
-  if (document.getElementById(styleId)) return;
-  const style = document.createElement('style');
-  style.id = styleId;
-  style.textContent = `
-    .ProseMirror h1 { font-size: 2.5rem !important; font-weight: 800 !important; line-height: 1.15 !important; margin-top: 0.75rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h2 { font-size: 2rem !important; font-weight: 700 !important; line-height: 1.15 !important; margin-top: 0.75rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h3 { font-size: 1.75rem !important; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.625rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h4 { font-size: 1.5rem !important; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h5 { font-size: 1.25rem !important; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h6 { font-size: 1.1rem !important; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror p { font-size: 1rem !important; line-height: 1.6 !important; margin-top: 0 !important; margin-bottom: 1rem !important; color: #374151 !important; display: block !important; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
-  `;
-  document.head.appendChild(style);
-};
+
 
 // ─── Custom Extensions ────────────────────────────────────────────────────────
 const FontSize = Extension.create({
@@ -3835,7 +3828,18 @@ const TextEditorContent = () => {
   const [showHeadingStyles, setShowHeadingStyles] = useState(false);
   const [pageSize, setPageSize] = useState('A4');
   const [pageOrientation, setPageOrientation] = useState('portrait');
-  const [pageMargins, setPageMargins] = useState({ top: 72, bottom: 72, left: 72, right: 72 });
+  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 96, right: 96 });
+
+  // Keep --page-margin-* CSS variables in sync with state (runs on mount too)
+  useEffect(() => {
+    const r = document.documentElement;
+    r.style.setProperty('--page-margin-top',    `${pageMargins.top}px`);
+    r.style.setProperty('--page-margin-right',  `${pageMargins.right}px`);
+    r.style.setProperty('--page-margin-bottom', `${pageMargins.bottom}px`);
+    r.style.setProperty('--page-margin-left',   `${pageMargins.left}px`);
+    r.style.setProperty('--page-break-gap',     '40px');
+  }, [pageMargins]);
+
   const [pageColor, setPageColor] = useState('#ffffff');
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -3854,6 +3858,14 @@ const TextEditorContent = () => {
   const [collapsedSections, setCollapsedSections] = useState(new Set());
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
 
+  // Word/Character/Line limit constants for A4 pages
+  // Based on Google Docs default settings:
+  // - 1-inch margins, Arial/Calibri size 11, single line spacing
+  // - Approximately 45-55 lines per A4 page
+  const MAX_WORDS_PER_PAGE = 550;        // Target: 500-600 words per page
+  const MAX_CHARS_PER_PAGE = 3000;       // Target: ~3,000 characters per page
+  const MAX_LINES_PER_PAGE = 50;         // Target: 45-55 lines per A4 page
+
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
   const repaginateRef = useRef(null);
@@ -3864,6 +3876,30 @@ const TextEditorContent = () => {
   const handleAutoSaveRef = useRef(null);
   const lastPaginationContentRef = useRef('');
   const paragraphHeightCacheRef = useRef(new Map());
+
+  // ── Paste page-break system refs ──────────────────────────────────────────
+  // isPastingRef   : true from handlePaste until PASTE_SETTLE_MS after paste lands.
+  //                  Prevents onUpdate from running the scanner mid-paste.
+  // pasteTimerRef  : the settle-delay timer; cleared on each new paste.
+  // isInsertingRef : re-entrancy guard — true only while insertions are running.
+  //                  Always reset in a finally block so it can never stay locked.
+  // lastFingerprintRef : content fingerprint of the last successfully-scanned doc.
+  //                  Prevents re-scanning identical content on every keystroke.
+  const isPastingRef       = useRef(false);
+  const pasteTimerRef      = useRef(null);
+  const isInsertingRef     = useRef(false);
+  const lastFingerprintRef = useRef('');
+
+  // Page-limit config (mirrors the constants above, kept in one object so it
+  // can be passed cleanly to the pure functions below)
+  const pageCfg = {
+    MAX_WORDS_PER_PAGE,
+    MAX_CHARS_PER_PAGE,
+    MAX_LINES_PER_PAGE,
+    AVG_CHARS_PER_LINE: 80,
+    PASTE_SETTLE_MS:    200,
+    MAX_BREAKS_PER_RUN: 500,
+  };
 
   const dynamicManualPagination = useCallback((editorInstance) => {
     if (!editorInstance?.state?.doc) return;
@@ -3876,11 +3912,185 @@ const TextEditorContent = () => {
     }
   }, [pages.length, setDocumentStats]);
 
-  useEffect(() => { addHeadingStyles(); }, []);
+  // ── runPastePageBreaks ────────────────────────────────────────────────────
+  //
+  // Single-pass scanner + single-transaction inserter.
+  //
+  // WHY doc.forEach instead of descendants():
+  //   descendants() yields Text leaf nodes whose positions are INSIDE inline
+  //   content. Inserting a block node (pageBreak) at an inline position
+  //   violates the schema — ProseMirror silently rejects it. doc.forEach walks
+  //   only the top-level blocks, whose offsets are always valid block-insertion
+  //   positions.
+  //
+  // WHY one chain.run() for all inserts:
+  //   Inserting breaks one-at-a-time fires onUpdate after each insert, which
+  //   re-runs this scanner, which queues more breaks → infinite loop.
+  //   One transaction = one onUpdate = no feedback loop.
+  //
+  // WHY offset accumulator:
+  //   Each inserted pageBreak (nodeSize=1) shifts every subsequent position by
+  //   +1. We apply a running offset so positions stay accurate without
+  //   re-scanning the doc.
+  //
+  const runPastePageBreaks = useCallback((editorInstance) => {
+    if (isInsertingRef.current) return 0;
+    if (!editorInstance?.state?.doc) return 0;
+
+    isInsertingRef.current = true;
+    let inserted = 0;
+
+    try {
+      const doc = editorInstance.state.doc;
+
+      // ── Pass 1: collect all positions where a break is needed ────────────
+      const insertAt = []; // positions in the CURRENT doc (before any insertion)
+      let pageWords = 0;
+      let pageChars = 0;
+      let pageLines = 0;
+
+      doc.forEach((blockNode, topOffset) => {
+        // Existing break → reset page counters
+        if (blockNode.type.name === 'pageBreak') {
+          pageWords = 0;
+          pageChars = 0;
+          pageLines = 0;
+          return;
+        }
+
+        const text       = blockNode.textContent || '';
+        const blockWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+        const blockChars = text.length;
+        const blockLines = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 0;
+
+        pageWords += blockWords;
+        pageChars += blockChars;
+        pageLines += blockLines;
+
+        const overflow =
+          pageWords > pageCfg.MAX_WORDS_PER_PAGE ||
+          pageChars > pageCfg.MAX_CHARS_PER_PAGE ||
+          pageLines > pageCfg.MAX_LINES_PER_PAGE;
+
+        if (overflow && insertAt.length < pageCfg.MAX_BREAKS_PER_RUN) {
+          // Insert BEFORE this block so it becomes the first block of the next page.
+          insertAt.push(topOffset);
+          console.log(`[PastePageBreaks] Queued break at ${topOffset}, cumulative: words=${pageWords}, chars=${pageChars}, lines=${pageLines}`);
+          // Reset counters to THIS block's values — it is now the first block on
+          // the new page, so the new page already carries its contribution.
+          pageWords = blockWords;
+          pageChars = blockChars;
+          pageLines = blockLines;
+        }
+      });
+
+    console.log(`[PastePageBreaks] Total breaks queued: ${insertAt.length}`);
+
+      if (insertAt.length === 0) return 0;
+
+      // ── Pass 2: insert all breaks in one chained transaction ─────────────
+      // Update fingerprint first so the resulting onUpdate exits immediately
+      const text = doc.textContent;
+      lastFingerprintRef.current = `${text.length}:${text.substring(0, 80)}`;
+
+      let offset = 0;
+      let chain  = editorInstance.chain();
+
+    console.log(`[PastePageBreaks] Inserting ${insertAt.length} page breaks...`);
+      
+      for (const rawPos of insertAt) {
+        chain  = chain.insertContentAt(rawPos + offset, { type: 'pageBreak' });
+        offset += 1; // each inserted pageBreak shifts subsequent positions by 1
+      }
+
+      chain.run(); // exactly one onUpdate
+      inserted = insertAt.length;
+      
+   console.log(`[PastePageBreaks] Successfully inserted ${inserted} page breaks with margins`);
+
+    } catch (err) {
+      console.error('[PastePageBreaks] Insertion error:', err);
+    } finally {
+      isInsertingRef.current = false; // always released — can never stay locked
+    }
+
+    return inserted;
+  }, []); // pageCfg is a plain object literal — no deps needed
+
+  // ── checkAndInsertAutoPageBreaks (called from onUpdate for normal typing) ─
+  //
+  // Skipped entirely during paste (isPastingRef.current = true).
+  // Skipped when content fingerprint matches the last run → no-op on every
+  // keystroke that doesn't cross a page limit.
+  //
+  const checkAndInsertAutoPageBreaks = useCallback((editorInstance) => {
+    if (isPastingRef.current)   return; // paste system handles it
+    if (isInsertingRef.current) return; // re-entrancy guard
+    if (!editorInstance?.state?.doc) return;
+
+    const text        = editorInstance.state.doc.textContent;
+    const fingerprint = `${text.length}:${text.substring(0, 80)}`;
+    if (fingerprint === lastFingerprintRef.current) return; // nothing changed
+
+    // Write fingerprint BEFORE inserting so the resulting onUpdate exits here
+    lastFingerprintRef.current = fingerprint;
+
+    runPastePageBreaks(editorInstance);
+  }, [runPastePageBreaks]);
+
+  // ── ProseMirror paste-interception plugin ────────────────────────────────
+  //
+  // CRITICAL: wrapped in useRef so the Plugin object is created ONCE.
+  // If new Plugin() is called on every render, Tiptap sees a new extension
+  // array reference on every render, tears down the editor, and the
+  // handlePaste registered in the actual editor is always a stale closure
+  // that never fires — meaning isPastingRef is never set and the scanner
+  // runs mid-paste against a half-committed document.
+  //
+  // handlePaste fires SYNCHRONOUSLY before ProseMirror commits the paste
+  // transaction. isPastingRef=true makes onUpdate skip the scanner.
+  // After 400 ms (enough for ProseMirror schema normalisation + React batch)
+  // we reset the flag, clear the fingerprint, and run the scanner once
+  // against the fully settled document.
+  //
+  const pastePluginRef = useRef(null);
+  if (!pastePluginRef.current) {
+    pastePluginRef.current = new Plugin({
+      key: new PluginKey('athena-paste-page-break'),
+      props: {
+        handlePaste: (_view, _event, _slice) => {
+          isPastingRef.current = true;
+          if (pasteTimerRef.current) clearTimeout(pasteTimerRef.current);
+
+          pasteTimerRef.current = setTimeout(() => {
+            isPastingRef.current       = false;
+            lastFingerprintRef.current = ''; // force full re-scan
+            // editorRef.current is the stable Tiptap editor reference
+            const ed = editorRef.current;
+            if (ed && !ed.isDestroyed) runPastePageBreaks(ed);
+          }, 400); // 400 ms — enough for ProseMirror + React to settle
+
+          return false; // let ProseMirror handle the actual paste insertion
+        },
+      },
+    });
+  }
+  const pastePlugin = pastePluginRef.current;
+
+
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1,2,3,4,5,6] }, blockquote: false, underline: false, link: false, listItem: false, codeBlock: false }),
+      StarterKit.configure({ 
+        document: false,
+        heading: { levels: [1,2,3,4,5,6] }, 
+        blockquote: false, 
+        underline: false, 
+        link: false, 
+        listItem: false, 
+        codeBlock: false 
+      }),
+      Document.extend({ content: 'block+' }),  // Accept blocks directly (ENDLESS PAGE)
       TextStyle, Color, FontFamily, FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TiptapUnderline,
@@ -3898,14 +4108,23 @@ const TextEditorContent = () => {
       TaskItem.configure({ HTMLAttributes: { class: 'task-item' }, nested: true }),
       TiptapTable.configure({ resizable: true, HTMLAttributes: { class: 'table-border-black' } }),
       TableRow, TableCell, TableHeader, TableExtension,
-      TiptapSubscript, TiptapSuperscript, Indent, PageBreak, TextDirection,
+      TiptapSubscript, TiptapSuperscript, Indent, PageBreak, TextDirection,  // PageBreak for visual section breaks
+      pastePlugin,
     ],
-    content: '',
+    content: '',  // Start empty - endless page with auto page breaks
     editable: true,
     autofocus: true,
     onUpdate: ({ editor: editorInstance }) => {
       setSaveStatus('modified');
       setTimeout(() => addHeadingStyles(), 10);
+      
+      // During a paste isPastingRef.current is true — the pastePlugin's
+      // settle timer will call runPastePageBreaks once the doc is stable.
+      // For normal typing we run the lightweight fingerprint-guarded check.
+      if (!isPastingRef.current) {
+        checkAndInsertAutoPageBreaks(editorInstance);
+      }
+      
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
       statsTimeoutRef.current = setTimeout(() => {
         if (!editorInstance?.state?.doc) return;
@@ -3949,6 +4168,11 @@ const TextEditorContent = () => {
   useEffect(() => {
     if (!editor) return;
     editorRef.current = editor;
+    
+    // ENDLESS PAGE MODE - No pagination initialization needed
+    // Content flows naturally without page wrapping
+    
+    
     const handoffContent = localStorage.getItem('athena_active_doc_content');
     const handoffTitle = localStorage.getItem('athena_active_doc_title');
     if (handoffContent !== null) {
@@ -4329,11 +4553,29 @@ const TextEditorContent = () => {
   }, [editor]);
 
   const addNewPage = useCallback(() => {
-    if (editor) { editor.chain().focus().setHorizontalRule().run(); toast.success('New page added'); }
+    if (!editor) return;
+    // Insert a real pageBreak node at the end of the current top-level block.
+    // Using setHorizontalRule() was wrong — it inserts <hr>, which is never
+    // counted by dynamicManualPagination and has no visual page-break effect.
+    const { state } = editor;
+    const { $from }  = state.selection;
+    // Walk up to the top-level block and insert after it
+    const depth      = $from.depth;
+    const topEnd     = depth > 0 ? $from.end(1) + 1 : $from.pos;
+    const insertPos  = Math.min(topEnd, state.doc.content.size);
+    editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
+    toast.success('New page added');
   }, [editor]);
 
   const addPageBreak = useCallback(() => {
-    if (editor) { editor.chain().focus().setHorizontalRule().run(); toast.success('Page break inserted'); }
+    if (!editor) return;
+    const { state } = editor;
+    const { $from }  = state.selection;
+    const depth      = $from.depth;
+    const topEnd     = depth > 0 ? $from.end(1) + 1 : $from.pos;
+    const insertPos  = Math.min(topEnd, state.doc.content.size);
+    editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
+    toast.success('Page break inserted');
   }, [editor]);
 
   const insertPageNumber = useCallback(() => {
@@ -4407,7 +4649,7 @@ const TextEditorContent = () => {
     });
   }, []);
 
-  useEffect(() => { return () => { clearTimeout(statsTimeoutRef.current); clearTimeout(pagesUpdateTimeoutRef.current); clearTimeout(autoSaveTimeoutRef.current); }; }, []);
+  useEffect(() => { return () => { clearTimeout(statsTimeoutRef.current); clearTimeout(pagesUpdateTimeoutRef.current); clearTimeout(autoSaveTimeoutRef.current); clearTimeout(pasteTimerRef.current); }; }, []);
 
   return (
     <TooltipProvider>
@@ -4497,24 +4739,17 @@ const TextEditorContent = () => {
 
           <div
             ref={contentContainerRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-100/50 p-6"
+            className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-100/50 p-4"
             onCopy={handleCopy}
           >
-            <div className="editor-pages-container max-w-[794px] mx-auto">
+            <div className="athena-workspace">
+            <div className="editor-content-container">
               {editor && (
-                <div className="editor-page bg-white shadow-lg min-h-[1122px] p-[72px]">
-                  <EditorContent editor={editor} className="tip-tap-editor w-full" />
-                </div>
+                <EditorContent editor={editor} className="tip-tap-editor" />
               )}
-              {pages.length > 1 && (
-                <div className="mt-4 flex flex-wrap gap-2 justify-center pb-20">
-                  {pages.map((page) => (
-                    <Button key={page.id} variant={currentPage === page.id ? "default" : "outline"} size="sm" onClick={() => goToPage(page.id)} className="text-xs">
-                      Page {page.id}
-                    </Button>
-                  ))}
-                </div>
-              )}
+            </div>
+              
+              
             </div>
           </div>
 
@@ -4541,7 +4776,6 @@ const TextEditorContent = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span>{currentPage}/{pages.length} pages</span>
             <span>{zoom}%</span>
           </div>
         </footer>

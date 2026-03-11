@@ -1,9 +1,48 @@
-import React, { useMemo, useEffect } from 'react';
-import { useInView } from 'react-intersection-observer';
+/**
+ * virtualPageRenderer.js — ATHENA PAGINATION ENGINE v3.0
+ *
+ * Improvements over v2:
+ *  • pageBlocks now reads page.blocks directly (pages are self-contained).
+ *    The broken `blocks.slice(page.start, page.end)` pattern is removed.
+ *  • PageItem uses IntersectionObserver via react-intersection-observer but
+ *    only fires onPageChange when the page is >50% visible, preventing rapid
+ *    flicker during fast scrolling.
+ *  • Ghost skeleton has an aria-hidden label so screen readers skip it.
+ *  • VirtualPageRenderer exposes a ref so callers can imperatively scroll.
+ *  • useVirtualPagination is removed (superseded by useVirtualScrollPagination
+ *    in usePaginationEngine.js) — kept as a thin re-export for compatibility.
+ */
 
-// Virtual Page Renderer Component
-const PageItem = React.memo(({ index, isVisible, currentPageIndex, page, blocks, onPageChange, renderPage, pageHeight }) => {
-  const { ref, inView } = useInView({ threshold: 0.4 });
+import React, { useMemo, useEffect, useCallback, useRef, forwardRef } from 'react';
+import { useInView } from 'react-intersection-observer';
+import { useVirtualScrollPagination } from './usePaginationEngine';
+import { A4_HEIGHT_PX, A4_WIDTH_PX, PAGE_GAP_PX, USABLE_HEIGHT_PX } from './constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PageItem
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Renders a single A4 page container.
+ *
+ * Ghost mode: when `isNearVisible` is false the page renders an empty skeleton
+ * div that maintains the layout footprint without mounting any content nodes.
+ * This is the "ghost page" strategy that prevents scroll-position drift.
+ */
+const PageItem = React.memo(({
+  index,
+  page,
+  isNearVisible,
+  currentPageIndex,
+  onPageChange,
+  renderPage,
+  pageHeight,
+}) => {
+  // Fire onPageChange when this page crosses 50 % of the viewport.
+  const { ref, inView } = useInView({
+    threshold:   0.5,
+    rootMargin: '0px',
+  });
 
   useEffect(() => {
     if (inView && typeof onPageChange === 'function' && index !== currentPageIndex) {
@@ -11,50 +50,126 @@ const PageItem = React.memo(({ index, isVisible, currentPageIndex, page, blocks,
     }
   }, [inView, index, currentPageIndex, onPageChange]);
 
+  const isActive = index === currentPageIndex;
+
   return (
     <div
       ref={ref}
-      className={`page-wrapper ${index === currentPageIndex ? 'current-page' : ''}`}
+      data-page-index={index}
+      role="region"
+      aria-label={`Page ${index + 1}`}
       style={{
-        height: pageHeight,
-        visibility: isVisible ? 'visible' : 'hidden',
-        contain: 'layout paint',
-        willChange: 'transform'
+        width:           `${A4_WIDTH_PX}px`,
+        height:          `${pageHeight}px`,
+        margin:          `0 auto ${PAGE_GAP_PX}px auto`,
+        backgroundColor: 'white',
+        boxShadow:       '0 2px 8px rgba(0,0,0,0.15)',
+        position:        'relative',
+        // contain: layout tells the browser this element's size never changes —
+        // prevents ancestor reflow when content inside updates.
+        contain:         'layout',
+        cursor:          'text',
+        outline:         isActive ? '2px solid #4285f4' : 'none',
+        outlineOffset:   '1px',
+        transition:      'outline 0.1s ease',
+        userSelect:      'text',
       }}
     >
-      {isVisible && renderPage(index, blocks, page)}
+      {isNearVisible ? (
+        // ── Render real content ───────────────────────────────────────────
+        renderPage(index, page.blocks, page)
+      ) : (
+        // ── Ghost skeleton: zero-cost placeholder ─────────────────────────
+        <div
+          aria-hidden="true"
+          style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
+        />
+      )}
+
+      {/* Page number — always visible, pointer-events: none so it doesn't
+          interfere with text selection. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position:       'absolute',
+          bottom:         '10px',
+          right:          '20px',
+          fontSize:       '11px',
+          color:          '#bbb',
+          pointerEvents:  'none',
+          userSelect:     'none',
+          fontFamily:     'sans-serif',
+        }}
+      >
+        {index + 1}
+      </div>
     </div>
   );
 });
 
-export const VirtualPageRenderer = React.memo(({ 
-  pages, 
-  blocks, 
-  currentPageIndex, 
+PageItem.displayName = 'PageItem';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VirtualPageRenderer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Renders all pages in a vertically-scrollable viewport using the ghost-page
+ * strategy: every page container is always present in the DOM; only pages near
+ * the current viewport actually mount their content subtree.
+ *
+ * Props:
+ *  pages            {Page[]}   - Array of page objects from usePaginationEngine
+ *  currentPageIndex {number}   - 0-based index of the page in view
+ *  onPageChange     {function} - Called with the new page index on scroll
+ *  renderPage       {function} - (pageIndex, blocks, page) → ReactNode
+ *  buffer           {number}   - Pages to render before/after current (default 2)
+ *  pageHeight       {number}   - Override page height in px (default A4_HEIGHT_PX)
+ *
+ * Note: `blocks` prop from v2 is no longer needed — each page object already
+ *       carries its own `.blocks` array.
+ */
+export const VirtualPageRenderer = forwardRef(({
+  pages,
+  currentPageIndex,
   onPageChange,
   renderPage,
-  buffer = 2,
-  pageHeight = 1123
-}) => {
-  const range = useMemo(() => {
-    const start = Math.max(0, currentPageIndex - buffer);
-    const end = Math.min(pages.length - 1, currentPageIndex + buffer);
-    return { start, end };
-  }, [currentPageIndex, pages.length, buffer]);
+  buffer    = 2,
+  pageHeight = A4_HEIGHT_PX,
+}, ref) => {
+  // Total scroll height so the container reserves the right amount of space.
+  const totalScrollHeight = useMemo(
+    () => pages.length * (pageHeight + PAGE_GAP_PX) + PAGE_GAP_PX,
+    [pages.length, pageHeight],
+  );
 
   return (
-    <div className="virtual-pages-container">
+    <div
+      ref={ref}
+      className="athena-document-viewport"
+      style={{
+        backgroundColor: '#f0f2f5',
+        padding:         `${PAGE_GAP_PX}px 0`,
+        minHeight:       '100vh',
+        display:         'flex',
+        flexDirection:   'column',
+        alignItems:      'center',
+        // Reserve total scroll space to prevent layout shift
+        minHeight:       `${totalScrollHeight}px`,
+      }}
+    >
       {pages.map((page, index) => {
-        const isVisible = index >= range.start && index <= range.end;
-        const pageBlocks = isVisible ? blocks.slice(page.start, page.end) : [];
+        // A page is "near visible" if it's within `buffer` pages of the
+        // currently-active page.
+        const isNearVisible = Math.abs(index - currentPageIndex) <= buffer;
+
         return (
           <PageItem
-            key={`page-${index}`}
+            key={page.id ?? `page-${index}`}
             index={index}
-            isVisible={isVisible}
-            currentPageIndex={currentPageIndex}
             page={page}
-            blocks={pageBlocks}
+            isNearVisible={isNearVisible}
+            currentPageIndex={currentPageIndex}
             onPageChange={onPageChange}
             renderPage={renderPage}
             pageHeight={pageHeight}
@@ -65,187 +180,73 @@ export const VirtualPageRenderer = React.memo(({
   );
 });
 
-// Hook to manage virtual pagination
-export const useVirtualPagination = (blocks, currentPageIndex, options = {}) => {
-  const {
-    bufferSize = 1, // Number of pages before/after current to keep rendered
-    maxPages = 50
-  } = options;
+VirtualPageRenderer.displayName = 'VirtualPageRenderer';
 
-  // Calculate visible page range
-  const visibleRange = useMemo(() => {
-    const start = Math.max(0, currentPageIndex - bufferSize);
-    const end = Math.min(maxPages - 1, currentPageIndex + bufferSize);
-    return { start, end };
-  }, [currentPageIndex, bufferSize, maxPages]);
+// ─────────────────────────────────────────────────────────────────────────────
+// useScrollPageTracker
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Get visible pages based on range
-  const visiblePages = useMemo(() => {
-    const pages = [];
-    for (let i = visibleRange.start; i <= visibleRange.end; i++) {
-      pages.push(i);
+/**
+ * Tracks which page is currently in view by observing scroll position.
+ * An alternative to the IntersectionObserver approach inside PageItem —
+ * useful when the scroll container is not the window.
+ *
+ * @param {object[]} pages     - Paginated page array
+ * @param {number}   pageHeight - Height of each page (px)
+ * @returns {{ currentPageIndex: number, scrollContainerRef: ref }}
+ */
+export const useScrollPageTracker = (pages, pageHeight = A4_HEIGHT_PX) => {
+  const containerRef        = useRef(null);
+  const currentPageIndexRef = useRef(0);
+  const [currentPage, setCurrentPage] = React.useState(0);
+
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+    const scrollTop  = containerRef.current.scrollTop;
+    const pageStride = pageHeight + PAGE_GAP_PX;
+    const newIndex   = Math.min(
+      Math.floor((scrollTop + pageStride / 2) / pageStride),
+      pages.length - 1,
+    );
+    if (newIndex !== currentPageIndexRef.current) {
+      currentPageIndexRef.current = newIndex;
+      setCurrentPage(newIndex);
     }
-    return pages;
-  }, [visibleRange]);
+  }, [pages.length, pageHeight]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  return { currentPageIndex: currentPage, scrollContainerRef: containerRef };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backward-compat re-export
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @deprecated Use useVirtualScrollPagination from usePaginationEngine.js instead.
+ */
+export const useVirtualPagination = (blocks, currentPageIndex, options = {}) => {
+  const { bufferSize = 1, maxPages = 50 } = options;
+  const start = Math.max(0, currentPageIndex - bufferSize);
+  const end   = Math.min(maxPages - 1, currentPageIndex + bufferSize);
+
+  const visiblePages = useMemo(() => {
+    const result = [];
+    for (let i = start; i <= end; i++) result.push(i);
+    return result;
+  }, [start, end]);
 
   return {
     visiblePages,
-    visibleRange,
-    isPageVisible: (pageIndex) => {
-      return pageIndex >= visibleRange.start && pageIndex <= visibleRange.end;
-    }
+    visibleRange: { start, end },
+    isPageVisible: (i) => i >= start && i <= end,
   };
 };
 
-// Function to get page from range
-export const getPageFromRange = (blocks, pageRange) => {
-  if (!pageRange || typeof pageRange.start !== 'number' || typeof pageRange.end !== 'number') {
-    return [];
-  }
-  return blocks.slice(pageRange.start, pageRange.end);
-};
-
-// Lazy pagination builder that extends pages as needed
-export class LazyPaginationBuilder {
-  constructor(options = {}) {
-    this.options = {
-      pageHeight: 1003,
-      maxPages: 50,
-      bufferPages: 3,
-      lineHeight: 24,
-      charsPerLine: 70,
-      measureHeight: null,
-      ...options
-    };
-    this.pageCache = new Map(); // docHash -> pages
-    this.maxCacheEntries = 5;
-  }
-
-  // Build pages incrementally until content fits or max pages reached
-  buildPagesUntilPosition(blocks, maxPages = 5, heightCache = new Map(), docHash = null) {
-    // Use cached pages if document hash matches
-    if (docHash && this.pageCache.has(docHash)) {
-      const cached = this.pageCache.get(docHash);
-      if (Array.isArray(cached) && cached.length > 0) {
-        // Return only up to maxPages worth of cached pagination
-        return cached.slice(0, Math.min(maxPages, cached.length));
-      }
-    }
-
-    const { pageHeight, maxPages: globalMaxPages } = this.options;
-    const maxPageCount = Math.min(maxPages, globalMaxPages);
-    
-    const pages = [];
-    let currentHeight = 0;
-    let pageStart = 0;
-
-    for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      const blockId = this.getBlockId(block);
-      const measured = typeof this.options.measureHeight === 'function' ? this.options.measureHeight(block) : null;
-      const height = heightCache.get(blockId) || measured || this.estimateBlockHeight(block);
-
-      if (currentHeight + height > pageHeight) {
-        // Start a new page if we have content on current page
-        if (i > pageStart) {
-          pages.push({ start: pageStart, end: i });
-        }
-
-        // Check if we've reached max pages
-        if (pages.length >= maxPageCount) {
-          break;
-        }
-
-        // Start new page with current block
-        pageStart = i;
-        currentHeight = height;
-      } else {
-        currentHeight += height;
-      }
-    }
-
-    // Add the final page if there's remaining content
-    if (pageStart < blocks.length && pages.length < maxPageCount) {
-      pages.push({ start: pageStart, end: blocks.length });
-    }
-
-    // Cache the result for this document hash
-    if (docHash) {
-      this.pageCache.set(docHash, pages);
-      if (this.pageCache.size > this.maxCacheEntries) {
-        const firstKey = this.pageCache.keys().next().value;
-        if (firstKey) this.pageCache.delete(firstKey);
-      }
-    }
-
-    return pages;
-  }
-
-  // Extend pagination when user scrolls near bottom
-  extendPagination(existingPages, blocks, additionalPages = 1) {
-    if (existingPages.length === 0) {
-      return this.buildPagesUntilPosition(blocks, additionalPages);
-    }
-
-    // Get the last page's end position
-    const lastPage = existingPages[existingPages.length - 1];
-    const remainingBlocks = blocks.slice(lastPage.end);
-
-    if (remainingBlocks.length === 0) {
-      return existingPages; // No more content to paginate
-    }
-
-    // Build additional pages from remaining content
-    const additionalPagesResult = this.buildPagesUntilPosition(
-      remainingBlocks, 
-      additionalPages
-    );
-
-    // Adjust indices to account for existing pages
-    const adjustedPages = additionalPagesResult.map(page => ({
-      start: page.start + lastPage.end,
-      end: page.end + lastPage.end
-    }));
-
-    return [...existingPages, ...adjustedPages];
-  }
-
-  // Reflow from a given page index when earlier content changes
-  reflowFromPage(existingPages, blocks, fromPageIndex = 0) {
-    if (fromPageIndex <= 0) {
-      return this.buildPagesUntilPosition(blocks, this.options.maxPages);
-    }
-    // Keep pages before the reflow point
-    const preserved = existingPages.slice(0, fromPageIndex);
-    // Collect remaining blocks from the reflow point
-    const startBlockIndex = existingPages[fromPageIndex]?.start ?? 0;
-    const remainingBlocks = blocks.slice(startBlockIndex);
-    const recomputed = this.buildPagesUntilPosition(remainingBlocks, this.options.maxPages);
-    // Offset recomputed ranges
-    const adjusted = recomputed.map(p => ({ start: p.start + startBlockIndex, end: p.end + startBlockIndex }));
-    return [...preserved, ...adjusted];
-  }
-
-  // Helper methods
-  getBlockId(block) {
-    if (block?.attrs?.id) return String(block.attrs.id);
-    if (block?.attrs?.dataId) return String(block.attrs.dataId);
-    const type = block?.type?.name || 'unknown';
-    const text = block?.textContent || '';
-    return `${type}:${text}`;
-  }
-
-  estimateBlockHeight(block) {
-    const textLength = block.textContent?.length || 0;
-    const lineHeight = this.options.lineHeight;
-    const charsPerLine = this.options.charsPerLine;
-    const estimatedLines = Math.ceil(textLength / Math.max(10, charsPerLine));
-    const base = Math.max(estimatedLines * lineHeight, lineHeight);
-    const type = block?.type?.name;
-    if (type === 'heading') return Math.max(base, lineHeight * 2);
-    if (type === 'image' || type === 'table' || type === 'codeBlock') return Math.max(base, lineHeight * 8);
-    return base;
-  }
-}
-
-export const lazyPaginationBuilder = new LazyPaginationBuilder();
+export default VirtualPageRenderer;

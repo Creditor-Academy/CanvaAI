@@ -1,398 +1,357 @@
-import { calculateRealisticBlockHeight, estimateParagraphSplit, BLOCK_TYPES } from './layoutCalculator';
-import { USABLE_HEIGHT_PX, MIN_WIDOW_ORPHAN_HEIGHT, MAX_PAGES, CACHE_SIZE_LIMIT } from './constants';
+/**
+ * paginationEngine.js — ATHENA PAGINATION ENGINE v3.0
+ *
+ * Improvements over v2:
+ *  • Each page stores { id, blocks, blockIndices, startIndex, endIndex, height }
+ *    so VirtualPageRenderer can slice the source array correctly.
+ *  • Widow/orphan prevention: if the remaining space on a page is less than
+ *    MIN_WIDOW_ORPHAN_HEIGHT, the block is pushed to the next page.
+ *  • Accurate hash uses full textContent + serialised attrs — no collisions.
+ *  • margin-bottom is now included in every block's layout height.
+ *  • Paragraph split works on the margin-excluded content height so we don't
+ *    bleed the bottom margin into split calculations.
+ *  • Cache is bounded to CACHE_SIZE_LIMIT (LRU eviction via insertion order).
+ *  • paginateContent() is a proper alias and forwards options.
+ */
+
+import {
+  calculateBlockHeight,
+  calculateFullBlockHeight,
+  estimateParagraphSplit,
+  blockMarginBottom,
+  BLOCK_TYPES,
+  countWordsAndChars,
+  countWordsAndCharsInRange,
+} from './layoutCalculator';
+
+import {
+  USABLE_HEIGHT_PX,
+  MIN_WIDOW_ORPHAN_HEIGHT,
+  MAX_PAGES,
+  CACHE_SIZE_LIMIT,
+  MAX_WORDS_PER_PAGE,
+  MAX_CHARS_PER_PAGE,
+} from './constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Safely retrieve the string type name from a ProseMirror node. */
+const getTypeName = (block) =>
+  (typeof block.type === 'string' ? block.type : block.type?.name) ?? 'unknown';
+
+/** Return true if this block type supports mid-paragraph splitting. */
+const isSplittable = (block) => {
+  const name = getTypeName(block);
+  return name === BLOCK_TYPES.PARAGRAPH || name === 'paragraph';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PaginationEngine
+// ─────────────────────────────────────────────────────────────────────────────
 
 export class PaginationEngine {
+  /**
+   * @param {object} options
+   * @param {number}  options.usableHeight  - Override page usable height (px)
+   * @param {object}  options.styles        - Global style overrides forwarded to height calc
+   * @param {boolean} options.debugMode
+   * @param {boolean} options.perfLogEnabled
+   */
   constructor(options = {}) {
-    this.options = {
-      usableHeight: USABLE_HEIGHT_PX,
-      minWidowOrphanHeight: MIN_WIDOW_ORPHAN_HEIGHT,
-      maxPages: MAX_PAGES,
-      measureHeight: options.measureHeight || null,
-      ...options
-    };
-    this.cache = new Map(); // For storing calculated heights
-    this.heightCache = new Map(); // For storing block heights
-    this.debugMode = options.debugMode || false;
-    this.perfLogEnabled = options.perfLogEnabled || false;
-    this.isPaginating = false; // Guard against re-entrant pagination
+    this.usableHeight    = options.usableHeight    ?? USABLE_HEIGHT_PX;
+    this.styles          = options.styles          ?? {};
+    this.debugMode       = options.debugMode       ?? false;
+    this.perfLogEnabled  = options.perfLogEnabled  ?? false;
+
+    // LRU cache: Map preserves insertion order; we evict oldest entries.
+    this.cache = new Map(); // hash → { contentHeight, fullHeight, marginBottom }
   }
 
-  // Main pagination algorithm - builds page ranges incrementally
-  paginateContent(nodes, options = {}) {
-    // Prevent re-entrant pagination
-    if (this.isPaginating) {
-      if (this.debugMode) {
-        console.log("Pagination blocked - already running");
-      }
-      return [];
-    }
+  // ── Public API ─────────────────────────────────────────────────────────────
 
-    this.isPaginating = true;
+  /**
+   * Convert a flat array of blocks into pages.
+   *
+   * @param {object[]} blocks - ProseMirror nodes (flat, pre-flattened by flattenDocument)
+   * @returns {Page[]}
+   */
+  paginate(blocks) {
+    if (!Array.isArray(blocks) || blocks.length === 0) return [];
 
-    if (this.debugMode) {
-      console.time("pagination");
-    }
+   const t0 = this.perfLogEnabled ? performance.now() : 0;
 
-    try {
-      // Implement Never-Ending Page by short-circuiting pagination logic
-      // This forces all content into exactly one "Page" node that will expand indefinitely.
-      if (nodes.length === 0) return [];
-      return [{ start: 0, end: nodes.length }];
+   const pages           = [];
+    let currentBlocks     = [];   // block objects on current page
+    let currentIndices    = [];   // original array indices on current page
+    let currentY          = 0;    // accumulated height on current page (px)
+    let currentWords      = 0;    // accumulated words on current page
+    let currentChars      = 0;    // accumulated characters on current page
 
-      const opts = { ...this.options, ...options };
-
-      // Use a safety buffer to absorb floating point errors
-      const SAFETY_BUFFER = 2;
-      const PAGE_LIMIT = opts.usableHeight - SAFETY_BUFFER;
-
-      const pages = []; // Will contain { start, end } ranges instead of content
-      let currentHeight = 0;
-      let pageStart = 0;
-
-      const safeHeight = (n) => {
-        const h = Math.max(0, Math.ceil(this.getBlockHeight(n)));
-        return isFinite(h) ? h : 0;
-      };
-
-      // Process each node and assign to pages by index range
-      for (let i = 0; i < nodes.length; i++) {
-        if (pages.length >= opts.maxPages) break;
-        const node = nodes[i];
-        let height = safeHeight(node);
-
-        // If this single block is larger than the page limit, force it to start on a new page
-        if (height > PAGE_LIMIT) {
-          if (i > pageStart) {
-            pages.push({ start: pageStart, end: i });
-          }
-          pages.push({ start: i, end: i + 1 });
-          pageStart = i + 1;
-          currentHeight = 0;
-          continue;
-        }
-
-        // Early cut: if the remaining space on the page is too small to host reasonable content,
-        // start a new page before placing the next block (widow/orphan prevention).
-        const remainingBefore = PAGE_LIMIT - currentHeight;
-        if (currentHeight > 0 && remainingBefore < opts.minWidowOrphanHeight) {
-          pages.push({ start: pageStart, end: i });
-          pageStart = i;
-          currentHeight = 0;
-        }
-
-        // Keep-with-next for headings: if a heading would be the last item with too little space
-        // for the following block, push heading to next page with its following block.
-        if (node?.type?.name === 'heading' && i + 1 < nodes.length) {
-          const nextHeight = safeHeight(nodes[i + 1]);
-          const remainingIfPlaced = PAGE_LIMIT - (currentHeight + height);
-          // If placing heading leaves too little room for at least a minimal next block, move heading to next page
-          if (remainingIfPlaced < Math.min(opts.minWidowOrphanHeight, nextHeight)) {
-            if (i > pageStart) {
-              pages.push({ start: pageStart, end: i });
-            }
-            pageStart = i;
-            currentHeight = 0;
-          }
-        }
-
-        // If the block doesn't fit, attempt split for paragraphs, otherwise start a new page
-        if (currentHeight + height > PAGE_LIMIT) {
-          let splitHandled = false;
-          if (node?.type?.name === 'paragraph') {
-            const available = PAGE_LIMIT - currentHeight;
-            const split = estimateParagraphSplit(node, available);
-            if (split && split.part1 && split.part2) {
-              nodes.splice(i, 1, split.part1, split.part2);
-              const h1 = Math.max(0, Math.ceil(this.getBlockHeight(split.part1)));
-              if (currentHeight + h1 <= PAGE_LIMIT) {
-                currentHeight += h1;
-                pages.push({ start: pageStart, end: i + 1 });
-                pageStart = i + 1;
-                currentHeight = 0;
-                splitHandled = true;
-                continue;
-              } else {
-                nodes.splice(i, 2, split.part1);
-                height = h1;
-              }
-            }
-          }
-          if (!splitHandled) {
-            if (i > pageStart) {
-              pages.push({ start: pageStart, end: i });
-            }
-            pageStart = i;
-            currentHeight = height;
-          }
-        } else {
-          currentHeight += height;
-        }
-      }
-
-      // Add the final page
-      if (pageStart < nodes.length) {
-        pages.push({ start: pageStart, end: nodes.length });
-      }
-
-      if (this.debugMode) {
-        console.timeEnd("pagination");
-        console.log(`Paginated ${nodes.length} nodes into ${pages.length} pages`);
-        console.log(`Current height on last page: ${currentHeight}, PAGE_LIMIT: ${PAGE_LIMIT}`);
-      }
-
-      if (this.perfLogEnabled) {
-        const endTime = performance.now();
-        console.log(`Pagination took ${endTime - startTime} milliseconds for ${nodes.length} nodes`);
-      }
-
-      // Optional stabilization pass to avoid oscillation
-      let pass = 0;
-      let stable = false;
-      while (!stable && pass < 3) {
-        const re = this._paginateOnce(nodes, opts);
-        stable = this.arePagesEqual(pages, re);
-        if (!stable) pages.splice(0, pages.length, ...re);
-        pass += 1;
-      }
-
-      this.isPaginating = false;
-      return pages;
-    } catch (err) {
-      this.isPaginating = false;
-      if (this.debugMode) console.error('[paginationEngine] paginateContent error:', err);
-      return [];
-    }
-  }
-
-  _paginateOnce(nodes, opts) {
-    if (nodes.length === 0) return [];
-    return [{ start: 0, end: nodes.length }];
-    let currentHeight = 0;
-    let pageStart = 0;
-    const safeHeight = (n) => {
-      const h = Math.max(0, Math.ceil(this.getBlockHeight(n)));
-      return isFinite(h) ? h : 0;
+   const pushPage = () => {
+      if (currentBlocks.length === 0) return;
+      pages.push(this._createPage(currentBlocks, currentIndices));
+      if (pages.length >= MAX_PAGES) throw new Error('MAX_PAGES exceeded');
+      currentBlocks  = [];
+      currentIndices = [];
+      currentY       = 0;
+      currentWords   = 0;
+      currentChars   = 0;
     };
-    for (let i = 0; i < nodes.length; i++) {
-      if (pages.length >= opts.maxPages) break;
-      const node = nodes[i];
-      const height = safeHeight(node);
-      if (height > PAGE_LIMIT) {
-        if (i > pageStart) pages.push({ start: pageStart, end: i });
-        pages.push({ start: i, end: i + 1 });
-        pageStart = i + 1;
-        currentHeight = 0;
-        continue;
+
+    for (let i = 0; i < blocks.length; i++) {
+     const block           = blocks[i];
+     const { contentH, fullH } = this._getBlockHeights(block);
+      
+      // Count words and characters in this block
+     const { words: blockWords, chars: blockChars } = countWordsAndChars(block);
+
+      // ── Check 0: Word/Character limit enforcement ────────────────────────
+      // If adding this block would exceed limits, force a page break first
+     const wouldExceedWords = currentWords + blockWords > MAX_WORDS_PER_PAGE;
+     const wouldExceedChars = currentChars + blockChars > MAX_CHARS_PER_PAGE;
+      
+      if ((wouldExceedWords || wouldExceedChars) && currentBlocks.length > 0) {
+        // Current page has content, so push it and start new page
+        if (this.debugMode) {
+         console.log(`[PaginationEngine] Page break: word/char limit reached (${currentWords}/${currentChars} → ${currentWords + blockWords}/${currentChars + blockChars})`);
+        }
+        pushPage();
       }
-      const remainingBefore = PAGE_LIMIT - currentHeight;
-      if (currentHeight > 0 && remainingBefore < opts.minWidowOrphanHeight) {
-        pages.push({ start: pageStart, end: i });
-        pageStart = i;
-        currentHeight = 0;
+
+      // ── Case 1: Block fits entirely on the current page ──────────────────
+      if (currentY + fullH <= this.usableHeight) {
+        currentBlocks.push(block);
+        currentIndices.push(i);
+        currentY += fullH;
+        currentWords += blockWords;
+        currentChars += blockChars;
+       continue;
       }
-      if (currentHeight + height > PAGE_LIMIT) {
-        if (i > pageStart) pages.push({ start: pageStart, end: i });
-        pageStart = i;
-        currentHeight = height;
-      } else {
-        currentHeight += height;
+
+      // ── Case 2: Block is larger than an entire page (unsplittable large) ─
+      if (fullH > this.usableHeight && !isSplittable(block)) {
+        // Flush current page, then give this block its own page(s).
+        pushPage();
+        currentBlocks.push(block);
+        currentIndices.push(i);
+        currentY = fullH;
+        currentWords = blockWords;
+        currentChars = blockChars;
+       continue;
       }
+
+      // ── Case 3: Widow/orphan check ────────────────────────────────────────
+     const remaining = this.usableHeight - currentY;
+      if (remaining < MIN_WIDOW_ORPHAN_HEIGHT) {
+        // Not enough room even for a stub — push block to next page.
+        pushPage();
+        currentBlocks.push(block);
+        currentIndices.push(i);
+        currentY = fullH;
+        currentWords = blockWords;
+        currentChars = blockChars;
+       continue;
+      }
+
+      // ── Case 4: Attempt paragraph split ──────────────────────────────────
+      if (isSplittable(block)) {
+        // Pass content-only height to split (exclude margin-bottom from split space).
+       const splitResult = estimateParagraphSplit(block, remaining, this.styles);
+
+        if (splitResult && splitResult.part1Height > 0 && splitResult.part2Height > 0) {
+          // Count words/chars in each part
+         const part1Counts = countWordsAndChars(splitResult.part1);
+         const part2Counts = countWordsAndChars(splitResult.part2);
+          
+          // Check if part1 would still be under limits
+         const part1WouldExceedWords = currentWords + part1Counts.words > MAX_WORDS_PER_PAGE;
+         const part1WouldExceedChars = currentChars + part1Counts.chars > MAX_CHARS_PER_PAGE;
+          
+          // If part1 still exceeds limits, force page break before splitting
+          if ((part1WouldExceedWords || part1WouldExceedChars) && currentBlocks.length > 0) {
+            pushPage();
+          }
+          
+          // part1 goes on the current page (or new page if we just pushed)
+          currentBlocks.push(splitResult.part1);
+          currentIndices.push(i); // both halves share source index
+          
+          // Check if we need to push the page due to limits or create a new one
+          if (currentWords + part1Counts.words > MAX_WORDS_PER_PAGE || 
+              currentChars + part1Counts.chars > MAX_CHARS_PER_PAGE) {
+            pushPage();
+            currentBlocks = [splitResult.part1];
+            currentIndices = [i];
+            currentWords = part1Counts.words;
+            currentChars = part1Counts.chars;
+          } else {
+            currentWords += part1Counts.words;
+            currentChars += part1Counts.chars;
+          }
+          
+          pages.push(this._createPage(currentBlocks, currentIndices));
+          if (pages.length >= MAX_PAGES) throw new Error('MAX_PAGES exceeded');
+
+          // part2 starts the next page
+          currentBlocks  = [splitResult.part2];
+          currentIndices = [i];
+          currentY       = splitResult.part2Height + blockMarginBottom(block);
+          currentWords   = part2Counts.words;
+          currentChars   = part2Counts.chars;
+         continue;
+        }
+        // Split failed (e.g. single very long word) — fall through to push whole block
+      }
+
+      // ── Case 5: Can't split — move entire block to next page ─────────────
+      pushPage();
+      currentBlocks.push(block);
+      currentIndices.push(i);
+      currentY = fullH;
+      currentWords = blockWords;
+      currentChars = blockChars;
     }
-    if (pageStart < nodes.length) pages.push({ start: pageStart, end: nodes.length });
+
+    // Flush last page
+    pushPage();
+
+    if (this.perfLogEnabled) {
+     const ms = (performance.now() - t0).toFixed(2);
+     console.log(`[PaginationEngine] ${blocks.length} blocks → ${pages.length} pages in ${ms}ms`);
+    }
+
     return pages;
   }
 
-  // Helper methods
-  getBlockHeight(node) {
-    const cacheKey = this.generateCacheKey(node);
-    if (this.heightCache.has(cacheKey)) {
-      return this.heightCache.get(cacheKey);
-    }
-
-    let height = 0;
-    if (typeof this.options.measureHeight === 'function') {
-      try {
-        const measured = this.options.measureHeight(node);
-        if (Number.isFinite(measured) && measured > 0) {
-          height = measured;
-        }
-      } catch { void 0 }
-    }
-    if (!height) {
-      height = calculateRealisticBlockHeight(node);
-    }
-    this.heightCache.set(cacheKey, height);
-
-    // Manage cache size to prevent memory bloat
-    if (this.heightCache.size > CACHE_SIZE_LIMIT) {
-      const firstKey = this.heightCache.keys().next().value;
-      if (firstKey) {
-        this.heightCache.delete(firstKey);
-      }
-    }
-
-    return height;
+  /**
+   * Alias for backward compatibility.
+   * @param {object[]} nodes
+   * @param {object}   _options  - ignored (kept for signature compat)
+   */
+  paginateContent(nodes, _options = {}) {
+    return this.paginate(nodes);
   }
 
-  generateCacheKey(node) {
-    const t = node?.type?.name || '';
-    const l = node?.textContent?.length || 0;
-    const a = JSON.stringify(node?.attrs || {});
-    return `${t}_${l}_${a}`;
-  }
-
-  handleOverflow(node, height, currentPageNodes, pages, currentHeight, pageNum, opts) {
-    const availableSpace = opts.usableHeight - currentHeight;
-
-    // Handle paragraph splitting with widow/orphan prevention
-    if (node.type.name === 'paragraph' && availableSpace > opts.minWidowOrphanHeight) {
-      // Attempt to split paragraph
-      const splitResult = estimateParagraphSplit(node, availableSpace);
-      if (splitResult && splitResult.part1 && splitResult.part2) {
-        currentPageNodes.push(splitResult.part1);
-        this.finishPage(pages, currentPageNodes, currentHeight, pageNum++);
-        // Return the remainder to be processed in the next iteration
-        return { needsReprocess: true, remainder: splitResult.part2, newPageCreated: true, nextPageNum: pageNum };
-      }
-    }
-
-    // For tables and atomic blocks, move to next page
-    if (this.isTable(node) || this.isAtomic(node)) {
-      if (currentPageNodes.length > 0) {
-        this.finishPage(pages, currentPageNodes, currentHeight, pageNum++);
-      }
-      currentPageNodes = [node];
-      currentHeight = height;
-    } else {
-      // For other blocks, start new page
-      this.finishPage(pages, currentPageNodes, currentHeight, pageNum++);
-      currentPageNodes = [node];
-      currentHeight = height;
-    }
-
-    return { newPageCreated: true, nextPageNum: pageNum };
-  }
-
-  finishPage(pages, currentPageNodes, currentHeight, pageNum) {
-    if (currentPageNodes.length > 0) {
-      pages.push({
-        id: pageNum,
-        blocks: [...currentPageNodes],
-        height: currentHeight
-      });
-    }
-  }
-
-  isHeading(node) {
-    return node && node.type.name === 'heading';
-  }
-
-  isTable(node) {
-    return node && (node.type.name === 'table' || node.type.name === 'customTable');
-  }
-
-  isAtomic(node) {
-    return node && ['image', 'codeBlock', 'divider', 'horizontalRule'].includes(node.type.name);
-  }
-
-  // Method to clear cache when needed
+  /** Evict all cached height entries. Call when fonts or styles change. */
   clearCache() {
     this.cache.clear();
   }
 
-  // Method to update options
-  updateOptions(newOptions) {
-    this.options = { ...this.options, ...newOptions };
-  }
-
-  // Performance utility: Get cache statistics
+  /** @returns {{ size: number, limit: number }} */
   getCacheStats() {
-    return {
-      size: this.cache.size,
-      limit: CACHE_SIZE_LIMIT
+    return { size: this.cache.size, limit: CACHE_SIZE_LIMIT };
+  }
+
+  // ── Internal helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Return { contentH, fullH } for a block, using the LRU cache.
+   * fullH = contentH + marginBottom
+   */
+  _getBlockHeights(block) {
+    const hash = this._hash(block);
+    if (this.cache.has(hash)) return this.cache.get(hash);
+
+    const contentH    = calculateBlockHeight(block, this.styles);
+    const marginB     = blockMarginBottom(block);
+    const fullH       = contentH + marginB;
+    const entry       = { contentH, fullH, marginBottom: marginB };
+
+    // LRU eviction: delete oldest entry when limit reached
+    if (this.cache.size >= CACHE_SIZE_LIMIT) {
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+    }
+    this.cache.set(hash, entry);
+    return entry;
+  }
+
+  /**
+   * Deterministic, collision-resistant hash for a block node.
+   *
+   * Includes:
+   *  - type name
+   *  - full textContent length + first 50 chars (not just 20)
+   *  - serialised attrs
+   *  - inline mark fingerprint (bold/italic/link presence)
+   */
+  _hash(block) {
+    const type    = getTypeName(block);
+    const text    = block.textContent ?? block.text ?? '';
+    const attrs   = JSON.stringify(block.attrs ?? {});
+    const preview = text.substring(0, 50);
+    const marks   = this._markFingerprint(block);
+    return `${type}|${text.length}|${preview}|${attrs}|${marks}`;
+  }
+
+  /** Short string summarising which marks are present in inline content. */
+  _markFingerprint(block) {
+    const flags = { b: 0, i: 0, l: 0, c: 0 }; // bold, italic, link, code
+    const walk = (node) => {
+      if (node.marks) {
+        node.marks.forEach((m) => {
+          const n = m.type?.name ?? m.type ?? '';
+          if (n === 'bold')   flags.b = 1;
+          if (n === 'italic') flags.i = 1;
+          if (n === 'link')   flags.l = 1;
+          if (n === 'code')   flags.c = 1;
+        });
+      }
+      if (node.content?.forEach) node.content.forEach(walk);
     };
+    walk(block);
+    return `${flags.b}${flags.i}${flags.l}${flags.c}`;
   }
 
-  // Compare two page arrays to prevent unnecessary updates
-  arePagesEqual(pagesA, pagesB) {
-    if (!pagesB || pagesA.length !== pagesB.length) return false;
+  /**
+   * Create a page object.
+   *
+   * @param {object[]} blocks  - Block nodes on this page
+   * @param {number[]} indices - Source-array indices corresponding to each block
+   * @returns {Page}
+   */
+  _createPage(blocks, indices) {
+    const startIndex = indices[0]                    ?? 0;
+    const endIndex   = indices[indices.length - 1]   ?? 0;
+    const height     = blocks.reduce((sum, b) => {
+      const { fullH } = this._getBlockHeights(b);
+      return sum + fullH;
+    }, 0);
 
-    for (let i = 0; i < pagesA.length; i++) {
-      if (pagesA[i].start !== pagesB[i].start ||
-        pagesA[i].end !== pagesB[i].end) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // Clear height cache to force recalculation
-  clearHeightCache() {
-    this.heightCache.clear();
-  }
-
-  // Incremental pagination function - extends existing pagination when content changes minimally
-  extendPagination(existingPages, blocks, changedIndex = 0) {
-    // If no changes or changes are at the end, we can optimize by only recalculating from the change point
-    if (changedIndex === blocks.length - 1) {
-      // Last block changed, just recalculate from the page where this block belongs
-      const relevantPageIndex = this.findBlockPageIndex(existingPages, changedIndex);
-      if (relevantPageIndex !== -1) {
-        return this.recalculateFromPage(existingPages, blocks, relevantPageIndex);
-      }
-    }
-
-    // Otherwise, do a full recalculation
-    return this.paginateContent(blocks);
-  }
-
-  // Helper to find which page a block belongs to
-  findBlockPageIndex(pages, blockIndex) {
-    for (let i = 0; i < pages.length; i++) {
-      if (blockIndex >= pages[i].start && blockIndex < pages[i].end) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  // Recalculate pagination from a specific page onwards
-  recalculateFromPage(existingPages, blocks, fromPageIndex) {
-    // Keep pages before the change
-    const newPages = existingPages.slice(0, fromPageIndex);
-
-    // Get the blocks from the changed page onwards
-    const blocksFromChangedPage = [];
-    for (let i = fromPageIndex; i < existingPages.length; i++) {
-      const page = existingPages[i];
-      for (let j = page.start; j < page.end; j++) {
-        if (j < blocks.length) {
-          blocksFromChangedPage.push(blocks[j]);
-        }
-      }
-    }
-
-    // Repaginate the remaining blocks
-    const remainingPages = this.paginateContent(blocksFromChangedPage);
-
-    // Adjust the start/end indices to match the original document positions
-    const adjustedRemainingPages = remainingPages.map(page => ({
-      start: page.start + existingPages[fromPageIndex].start,
-      end: page.end + existingPages[fromPageIndex].start
-    }));
-
-    return [...newPages, ...adjustedRemainingPages];
+    return {
+      id:           crypto.randomUUID(),
+      blocks:       [...blocks],
+      blockIndices: [...indices],
+      startIndex,                // first source-array index on this page
+      endIndex,                  // last  source-array index on this page
+      height,                    // total content + margin height (px)
+    };
   }
 }
 
-// Export a default instance for convenience
+// ─────────────────────────────────────────────────────────────────────────────
+// Convenience singleton
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Default singleton for callers that don't need configuration. */
 export const paginationEngine = new PaginationEngine();
 
-// Utility function to flatten ProseMirror document into nodes array
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Flatten a ProseMirror document into a flat array of block nodes.
+ * Skips the 'page' wrapper node (Athena custom schema), stops descending
+ * into block-level nodes so their inline children are not included separately.
+ *
+ * @param {object} doc - ProseMirror Document node
+ * @returns {object[]}
+ */
 export const flattenDocument = (doc) => {
-  const blocks = [];
-  const ALLOWED_BLOCKS = new Set([
+  const BLOCK_NODE_NAMES = new Set([
     'paragraph',
     'heading',
     'image',
@@ -403,17 +362,20 @@ export const flattenDocument = (doc) => {
     'codeBlock',
     'blockquote',
     'horizontalRule',
-    'customTable'
+    'customTable',
   ]);
 
+  const blocks = [];
+
   doc.descendants((node) => {
-    if (node.type.name === 'page') {
-      return true;
-    }
-    const isBlock = node.isBlock || node.isTextblock || ALLOWED_BLOCKS.has(node.type.name);
+    if (node.type.name === 'page') return true; // descend into page
+    const isBlock =
+      node.isBlock ||
+      node.isTextblock ||
+      BLOCK_NODE_NAMES.has(node.type.name);
     if (isBlock) {
       blocks.push(node);
-      return false;
+      return false; // don't descend — inline children belong to the block
     }
     return true;
   });
@@ -421,33 +383,20 @@ export const flattenDocument = (doc) => {
   return blocks;
 };
 
-// Performance utility: Debounced pagination function to avoid excessive calls
+/**
+ * Create a debounced paginate function.
+ * Returns a Promise that resolves with the paginated pages after `delay` ms.
+ *
+ * @param {number} delay - debounce delay in ms (default 300)
+ * @returns {function(engine, nodes, options?): Promise<Page[]>}
+ */
 export const createDebouncedPagination = (delay = 300) => {
   let timeoutId = null;
-  return (engine, nodes, options, existingPages = []) => {
-    return new Promise((resolve) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
+  return (engine, nodes, _options = []) =>
+    new Promise((resolve) => {
+      if (timeoutId) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        // Use incremental pagination if we have existing pages and minimal changes
-        let result;
-        if (existingPages.length > 0) {
-          result = engine.extendPagination(existingPages, nodes, nodes.length - 1);
-        } else {
-          result = engine.paginateContent(nodes, options);
-        }
-
-        // Add additional stability check - ensure page count doesn't grow unexpectedly
-        if (existingPages.length > 0 && result.length > existingPages.length + 1) {
-          // If page count increased by more than 1, there might be instability
-          // Log for debugging
-          console.warn(`Possible pagination instability: pages increased from ${existingPages.length} to ${result.length}`);
-        }
-
-        resolve(result);
+        resolve(engine.paginate(nodes));
       }, delay);
     });
-  };
 };

@@ -162,7 +162,7 @@ body {
   -webkit-user-drag: none;
 }
 
-/* ProseMirror Editor Core Styles */
+/* ProseMirror Editor Core Styles - ENDLESS PAGE (MINIMUM A4 HEIGHT) */
 .ProseMirror {
   outline: none;
   white-space: pre-wrap;
@@ -172,11 +172,14 @@ body {
   font-size: 11pt;
   line-height: 1.15;
   color: #1a1a1a;
-  min-height: 100%;
+  min-height: calc(1123px - 192px) !important;  /* Minimum A4 minus vertical padding (96+96) */
   width: 100%;
   box-sizing: border-box;
   padding: 0;
-  height: auto;
+  height: auto !important;      /* Grows with content beyond minimum */
+  max-height: none !important;  /* Truly endless */
+  overflow-y: visible !important; /* Show all content */
+  display: block !important;    /* Block flow */
 }
 
 /* Base block spacing */
@@ -354,32 +357,44 @@ body {
   --border-light: #e2e8f0;
 }
 
+/* ==========================================================================
+   ENDLESS PAGE UI - SINGLE CONTINUOUS SCROLLING PAGE
+   NOT pageless with multiple pages - ONE endless page that shows ALL content
+   ========================================================================== */
+
+/* Container for endless page - shows single continuous page */
 .editor-pages-container {
   width: 100%;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  max-width: 794px;  /* Standard A4 width */
+  min-height: auto;
+  display: block;
   padding: 20px 0;
+  margin: 0 auto;    /* Centered */
 }
 
-.editor-workspace-scaled {
+/* Endless workspace - ONE page that grows with content (MINIMUM A4 HEIGHT) */
+.editor-workspace-scaled,
+.athena-workspace {
   width: 793.7px;
-  min-height: 1122.5px;
+  min-height: 1123px !important;     /* Minimum A4 height for fresh open */
+  height: auto !important;           /* Grows naturally beyond minimum */
+  max-height: none !important;       /* No limit - truly endless */
   margin: 40px auto;
   background: white;
   box-shadow: 0 0 0 1px #e5e7eb, 0 8px 30px rgba(0, 0, 0, 0.08);
-  padding: 96px 96px;
+  padding: 96px 72px;                /* Standard margins */
   box-sizing: border-box;
+  display: block;
+  contain: none;
 }
 
-/* Page-based editor styles to match Google Docs */
+/* Deprecated: Page-based editor styles (NOT USED in endless mode) */
 .editor-page,
 .athena-page {
+  /* These classes are for pagination mode only - not used in endless page UI */
   width: 793.7px;
   min-height: 1122.5px;
   padding: 96px;
-  /* Google Docs standard padding */
   margin: 24px auto;
   background: white;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -388,8 +403,8 @@ body {
   position: relative;
 }
 
-/* Content wrapper inside page */
-.editor-content {
+/* Content wrapper inside page (for page-based mode only) */
+.editor-page .editor-content {
   width: 100%;
   min-height: calc(100% - 192px);
   /* Account for vertical padding */
@@ -397,14 +412,18 @@ body {
   overflow-y: auto;
 }
 
-/* TipTap editor inside page */
-.tip-tap-editor {
-  height: 100%;
+/* TipTap editor - ENDLESS PAGE MODE (no height restrictions) */
+.athena-workspace .tip-tap-editor {
+  height: auto !important;
   width: 100%;
   padding: 0 !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  min-height: 0 !important;
+  display: block !important;
 }
 
-/* ProseMirror inside page */
+/* ProseMirror inside page-based editor (pagination mode only) */
 .editor-page .ProseMirror {
   height: calc(100% - 192px) !important;
   min-height: calc(100% - 192px) !important;
@@ -413,41 +432,40 @@ body {
   margin: 0;
 }
 
+/* ProseMirror in ENDLESS PAGE mode - Shows ALL content */
+.athena-workspace .ProseMirror,
+.editor-content-container .ProseMirror {
+  height: auto !important;
+  min-height: 0 !important;     /* Start from content size */
+  max-height: none !important;   /* No limit - endless */
+  overflow-y: visible !important; /* Show everything */
+  display: block !important;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+/* Page Break in Endless Page Mode */
 .ProseMirror div[data-type="page-break"] {
-  height: calc(var(--page-margin-bottom, 72px) + var(--page-break-gap, 40px) + var(--page-margin-top, 72px));
-  margin: 0 !important;
+  height: calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px) + var(--page-margin-top, 96px));
+  /* Bleed past the workspace's 72px horizontal padding so the break spans full page width */
+  margin: 0 calc(-1 * var(--page-margin-left, 72px)) !important;
+  width: auto !important;
+  left: unset !important;
   background:
     linear-gradient(to bottom,
       transparent 0,
-      transparent var(--page-margin-bottom, 72px),
-      #f1f5f9 calc(var(--page-margin-bottom, 72px)),
-      #f1f5f9 calc(var(--page-margin-bottom, 72px) + var(--page-break-gap, 40px)),
-      transparent calc(var(--page-margin-bottom, 72px) + var(--page-break-gap, 40px)),
+      transparent var(--page-margin-bottom, 96px),
+      #f1f5f9 calc(var(--page-margin-bottom, 96px)),
+      #f1f5f9 calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
+      transparent calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
       transparent 100%);
   border: none;
   display: block !important;
-  user-select: text;
-  pointer-events: auto;
+  user-select: none;
+  pointer-events: none;
   position: relative;
-  cursor: text;
-}
-
-.ProseMirror div[data-type="page-break"]::before,
-.ProseMirror div[data-type="page-break"]::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #cbd5e1;
-}
-
-.ProseMirror div[data-type="page-break"]::before {
-  top: var(--page-margin-bottom, 72px);
-}
-
-.ProseMirror div[data-type="page-break"]::after {
-  bottom: var(--page-margin-top, 72px);
+  cursor: default;
 }
 
 /* Page number indicator */

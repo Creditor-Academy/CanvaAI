@@ -1,11 +1,20 @@
-import { A4_HEIGHT_PX, A4_WIDTH_PX, TOP_MARGIN_PX, BOTTOM_MARGIN_PX, LEFT_MARGIN_PX, RIGHT_MARGIN_PX, USABLE_HEIGHT_PX, USABLE_WIDTH_PX } from '../../../../utils/pagination/constants';
+import { 
+  A4_HEIGHT_PX, 
+  A4_WIDTH_PX, 
+  PAGE_MARGIN_TOP_PX, 
+  PAGE_MARGIN_BOTTOM_PX, 
+  PAGE_MARGIN_LEFT_PX, 
+  PAGE_MARGIN_RIGHT_PX, 
+  USABLE_HEIGHT_PX, 
+  USABLE_WIDTH_PX 
+} from '../../../../utils/pagination/constants';
 
 export const PAGE_HEIGHT = A4_HEIGHT_PX;
 export const PAGE_WIDTH = A4_WIDTH_PX;
-export const TOP_MARGIN = TOP_MARGIN_PX;
-export const BOTTOM_MARGIN = BOTTOM_MARGIN_PX;
-export const LEFT_MARGIN = LEFT_MARGIN_PX;
-export const RIGHT_MARGIN = RIGHT_MARGIN_PX;
+export const TOP_MARGIN = PAGE_MARGIN_TOP_PX;
+export const BOTTOM_MARGIN = PAGE_MARGIN_BOTTOM_PX;
+export const LEFT_MARGIN = PAGE_MARGIN_LEFT_PX;
+export const RIGHT_MARGIN = PAGE_MARGIN_RIGHT_PX;
 export const USABLE_HEIGHT = USABLE_HEIGHT_PX;
 export const USABLE_WIDTH = USABLE_WIDTH_PX;
 
@@ -91,13 +100,16 @@ export const addHeadingStyles = () => {
   style.textContent = `
     .athena-page {
       background: white !important;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.05) !important;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08), 0 2px 5px rgba(0,0,0,0.05) !important;
       margin: 32px auto !important;
       position: relative !important;
       box-sizing: border-box !important;
       transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-      border: 1px solid #e5e7eb !important;
+      border: none !important;  /* Removed grey border */
       border-radius: 2px !important;
+      height: 1123px !important; /* A4 height at 96 DPI */
+      display: flex !important;
+      flex-direction: column !important;
     }
     .athena-page:hover {
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12) !important;
@@ -105,17 +117,27 @@ export const addHeadingStyles = () => {
     .athena-page.is-blank {
       opacity: 0.7 !important;
     }
+    .content-area {
+      flex: 1 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      min-height: 0 !important; /* Allow content to fill available space */
+    }
     .ProseMirror {
       background: transparent !important;
       padding: 0 !important;
       min-height: 100% !important;
+      flex: 1 !important;
+      display: block !important;
     }
     .editor-scroll-container {
       background-color: #f3f4f6 !important; /* Slightly darker gray to make pages pop */
+      min-height: 100vh !important;
     }
     .document-container {
       padding: 40px 0 100px 0 !important;
       background-color: #f3f4f6 !important;
+      min-height: 100% !important;
     }
     .ProseMirror h1, .prose .ProseMirror h1, .prose-lg .ProseMirror h1 { font-size: 2.5rem; font-weight: 800 !important; line-height: 1.15 !important; margin-top: 0.75rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
     .ProseMirror h2, .prose .ProseMirror h2, .prose-lg .ProseMirror h2 { font-size: 2rem; font-weight: 700 !important; line-height: 1.15 !important; margin-top: 0.75rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
