@@ -427,42 +427,42 @@ export const AIInlineActions = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isFullscreen ? 'max-w-[95vw] w-[95vw] h-[95vh]' : 'max-w-4xl max-h-[95vh]'} flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200/60 rounded-[2rem] shadow-2xl overflow-hidden p-0 gap-0 transition-all duration-300`}>
+      <DialogContent className={`${isFullscreen ? 'max-w-[95vw] w-[95vw] h-[95vh]' : 'max-w-4xl max-h-[70vh]'} flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200/60 rounded-[2rem] shadow-2xl overflow-hidden p-0 gap-0 transition-all duration-300`}>
         {/* Header with enhanced gradient */}
-        <div className="bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] px-8 py-6 text-white relative flex-shrink-0">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-sky-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+        <div className="bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] px-6 py-4 text-white relative flex-shrink-0">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-white/15 rounded-2xl backdrop-blur-md border border-white/10 shadow-lg">
-                  <Sparkles className="w-6 h-6 text-[#fabf23]" />
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/15 rounded-xl backdrop-blur-md border border-white/10 shadow-lg">
+                  <Sparkles className="w-5 h-5 text-[#fabf23]" />
                 </div>
                 <div>
-                  <DialogTitle className="text-2xl font-bold tracking-tight text-white">Athena Magic Edit</DialogTitle>
-                  <DialogDescription className="text-sky-100/70 text-sm font-medium mt-0.5">
+                  <DialogTitle className="text-xl font-bold tracking-tight text-white">Athena Magic Edit</DialogTitle>
+                  <DialogDescription className="text-sky-100/70 text-xs font-medium mt-0.5">
                     Enhance your content with AI-driven intelligence.
                   </DialogDescription>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="p-2 hover:bg-white/10 rounded-xl transition-all"
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
                   title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                 >
                   {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="p-2 hover:bg-white/10 rounded-xl transition-all"
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
                   title="Advanced options"
                 >
                   <Settings className="w-4 h-4" />
                 </button>
                 <button
-                  className="p-2 hover:bg-white/10 rounded-xl transition-all"
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
                   title="Help"
                 >
                   <HelpCircle className="w-4 h-4" />
@@ -478,18 +478,18 @@ export const AIInlineActions = ({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-4 pt-4 border-t border-white/10"
+                className="mt-3 pt-3 border-t border-white/10"
               >
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="flex items-center gap-2">
+                <div className="flex items-center gap-3 text-xs">
+                  <label className="flex items-center gap-1.5">
                     <input type="checkbox" className="rounded border-white/20" />
                     <span>Enable streaming</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5">
                     <input type="checkbox" className="rounded border-white/20" />
                     <span>Auto-apply</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5">
                     <input type="checkbox" className="rounded border-white/20" />
                     <span>Show suggestions</span>
                   </label>
@@ -502,23 +502,23 @@ export const AIInlineActions = ({
         {/* Main content area */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Tabs navigation */}
-          <div className="flex items-center gap-2 px-8 pt-4 border-b border-slate-100">
+          <div className="flex items-center gap-2 px-6 pt-3 border-b border-slate-100">
             <button
               onClick={() => setShowHistory(false)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all ${!showHistory ? 'bg-white text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-t-lg transition-all ${!showHistory ? 'bg-white text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
               Transform
             </button>
             <button
               onClick={() => setShowHistory(true)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all flex items-center gap-2 ${showHistory ? 'bg-white text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-t-lg transition-all flex items-center gap-2 ${showHistory ? 'bg-white text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <History className="w-4 h-4" />
               History ({history.length})
             </button>
             <button
               onClick={() => setShowPresets(!showPresets)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all flex items-center gap-2 ${showPresets ? 'bg-white text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-t-lg transition-all flex items-center gap-2 ${showPresets ? 'bg-white text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <Bookmark className="w-4 h-4" />
               Presets
@@ -528,7 +528,7 @@ export const AIInlineActions = ({
           {/* Main content */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {showHistory ? (
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-700">Transformation History</h3>
                   <Button
@@ -541,32 +541,32 @@ export const AIInlineActions = ({
                   </Button>
                 </div>
                 {history.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400">
-                    <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>No history yet. Try transforming some text!</p>
+                  <div className="text-center py-8 text-slate-400">
+                    <History className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No history yet. Try transforming some text!</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {history.map((item) => (
                       <motion.div
                         key={item.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-sky-200 transition-all"
+                        className="p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-sky-200 transition-all"
                       >
-                        <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-start justify-between mb-1.5">
                           <div>
-                            <span className="text-xs font-bold text-slate-400">
+                            <span className="text-[10px] font-bold text-slate-400">
                               {item.timestamp.toLocaleString()}
                             </span>
-                            <h4 className="text-sm font-bold text-slate-700 mt-1">
+                            <h4 className="text-sm font-bold text-slate-700 mt-0.5">
                               {actions.find(a => a.value === item.action)?.label || item.action}
                             </h4>
                           </div>
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => toggleSaveItem(item.id)}
-                              className="p-1.5 hover:bg-white rounded-lg"
+                              className="p-1 hover:bg-white rounded-md"
                             >
                               <Star className={`w-3 h-3 ${savedItems.includes(item.id) ? 'text-yellow-500 fill-yellow-500' : 'text-slate-400'}`} />
                             </button>
@@ -575,7 +575,7 @@ export const AIInlineActions = ({
                                 setResultText(item.transformedText);
                                 setShowHistory(false);
                               }}
-                              className="p-1.5 hover:bg-white rounded-lg"
+                              className="p-1 hover:bg-white rounded-md"
                               title="Load this version"
                             >
                               <ArrowRight className="w-3 h-3 text-slate-400" />
@@ -591,7 +591,7 @@ export const AIInlineActions = ({
                 )}
               </div>
             ) : showPresets ? (
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-700">Quick Presets</h3>
                   <Button
@@ -602,21 +602,21 @@ export const AIInlineActions = ({
                     <Plus className="w-3 h-3 mr-1" /> New Preset
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {presets.map((preset) => (
                     <motion.button
                       key={preset.id}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => applyPreset(preset)}
-                      className={`p-4 rounded-xl border text-left transition-all ${selectedPreset === preset.id
+                      className={`p-3 rounded-xl border text-left transition-all ${selectedPreset === preset.id
                         ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-500/10'
                         : 'bg-white border-slate-200 hover:border-sky-300 hover:shadow-sm'
                       }`}
                     >
-                      <h4 className="font-bold text-sm text-slate-700">{preset.name}</h4>
-                      <p className="text-xs text-slate-500 mt-1">{preset.description}</p>
-                      <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-400">
+                      <h4 className="font-bold text-xs text-slate-700">{preset.name}</h4>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{preset.description}</p>
+                      <div className="flex items-center gap-1.5 mt-1.5 text-[9px] text-slate-400">
                         <span>✨ {preset.action}</span>
                         <span>🎯 {Math.round(preset.creativity * 100)}%</span>
                       </div>
@@ -625,7 +625,7 @@ export const AIInlineActions = ({
                 </div>
               </div>
             ) : (
-              <div className="p-8 space-y-6">
+              <div className="p-6 space-y-4">
                 {/* Context Preview with stats */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between px-1">

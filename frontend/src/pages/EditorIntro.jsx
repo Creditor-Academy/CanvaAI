@@ -209,51 +209,12 @@ const EditorIntro = () => {
 
     return (
         <div
-            className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans overflow-y-auto"
+            className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans overflow-y-auto pl-[60px]"
             onClick={() => setContextMenu(null)}
         >
-            {/* ── Header ── */}
-            <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 sticky top-0 z-50 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" className="text-slate-500"><Grid className="w-5 h-5" /></Button>
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-md">
-                            <FileText className="w-4 h-4 text-white" />
-                        </div>
-                        <span className="font-extrabold text-slate-900 tracking-tight text-lg select-none">Athena</span>
-                    </div>
-                </div>
+            {/* ── Main Content ── */}
+            <main className="max-w-7xl mx-auto px-4 sm:px-8 pb-24 pt-8">
 
-                <div className="flex-1 max-w-xl px-6 hidden md:block">
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search documents…"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full h-9 bg-slate-100 border border-transparent focus:bg-white focus:border-blue-400 rounded-xl pl-10 pr-4 text-sm outline-none transition-all"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="hidden sm:flex items-center gap-1.5 border-slate-200 text-slate-600 hover:bg-slate-50"
-                        onClick={() => setShowUploadZone(true)}
-                    >
-                        <Upload className="w-4 h-4" /> Import
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-slate-500"><Settings className="w-5 h-5" /></Button>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm cursor-pointer">
-                        YO
-                    </div>
-                </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto px-4 sm:px-8 pb-24">
                 {/* ── Hero banner ── */}
                 <section className="mt-8 relative rounded-3xl overflow-hidden flex flex-col justify-center bg-gradient-to-r from-blue-700 via-indigo-700 to-violet-800 shadow-xl min-h-[200px] px-10 py-10">
                     {/* Decorative blobs */}
@@ -275,13 +236,6 @@ const EditorIntro = () => {
                             </motion.button>
                             <motion.button
                                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                onClick={() => setShowUploadZone(true)}
-                                className="inline-flex items-center gap-3 bg-white/10 border border-white/20 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/20 transition-all text-sm"
-                            >
-                                <Upload className="w-5 h-5" /> Import File
-                            </motion.button>
-                            <motion.button
-                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                 onClick={() => openEditor('blank')}
                                 className="inline-flex items-center gap-3 bg-white/10 border border-white/20 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/20 transition-all text-sm"
                             >
@@ -291,88 +245,8 @@ const EditorIntro = () => {
                     </motion.div>
                 </section>
 
-                {/* ── Templates ── */}
-                <section className="mt-12">
-                    <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-xl font-bold text-slate-900">Start from a template</h2>
-                        <div className="relative hidden sm:block">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search templates"
-                                value={templateSearch}
-                                onChange={e => setTemplateSearch(e.target.value)}
-                                className="h-8 bg-slate-100 rounded-lg pl-8 pr-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-400 w-48 transition-all"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Tab bar */}
-                    <div className="flex gap-1 overflow-x-auto pb-1 mb-6 no-scrollbar">
-                        {TEMPLATE_TABS.map(({ label, icon: Icon }) => (
-                            <button
-                                key={label}
-                                onClick={() => setActiveTab(label)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activeTab === label
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-600 hover:bg-slate-100'}`}
-                            >
-                                <Icon className="w-3.5 h-3.5" /> {label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Template grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {filteredTemplates.map((template, idx) => (
-                            <motion.div
-                                key={`${template.id}-${idx}`}
-                                initial={{ opacity: 0, y: 16 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.04 }}
-                                onClick={() => openEditor(template.type)}
-                                className="group cursor-pointer"
-                            >
-                                <div
-                                    className="aspect-[3/4] rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:border-transparent transition-all duration-200 relative flex flex-col p-3"
-                                    style={{ backgroundColor: template.color }}
-                                >
-                                    {template.dark && <div className="absolute inset-0 bg-slate-900 opacity-95 rounded-xl" />}
-                                    <div className="relative z-10 flex flex-col h-full gap-1.5">
-                                        {template.type === 'blank' && !template.dark ? (
-                                            <div className="flex-1 flex items-center justify-center">
-                                                <div className="w-10 h-12 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center group-hover:border-blue-400 transition-colors">
-                                                    <Plus className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className={`h-2.5 w-3/4 rounded ${template.dark ? 'bg-white/30' : 'bg-white/70'}`} />
-                                                <div className={`h-1.5 w-full rounded ${template.dark ? 'bg-white/15' : 'bg-white/50'}`} />
-                                                <div className={`h-1.5 w-4/5 rounded ${template.dark ? 'bg-white/15' : 'bg-white/50'}`} />
-                                                <div className={`h-1.5 w-full rounded ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
-                                                <div className="flex-1" />
-                                                <div className={`h-1.5 w-1/2 rounded ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors rounded-xl" />
-                                </div>
-                                <div className="mt-2 px-0.5">
-                                    <h3 className={`text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1`}>
-                                        {template.title}
-                                    </h3>
-                                    {template.author && (
-                                        <p className="text-[10px] text-slate-400 mt-0.5 truncate">{template.author}</p>
-                                    )}
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </section>
-
                 {/* ── Recent Documents ── */}
-                <section className="mt-14">
+                <section className="mt-12">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-xl font-bold text-slate-900">Recent documents</h2>
                         <div className="flex gap-1">
@@ -467,6 +341,86 @@ const EditorIntro = () => {
                             )}
                         </div>
                     )}
+                </section>
+
+                {/* ── Templates ── */}
+                <section className="mt-14">
+                    <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-xl font-bold text-slate-900">Start from a template</h2>
+                        <div className="relative hidden sm:block">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search templates"
+                                value={templateSearch}
+                                onChange={e => setTemplateSearch(e.target.value)}
+                                className="h-8 bg-slate-100 rounded-lg pl-8 pr-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-400 w-48 transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Tab bar */}
+                    <div className="flex gap-1 overflow-x-auto pb-1 mb-6 no-scrollbar">
+                        {TEMPLATE_TABS.map(({ label, icon: Icon }) => (
+                            <button
+                                key={label}
+                                onClick={() => setActiveTab(label)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activeTab === label
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-600 hover:bg-slate-100'}`}
+                            >
+                                <Icon className="w-3.5 h-3.5" /> {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Template grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {filteredTemplates.map((template, idx) => (
+                            <motion.div
+                                key={`${template.id}-${idx}`}
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.04 }}
+                                onClick={() => openEditor(template.type)}
+                                className="group cursor-pointer"
+                            >
+                                <div
+                                    className="aspect-[3/4] rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:border-transparent transition-all duration-200 relative flex flex-col p-3"
+                                    style={{ backgroundColor: template.color }}
+                                >
+                                    {template.dark && <div className="absolute inset-0 bg-slate-900 opacity-95 rounded-xl" />}
+                                    <div className="relative z-10 flex flex-col h-full gap-1.5">
+                                        {template.type === 'blank' && !template.dark ? (
+                                            <div className="flex-1 flex items-center justify-center">
+                                                <div className="w-10 h-12 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center group-hover:border-blue-400 transition-colors">
+                                                    <Plus className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className={`h-2.5 w-3/4 rounded ${template.dark ? 'bg-white/30' : 'bg-white/70'}`} />
+                                                <div className={`h-1.5 w-full rounded ${template.dark ? 'bg-white/15' : 'bg-white/50'}`} />
+                                                <div className={`h-1.5 w-4/5 rounded ${template.dark ? 'bg-white/15' : 'bg-white/50'}`} />
+                                                <div className={`h-1.5 w-full rounded ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
+                                                <div className="flex-1" />
+                                                <div className={`h-1.5 w-1/2 rounded ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors rounded-xl" />
+                                </div>
+                                <div className="mt-2 px-0.5">
+                                    <h3 className={`text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1`}>
+                                        {template.title}
+                                    </h3>
+                                    {template.author && (
+                                        <p className="text-[10px] text-slate-400 mt-0.5 truncate">{template.author}</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
                 </section>
             </main>
 

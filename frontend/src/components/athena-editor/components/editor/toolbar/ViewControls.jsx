@@ -30,7 +30,6 @@ export const ViewControls = ({ zoom, onZoomChange }) => {
     <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
       <ToolbarButton
         onClick={handleZoomOut}
-        tooltip="Zoom Out"
         className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
       >
         <Minus className="w-5 h-5 text-blue-600" />
@@ -42,7 +41,6 @@ export const ViewControls = ({ zoom, onZoomChange }) => {
       
       <ToolbarButton
         onClick={handleZoomIn}
-        tooltip="Zoom In"
         className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
       >
         <Plus className="w-5 h-5 text-blue-600" />

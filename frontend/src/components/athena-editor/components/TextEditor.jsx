@@ -43,9 +43,7 @@ import { ImageProvider, useImageContext } from '../contexts/ImageContext.jsx';
 import { useExportState } from '../hooks/useExportState.js';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { TooltipProvider } from './ui/tooltip';
 import { DocumentExporter } from '../../../utils/documentExporter.js';
-import { AISidebar } from './editor/AISidebar';
 import { DocumentOutline } from './editor/DocumentOutline';
 import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import HeaderMenuBar from './editor/HeaderMenuBar';
@@ -148,16 +146,15 @@ import {
   Trash2,
   ChevronDown,
   Play,
+  Check,
   FileEdit,
   RotateCcw,
   Droplets,
+  Smile,
+  CheckCircle2,
 } from 'lucide-react';
 import { Separator } from './ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "./ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import IndentControls from './editor/toolbar/IndentControls.jsx';
 import {
   Popover,
@@ -188,13 +185,6 @@ import { Slider } from "./ui/slider";
 import { cn } from "./utils";
 import { scrollLockManager } from '../utils/scrollLockManager';
 import { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSelection, onMenuOpen, onMenuClose } from './editor/focusUtils';
-
-// AI Assistant Components
-import { AIInlineActions as _AIInlineActions } from './editor/AIInlineActions.tsx';
-import { CodeAssistant as _CodeAssistant } from './editor/CodeAssistant';
-
-// Import AI-related utilities
-import { generateDocument, rewriteText, expandText, summarizeText, changeTone, fixGrammar, bulletToParagraph, generateCode, explainCode, refactorCode, addComments } from '../../ai/aiUtils';
 import { useKeyboardShortcuts } from './editor/useKeyboardShortcuts';
 
 // New feature components
@@ -207,8 +197,6 @@ import { WordCountDialog as _WordCountDialog } from './editor/WordCountDialog';
 
 // Safety: if any module exports an object instead of a component function, render null
 const _safe = (C) => (typeof C === 'function' ? C : () => null);
-const AIInlineActions = _safe(_AIInlineActions);
-const CodeAssistant = _safe(_CodeAssistant);
 const CommentsPanel = _safe(_CommentsPanel);
 const VersionHistory = _safe(_VersionHistory);
 const VoiceTyping = _safe(_VoiceTyping);
@@ -294,31 +282,24 @@ const ToolbarButton = ({
     cleanClass = "";
   }
   return (
-    <Tooltip delayDuration={300}>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          onMouseDown={(e) => { guardToolbarMouseDown(e, editor); }}
-          onClick={onClick}
-          disabled={disabled}
-          aria-label={ariaLabel || tooltip}
-          className={cn(
-            "h-8 w-8 p-0 rounded-full flex items-center justify-center transition-all duration-200 border",
-            isActive
-              ? "bg-green-100 border-green-300 text-green-600 shadow-inner"
-              : "bg-transparent border-transparent text-blue-500 hover:bg-blue-100/50 hover:border-blue-200",
-            disabled && "opacity-50 cursor-not-allowed",
-            cleanClass
-          )}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs bg-gray-800 text-white px-2 py-1 rounded shadow-lg">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
+    <Button
+      variant="ghost"
+      size="icon"
+      onMouseDown={(e) => { guardToolbarMouseDown(e, editor); }}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel || tooltip}
+      className={cn(
+        "h-8 w-8 p-0 rounded-full flex items-center justify-center transition-all duration-200 border",
+        isActive
+          ? "bg-green-100 border-green-300 text-green-600 shadow-inner"
+          : "bg-transparent border-transparent text-blue-500 hover:bg-blue-100/50 hover:border-blue-200",
+        disabled && "opacity-50 cursor-not-allowed",
+        cleanClass
+      )}
+    >
+      {children}
+    </Button>
   );
 };
 
@@ -329,8 +310,6 @@ export const EditorToolbar = ({
   onSave,
   handleInsertImage,
   setShowReferencesPanel,
-  setIsAISidebarOpen,
-  isAISidebarOpen,
   documentTitle,
   onPrint,
   setShowFormatMenu,
@@ -445,10 +424,7 @@ export const EditorToolbar = ({
   const navigate = useNavigate();
 
   // AI States
-  const [showAIDocumentGenerator, setShowAIDocumentGenerator] = useState(false);
-  const [showAIInlineActions, setShowAIInlineActions] = useState(false);
-  const [showCodeAssistant, setShowCodeAssistant] = useState(false);
-  const [showCodeBlockMenu, setShowCodeBlockMenu] = useState(false);
+    const [showCodeBlockMenu, setShowCodeBlockMenu] = useState(false);
   const [showCodeBlockConfigDialog, setShowCodeBlockConfigDialog] = useState(false);
   const [selectedCodeLanguage, setSelectedCodeLanguage] = useState('javascript');
   const [codeExecutionEnabled, setCodeExecutionEnabled] = useState(false);
@@ -2383,7 +2359,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          tooltip="Undo (Ctrl+Z)"
           className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Undo className="w-4 h-4 text-blue-600" />
@@ -2392,7 +2367,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          tooltip="Redo (Ctrl+Y)"
           className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Redo className="w-4 h-4 text-blue-600" />
@@ -2415,12 +2389,12 @@ export const EditorToolbar = ({
           }}
           onValueChange={(value) => setFontFamily(value)}
         >
-          <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 min-w-0 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
+          <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-[110px] hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors truncate">
             <SelectValue placeholder="Font" />
           </SelectTrigger>
-          <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white">
+          <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white w-[110px]">
             {FONTS.map(font => (
-              <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+              <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }} className="truncate text-xs">
                 {font.label}
               </SelectItem>
             ))}
@@ -2496,7 +2470,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('bold')}
           isActive={editor.isActive("bold")}
-          tooltip="Bold (Ctrl+B)"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Bold className="w-4 h-4 text-blue-600" />
@@ -2505,7 +2478,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('italic')}
           isActive={editor.isActive("italic")}
-          tooltip="Italic (Ctrl+I)"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Italic className="w-4 h-4 text-blue-600" />
@@ -2514,7 +2486,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('underline')}
           isActive={editor.isActive("underline")}
-          tooltip="Underline (Ctrl+U)"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Underline className="w-4 h-4 text-blue-600" />
@@ -2523,7 +2494,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('strike')}
           isActive={editor.isActive("strike")}
-          tooltip="Strikethrough"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Strikethrough className="w-4 h-4 text-blue-600" />
@@ -2562,23 +2532,162 @@ export const EditorToolbar = ({
               <Palette className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 p-3 rounded-xl shadow-lg border border-gray-200 bg-white">
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-xs font-medium mb-2">Text Color</h4>
-                <div className="grid grid-cols-6 gap-1">
-                  {TEXT_COLORS.slice(0, 12).map(color => (
+          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 text-white">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Palette className="w-4 h-4" />
+                Text Color
+              </h3>
+              <p className="text-xs text-blue-100 mt-0.5">Choose the perfect color for your text</p>
+            </div>
+            
+            {/* Color Grid */}
+            <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              {/* Quick Access - Recent Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  Standard Colors
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(0, 12).map((color, index) => (
                     <button
                       key={color}
                       className={cn(
-                        "w-6 h-6 rounded border hover:scale-110 transition-transform shadow-sm",
-                        currentTextColor === color && "ring-2 ring-blue-500"
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
                       onClick={() => setTextColor(color)}
+                      title={color}
+                    >
+                      {index < 6 && currentTextColor === color && (
+                        <Check className="w-3 h-3 mx-auto text-white drop-shadow-lg" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Warm Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  Warm Colors
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(12, 24).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                      title={color}
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Cool Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  Cool Colors
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(24, 36).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Neutral & Pastel Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                  Neutral & Pastel
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(36, 48).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Additional Colors */}
+              {TEXT_COLORS.length > 48 && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    More Colors
+                  </h4>
+                  <div className="grid grid-cols-12 gap-1.5">
+                    {TEXT_COLORS.slice(48).map(color => (
+                      <button
+                        key={color}
+                        className={cn(
+                          "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                          currentTextColor === color 
+                            ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                            : "border-gray-200 hover:border-gray-300"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setTextColor(color)}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with Current Color Preview */}
+            <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium">Current:</span>
+                  <div 
+                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm" 
+                    style={{ backgroundColor: currentTextColor }}
+                  />
+                  <span className="text-xs font-mono text-gray-700 uppercase">{currentTextColor}</span>
+                </div>
+                <button
+                  onClick={() => setTextColor('#000000')}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  Reset to Black
+                </button>
               </div>
             </div>
           </DropdownMenuContent>
@@ -2615,23 +2724,138 @@ export const EditorToolbar = ({
               <Highlighter className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 p-3 rounded-xl shadow-lg border border-gray-200 bg-white">
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-xs font-medium mb-2">Highlight Color</h4>
-                <div className="grid grid-cols-6 gap-1">
-                  {HIGHLIGHT_COLORS.slice(0, 12).map(color => (
+          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-3 text-white">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Highlighter className="w-4 h-4" />
+                Highlight Color
+              </h3>
+              <p className="text-xs text-yellow-100 mt-0.5">Make your text stand out</p>
+            </div>
+            
+            {/* Color Grid */}
+            <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              {/* Bright Highlights */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+                  Bright & Vibrant
+                </h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {HIGHLIGHT_COLORS.slice(0, 8).map(color => (
                     <button
                       key={color}
                       className={cn(
-                        "w-6 h-6 rounded border hover:scale-110 transition-transform shadow-sm",
-                        currentHighlight === color && "ring-2 ring-blue-500"
+                        "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                        currentHighlight === color 
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
                       onClick={() => setHighlightColor(color)}
+                      title={color}
+                    >
+                      {currentHighlight === color && (
+                        <Check className="w-4 h-4 mx-auto text-white drop-shadow-lg" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pastel Highlights */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-pink-300"></span>
+                  Soft Pastels
+                </h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {HIGHLIGHT_COLORS.slice(8, 16).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                        currentHighlight === color 
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setHighlightColor(color)}
+                      title={color}
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Light Highlights */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
+                  Light Shades
+                </h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {HIGHLIGHT_COLORS.slice(16, 24).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                        currentHighlight === color 
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setHighlightColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Subtle Highlights */}
+              {HIGHLIGHT_COLORS.length > 24 && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-300"></span>
+                    More Options
+                  </h4>
+                  <div className="grid grid-cols-8 gap-2">
+                    {HIGHLIGHT_COLORS.slice(24).map(color => (
+                      <button
+                        key={color}
+                        className={cn(
+                          "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                          currentHighlight === color 
+                            ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                            : "border-gray-200 hover:border-gray-300"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setHighlightColor(color)}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with Current Color Preview */}
+            <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium">Current:</span>
+                  <div 
+                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm" 
+                    style={{ backgroundColor: currentHighlight || 'transparent' }}
+                  />
+                  <span className="text-xs font-mono text-gray-700 uppercase">{currentHighlight || 'None'}</span>
+                </div>
+                <button
+                  onClick={() => setHighlightColor(null)}
+                  className="text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors"
+                >
+                  Remove Highlight
+                </button>
               </div>
             </div>
           </DropdownMenuContent>
@@ -2877,7 +3101,6 @@ export const EditorToolbar = ({
             };
             fileInput.click();
           }}
-          tooltip="Insert Image"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Image className="w-4 h-4 text-blue-600" />
@@ -2892,7 +3115,6 @@ export const EditorToolbar = ({
               toast.info('Template sidebar is not available');
             }
           }}
-          tooltip="Templates"
           className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <LayoutTemplate className="w-4 h-4 text-blue-600" />
@@ -2901,7 +3123,6 @@ export const EditorToolbar = ({
         <ToolbarButton
           editor={editor}
           onClick={() => handleInsertAction('link')}
-          tooltip="Insert Link"
           className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Link className="w-4 h-4 text-blue-600" />
@@ -2959,7 +3180,6 @@ export const EditorToolbar = ({
               editor={editor}
               onClick={toggleCodeBlock}
               isActive={editor.isActive('codeBlock')}
-              tooltip="Insert Code Block"
               className="h-8 w-8 rounded-r-none bg-transparent hover:bg-transparent"
             >
               <Code className="w-4 h-4 text-blue-600" />
@@ -3063,44 +3283,181 @@ export const EditorToolbar = ({
 
         <ToolbarButton
           editor={editor}
-          onClick={toggleBlockquote}
+          onClick={() => toggleBlockquote()}
           isActive={editor.isActive('blockquote')}
-          tooltip="Insert Block Quote"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Quote className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-
+      
         <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
+      
+        {/* AI Assistant Button - Rectangular with Sparkle Icon */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              onMouseDown={(e) => {
+                preventEditorBlur(e);
+                try { saveSelection(editor); } catch { }
+                window.isToolbarInteraction = true;
+                setTimeout(() => { window.isToolbarInteraction = false; }, 300);
+              }}
+              className="h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 border border-purple-300 shadow-md hover:shadow-lg text-white"
+            >
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-xs font-semibold">AI Assist</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent 
+            onCloseAutoFocus={(e) => e.preventDefault()} 
+            className="w-96 p-0 rounded-2xl shadow-2xl border border-purple-200 bg-white overflow-hidden"
+            align="end"
+            side="bottom"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-4 text-white">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI Assistant
+              </h3>
+              <p className="text-xs text-purple-100 mt-1">Generate, transform, and enhance content with AI</p>
+            </div>
+                  
+            {/* Content */}
+            <div className="p-4 max-h-[600px] overflow-y-auto custom-scrollbar">
+              {/* Generate Document Section */}
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                  Generate Document with AI
+                </h4>
+                <button
+                  onClick={() => {
+                    setShowAIDocumentGenerator(true);
+                    onMenuClose(editor);
+                  }}
+                  className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-purple-50 to-pink-50 text-purple-800 hover:from-purple-100 hover:to-pink-100 transition-all duration-200 border border-purple-200 hover:border-purple-300 hover:shadow-md font-medium"
+                >
+                  <Sparkles className="w-4 h-4 inline mr-2" />
+                  Generate Document
+                </button>
+              </div>
 
-        {/* AI Tools */}
-        <ToolbarButton
-          editor={editor}
-          onClick={() => setShowAIDocumentGenerator(true)}
-          tooltip="Generate Document with AI"
-          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <Sparkles className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
+              {/* Generate Image Section */}
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  Visual Content
+                </h4>
+                <button
+                  onClick={() => {
+                    toast.info('Generate Image dialog');
+                    onMenuClose(editor);
+                  }}
+                  className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-blue-50 to-cyan-50 text-blue-800 hover:from-blue-100 hover:to-cyan-100 transition-all duration-200 border border-blue-200 hover:border-blue-300 hover:shadow-md font-medium"
+                >
+                  <Image className="w-4 h-4 inline mr-2" />
+                  Generate Image
+                </button>
+              </div>
+      
+              {/* Transform & Enhance Section */}
+              {editor && editor.state.selection.from !== editor.state.selection.to && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    Transform Selected Text
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={async () => {
+                        const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                        await handleAIInlineAction('summarize', text);
+                        onMenuClose(editor);
+                      }}
+                      className="text-sm px-3 py-2.5 rounded-xl bg-linear-to-br from-orange-50 to-orange-100 text-orange-800 hover:from-orange-100 hover:to-orange-200 transition-all duration-200 border border-orange-200 hover:border-orange-300 text-left font-medium"
+                    >
+                      <Minus className="w-4 h-4 inline mr-2" />
+                      Summarize
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                        await handleAIInlineAction('expand', text);
+                        onMenuClose(editor);
+                      }}
+                      className="text-sm px-3 py-2.5 rounded-xl bg-linear-to-br from-green-50 to-green-100 text-green-800 hover:from-green-100 hover:to-green-200 transition-all duration-200 border border-green-200 hover:border-green-300 text-left font-medium"
+                    >
+                      <Plus className="w-4 h-4 inline mr-2" />
+                      Expand Content
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                        await handleAIInlineAction('rewrite', text);
+                        onMenuClose(editor);
+                      }}
+                      className="text-sm px-3 py-2.5 rounded-xl bg-linear-to-br from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 border border-blue-200 hover:border-blue-300 text-left font-medium col-span-2"
+                    >
+                      <Wand2 className="w-4 h-4 inline mr-2" />
+                      Enhance Content
+                    </button>
+                  </div>
+                </div>
+              )}
 
-        <ToolbarButton
-          editor={editor}
-          onClick={() => setShowAIInlineActions(true)}
-          tooltip="AI Inline Actions"
-          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <Wand2 className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
-
-        <ToolbarButton
-          editor={editor}
-          onClick={() => setShowCodeAssistant(true)}
-          tooltip="Code Assistant"
-          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <Code2 className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
-
+              {/* AI Agent Inline Changes Section */}
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                  AI Agent Inline Changes
+                </h4>
+                <div className="space-y-2">
+                  <button
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
+                        await handleAIInlineAction('fix_grammar', text);
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                      onMenuClose(editor);
+                    }}
+                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-red-50 to-pink-50 text-red-800 hover:from-red-100 hover:to-pink-100 transition-all duration-200 border border-red-200 hover:border-red-300 hover:shadow-md font-medium"
+                  >
+                    <CheckCircle2 className="w-4 h-4 inline mr-2" />
+                    Fix Grammar & Spelling
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
+                        await handleAIInlineAction('change_tone', text);
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                      onMenuClose(editor);
+                    }}
+                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-purple-50 to-indigo-50 text-purple-800 hover:from-purple-100 hover:to-indigo-100 transition-all duration-200 border border-purple-200 hover:border-purple-300 hover:shadow-md font-medium"
+                  >
+                    <Smile className="w-4 h-4 inline mr-2" />
+                    Change Tone
+                  </button>
+                </div>
+              </div>
+            </div>
+      
+            {/* Footer */}
+            <div className="border-t border-purple-200 px-5 py-3 bg-purple-50">
+              <p className="text-xs text-purple-700 text-center font-medium">
+                <Sparkles className="w-3.5 h-3.5 inline mr-1.5" />
+                Powered by Athena AI
+              </p>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      
         <Separator orientation="vertical" className="mx-2 h-5" />
       </div >
 
@@ -3147,143 +3504,7 @@ export const EditorToolbar = ({
       {/* Hidden file input */}
       {hiddenFileInput}
 
-      {/* AI Document Generator Dialog */}
-      <Dialog open={showAIDocumentGenerator} onOpenChange={setShowAIDocumentGenerator}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white/95 backdrop-blur-xl border border-blue-200/60 rounded-4xl shadow-2xl overflow-hidden p-0" aria-describedby="ai-document-generator-description">
-          <div className="bg-linear-to-r from-[#0c496e] to-[#1e40af] px-8 py-6 text-white relative shrink-0">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <DialogHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Sparkles className="w-5 h-5 text-gold" style={{ color: '#fabf23' }} />
-                </div>
-                <DialogTitle className="text-2xl font-bold tracking-tight text-white">Generate with AI</DialogTitle>
-              </div>
-              <DialogDescription className="text-blue-100/80 font-medium">
-                Describe your vision and Athena will craft a professional document for you.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
 
-          <div className="p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
-            <div className="space-y-3">
-              <Label htmlFor="topic" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Document Topic</Label>
-              <div className="relative group">
-                <Input
-                  id="topic"
-                  placeholder="e.g., Marketing Strategy for 2026..."
-                  value={documentTopic}
-                  onChange={(e) => setDocumentTopic(e.target.value)}
-                  className="h-14 bg-slate-50 border-slate-200 rounded-2xl pl-4 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all shadow-sm group-hover:shadow-md border-2 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="pages" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Length</Label>
-                <Select value={documentPages.toString()} onValueChange={(value) => setDocumentPages(parseInt(value))}>
-                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
-                    <SelectValue placeholder="Select pages" />
-                  </SelectTrigger>
-                  <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-xl border-slate-200 shadow-xl">
-                    {[1, 2, 3, 5, 10].map(num => (
-                      <SelectItem key={num} value={num.toString()} className="rounded-lg">{num} page{num > 1 ? 's' : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <Label htmlFor="tone" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Tone of Voice</Label>
-                <Select value={documentTone} onValueChange={setDocumentTone}>
-                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
-                    <SelectValue placeholder="Select tone" />
-                  </SelectTrigger>
-                  <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-xl border-slate-200 shadow-xl">
-                    {TONES.map(tone => (
-                      <SelectItem key={tone} value={tone} className="rounded-lg">{tone}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="type" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Document Category</Label>
-                <Select value={documentType} onValueChange={setDocumentType}>
-                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
-                    <SelectValue placeholder="Select document type" />
-                  </SelectTrigger>
-                  <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-xl border-slate-200 shadow-xl">
-                    {['Technical Document', 'Blog Post', 'Research Paper', 'Business Report', 'Creative Story', 'Meeting Minutes'].map(type => (
-                      <SelectItem key={type} value={type} className="rounded-lg">{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center mb-1">
-                  <Label className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Creativity</Label>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">
-                    {Math.round(documentCreativity[0] * 100)}%
-                  </span>
-                </div>
-                <div className="h-12 flex items-center px-2">
-                  <Slider
-                    value={documentCreativity}
-                    onValueChange={setDocumentCreativity}
-                    max={1}
-                    step={0.1}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 flex items-center gap-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowAIDocumentGenerator(false)}
-                className="flex-1 h-12 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-bold text-slate-600 transition-all font-sans"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  handleGenerateDocument();
-                  setShowAIDocumentGenerator(false);
-                }}
-                disabled={!documentTopic || !documentTopic.trim()}
-                className="flex-2 h-14 rounded-xl bg-linear-to-r from-[#0c496e] to-[#1e40af] hover:shadow-xl shadow-[#0c496e]/20 text-white font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              >
-                <Sparkles className="w-5 h-5 mr-2" />
-                Forge Document
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
-
-      {/* AI Inline Actions */}
-      <AIInlineActions
-        open={showAIInlineActions}
-        onOpenChange={setShowAIInlineActions}
-        onAction={handleAIInlineAction}
-        selectedText={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
-      />
-
-      {/* Code Assistant */}
-      <CodeAssistant
-        open={showCodeAssistant}
-        onOpenChange={setShowCodeAssistant}
-        onAction={handleCodeAssistant}
-        selectedCode={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
-      />
 
       {/* Image Cropping Dialog */}
 
@@ -3800,7 +4021,7 @@ const TextEditorContent = () => {
   const { exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
 
   const {
-    isAISidebarOpen = false, showReferencesPanel = false, showExportDialog = false,
+    showReferencesPanel = false, showExportDialog = false,
     showTemplateSidebar = false, exportFormat = 'pdf',
     exportOptions = { includePageNumbers: true, includeHeader: true, includeFooter: true, exportComments: false, exportTrackChanges: false },
     documentTitle = 'Untitled Document', lastSaved = null, zoom = 100,
@@ -3858,13 +4079,19 @@ const TextEditorContent = () => {
   const [collapsedSections, setCollapsedSections] = useState(new Set());
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
 
-  // Word/Character/Line limit constants for A4 pages
-  // Based on Google Docs default settings:
-  // - 1-inch margins, Arial/Calibri size 11, single line spacing
-  // - Approximately 45-55 lines per A4 page
-  const MAX_WORDS_PER_PAGE = 550;        // Target: 500-600 words per page
-  const MAX_CHARS_PER_PAGE = 3000;       // Target: ~3,000 characters per page
-  const MAX_LINES_PER_PAGE = 50;         // Target: 45-55 lines per A4 page
+  // ── Page-capacity constants ─────────────────────────────────────────────
+  // A4 page: 210×297 mm @ 96 dpi = 794×1123 px
+  // Margins: 1 in (72 pt) top/bottom/left/right
+  // Usable height: 1123 - 144 = 979 px
+  // Font: 12 pt = 16 px rendered; line height 1.15 → 18.4 px/line
+  // Lines per page: floor(979 / 18.4) = 53 raw lines, but paragraphs have
+  //   spacing-after, headings are taller, lists add bullets → effective ~32 lines
+  // Words per line at 65 chars/line ÷ 5.5 chars/word ≈ 11.8 words/line
+  // Words per page: 32 × 11.8 ≈ 378 → use 380 (conservative)
+  // Chars per page: 32 × 65 = 2080 → use 2100 (conservative)
+  const MAX_WORDS_PER_PAGE = 380;        // 12 pt / 1.15 spacing, ~32 lines/page
+  const MAX_CHARS_PER_PAGE = 2100;       // 32 lines × 65 chars/line
+  const MAX_LINES_PER_PAGE = 32;         // 12 pt / 1.15 spacing on A4
 
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
@@ -3890,27 +4117,42 @@ const TextEditorContent = () => {
   const isInsertingRef     = useRef(false);
   const lastFingerprintRef = useRef('');
 
-  // Page-limit config (mirrors the constants above, kept in one object so it
-  // can be passed cleanly to the pure functions below)
+  // Page-limit config — single source of truth passed to all scanner functions
   const pageCfg = {
     MAX_WORDS_PER_PAGE,
     MAX_CHARS_PER_PAGE,
     MAX_LINES_PER_PAGE,
-    AVG_CHARS_PER_LINE: 80,
-    PASTE_SETTLE_MS:    200,
-    MAX_BREAKS_PER_RUN: 500,
+    AVG_CHARS_PER_LINE: 65,   // 12pt font, 1-inch margins, A4 width
+    PASTE_SETTLE_MS:    300,   // ms after paste before scanning
+    MAX_BREAKS_PER_RUN: 2000, // hard cap — prevents runaway on huge pastes
   };
 
   const dynamicManualPagination = useCallback((editorInstance) => {
+    // Count pageBreak nodes to derive total page count.
+    // Uses doc.descendants (not doc.forEach) because we only need to COUNT,
+    // not insert — descendants is fine for read-only traversal.
     if (!editorInstance?.state?.doc) return;
     let pageBreakCount = 0;
-    editorInstance.state.doc.descendants((node) => { if (node.type.name === 'pageBreak') pageBreakCount++; });
-    const totalPages = pageBreakCount + 1;
-    if (totalPages !== pages.length) {
-      setPages(Array.from({ length: totalPages }, (_, i) => ({ id: i + 1, content: '', height: 1122.5 })));
-      if (setDocumentStats) setDocumentStats(prev => ({ ...prev, pages: totalPages }));
+    editorInstance.state.doc.descendants((node) => {
+      if (node.type.name === 'pageBreak') pageBreakCount++;
+    });
+    const totalPages = Math.max(1, pageBreakCount + 1);
+    // Avoid setState thrash: only update when the count actually changes
+    setPages((prev) => {
+      if (prev.length === totalPages) return prev;
+      return Array.from({ length: totalPages }, (_, i) => ({
+        id: i + 1,
+        content: '',
+        height: 1122.5,
+      }));
+    });
+    if (setDocumentStats) {
+      setDocumentStats((prev) => {
+        if (prev?.pages === totalPages) return prev;
+        return { ...prev, pages: totalPages };
+      });
     }
-  }, [pages.length, setDocumentStats]);
+  }, [setDocumentStats]); // removed pages.length — functional setState avoids stale closure
 
   // ── runPastePageBreaks ────────────────────────────────────────────────────
   //
@@ -3933,6 +4175,23 @@ const TextEditorContent = () => {
   //   +1. We apply a running offset so positions stay accurate without
   //   re-scanning the doc.
   //
+  // ── runPastePageBreaks ────────────────────────────────────────────────────
+  //
+  // Single-pass scanner + single-transaction inserter.
+  //
+  // Design constraints:
+  //   1. doc.forEach (top-level blocks only) — descendants() visits inline
+  //      text nodes whose positions are inside inline content; inserting a
+  //      block node there violates the schema.
+  //   2. One chain.run() for ALL insertions — one transaction → one onUpdate
+  //      → no feedback loop.
+  //   3. Running offset — each inserted pageBreak (nodeSize 1) shifts every
+  //      subsequent raw position by +1.
+  //   4. isInsertingRef mutex — prevents re-entrant calls. Always released in
+  //      finally so it can never stay locked.
+  //   5. Per-block line estimation accounts for heading size multipliers and
+  //      minimum 1-line floor so empty paragraphs are counted.
+  //
   const runPastePageBreaks = useCallback((editorInstance) => {
     if (isInsertingRef.current) return 0;
     if (!editorInstance?.state?.doc) return 0;
@@ -3941,16 +4200,27 @@ const TextEditorContent = () => {
     let inserted = 0;
 
     try {
-      const doc = editorInstance.state.doc;
+      const doc        = editorInstance.state.doc;
+      const totalChars = doc.textContent.length;
 
-      // ── Pass 1: collect all positions where a break is needed ────────────
-      const insertAt = []; // positions in the CURRENT doc (before any insertion)
-      let pageWords = 0;
-      let pageChars = 0;
-      let pageLines = 0;
+      if (totalChars > 5000) {
+        toast.info(
+          `Processing document (${Math.round(totalChars / 100) / 10}K chars)…`,
+          { id: 'paste-processing', duration: 2000 }
+        );
+      }
+
+      // ── Pass 1: collect insertion positions ───────────────────────────
+      const insertAt  = [];
+      let pageWords   = 0;
+      let pageChars   = 0;
+      let pageLines   = 0;
+      let blockCount  = 0;
 
       doc.forEach((blockNode, topOffset) => {
-        // Existing break → reset page counters
+        blockCount++;
+
+        // Existing break → start a fresh page
         if (blockNode.type.name === 'pageBreak') {
           pageWords = 0;
           pageChars = 0;
@@ -3961,7 +4231,18 @@ const TextEditorContent = () => {
         const text       = blockNode.textContent || '';
         const blockWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
         const blockChars = text.length;
-        const blockLines = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 0;
+
+        // Heading nodes are taller — heading level 1 ≈ 3 normal lines,
+        // level 2 ≈ 2, levels 3-6 ≈ 1.5.  Paragraph/list → 1× multiplier.
+        // Minimum 1 line so blank paragraphs are not ignored (they still
+        // consume vertical space via paragraph spacing).
+        let lineMultiplier = 1;
+        if (blockNode.type.name === 'heading') {
+          const lvl = blockNode.attrs?.level ?? 3;
+          lineMultiplier = lvl === 1 ? 3 : lvl === 2 ? 2 : 1.5;
+        }
+        const rawLines   = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 1;
+        const blockLines = Math.max(1, Math.ceil(rawLines * lineMultiplier));
 
         pageWords += blockWords;
         pageChars += blockChars;
@@ -3973,68 +4254,238 @@ const TextEditorContent = () => {
           pageLines > pageCfg.MAX_LINES_PER_PAGE;
 
         if (overflow && insertAt.length < pageCfg.MAX_BREAKS_PER_RUN) {
-          // Insert BEFORE this block so it becomes the first block of the next page.
+          // Insert BEFORE this block → it becomes the first block of the new page
           insertAt.push(topOffset);
-          console.log(`[PastePageBreaks] Queued break at ${topOffset}, cumulative: words=${pageWords}, chars=${pageChars}, lines=${pageLines}`);
-          // Reset counters to THIS block's values — it is now the first block on
-          // the new page, so the new page already carries its contribution.
+          // New page starts carrying this block's contribution
           pageWords = blockWords;
           pageChars = blockChars;
           pageLines = blockLines;
         }
       });
 
-    console.log(`[PastePageBreaks] Total breaks queued: ${insertAt.length}`);
+      // Stamp fingerprint regardless of whether we found breaks.
+      // Without this, every keystroke after a full scan (that found nothing)
+      // re-runs the full scan because the fingerprint never advanced.
+      const txt = doc.textContent;
+      lastFingerprintRef.current = `${txt.length}:${txt.substring(0, 80)}`;
 
-      if (insertAt.length === 0) return 0;
+      if (insertAt.length === 0) {
+        if (totalChars > 5000) {
+          toast.success('Document processed — no additional breaks needed.', {
+            id: 'paste-processing', duration: 2000,
+          });
+        }
+        return 0;
+      }
 
-      // ── Pass 2: insert all breaks in one chained transaction ─────────────
-      // Update fingerprint first so the resulting onUpdate exits immediately
-      const text = doc.textContent;
-      lastFingerprintRef.current = `${text.length}:${text.substring(0, 80)}`;
+      // ── Pass 2: single chained transaction ────────────────────────────
 
       let offset = 0;
       let chain  = editorInstance.chain();
 
-    console.log(`[PastePageBreaks] Inserting ${insertAt.length} page breaks...`);
-      
       for (const rawPos of insertAt) {
-        chain  = chain.insertContentAt(rawPos + offset, { type: 'pageBreak' });
-        offset += 1; // each inserted pageBreak shifts subsequent positions by 1
+        // rawPos is a content-relative offset from doc.forEach (0-based from doc.content start).
+        // ProseMirror absolute position = rawPos + 1 (the doc node's own opening token is pos 0).
+        // offset accumulates +1 for every pageBreak already inserted in this batch.
+        chain  = chain.insertContentAt(rawPos + 1 + offset, { type: 'pageBreak' });
+        offset += 1;
       }
 
       chain.run(); // exactly one onUpdate
       inserted = insertAt.length;
-      
-   console.log(`[PastePageBreaks] Successfully inserted ${inserted} page breaks with margins`);
+
+      if (totalChars > 5000) {
+        const pages = insertAt.length + 1;
+        setTimeout(() => {
+          toast.success(
+            `✓ Document paginated — ${inserted} break${inserted !== 1 ? 's' : ''} inserted, ${pages} pages`,
+            { id: 'paste-processing', duration: 3000 }
+          );
+        }, 100);
+      }
 
     } catch (err) {
-      console.error('[PastePageBreaks] Insertion error:', err);
+      console.error('[PastePageBreaks] error:', err);
+      toast.error('Failed to paginate document', {
+        id: 'paste-processing', duration: 4000,
+      });
     } finally {
-      isInsertingRef.current = false; // always released — can never stay locked
+      isInsertingRef.current = false; // always released
     }
 
     return inserted;
-  }, []); // pageCfg is a plain object literal — no deps needed
-
-  // ── checkAndInsertAutoPageBreaks (called from onUpdate for normal typing) ─
+  }, []); // pageCfg is a stable plain-object literal — no closure deps
+  
+  // ── runProgressivePageBreaks ─────────────────────────────────────────────
   //
-  // Skipped entirely during paste (isPastingRef.current = true).
-  // Skipped when content fingerprint matches the last run → no-op on every
-  // keystroke that doesn't cross a page limit.
+  // For documents > 20 K characters we break the work into chunks to keep
+  // the UI responsive. Each chunk yields to the event loop before continuing.
+  //
+  // The key insight: we can't call runPastePageBreaks multiple times on the
+  // SAME document state (the mutex prevents it and positions shift after each
+  // insertion). Instead we do ONE full scan, collect ALL positions, then
+  // insert them in batches of CHUNK_SIZE, yielding between batches.
+  //
+  const runProgressivePageBreaks = useCallback(async (editorInstance) => {
+    if (isInsertingRef.current) return;
+    if (!editorInstance?.state?.doc) return;
+
+    const totalChars = editorInstance.state.doc.textContent.length;
+    if (totalChars <= 20000) {
+      // Small enough — delegate to the standard single-pass function
+      runPastePageBreaks(editorInstance);
+      return;
+    }
+
+    isInsertingRef.current = true;
+    const CHUNK_SIZE = 100; // insertions per batch before yielding
+
+    try {
+      const doc = editorInstance.state.doc;
+
+      toast.loading(
+        `Paginating large document (${Math.round(totalChars / 1000)}K chars)…`,
+        { id: 'progressive-paste', duration: 30000 }
+      );
+
+      // ── Pass 1: full scan (same logic as runPastePageBreaks) ──────────
+      const insertAt  = [];
+      let pageWords   = 0;
+      let pageChars   = 0;
+      let pageLines   = 0;
+
+      doc.forEach((blockNode, topOffset) => {
+        if (blockNode.type.name === 'pageBreak') {
+          pageWords = 0; pageChars = 0; pageLines = 0;
+          return;
+        }
+
+        const text       = blockNode.textContent || '';
+        const blockWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+        const blockChars = text.length;
+        let lineMultiplier = 1;
+        if (blockNode.type.name === 'heading') {
+          const lvl = blockNode.attrs?.level ?? 3;
+          lineMultiplier = lvl === 1 ? 3 : lvl === 2 ? 2 : 1.5;
+        }
+        const rawLines   = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 1;
+        const blockLines = Math.max(1, Math.ceil(rawLines * lineMultiplier));
+
+        pageWords += blockWords;
+        pageChars += blockChars;
+        pageLines += blockLines;
+
+        const overflow =
+          pageWords > pageCfg.MAX_WORDS_PER_PAGE ||
+          pageChars > pageCfg.MAX_CHARS_PER_PAGE ||
+          pageLines > pageCfg.MAX_LINES_PER_PAGE;
+
+        if (overflow && insertAt.length < pageCfg.MAX_BREAKS_PER_RUN) {
+          insertAt.push(topOffset);
+          pageWords = blockWords;
+          pageChars = blockChars;
+          pageLines = blockLines;
+        }
+      });
+
+      // Stamp fingerprint before any insertion so the resulting onUpdate
+      // exits the fingerprint guard without re-scanning.
+      const txt = doc.textContent;
+      lastFingerprintRef.current = `${txt.length}:${txt.substring(0, 80)}`;
+
+      if (insertAt.length === 0) {
+        toast.success('Document processed — no breaks needed.', {
+          id: 'progressive-paste', duration: 2000,
+        });
+        return;
+      }
+
+      // ── Pass 2: insert in CHUNK_SIZE batches, yielding between each ───
+      const totalBreaks = insertAt.length;
+      let offset        = 0;
+      let batchStart    = 0;
+
+      while (batchStart < totalBreaks) {
+        if (editorInstance.isDestroyed) break;
+
+        // Release mutex briefly between batches so UI can repaint
+        isInsertingRef.current = false;
+        await new Promise((r) => setTimeout(r, 16)); // ~1 frame
+        isInsertingRef.current = true;
+
+        if (editorInstance.isDestroyed) break;
+
+        const batchEnd = Math.min(batchStart + CHUNK_SIZE, totalBreaks);
+        let chain = editorInstance.chain();
+        for (let i = batchStart; i < batchEnd; i++) {
+          chain  = chain.insertContentAt(insertAt[i] + 1 + offset, { type: 'pageBreak' });
+          offset += 1;
+        }
+        chain.run();
+
+        toast.loading(
+          `Paginating… ${Math.min(batchEnd, totalBreaks)}/${totalBreaks} breaks`,
+          { id: 'progressive-paste' }
+        );
+
+        batchStart = batchEnd;
+      }
+
+      const pages = totalBreaks + 1;
+      toast.success(
+        `✓ Large document paginated — ${totalBreaks} breaks, ${pages} pages`,
+        { id: 'progressive-paste', duration: 4000 }
+      );
+
+    } catch (err) {
+      console.error('[ProgressivePagination] error:', err);
+      toast.error('Pagination failed for large document', {
+        id: 'progressive-paste', duration: 4000,
+      });
+    } finally {
+      isInsertingRef.current = false;
+    }
+  }, [runPastePageBreaks]);
+
+  // ── checkAndInsertAutoPageBreaks ─────────────────────────────────────────
+  //
+  // Called from onUpdate for normal typing (NOT during paste).
+  //
+  // Optimisation layers (innermost to outermost):
+  //   1. Paste guard — skip entirely if paste is in flight.
+  //   2. Re-entrancy guard — skip if an insertion is running.
+  //   3. Content fingerprint — skip if doc text hasn't changed since last scan.
+  //   4. Quick capacity check — count words/chars in the WHOLE doc first;
+  //      if still well under capacity (< 80 % of one page) skip the full scan.
+  //      This avoids the full forEach on every keystroke for short documents.
   //
   const checkAndInsertAutoPageBreaks = useCallback((editorInstance) => {
     if (isPastingRef.current)   return; // paste system handles it
     if (isInsertingRef.current) return; // re-entrancy guard
     if (!editorInstance?.state?.doc) return;
 
-    const text        = editorInstance.state.doc.textContent;
+    const doc  = editorInstance.state.doc;
+    const text = doc.textContent;
+
+    // Fingerprint guard — no change since last scan
     const fingerprint = `${text.length}:${text.substring(0, 80)}`;
-    if (fingerprint === lastFingerprintRef.current) return; // nothing changed
+    if (fingerprint === lastFingerprintRef.current) return;
 
-    // Write fingerprint BEFORE inserting so the resulting onUpdate exits here
+    // Quick capacity pre-check: if total doc is < 80 % of one page,
+    // there is nothing to paginate yet → update fingerprint and bail.
+    const totalWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+    const totalChars = text.length;
+    const threshold  = 0.8;
+    if (
+      totalWords < pageCfg.MAX_WORDS_PER_PAGE * threshold &&
+      totalChars < pageCfg.MAX_CHARS_PER_PAGE * threshold
+    ) {
+      lastFingerprintRef.current = fingerprint;
+      return;
+    }
+
+    // Full scan needed — stamp fingerprint first so the resulting onUpdate exits
     lastFingerprintRef.current = fingerprint;
-
     runPastePageBreaks(editorInstance);
   }, [runPastePageBreaks]);
 
@@ -4067,8 +4518,18 @@ const TextEditorContent = () => {
             lastFingerprintRef.current = ''; // force full re-scan
             // editorRef.current is the stable Tiptap editor reference
             const ed = editorRef.current;
-            if (ed && !ed.isDestroyed) runPastePageBreaks(ed);
-          }, 400); // 400 ms — enough for ProseMirror + React to settle
+            if (ed && !ed.isDestroyed) {
+              // Check document size and choose processing mode
+              const totalChars = ed.state.doc?.textContent?.length || 0;
+              if (totalChars > 20000) {
+                // Use progressive batched mode for very large documents (>20K chars)
+                runProgressivePageBreaks(ed);
+              } else {
+                // Use single-pass mode for normal-sized documents
+                runPastePageBreaks(ed);
+              }
+            }
+          }, 300); // 300 ms — enough for ProseMirror + React to settle
 
           return false; // let ProseMirror handle the actual paste insertion
         },
@@ -4088,7 +4549,9 @@ const TextEditorContent = () => {
         underline: false, 
         link: false, 
         listItem: false, 
-        codeBlock: false 
+        codeBlock: false,
+        bulletList: false,
+        orderedList: false
       }),
       Document.extend({ content: 'block+' }),  // Accept blocks directly (ENDLESS PAGE)
       TextStyle, Color, FontFamily, FontSize,
@@ -4109,6 +4572,8 @@ const TextEditorContent = () => {
       TiptapTable.configure({ resizable: true, HTMLAttributes: { class: 'table-border-black' } }),
       TableRow, TableCell, TableHeader, TableExtension,
       TiptapSubscript, TiptapSuperscript, Indent, PageBreak, TextDirection,  // PageBreak for visual section breaks
+      BulletList.configure({ HTMLAttributes: { class: 'bullet-list' } }),
+      OrderedList.configure({ HTMLAttributes: { class: 'ordered-list' } }),
       pastePlugin,
     ],
     content: '',  // Start empty - endless page with auto page breaks
@@ -4120,9 +4585,16 @@ const TextEditorContent = () => {
       
       // During a paste isPastingRef.current is true — the pastePlugin's
       // settle timer will call runPastePageBreaks once the doc is stable.
-      // For normal typing we run the lightweight fingerprint-guarded check.
+      // For normal typing: debounce the check so rapid keystrokes don't
+      // queue many scans. 250 ms is fast enough to feel responsive but
+      // slow enough for the user to finish a word before we scan.
       if (!isPastingRef.current) {
-        checkAndInsertAutoPageBreaks(editorInstance);
+        if (paginationTimeoutRef.current) clearTimeout(paginationTimeoutRef.current);
+        paginationTimeoutRef.current = setTimeout(() => {
+          if (!isPastingRef.current && editorRef.current && !editorRef.current.isDestroyed) {
+            checkAndInsertAutoPageBreaks(editorRef.current);
+          }
+        }, 250);
       }
       
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
@@ -4146,7 +4618,17 @@ const TextEditorContent = () => {
         if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
       }, 500);
       if (pagesUpdateTimeoutRef.current) clearTimeout(pagesUpdateTimeoutRef.current);
-      pagesUpdateTimeoutRef.current = setTimeout(() => { if (editorInstance?.state?.doc) dynamicManualPagination(editorInstance); }, 400);
+      pagesUpdateTimeoutRef.current = setTimeout(() => { 
+        if (editorInstance?.state?.doc) {
+          dynamicManualPagination(editorInstance);
+          // Ensure editor maintains focus after pagination updates
+          requestAnimationFrame(() => {
+            if (!editorInstance.isDestroyed && editorInstance.view) {
+              editorInstance.view.focus();
+            }
+          });
+        }
+      }, 400);
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
       autoSaveTimeoutRef.current = setTimeout(() => handleAutoSaveRef.current?.(), 3000);
     },
@@ -4181,6 +4663,16 @@ const TextEditorContent = () => {
         if (handoffTitle) setDocumentTitle(handoffTitle);
         localStorage.removeItem('athena_active_doc_content');
         localStorage.removeItem('athena_active_doc_title');
+        // Explicit pagination after load — onUpdate fires but the debounce
+        // may race with content settling; this 500ms call is the safety net.
+        lastFingerprintRef.current = '';
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            const chars = editor.state.doc?.textContent?.length || 0;
+            if (chars > 20000) runProgressivePageBreaks(editor);
+            else runPastePageBreaks(editor);
+          }
+        }, 500);
       } catch (e) { console.error('Error loading handoff content:', e); }
       return;
     }
@@ -4190,6 +4682,15 @@ const TextEditorContent = () => {
         const parsed = JSON.parse(savedContent);
         editor.commands.setContent(parsed.html || '');
         if (parsed.title) setDocumentTitle(parsed.title);
+        // Explicit pagination after load
+        lastFingerprintRef.current = '';
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            const chars = editor.state.doc?.textContent?.length || 0;
+            if (chars > 20000) runProgressivePageBreaks(editor);
+            else runPastePageBreaks(editor);
+          }
+        }, 500);
       } catch (error) { console.error('Error loading saved content:', error); }
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -4494,7 +4995,6 @@ const TextEditorContent = () => {
     try {
       const html = marked.parse(content);
       editor.chain().focus().insertContent(DOMPurify.sanitize(html)).run();
-      updateEditorFeatures({ isAISidebarOpen: false });
     } catch (error) { toast.error('Failed to generate content'); }
   }, [editor, updateEditorFeatures]);
 
@@ -4679,12 +5179,115 @@ const TextEditorContent = () => {
               onPrint={handlePrint}
               onDelete={handleDeleteDocument}
               onFindReplace={handleFindReplace}
+              editor={editor}
               zoom={zoom}
               onZoomChange={handleZoomChange}
-              isAISidebarOpen={isAISidebarOpen}
-              onToggleAISidebar={(open) => updateEditorFeatures({ isAISidebarOpen: open !== undefined ? open : !isAISidebarOpen })}
               onShowHelp={() => toast.info('Help documentation would open here')}
               onShowSettings={() => toast.info('Settings would open here')}
+              documentTitle={documentTitle}
+              onRenameDocument={(newTitle) => setDocumentTitle(newTitle)}
+              
+              // Direct editor commands with focus management and selection restoration
+              onToggleBold={() => { 
+                console.log('🎯 [TextEditor] onToggleBold called, editor:', !!editor); 
+                runWithSavedSelection(editor, (chain) => chain.toggleBold()); 
+              }}
+              onToggleItalic={() => { 
+                console.log('🎯 [TextEditor] onToggleItalic called, editor:', !!editor); 
+                runWithSavedSelection(editor, (chain) => chain.toggleItalic()); 
+              }}
+              onToggleUnderline={() => { 
+                console.log('🎯 [TextEditor] onToggleUnderline called, editor:', !!editor); 
+                runWithSavedSelection(editor, (chain) => chain.toggleUnderline()); 
+              }}
+              onToggleStrikethrough={() => { 
+                console.log('🎯 [TextEditor] onToggleStrikethrough called, editor:', !!editor); 
+                runWithSavedSelection(editor, (chain) => chain.toggleStrike()); 
+              }}
+              onToggleSuperscript={() => { 
+                console.log('🎯 [TextEditor] onToggleSuperscript called'); 
+                runWithSavedSelection(editor, (chain) => chain.toggleSuperscript()); 
+              }}
+              onToggleSubscript={() => { 
+                console.log('🎯 [TextEditor] onToggleSubscript called'); 
+                runWithSavedSelection(editor, (chain) => chain.toggleSubscript()); 
+              }}
+              onToggleCode={() => { 
+                console.log('🎯 [TextEditor] onToggleCode called'); 
+                runWithSavedSelection(editor, (chain) => chain.toggleCode()); 
+              }}
+              onClearFormatting={() => { 
+                console.log('🎯 [TextEditor] onClearFormatting called'); 
+                runWithSavedSelection(editor, (chain) => chain.unsetAllMarks().clearNodes()); 
+              }}
+              onSetTextAlign={(align) => { 
+                console.log('🎯 [TextEditor] onSetTextAlign called', align); 
+                runWithSavedSelection(editor, (chain) => chain.setTextAlign(align)); 
+              }}
+              onInsertImage={() => setShowImageModal(true)}
+              onInsertTable={() => setShowTablePicker(!showTablePicker)}
+              onInsertLink={() => {
+                const url = window.prompt('Enter URL:');
+                if (url && editor) {
+                  editor.chain().focus().setLink({ href: url }).run();
+                  toast.success('Link added');
+                }
+              }}
+              onUndo={() => { console.log('onUndo called'); runWithSavedSelection(editor, (chain) => chain.undo()); }}
+              onRedo={() => { console.log('onRedo called'); runWithSavedSelection(editor, (chain) => chain.redo()); }}
+              onSelectAll={() => { console.log('onSelectAll called'); runWithSavedSelection(editor, (chain) => chain.selectAll()); }}
+              onCut={() => { console.log('onCut called'); document.execCommand('cut'); }}
+              onCopy={() => { console.log('onCopy called'); document.execCommand('copy'); }}
+              onPaste={async () => {
+                console.log('onPaste called');
+                try {
+                  if (navigator.clipboard?.readText) {
+                    const text = await navigator.clipboard.readText();
+                    runWithSavedSelection(editor, (chain) => chain.insertContent(text));
+                  } else {
+                    document.execCommand('paste');
+                  }
+                } catch {
+                  document.execCommand('paste');
+                }
+              }}
+              onPastePlainText={async () => {
+                console.log('onPastePlainText called');
+                try {
+                  const text = await navigator.clipboard.readText();
+                  runWithSavedSelection(editor, (chain) => chain.insertContent(text));
+                } catch {
+                  toast.info('Use Ctrl+Shift+V to paste as plain text');
+                }
+              }}
+              onToggleSpellCheck={() => {
+                console.log('onToggleSpellCheck called');
+                const currentState = editor?.view?.dom?.getAttribute('spellcheck') !== 'false';
+                const newState = !currentState;
+                if (editor?.view?.dom) {
+                  editor.view.dom.setAttribute('spellcheck', newState);
+                }
+                toast.success(`Spell check ${newState ? 'enabled' : 'disabled'}`);
+              }}
+              onToggleBulletList={() => { console.log('onToggleBulletList called'); runWithSavedSelection(editor, (chain) => chain.toggleBulletList()); }}
+              onToggleOrderedList={() => { console.log('onToggleOrderedList called'); runWithSavedSelection(editor, (chain) => chain.toggleOrderedList()); }}
+              onToggleTaskList={() => { console.log('onToggleTaskList called'); runWithSavedSelection(editor, (chain) => chain.toggleTaskList()); }}
+              onIndent={() => { console.log('onIndent called'); runWithSavedSelection(editor, (chain) => chain.indent()); }}
+              onOutdent={() => { console.log('onOutdent called'); runWithSavedSelection(editor, (chain) => chain.outdent()); }}
+              onInsertPageBreak={() => {
+                console.log('onInsertPageBreak called');
+                runWithSavedSelection(editor, () => {
+                  const { state } = editor;
+                  const { $from } = state.selection;
+                  const depth = $from.depth;
+                  const topEnd = depth > 0 ? $from.end(1) + 1 : $from.pos;
+                  const insertPos = Math.min(topEnd, state.doc.content.size);
+                  editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
+                  toast.success('Page break inserted');
+                });
+              }}
+              onInsertHorizontalRule={() => { console.log('onInsertHorizontalRule called'); runWithSavedSelection(editor, (chain) => chain.setHorizontalRule()); }}
+              onToggleBlockquote={() => { console.log('onToggleBlockquote called'); runWithSavedSelection(editor, (chain) => chain.toggleBlockquote()); }}
             />
           </div>
         </header>
@@ -4698,8 +5301,6 @@ const TextEditorContent = () => {
           onPrint={handlePrint}
           handleInsertImage={handleInsertImage}
           setShowReferencesPanel={(show) => updateEditorFeatures({ showReferencesPanel: show })}
-          setIsAISidebarOpen={(open) => updateEditorFeatures({ isAISidebarOpen: open })}
-          isAISidebarOpen={isAISidebarOpen}
           documentTitle={documentTitle}
           addNewPage={addNewPage}
           addPageBreak={addPageBreak}
@@ -4742,7 +5343,10 @@ const TextEditorContent = () => {
             className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-100/50 p-4"
             onCopy={handleCopy}
           >
-            <div className="athena-workspace">
+            <div
+              className="athena-workspace"
+              style={zoom !== 100 ? { transform: `scale(${zoom / 100})`, transformOrigin: 'top center' } : undefined}
+            >
             <div className="editor-content-container">
               {editor && (
                 <EditorContent editor={editor} className="tip-tap-editor" />
@@ -4753,13 +5357,7 @@ const TextEditorContent = () => {
             </div>
           </div>
 
-          <AISidebar
-            isOpen={isAISidebarOpen}
-            onClose={() => updateEditorFeatures({ isAISidebarOpen: false })}
-            onGenerate={handleAIGenerate}
-            selectedText={selectedText}
-            onTransformText={handleTransformText}
-          />
+
         </div>
 
         {/* Status Bar */}

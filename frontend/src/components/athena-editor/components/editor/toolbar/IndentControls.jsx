@@ -62,7 +62,6 @@ export const IndentControls = ({ editor }) => {
     <>
       <ToolbarButton
         onClick={indent}
-        tooltip="Increase Indent"
         className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         disabled={!canIndent}
       >
@@ -70,7 +69,6 @@ export const IndentControls = ({ editor }) => {
       </ToolbarButton>
       <ToolbarButton
         onClick={outdent}
-        tooltip="Decrease Indent"
         className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         disabled={!canOutdent}
       >

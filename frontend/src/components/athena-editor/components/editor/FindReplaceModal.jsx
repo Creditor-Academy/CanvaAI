@@ -2,12 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import {
   Search,
   Replace,
@@ -15,9 +12,11 @@ import {
   ArrowDown,
   X,
   CaseSensitive,
-  WholeWord
+  WholeWord,
+  ReplaceAll
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '../utils';
 
 const FindReplaceModal = ({
   isOpen,
@@ -216,141 +215,144 @@ const FindReplaceModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Search className="w-5 h-5" />
-            {isReplaceMode ? 'Find and Replace' : 'Find'}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 shadow-2xl border-2">
+        {/* Google Docs-style header bar */}
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 rounded-t-lg">
+          <div className="flex items-center gap-3 flex-1">
+            <Search className="w-5 h-5 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Find and replace</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
 
-        <div className="space-y-4 py-4">
-          {/* Search Input */}
-          <div className="space-y-2">
-            <Label htmlFor="search-term">Find</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        {/* Main content area - Google Docs style */}
+        <div className="p-4 space-y-3 bg-gray-50">
+          {/* Search input with integrated buttons */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
               <Input
                 ref={searchInputRef}
-                id="search-term"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Enter text to find..."
-                className="pl-10"
+                placeholder="Find..."
+                className="pl-3 pr-10 h-10 border-2 focus:border-blue-500 focus:ring-0"
+                autoFocus
               />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setMatches([]);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded"
+                >
+                  <X className="w-3 h-3 text-gray-400" />
+                </button>
+              )}
+            </div>
+            
+            {/* Navigation buttons integrated into search bar */}
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={findPrevious}
+                disabled={matches.length === 0}
+                className="h-10 w-10 hover:bg-gray-100"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={findNext}
+                disabled={matches.length === 0}
+                className="h-10 w-10 hover:bg-gray-100"
+              >
+                <ArrowDown className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
-          {/* Replace Input (only in replace mode) */}
-          {isReplaceMode && (
-            <div className="space-y-2">
-              <Label htmlFor="replace-term">Replace with</Label>
-              <div className="relative">
-                <Replace className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="replace-term"
-                  value={replaceTerm}
-                  onChange={(e) => setReplaceTerm(e.target.value)}
-                  placeholder="Enter replacement text..."
-                  className="pl-10"
-                />
-              </div>
+          {/* Replace input */}
+          <div className="relative">
+            <Input
+              value={replaceTerm}
+              onChange={(e) => setReplaceTerm(e.target.value)}
+              placeholder="Replace with..."
+              className="pl-3 h-10 border-2 focus:border-blue-500 focus:ring-0"
+            />
+          </div>
+
+          {/* Options row - compact */}
+          <div className="flex items-center gap-4 text-sm">
+            <label className="flex items-center gap-2 cursor-pointer hover:text-gray-700">
+              <input
+                type="checkbox"
+                checked={matchCase}
+                onChange={(e) => setMatchCase(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="flex items-center gap-1">
+                <CaseSensitive className="w-3.5 h-3.5" />
+                Match case
+              </span>
+            </label>
+            
+            <label className="flex items-center gap-2 cursor-pointer hover:text-gray-700">
+              <input
+                type="checkbox"
+                checked={wholeWord}
+                onChange={(e) => setWholeWord(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="flex items-center gap-1">
+                <WholeWord className="w-3.5 h-3.5" />
+                Match whole word
+              </span>
+            </label>
+          </div>
+
+          {/* Match counter */}
+          {searchTerm && (
+            <div className={cn(
+              "text-sm text-center py-1.5 rounded",
+              matches.length > 0 
+                ? "bg-blue-50 text-blue-700 font-medium" 
+                : "bg-gray-100 text-gray-500"
+            )}>
+              {currentMatchText}
             </div>
           )}
 
-          {/* Options */}
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="match-case"
-                checked={matchCase}
-                onChange={(e) => setMatchCase(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="match-case" className="text-sm flex items-center gap-1">
-                <CaseSensitive className="w-4 h-4" />
-                Match case
-              </Label>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="whole-word"
-                checked={wholeWord}
-                onChange={(e) => setWholeWord(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="whole-word" className="text-sm flex items-center gap-1">
-                <WholeWord className="w-4 h-4" />
-                Whole word
-              </Label>
-            </div>
+          {/* Action buttons - Google Docs style */}
+          <div className="flex gap-2 pt-2 border-t border-gray-200">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={replaceCurrent}
+              disabled={matches.length === 0 || !replaceTerm}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Replace className="w-4 h-4 mr-1.5" />
+              Replace
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={replaceAll}
+              disabled={matches.length === 0 || !replaceTerm}
+              className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            >
+              <ReplaceAll className="w-4 h-4 mr-1.5" />
+              Replace All
+            </Button>
           </div>
-
-          {/* Match Counter */}
-          <div className="text-sm text-gray-500 text-center">
-            {currentMatchText}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={findPrevious}
-                disabled={matches.length === 0}
-                className="flex-1"
-              >
-                <ArrowUp className="w-4 h-4 mr-1" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={findNext}
-                disabled={matches.length === 0}
-                className="flex-1"
-              >
-                <ArrowDown className="w-4 h-4 mr-1" />
-                Next
-              </Button>
-            </div>
-
-            {isReplaceMode && (
-              <div className="flex gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={replaceCurrent}
-                  disabled={matches.length === 0 || !replaceTerm}
-                  className="flex-1"
-                >
-                  <Replace className="w-4 h-4 mr-1" />
-                  Replace
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={replaceAll}
-                  disabled={matches.length === 0 || !replaceTerm}
-                  className="flex-1 bg-red-600 hover:bg-red-700"
-                >
-                  <Replace className="w-4 h-4 mr-1" />
-                  Replace All
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            <X className="w-4 h-4 mr-1" />
-            Close
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

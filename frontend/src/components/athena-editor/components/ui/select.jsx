@@ -48,34 +48,61 @@ const SelectScrollDownButton = React.forwardRef(({ className, ...props }, ref) =
 ))
 SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName
 
-const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        position === "popper" &&
-        "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        className
-      )}
-      position={position}
-      {...props}
-      onCloseAutoFocus={(e) => {
-        e.preventDefault();
-        props.onCloseAutoFocus?.(e);
-      }}
-    >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
-        className={cn("p-1", position === "popper" &&
-          "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]")}
+const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => {
+  // CRITICAL FIX: Prevent focus stealing and scroll jumps when select dropdown opens
+  const handleOpenAutoFocus = (e) => {
+    e.preventDefault();
+    window.isToolbarInteraction = true;
+    window.wasToolbarInteractionRecent = true;
+    
+    // LOCK SCROLL when select opens
+    const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
+    if (editorContainer) {
+      require('../../utils/scrollLockManager').scrollLockManager.lock(editorContainer);
+    }
+    
+    setTimeout(() => {
+      window.isToolbarInteraction = false;
+      require('../../utils/scrollLockManager').scrollLockManager.unlock();
+    }, 500);
+    
+    setTimeout(() => {
+      window.wasToolbarInteractionRecent = false;
+    }, 1000);
+    
+    props.onOpenAutoFocus?.(e);
+  };
+  
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        ref={ref}
+        className={cn(
+          "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className
+        )}
+        position={position}
+        onOpenAutoFocus={handleOpenAutoFocus}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          props.onCloseAutoFocus?.(e);
+        }}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
-))
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn("p-1", position === "popper" &&
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]")}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  );
+})
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
 const SelectLabel = React.forwardRef(({ className, ...props }, ref) => (
@@ -90,6 +117,14 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName
 const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
+    // CRITICAL FIX: Prevent focus stealing and scroll jumps when clicking select items
+    onMouseDown={(e) => {
+      e.preventDefault();
+      window.isToolbarInteraction = true;
+      setTimeout(() => {
+        window.isToolbarInteraction = false;
+      }, 300);
+    }}
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className

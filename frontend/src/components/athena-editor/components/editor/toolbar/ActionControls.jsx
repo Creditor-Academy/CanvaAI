@@ -11,7 +11,6 @@ export const ActionControls = ({ editor }) => {
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().chain().focus().undo().run()}
-        tooltip="Undo (Ctrl+Z)"
         className="text-blue-600"
       >
         <Undo className="w-4 h-4" />
@@ -20,7 +19,6 @@ export const ActionControls = ({ editor }) => {
       <ToolbarButton
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().chain().focus().redo().run()}
-        tooltip="Redo (Ctrl+Y)"
         className="text-blue-600"
       >
         <Redo className="w-4 h-4" />

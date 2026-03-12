@@ -109,39 +109,33 @@ export const TableControls = ({ editor }) => {
       <ToolbarButton
         onClick={addTableRow}
         icon={Rows}
-        tooltip="Add Row After (Ctrl+Shift+Enter)"
       />
       
       <ToolbarButton
         onClick={addTableColumn}
         icon={Columns}
-        tooltip="Add Column After (Ctrl+Alt+Enter)"
       />
       
       <ToolbarButton
         onClick={deleteTableRow}
         icon={ArrowRightToLine} // Approximate icon for deleting row/line
-        tooltip="Delete Row (Ctrl+Shift+Delete)"
         className="text-red-500 hover:text-red-600 hover:bg-red-50"
       />
       
       <ToolbarButton
         onClick={deleteTableColumn}
         icon={ArrowLeftToLine} // Approximate icon for deleting col
-        tooltip="Delete Column (Ctrl+Alt+Delete)"
         className="text-red-500 hover:text-red-600 hover:bg-red-50"
       />
       
       <ToolbarButton
         onClick={toggleTableHeader}
         icon={Table2}
-        tooltip="Toggle Header"
       />
       
       <ToolbarButton
         onClick={deleteTable}
         icon={Trash2}
-        tooltip="Delete Table"
         className="text-red-600 hover:text-red-700 hover:bg-red-50"
       />
     </div>

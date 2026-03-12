@@ -634,41 +634,53 @@ export class DocumentExporter {
   }
 
   static async exportToJSON(editor, options = {}) {
-   const { filename = 'document.json', includePagination= true } = options;
+    const { filename = 'document.json', includePagination = true } = options;
     
     if (!editor) {
       throw new Error('Editor not available');
     }
 
-   const json = editor.getJSON ? editor.getJSON() : {};
-    
-    // If pagination is requested, calculate and add page structure
-    if (includePagination) {
-     const paginationData = this.calculatePaginationForExport(editor);
+    try {
+      const json = editor.getJSON ? editor.getJSON() : {};
       
-     const enrichedJson = {
-        ...json,
-        metadata: {
-          ...json.metadata,
-          exportedAt: new Date().toISOString(),
-         paginationEnabled: true,
-          totalPages: paginationData.totalPages,
-          usableHeightPerContent: paginationData.usableHeight,
-         margins: {
-            top: paginationData.marginTop,
-            bottom: paginationData.marginBottom,
-            left: paginationData.marginLeft,
-            right: paginationData.marginRight
-          }
-        },
-       pages: paginationData.pages
-      };
-      
-     const blob = new Blob([JSON.stringify(enrichedJson, null, 2)], { type: 'application/json' });
-      saveAs(blob, filename);
-    } else {
-     const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
-      saveAs(blob, filename);
+      // If pagination is requested, calculate and add page structure
+      if (includePagination) {
+        try {
+          const paginationData = this.calculatePaginationForExport(editor);
+          
+          const enrichedJson = {
+            ...json,
+            metadata: {
+              ...json.metadata,
+              exportedAt: new Date().toISOString(),
+              paginationEnabled: true,
+              totalPages: paginationData.totalPages,
+              usableHeightPerContent: paginationData.usableHeight,
+              margins: {
+                top: paginationData.marginTop,
+                bottom: paginationData.marginBottom,
+                left: paginationData.marginLeft,
+                right: paginationData.marginRight
+              }
+            },
+            pages: paginationData.pages
+          };
+          
+          const blob = new Blob([JSON.stringify(enrichedJson, null, 2)], { type: 'application/json' });
+          saveAs(blob, filename);
+        } catch (paginationError) {
+          console.warn('Pagination calculation failed, exporting without pagination:', paginationError);
+          // Fallback: export without pagination
+          const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+          saveAs(blob, filename);
+        }
+      } else {
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        saveAs(blob, filename);
+      }
+    } catch (error) {
+      console.error('JSON export failed:', error);
+      throw error;
     }
   }
 

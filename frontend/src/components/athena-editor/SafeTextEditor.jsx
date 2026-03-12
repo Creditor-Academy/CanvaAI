@@ -1,5 +1,4 @@
 import React, { Suspense, lazy } from 'react';
-import { TooltipProvider } from './components/ui/tooltip';
 
 // Dynamically import the editor component with proper React Suspense
 const TextEditor = lazy(() => import('./components/TextEditor.jsx'));

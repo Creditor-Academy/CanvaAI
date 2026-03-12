@@ -65,28 +65,8 @@ const templates = [
 <h2>Conclusion</h2>
 <p>Restate your thesis and summarize main points. End with a thought-provoking statement.</p>`,
   },
-  {
-    id: 'meeting-notes',
-    name: 'Meeting Notes',
-    description: 'Structured meeting notes',
-    icon: FileSignature,
-    category: 'Business',
-    content: `<h1>Meeting Notes</h1>
-<p><strong>Date:</strong> [Date]</p>
-<p><strong>Time:</strong> [Time]</p>
-<p><strong>Attendees:</strong> [Names]</p>
-<h2>Agenda</h2>
-<ol><li>Item 1</li><li>Item 2</li><li>Item 3</li></ol>
-<h2>Discussion</h2>
-<h3>Topic 1</h3>
-<p>Notes and key points discussed...</p>
-<h3>Topic 2</h3>
-<p>Notes and key points discussed...</p>
-<h2>Action Items</h2>
-<ul><li>[ ] Action item 1 - Assigned to: [Name] - Due: [Date]</li><li>[ ] Action item 2 - Assigned to: [Name] - Due: [Date]</li></ul>
-<h2>Next Meeting</h2>
-<p>Date and agenda items for next meeting...</p>`,
-  },
+  
+  
   {
     id: 'newsletter',
     name: 'Newsletter',

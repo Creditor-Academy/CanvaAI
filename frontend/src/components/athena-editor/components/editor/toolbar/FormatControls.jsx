@@ -100,24 +100,24 @@ export const FormatControls = ({ editor }) => {
 
   return (
     <div className="flex items-center gap-1">
-      <ToolbarButton onClick={() => handleFormatAction('bold')} isActive={editor.isActive("bold")} tooltip="Bold (Ctrl+B)">
+      <ToolbarButton onClick={() => handleFormatAction('bold')} isActive={editor.isActive("bold")}>
         <Bold className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => handleFormatAction('italic')} isActive={editor.isActive("italic")} tooltip="Italic (Ctrl+I)">
+      <ToolbarButton onClick={() => handleFormatAction('italic')} isActive={editor.isActive("italic")}>
         <Italic className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => handleFormatAction('underline')} isActive={editor.isActive("underline")} tooltip="Underline (Ctrl+U)">
+      <ToolbarButton onClick={() => handleFormatAction('underline')} isActive={editor.isActive("underline")}>
         <Underline className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => handleFormatAction('strike')} isActive={editor.isActive("strike")} tooltip="Strikethrough">
+      <ToolbarButton onClick={() => handleFormatAction('strike')} isActive={editor.isActive("strike")}>
         <Strikethrough className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
       
-      <ToolbarButton onClick={() => handleFormatAction('superscript')} isActive={editor.isActive("superscript")} tooltip="Superscript">
+      <ToolbarButton onClick={() => handleFormatAction('superscript')} isActive={editor.isActive("superscript")}>
         <Superscript className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
 
-      <ToolbarButton onClick={() => handleFormatAction('subscript')} isActive={editor.isActive("subscript")} tooltip="Subscript">
+      <ToolbarButton onClick={() => handleFormatAction('subscript')} isActive={editor.isActive("subscript")}>
         <Subscript className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
       
@@ -176,10 +176,10 @@ export const FormatControls = ({ editor }) => {
       
       <Separator orientation="vertical" className="mx-2 h-5" />
       
-      <ToolbarButton onClick={indent} tooltip="Increase Indent">
+      <ToolbarButton onClick={indent}>
         <ArrowRightToLine className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
-      <ToolbarButton onClick={outdent} tooltip="Decrease Indent">
+      <ToolbarButton onClick={outdent}>
         <ArrowLeftToLine className="w-4 h-4 text-blue-600" />
       </ToolbarButton>
     </div>

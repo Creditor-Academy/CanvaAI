@@ -112,7 +112,8 @@ const TextEditor = ({ textElement, onUpdate, onClose }) => {
       borderRadius: '6px',
       fontSize: '14px',
       backgroundColor: 'white',
-      flex: 1
+      width: '110px',
+      maxWidth: '110px'
     },
     buttonGroup: {
       display: 'flex',

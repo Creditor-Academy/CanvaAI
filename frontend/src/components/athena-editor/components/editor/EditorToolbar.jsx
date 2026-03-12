@@ -98,16 +98,12 @@ import {
   Trash2,
   ChevronDown,
   Play,
+  Check,
   FileEdit,
   RotateCcw,
   Droplets,
 } from 'lucide-react';
 import { Separator } from '../ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from '../ui/tooltip';
 import IndentControls from './toolbar/IndentControls.jsx';
 import {
   Popover,
@@ -140,7 +136,7 @@ import { scrollLockManager } from '../../utils/scrollLockManager';
 import { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSelection, onMenuOpen, onMenuClose } from './focusUtils';
 
 // AI Assistant Components
-import { AIInlineActions as _AIInlineActions } from './AIInlineActions.tsx';
+import { AIAssistant as _AIAssistant } from './AIAssistant';
 import { CodeAssistant as _CodeAssistant } from './CodeAssistant';
 
 // Import AI-related utilities
@@ -157,7 +153,7 @@ import { WordCountDialog as _WordCountDialog } from './WordCountDialog';
 
 // Safety: if any module exports an object instead of a component function, render null
 const _safe = (C) => (typeof C === 'function' ? C : () => null);
-const AIInlineActions = _safe(_AIInlineActions);
+const AIAssistant = _safe(_AIAssistant);
 const CodeAssistant = _safe(_CodeAssistant);
 const CommentsPanel = _safe(_CommentsPanel);
 const VersionHistory = _safe(_VersionHistory);
@@ -243,31 +239,24 @@ const ToolbarButton = ({
     cleanClass = "";
   }
   return (
-    <Tooltip delayDuration={300}>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          onMouseDown={(e) => { guardToolbarMouseDown(e, editor); }}
-          onClick={onClick}
-          disabled={disabled}
-          aria-label={ariaLabel || tooltip}
-          className={cn(
-            "h-8 w-8 p-0 rounded-full flex items-center justify-center transition-all duration-200 border",
-            isActive
-              ? "bg-green-100 border-green-300 text-green-600 shadow-inner"
-              : "bg-transparent border-transparent text-blue-500 hover:bg-blue-100/50 hover:border-blue-200",
-            disabled && "opacity-50 cursor-not-allowed",
-            cleanClass
-          )}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs bg-gray-800 text-white px-2 py-1 rounded shadow-lg">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
+    <Button
+      variant="ghost"
+      size="icon"
+      onMouseDown={(e) => { guardToolbarMouseDown(e, editor); }}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel || tooltip}
+      className={cn(
+        "h-8 w-8 p-0 rounded-full flex items-center justify-center transition-all duration-200 border",
+        isActive
+          ? "bg-green-100 border-green-300 text-green-600 shadow-inner"
+          : "bg-transparent border-transparent text-blue-500 hover:bg-blue-100/50 hover:border-blue-200",
+        disabled && "opacity-50 cursor-not-allowed",
+        cleanClass
+      )}
+    >
+      {children}
+    </Button>
   );
 };
 
@@ -302,7 +291,10 @@ export const EditorToolbar = ({
   exportLoading,
   // Blockquote function
   toggleBlockquote,
-  className
+  className,
+  // Called after every render with the current menuItems array so that
+  // Callback: receives named editor-handler functions for HeaderMenuBar
+  onToolbarHandlers,
 }) => {
   // Removed debug log to prevent console spam
 
@@ -394,8 +386,7 @@ export const EditorToolbar = ({
   const navigate = useNavigate();
 
   // AI States
-  const [showAIDocumentGenerator, setShowAIDocumentGenerator] = useState(false);
-  const [showAIInlineActions, setShowAIInlineActions] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showCodeAssistant, setShowCodeAssistant] = useState(false);
   const [showCodeBlockMenu, setShowCodeBlockMenu] = useState(false);
   const [showCodeBlockConfigDialog, setShowCodeBlockConfigDialog] = useState(false);
@@ -651,15 +642,25 @@ export const EditorToolbar = ({
     if (!showTablePicker) return;
 
     const handleClickOutside = (event) => {
-      if (tablePickerRef.current && !tablePickerRef.current.contains(event.target)) {
-        const tableContainer = event.target.closest('[data-table-container]') ||
-          event.target.closest('[data-table-button]') ||
-          event.target.closest('.table-button') ||
-          event.target.closest('button[data-icon="table"]') ||
-          event.target === tableButtonRef.current;
-        if (!tableContainer) {
-          setShowTablePicker(false);
-        }
+      // Check if click is inside the picker
+      if (tablePickerRef.current && tablePickerRef.current.contains(event.target)) {
+        return;
+      }
+      
+      // Check if click is on the table button
+      if (tableButtonRef.current && tableButtonRef.current.contains(event.target)) {
+        return;
+      }
+      
+      // Check for any table-related elements
+      const isTableElement = event.target.closest('[data-table-container]') ||
+        event.target.closest('[data-table-button]') ||
+        event.target.closest('.table-button');
+      
+      if (!isTableElement) {
+        setShowTablePicker(false);
+        setSelectedRows(0);
+        setSelectedCols(0);
       }
     };
 
@@ -670,18 +671,25 @@ export const EditorToolbar = ({
   }, [showTablePicker]);
 
   const insertTable = (rows, cols) => {
-    if (!editor) {
+    console.log('[EditorToolbar] insertTable called with:', rows, 'x', cols);
+    
+    if (!editor || editor.isDestroyed) {
+      console.error('[EditorToolbar] Editor not available or destroyed');
       toast.error('Editor not available');
       return;
     }
 
     try {
-      // Close picker first
-      setShowTablePicker(false);
-      setSelectedRows(0);
-      setSelectedCols(0);
+      // Validate input
+      if (!rows || !cols || rows <= 0 || cols <= 0) {
+        console.error('[EditorToolbar] Invalid dimensions:', rows, 'x', cols);
+        toast.error('Invalid table dimensions');
+        return;
+      }
 
-      // Insert table HTML directly
+      console.log('[EditorToolbar] Building table structure...');
+      
+      // Build table HTML for reliable insertion
       const tableHTML = `
         <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
           <tbody>
@@ -699,11 +707,28 @@ export const EditorToolbar = ({
         </table>
       `;
 
-      const result = editor.chain().focus().insertContent(tableHTML).run();
+      console.log('[EditorToolbar] Inserting table HTML...');
+      
+      // Use runWithSavedSelection to maintain cursor position
+      const result = runWithSavedSelection(editor, (chain) => chain.insertContent(tableHTML));
+      
+      console.log('[EditorToolbar] Insert result:', result);
+      
+      // Close picker and reset state
+      setShowTablePicker(false);
+      setSelectedRows(0);
+      setSelectedCols(0);
       
       if (result) {
         toast.success(`${rows}×${cols} table inserted`);
+        // Focus the first cell after a short delay
+        setTimeout(() => {
+          if (!editor.isDestroyed) {
+            editor.commands.focus();
+          }
+        }, 50);
       } else {
+        console.error('[EditorToolbar] Table insertion failed');
         toast.error('Failed to insert table');
       }
     } catch (err) {
@@ -727,10 +752,15 @@ export const EditorToolbar = ({
         cells.push(
           <div
             key={`${row}-${col}`}
-            className={`w-5 h-5 border border-gray-200 ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-white'} hover:bg-blue-50 cursor-pointer transition-colors`}
+            className={`w-5 h-5 border border-gray-200 ${isSelected ? 'bg-blue-500 border-blue-600' : 'bg-white'} hover:bg-blue-100 cursor-pointer transition-all duration-150`}
             onMouseEnter={() => handleTablePickerHover(row, col)}
             onMouseDown={(e) => {
-              preventEditorBlur(e);
+              e.preventDefault();
+              e.stopPropagation();
+              // Save selection before inserting
+              if (editor && !editor.isDestroyed) {
+                saveSelection(editor);
+              }
               insertTable(row, col);
             }}
           />
@@ -738,13 +768,24 @@ export const EditorToolbar = ({
       }
     }
 
+    // Add dimension label
+    const dimensionLabel = selectedRows > 0 && selectedCols > 0 
+      ? `${selectedRows} × ${selectedCols}` 
+      : 'Select table size';
+
     return (
-      <div className="p-2">
-        <div className="grid grid-cols-10 gap-0.5 bg-white p-1">
+      <div className="p-3">
+        {/* Dimension display */}
+        <div className="mb-2 text-center text-sm font-semibold text-gray-700 bg-gray-100 rounded py-1.5 px-3">
+          {dimensionLabel}
+        </div>
+        {/* Grid */}
+        <div className="grid grid-cols-10 gap-px bg-gray-100 p-1 rounded border border-gray-200">
           {cells}
         </div>
-        <div className="text-center mt-2 text-sm text-gray-600 font-medium">
-          {selectedRows > 0 && selectedCols > 0 ? `${selectedCols} x ${selectedRows}` : 'Select table size'}
+        {/* Instructions */}
+        <div className="mt-2 text-xs text-gray-500 text-center">
+          Hover to select, click to insert
         </div>
       </div>
     );
@@ -1706,7 +1747,16 @@ export const EditorToolbar = ({
             fileInputRef.current?.click();
           }
         },
-
+        {
+          label: 'Save', icon: Save, shortcut: 'Ctrl+S', action: () => {
+            if (onSave && typeof onSave === 'function') {
+              onSave();
+            } else {
+              toast.error('Save function not available');
+            }
+          }
+        },
+        { type: 'separator' },
         {
           label: 'Print', icon: Printer, shortcut: 'Ctrl+P', action: () => {
             setTimeout(() => {
@@ -2115,22 +2165,19 @@ export const EditorToolbar = ({
       ]
     },
     {
-      label: 'AI Assistant',
+      label: 'AI Tools',
       items: [
         {
-          label: "Generate Document",
+          label: "AI Assistant",
           icon: Sparkles,
-          action: () => setShowAIDocumentGenerator(true)
-        },
-        {
-          label: "Inline AI Actions",
-          icon: Wand2,
-          action: () => setShowAIInlineActions(true)
+          action: () => setShowAIAssistant(true),
+          description: "Generate documents & transform text"
         },
         {
           label: "Code Assistant",
-          icon: Code,
-          action: () => setShowCodeAssistant(true)
+          icon: Code2,
+          action: () => setShowCodeAssistant(true),
+          description: "Generate, explain, and refactor code"
         },
         { type: "separator" },
         {
@@ -2146,6 +2193,67 @@ export const EditorToolbar = ({
       ]
     }
   ];
+
+  // Expose named handler functions to HeaderMenuBar after every render so its
+  // menu items always call the same runWithSavedSelection-backed logic that
+  // the toolbar buttons use. No dep array — closures stay fresh every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (typeof onToolbarHandlers !== 'function') return;
+    onToolbarHandlers({
+      // Formatting
+      onToggleBold:           () => handleFormatAction('bold'),
+      onToggleItalic:         () => handleFormatAction('italic'),
+      onToggleUnderline:      () => handleFormatAction('underline'),
+      onToggleStrikethrough:  () => handleFormatAction('strike'),
+      onToggleCode:           () => runWithSavedSelection(editor, (c) => c.toggleCode()),
+      onToggleSuperscript:    () => handleFormatAction('superscript'),
+      onToggleSubscript:      () => handleFormatAction('subscript'),
+      onClearFormatting:      clearFormatting,
+      onSetTextAlign:         setTextAlign,
+      // Insert
+      onInsertImage:          addImage,
+      onInsertTable:          () => setShowTablePicker(true),
+      onInsertLink:           addLink,
+      onInsertPageBreak:      () => handleInsertAction('page_break'),
+      onInsertHorizontalRule: () => runWithSavedSelection(editor, (c) => c.setHorizontalRule()),
+      onToggleBlockquote:     () => runWithSavedSelection(editor, (c) => c.toggleBlockquote()),
+      // Lists
+      onToggleBulletList:     toggleBulletList,
+      onToggleOrderedList:    toggleOrderedList,
+      onToggleTaskList:       toggleTaskList,
+      // Indentation
+      onIndent:               indent,
+      onOutdent:              outdent,
+      // Edit history
+      onUndo:                 () => editor?.chain().focus().undo().run(),
+      onRedo:                 () => editor?.chain().focus().redo().run(),
+      onSelectAll:            () => editor?.chain().focus().selectAll().run(),
+      // Clipboard
+      onCut:                  () => document.execCommand('cut'),
+      onCopy:                 () => { document.execCommand('copy'); toast.success('Copied to clipboard'); },
+      onPaste: async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          editor?.chain().focus().insertContent(text).run();
+        } catch { document.execCommand('paste'); }
+      },
+      onPastePlainText: async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          editor?.chain().focus().insertContent(text).run();
+        } catch { toast.info('Use Ctrl+Shift+V to paste as plain text'); }
+      },
+      // Spell check toggle
+      onToggleSpellCheck: () => {
+        const dom = editor?.view?.dom;
+        if (!dom) return;
+        const next = dom.getAttribute('spellcheck') !== 'true';
+        dom.setAttribute('spellcheck', String(next));
+        toast.success(`Spell check ${next ? 'enabled' : 'disabled'}`);
+      },
+    });
+  });
 
   const renderMenu = () => {
     return (
@@ -2308,7 +2416,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          tooltip="Undo (Ctrl+Z)"
           className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Undo className="w-4 h-4 text-blue-600" />
@@ -2317,7 +2424,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          tooltip="Redo (Ctrl+Y)"
           className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Redo className="w-4 h-4 text-blue-600" />
@@ -2340,12 +2446,12 @@ export const EditorToolbar = ({
           }}
           onValueChange={(value) => setFontFamily(value)}
         >
-          <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 min-w-0 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
+          <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-[110px] hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors truncate">
             <SelectValue placeholder="Font" />
           </SelectTrigger>
-          <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white">
+          <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white w-[110px]">
             {FONTS.map(font => (
-              <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+              <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }} className="truncate text-xs">
                 {font.label}
               </SelectItem>
             ))}
@@ -2421,7 +2527,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('bold')}
           isActive={editor.isActive("bold")}
-          tooltip="Bold (Ctrl+B)"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Bold className="w-4 h-4 text-blue-600" />
@@ -2430,7 +2535,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('italic')}
           isActive={editor.isActive("italic")}
-          tooltip="Italic (Ctrl+I)"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Italic className="w-4 h-4 text-blue-600" />
@@ -2439,7 +2543,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('underline')}
           isActive={editor.isActive("underline")}
-          tooltip="Underline (Ctrl+U)"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Underline className="w-4 h-4 text-blue-600" />
@@ -2448,7 +2551,6 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={() => handleFormatAction('strike')}
           isActive={editor.isActive("strike")}
-          tooltip="Strikethrough"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Strikethrough className="w-4 h-4 text-blue-600" />
@@ -2487,23 +2589,162 @@ export const EditorToolbar = ({
               <Palette className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 p-3 rounded-xl shadow-lg border border-gray-200 bg-white">
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-xs font-medium mb-2">Text Color</h4>
-                <div className="grid grid-cols-6 gap-1">
-                  {TEXT_COLORS.slice(0, 12).map(color => (
+          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 text-white">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Palette className="w-4 h-4" />
+                Text Color
+              </h3>
+              <p className="text-xs text-blue-100 mt-0.5">Choose the perfect color for your text</p>
+            </div>
+            
+            {/* Color Grid */}
+            <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              {/* Quick Access - Recent Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  Standard Colors
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(0, 12).map((color, index) => (
                     <button
                       key={color}
                       className={cn(
-                        "w-6 h-6 rounded border hover:scale-110 transition-transform shadow-sm",
-                        currentTextColor === color && "ring-2 ring-blue-500"
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
                       onClick={() => setTextColor(color)}
+                      title={color}
+                    >
+                      {index < 6 && currentTextColor === color && (
+                        <Check className="w-3 h-3 mx-auto text-white drop-shadow-lg" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Warm Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  Warm Colors
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(12, 24).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                      title={color}
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Cool Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  Cool Colors
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(24, 36).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Neutral & Pastel Colors */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                  Neutral & Pastel
+                </h4>
+                <div className="grid grid-cols-12 gap-1.5">
+                  {TEXT_COLORS.slice(36, 48).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                        currentTextColor === color 
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setTextColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Additional Colors */}
+              {TEXT_COLORS.length > 48 && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    More Colors
+                  </h4>
+                  <div className="grid grid-cols-12 gap-1.5">
+                    {TEXT_COLORS.slice(48).map(color => (
+                      <button
+                        key={color}
+                        className={cn(
+                          "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
+                          currentTextColor === color 
+                            ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                            : "border-gray-200 hover:border-gray-300"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setTextColor(color)}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with Current Color Preview */}
+            <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium">Current:</span>
+                  <div 
+                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm" 
+                    style={{ backgroundColor: currentTextColor }}
+                  />
+                  <span className="text-xs font-mono text-gray-700 uppercase">{currentTextColor}</span>
+                </div>
+                <button
+                  onClick={() => setTextColor('#000000')}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  Reset to Black
+                </button>
               </div>
             </div>
           </DropdownMenuContent>
@@ -2540,23 +2781,138 @@ export const EditorToolbar = ({
               <Highlighter className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 p-3 rounded-xl shadow-lg border border-gray-200 bg-white">
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-xs font-medium mb-2">Highlight Color</h4>
-                <div className="grid grid-cols-6 gap-1">
-                  {HIGHLIGHT_COLORS.slice(0, 12).map(color => (
+          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-3 text-white">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Highlighter className="w-4 h-4" />
+                Highlight Color
+              </h3>
+              <p className="text-xs text-yellow-100 mt-0.5">Make your text stand out</p>
+            </div>
+            
+            {/* Color Grid */}
+            <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              {/* Bright Highlights */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+                  Bright & Vibrant
+                </h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {HIGHLIGHT_COLORS.slice(0, 8).map(color => (
                     <button
                       key={color}
                       className={cn(
-                        "w-6 h-6 rounded border hover:scale-110 transition-transform shadow-sm",
-                        currentHighlight === color && "ring-2 ring-blue-500"
+                        "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                        currentHighlight === color 
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
                       onClick={() => setHighlightColor(color)}
+                      title={color}
+                    >
+                      {currentHighlight === color && (
+                        <Check className="w-4 h-4 mx-auto text-white drop-shadow-lg" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pastel Highlights */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-pink-300"></span>
+                  Soft Pastels
+                </h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {HIGHLIGHT_COLORS.slice(8, 16).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                        currentHighlight === color 
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setHighlightColor(color)}
+                      title={color}
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Light Highlights */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-300"></span>
+                  Light Shades
+                </h4>
+                <div className="grid grid-cols-8 gap-2">
+                  {HIGHLIGHT_COLORS.slice(16, 24).map(color => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                        currentHighlight === color 
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          : "border-gray-200 hover:border-gray-300"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setHighlightColor(color)}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Subtle Highlights */}
+              {HIGHLIGHT_COLORS.length > 24 && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-300"></span>
+                    More Options
+                  </h4>
+                  <div className="grid grid-cols-8 gap-2">
+                    {HIGHLIGHT_COLORS.slice(24).map(color => (
+                      <button
+                        key={color}
+                        className={cn(
+                          "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
+                          currentHighlight === color 
+                            ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                            : "border-gray-200 hover:border-gray-300"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setHighlightColor(color)}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with Current Color Preview */}
+            <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium">Current:</span>
+                  <div 
+                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm" 
+                    style={{ backgroundColor: currentHighlight || 'transparent' }}
+                  />
+                  <span className="text-xs font-mono text-gray-700 uppercase">{currentHighlight || 'None'}</span>
+                </div>
+                <button
+                  onClick={() => setHighlightColor(null)}
+                  className="text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors"
+                >
+                  Remove Highlight
+                </button>
               </div>
             </div>
           </DropdownMenuContent>
@@ -2802,7 +3158,6 @@ export const EditorToolbar = ({
             };
             fileInput.click();
           }}
-          tooltip="Insert Image"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <ImageIcon className="w-4 h-4 text-blue-600" />
@@ -2817,7 +3172,6 @@ export const EditorToolbar = ({
               toast.info('Template sidebar is not available');
             }
           }}
-          tooltip="Templates"
           className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <LayoutTemplate className="w-4 h-4 text-blue-600" />
@@ -2826,7 +3180,6 @@ export const EditorToolbar = ({
         <ToolbarButton
           editor={editor}
           onClick={() => handleInsertAction('link')}
-          tooltip="Insert Link"
           className="rounded-lg bg-gradient-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Link className="w-4 h-4 text-blue-600" />
@@ -2847,8 +3200,6 @@ export const EditorToolbar = ({
                 setShowTablePicker(true);
               }
             }}
-            tooltip={isInsideTable() ? "Table Tools (Click for options)" : "Insert Table"}
-            isActive={isInsideTable()}
             className={`rounded-lg transition-all duration-300 ${isInsideTable()
               ? "bg-linear-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
               : "bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600"
@@ -2882,7 +3233,6 @@ export const EditorToolbar = ({
               editor={editor}
               onClick={toggleCodeBlock}
               isActive={editor.isActive('codeBlock')}
-              tooltip="Insert Code Block"
               className="h-8 w-8 rounded-r-none bg-transparent hover:bg-transparent"
             >
               <Code className="w-4 h-4 text-blue-600" />
@@ -2988,43 +3338,33 @@ export const EditorToolbar = ({
           editor={editor}
           onClick={toggleBlockquote}
           isActive={editor.isActive('blockquote')}
-          tooltip="Insert Block Quote"
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Quote className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
 
-        <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
-
-        {/* AI Tools */}
-        <ToolbarButton
-          editor={editor}
-          onClick={() => setShowAIDocumentGenerator(true)}
-          tooltip="Generate Document with AI"
-          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <Sparkles className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
-
-        <ToolbarButton
-          editor={editor}
-          onClick={() => setShowAIInlineActions(true)}
-          tooltip="AI Inline Actions"
-          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <Wand2 className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
-
-        <ToolbarButton
-          editor={editor}
-          onClick={() => setShowCodeAssistant(true)}
-          tooltip="Code Assistant"
-          className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
-        >
-          <Code2 className="w-4 h-4 text-blue-600" />
-        </ToolbarButton>
-
         <Separator orientation="vertical" className="mx-2 h-5" />
+
+        {/* Right Side AI Assistant Button - Prominent */}
+        <div className="flex items-center gap-2 ml-auto">
+          <ToolbarButton
+            editor={editor}
+            onClick={() => setShowAIAssistant(true)}
+            className="rounded-lg bg-linear-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            title="AI Assistant (Document Generation & Text Transformation)"
+          >
+            <Sparkles className="w-4 h-4 text-white" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            editor={editor}
+            onClick={() => setShowCodeAssistant(true)}
+            className="rounded-lg bg-linear-to-br from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            title="Code Assistant"
+          >
+            <Code2 className="w-4 h-4 text-white" />
+          </ToolbarButton>
+        </div>
       </div >
 
       {/* Search Bar */}
@@ -3070,134 +3410,15 @@ export const EditorToolbar = ({
       {/* Hidden file input */}
       {hiddenFileInput}
 
-      {/* AI Document Generator Dialog */}
-      <Dialog open={showAIDocumentGenerator} onOpenChange={setShowAIDocumentGenerator}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white/95 backdrop-blur-xl border border-blue-200/60 rounded-4xl shadow-2xl overflow-hidden p-0" aria-describedby="ai-document-generator-description">
-          <div className="bg-linear-to-r from-[#0c496e] to-[#1e40af] px-8 py-6 text-white relative shrink-0">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <DialogHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Sparkles className="w-5 h-5 text-gold" style={{ color: '#fabf23' }} />
-                </div>
-                <DialogTitle className="text-2xl font-bold tracking-tight text-white">Generate with AI</DialogTitle>
-              </div>
-              <DialogDescription className="text-blue-100/80 font-medium">
-                Describe your vision and Athena will craft a professional document for you.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
-            <div className="space-y-3">
-              <Label htmlFor="topic" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Document Topic</Label>
-              <div className="relative group">
-                <Input
-                  id="topic"
-                  placeholder="e.g., Marketing Strategy for 2026..."
-                  value={documentTopic}
-                  onChange={(e) => setDocumentTopic(e.target.value)}
-                  className="h-14 bg-slate-50 border-slate-200 rounded-2xl pl-4 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all shadow-sm group-hover:shadow-md border-2 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="pages" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Length</Label>
-                <Select value={documentPages.toString()} onValueChange={(value) => setDocumentPages(parseInt(value))}>
-                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
-                    <SelectValue placeholder="Select pages" />
-                  </SelectTrigger>
-                  <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-xl border-slate-200 shadow-xl">
-                    {[1, 2, 3, 5, 10].map(num => (
-                      <SelectItem key={num} value={num.toString()} className="rounded-lg">{num} page{num > 1 ? 's' : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <Label htmlFor="tone" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Tone of Voice</Label>
-                <Select value={documentTone} onValueChange={setDocumentTone}>
-                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
-                    <SelectValue placeholder="Select tone" />
-                  </SelectTrigger>
-                  <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-xl border-slate-200 shadow-xl">
-                    {TONES.map(tone => (
-                      <SelectItem key={tone} value={tone} className="rounded-lg">{tone}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="type" className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Document Category</Label>
-                <Select value={documentType} onValueChange={setDocumentType}>
-                  <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all border-2">
-                    <SelectValue placeholder="Select document type" />
-                  </SelectTrigger>
-                  <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-xl border-slate-200 shadow-xl">
-                    {['Technical Document', 'Blog Post', 'Research Paper', 'Business Report', 'Creative Story', 'Meeting Minutes'].map(type => (
-                      <SelectItem key={type} value={type} className="rounded-lg">{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center mb-1">
-                  <Label className="text-sm font-bold text-[#0c496e] ml-1 uppercase tracking-wider">Creativity</Label>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">
-                    {Math.round(documentCreativity[0] * 100)}%
-                  </span>
-                </div>
-                <div className="h-12 flex items-center px-2">
-                  <Slider
-                    value={documentCreativity}
-                    onValueChange={setDocumentCreativity}
-                    max={1}
-                    step={0.1}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 flex items-center gap-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowAIDocumentGenerator(false)}
-                className="flex-1 h-12 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-bold text-slate-600 transition-all font-sans"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  handleGenerateDocument();
-                  setShowAIDocumentGenerator(false);
-                }}
-                disabled={!documentTopic || !documentTopic.trim()}
-                className="flex-2 h-14 rounded-xl bg-linear-to-r from-[#0c496e] to-[#1e40af] hover:shadow-xl shadow-[#0c496e]/20 text-white font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              >
-                <Sparkles className="w-5 h-5 mr-2" />
-                Forge Document
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
-
-      {/* AI Inline Actions */}
-      <AIInlineActions
-        open={showAIInlineActions}
-        onOpenChange={setShowAIInlineActions}
-        onAction={handleAIInlineAction}
-        selectedText={editor && editor.state && editor.state.selection && editor.state.selection.$from ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" : ""}
+      {/* Unified AI Assistant Component */}
+      <AIAssistant
+        open={showAIAssistant}
+        onOpenChange={setShowAIAssistant}
+        onGenerateDocument={handleGenerateDocument}
+        onInlineAction={handleAIInlineAction}
+        selectedText={editor && editor.state && editor.state.selection && editor.state.selection.$from 
+          ? editor.state.doc.textBetween(editor.state.selection.from, Math.min(editor.state.selection.to, editor.state.selection.from + 1000)) || "" 
+          : ""}
       />
 
       {/* Code Assistant */}

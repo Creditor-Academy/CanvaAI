@@ -169,19 +169,19 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
     transform: `rotate(${node.attrs.rotation || 0}deg)`,
   };
 
-  // Helper for handles
+  // Helper for handles - only bottom-right corner
   const renderHandle = (type, positionStyle) => (
     <div
       onMouseDown={(e) => onResizeStart(e, type)}
       style={{
         position: 'absolute',
-        width: '10px',
-        height: '10px',
+        width: '12px',
+        height: '12px',
         backgroundColor: '#3b82f6',
-        border: '1px solid white',
+        border: '2px solid white',
         borderRadius: '50%',
         zIndex: 100,
-        cursor: type.includes('-') ? `${type.replace('top', 'nw').replace('bottom', 'se').replace('left', 'sw').replace('right', 'ne')}-resize` : `${type === 'left' || type === 'right' ? 'ew' : 'ns'}-resize`,
+        cursor: 'nwse-resize',
         ...positionStyle,
         display: selected || isResizing ? 'block' : 'none'
       }}
@@ -200,17 +200,8 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
           draggable={false}
         />
 
-        {/* Corner Handles */}
-        {renderHandle('top-left', { top: '-5px', left: '-5px' })}
-        {renderHandle('top-right', { top: '-5px', right: '-5px' })}
-        {renderHandle('bottom-left', { bottom: '-5px', left: '-5px' })}
-        {renderHandle('bottom-right', { bottom: '-5px', right: '-5px' })}
-
-        {/* Edge Handles */}
-        {renderHandle('top', { top: '-5px', left: '50%', marginLeft: '-5px' })}
-        {renderHandle('bottom', { bottom: '-5px', left: '50%', marginLeft: '-5px' })}
-        {renderHandle('left', { left: '-5px', top: '50%', marginTop: '-5px' })}
-        {renderHandle('right', { right: '-5px', top: '50%', marginTop: '-5px' })}
+        {/* Only bottom-right corner handle */}
+        {renderHandle('bottom-right', { bottom: '-6px', right: '-6px' })}
 
         {isResizing && (
           <div style={{

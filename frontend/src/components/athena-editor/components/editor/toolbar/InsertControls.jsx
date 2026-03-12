@@ -243,14 +243,12 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
         onClick={addLink}
         isActive={editor.isActive('link')}
         icon={Link}
-        tooltip="Add Link"
       />
 
       {/* Image */}
       <ToolbarButton
         onClick={addImage}
         icon={ImageIcon}
-        tooltip="Insert Image"
       />
 
       {/* Image Dialog */}
@@ -327,13 +325,11 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
       <ToolbarButton
         onClick={() => addSectionBreak('page')}
         icon={Minus}
-        tooltip="Horizontal Rule"
       />
 
       <ToolbarButton
         onClick={() => editor.chain().focus().setPageBreak().run()}
         icon={Split}
-        tooltip="Page Break"
       />
 
       <Separator orientation="vertical" className="h-6 mx-1" />
