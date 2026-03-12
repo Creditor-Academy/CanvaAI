@@ -1,7 +1,7 @@
 // src/components/landing/Navbar.jsx
 import React, { useState } from "react";
-import { FiMoon, FiSun } from "react-icons/fi";
 import "./Navbar.css";
+import logo from "../../assets/logo.png";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -11,10 +11,9 @@ const Navbar = () => {
       <div className="navv-inner">
         <div className="navv-left">
           <a href="/" className="brand">
-            <div className="brand-mark">D</div>
-            <div className="brand-text">
-              <strong>Designova AI</strong>
-            </div>
+            <img src={logo} alt="Designova AI" className="brand-logo" />
+            <div className="brand-text"> <strong>Designova </strong> </div>
+            
           </a>
         </div>
 
