@@ -10,6 +10,7 @@ overflow-x:hidden;
 max-width:100%;
 }
 
+
 .canvas-scroll {
   -ms-overflow-style: none;
   /* IE and Edge */
@@ -35,7 +36,6 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--athena-font-body);
 }
 
 /* App content responsive layout aligned with fixed sidebar */

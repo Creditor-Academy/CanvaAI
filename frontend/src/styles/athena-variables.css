@@ -29,7 +29,7 @@
   --athena-bg-gradient: linear-gradient(270deg,#b2e5fd,#d3d4eb,#ceeeff);
 
   /* Typography */
-  --athena-font-heading: 'Georgia', serif;
+  --athena-font-heading: 'Georgia';
   --athena-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 

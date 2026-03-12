@@ -1,26 +1,5 @@
 body{
-  font-family: var(--athena-font-body);
   background:#f1f5f9;
-}
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--athena-font-heading);
-}
-
-/* Remove extra forcing */
-p,
-span,
-div,
-a,
-button,
-input,
-textarea,
-select {
-  font-family: inherit;
 }
 
 /* ------MAIN CONTAINER------- */
@@ -938,7 +917,7 @@ align-items:center;
 .help-container .form-textarea {
   min-height: 120px;
   resize: vertical;
-  font-family: inherit;
+ 
 }
 
 .help-container .submit-feedback-btn {
