@@ -310,7 +310,7 @@ const Help = () => {
   return (
 
     /*-------------------HEADER----------------------- */
-    <div className="help-container">
+    <div className="help-container ">
       <div className="help-hero">
         <div className="hero-left">
 

@@ -58,10 +58,30 @@ route: "/create/content-writer",
 color: "bg-blue-800 text-white"
 }
 ];
+const toolImages = [
+  "https://images.pexels.com/photos/221185/pexels-photo-221185.jpeg",
+  "https://images.pexels.com/photos/160994/family-outdoor-happy-happiness-160994.jpeg",
+  "https://images.pexels.com/photos/256467/pexels-photo-256467.jpeg",
+  "https://images.pexels.com/photos/6476783/pexels-photo-6476783.jpeg",
+  "https://images.pexels.com/photos/161963/chicago-illinois-skyline-skyscrapers-161963.jpeg",
+  "https://images.pexels.com/photos/590045/pexels-photo-590045.jpeg"
+];
+
+
 
 export default function Dashboard() {
 
 const navigate = useNavigate();
+const [scrollX,setScrollX] = useState(0);
+const scrollRef = React.useRef(null);
+
+const scrollLeft = ()=>{
+  scrollRef.current.scrollBy({left:-400,behavior:"smooth"});
+};
+
+const scrollRight = ()=>{
+  scrollRef.current.scrollBy({left:400,behavior:"smooth"});
+};
 
 const [profile,setProfile] = useState(null);
 const [page,setPage] = useState(0);
@@ -209,41 +229,88 @@ return (
     </div>
 
     {/* TOOLS */}
+<div className="mt-10 relative">
 
-    <div className="flex justify-center gap-16 mt-10 flex-wrap">
+{/* LEFT ARROW */}
 
-      {TOOLS.map((tool,i)=>{
+<button
+onClick={scrollLeft}
+className="absolute left-[-20px] top-1/2 -translate-y-1/2 z-10
+bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center"
+>
+<FiChevronLeft/>
+</button>
 
-        const Icon = tool.icon;
+{/* CAROUSEL */}
 
-        return(
+<div
+ref={scrollRef}
+className="overflow-x-auto overflow-y-hidden hide-scrollbar scroll-smooth"
+>
 
-          <motion.div
-            key={i}
-            whileHover={{scale:1.08}}
-            onClick={()=>navigate(tool.route)}
-            className="flex flex-col items-center cursor-pointer"
-          >
+<div
+  ref={scrollRef}
+  className="flex gap-6 overflow-x-auto overflow-y-hidden hide-scrollbar scroll-smooth"
+>
 
-            <div
-              className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md ${tool.color}`}
-            >
+{TOOLS.map((tool,i)=>{
 
-              <Icon size={24}/>
+const colors=[
+"bg-blue-100",
+"bg-cyan-100",
+"bg-blue-200",
+"bg-yellow-100",
+"bg-blue-50",
+"bg-yellow-200"
+]
 
-            </div>
+return(
 
-            <p className="text-sm mt-3 text-blue-900 font-medium">
-              {tool.name}
-            </p>
+<motion.div
+key={i}
+whileHover={{scale:1.04}}
+onClick={()=>navigate(tool.route)}
+className={`min-w-[210px] h-[90px] flex-shrink-0 rounded-2xl
+px-5 py-4 cursor-pointer relative overflow-hidden
+${colors[i]}
+shadow-sm hover:shadow-md`}
+>
 
-          </motion.div>
+{/* TEXT */}
 
-        )
+<p className="text-sm font-semibold text-gray-800">
+{tool.name}
+</p>
 
-      })}
+{/* IMAGE */}
 
-    </div>
+<img
+src={`${toolImages[i]}?q=80&w=400&sig=${i}`}
+className="absolute right-2 bottom-[-2px]
+w-24 rotate-[12deg] object-cover rounded-lg"
+/>
+
+</motion.div>
+
+)
+
+})}
+
+</div>
+
+</div>
+
+{/* RIGHT ARROW */}
+
+<button
+onClick={scrollRight}
+className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-10
+bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center"
+>
+<FiChevronRight/>
+</button>
+
+</div>
 
     {/* TEMPLATES */}
 

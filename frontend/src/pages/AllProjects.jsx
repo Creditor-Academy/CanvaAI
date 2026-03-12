@@ -88,7 +88,7 @@ setSelectedProject(null);
 
 return(
 
-<div className="max-w-7xl mx-auto px-6 py-10 ">
+<div className="max-w-7xl mx-auto p-20 pt-25 ">
 
 <div className=" bg-[#f9fafb]  rounded-3xl p-12 shadow-sm">
 
