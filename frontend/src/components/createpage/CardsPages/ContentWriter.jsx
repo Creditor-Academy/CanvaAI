@@ -73,10 +73,10 @@ export default function ContentWriter() {
   };
 
   return (
-    <div className="height:100vh" style={{
+    <div className="height:100vh pl-20 pt-20" style={{
       background: ' linear-gradient(-45deg, #b8e5ff, #f9fafb)',
       backgroundSize: '400% 400%',
-      height: '100vh'
+      height: '100vh',
     }}>
 
       {/* HERO */}
