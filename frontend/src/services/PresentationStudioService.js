@@ -104,3 +104,6 @@ export const generateImage = async (prompt) => {
   if (!response.ok) throw new Error(`Failed to generate image: ${response.status}`);
   return response.json();
 };
+
+
+

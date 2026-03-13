@@ -61,7 +61,7 @@ const BASE_ITEMS = [
   { label: "Home", path: "/home", icon: <HomeIcon /> },
   { label: "PPT", path: "/presentation", icon: <PPTIcon /> },
   { label: "Editor", path: "/editor", icon: <EditorIcon /> },
-  { label: "Image", path: "/canva-clone", icon: <ImageIcon /> },
+  { label: "Image", path: "/create-image", icon: <ImageIcon /> },
   { label: "Files", path: "/projects", icon: <FolderIcon /> },
   { label: "Analytics", path: "/analytics", icon: <AnalyticsIcon /> }
 ];
@@ -126,7 +126,6 @@ const SideBar = () => {
 
   const ITEMS = React.useMemo(() => {
     if (!isAdmin) return BASE_ITEMS;
-
     return [
       ...BASE_ITEMS,
       {

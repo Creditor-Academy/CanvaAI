@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BlurControl = ({ value, onChange, min = 0, max = 20 }) => {
+const BlurControl = ({ value, onChange, min = 0, max = 6 }) => {
   return (
     <div style={styles.propertyRow}>
       <span style={styles.propertyLabel}>Blur</span>

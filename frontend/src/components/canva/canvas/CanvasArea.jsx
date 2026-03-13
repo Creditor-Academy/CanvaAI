@@ -3,6 +3,7 @@ import { FiRotateCw } from 'react-icons/fi'
 import { getFilterCSS, getShadowCSS, hexToRgba } from '../../../utils/styleUtils'
 import FloatingToolbar from '../FloatingToolbar'
 import { MdDeleteOutline } from "react-icons/md";
+import CropOverlay from './CropOverlay';
 
 const LayerComponent = memo(({
   layer, isSelected, selectedTool, getShapeDisplayProps, onLayerSelect,
@@ -163,21 +164,80 @@ const LayerComponent = memo(({
         );
 
       case 'shape':
-        return (
-          <div
-            className="w-full h-full"
-            style={{
-              ...commonStyle,
-              backgroundColor: layer.fillType === 'image' ? 'transparent' : layer.fillColor,
-              backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
-              backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
-              border: `${layer.strokeWidth}px solid ${layer.strokeColor}`,
-              borderRadius: displayProps?.borderRadius,
-              clipPath: displayProps?.clipPath,
-              boxShadow: getShadowCSS(layer.shadows),
-            }}
-          />
-        );
+        {
+          const strokeW = (layer.strokeWidth == null) ? 1 : Math.max(1, layer.strokeWidth);
+          const strokeC = layer.strokeColor || '#000000';
+
+          const baseBoxShadow = getShadowCSS(layer.shadows) || 'none';
+
+          // If a clipPath is present (polygon/path), CSS border may not follow
+          // the clipped shape. Render an SVG overlay with the same polygon/path
+          // and stroke so the border is always visible.
+          const clip = displayProps?.clipPath;
+
+          const renderClipStroke = () => {
+            if (!clip || clip === 'none') return null;
+
+            // polygon(...) => extract points
+            if (clip.startsWith('polygon(')) {
+              const inner = clip.slice('polygon('.length, -1);
+              const points = inner.split(',').map(pt => {
+                const [x, y] = pt.trim().split(/\s+/);
+                return `${x.replace('%', '')},${y.replace('%', '')}`;
+              }).join(' ');
+
+              return (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  <polygon points={points} fill="none" stroke={strokeC} strokeWidth={strokeW} vectorEffect="non-scaling-stroke" />
+                </svg>
+              );
+            }
+
+            // path("M...") or path('M...') => extract path d
+            const pathMatch = clip.match(/path\((?:"|'?)(.+?)(?:"|'?)\)/);
+            if (pathMatch) {
+              const d = pathMatch[1];
+              return (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  <path d={d} fill="none" stroke={strokeC} strokeWidth={strokeW} vectorEffect="non-scaling-stroke" />
+                </svg>
+              );
+            }
+
+            return null;
+          };
+
+          const showSvgStroke = clip && clip !== 'none';
+
+          return (
+            <div className="w-full h-full relative" style={{ ...commonStyle }}>
+              <div
+                className="w-full h-full"
+                style={{
+                  backgroundColor: layer.fillType === 'image' ? 'transparent' : layer.fillColor,
+                  backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
+                  backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
+                  borderRadius: displayProps?.borderRadius,
+                  clipPath: displayProps?.clipPath,
+                  boxShadow: baseBoxShadow,
+                }}
+              />
+
+              {showSvgStroke && renderClipStroke()}
+              {!showSvgStroke && (
+                <div style={{ position: 'absolute', inset: 0, border: `${strokeW}px solid ${strokeC}`, borderRadius: displayProps?.borderRadius, pointerEvents: 'none' }} />
+              )}
+            </div>
+          );
+        }
 
       case 'image':
         return (
@@ -190,7 +250,12 @@ const LayerComponent = memo(({
               transform: layer.flipped ? 'scaleX(-1)' : 'none'
             }}
           >
-            <img src={layer.src} alt={layer.name} className="w-full h-full object-contain block bg-no-repeat " draggable={false} />
+            <img
+              src={layer.src}
+              alt={layer.name}
+              className="w-full h-full object-cover block"
+              draggable={false}
+            />
           </div>
         );
 
@@ -330,7 +395,8 @@ const CanvasArea = ({
   getShapeDisplayProps, handleQuickColorChange, handleLayerDuplicate, handleLayerDelete,
   handleEnhanceText, isEnhancingText, getLayerPrimaryColor, setSelectedLayer,
   canvasBgColor = '#ffffff', canvasBgImage = null, handleUndo, handleRedo,
-  pageId, onPageRemove, canRemovePage = true,
+  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] },
+  cropState = null, onApplyCrop, onCancelCrop
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -382,19 +448,14 @@ const CanvasArea = ({
       >
         <div
           ref={canvasRef}
-          className="absolute top-0 left-0 origin-top-left shadow-2xl"
+          className="absolute top-0 left-0 origin-top-left border border-gray-300"
           style={{
             width: `${canvasSize.width}px`,
             height: `${canvasSize.height}px`,
             transform: `scale(${zoom / 100})`,
             background: canvasBgColor,
-            backgroundImage: [
-              showGrid ? 'radial-gradient(circle, #ddd 1px, transparent 1px)' : null,
-              canvasBgImage ? `url(${canvasBgImage})` : null
-            ].filter(Boolean).join(', '),
-
-            /* ✅ ONLY FIX */
-            backgroundSize: canvasBgImage ? '100% 100%' : '20px 20px',
+            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : 'none',
+            backgroundSize: canvasBgImage ? '100% 100%' : 'auto',
             backgroundRepeat: canvasBgImage ? 'no-repeat' : 'repeat',
             backgroundPosition: 'center',
 
@@ -412,6 +473,19 @@ const CanvasArea = ({
           onMouseMove={handleCanvasMouseMove}
           onMouseLeave={handleCanvasMouseLeave}
         >
+          {/* 0. Grid Overlay (Separate from background to handle sizing/export interactions) */}
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none z-0"
+              style={{
+                backgroundImage: 'radial-gradient(circle, #999 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+                backgroundPosition: 'center'
+              }}
+              data-html2canvas-ignore="true"
+            />
+          )}
+
           {/* 1. Content Layer (Clipped) */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             {/* Pointer events none on wrapper? No, users need to click content. 
@@ -502,6 +576,24 @@ const CanvasArea = ({
             ))}
           </div>
 
+          {/* 3. Alignment Guides Layer */}
+          <div className="absolute inset-0 pointer-events-none z-[1400]">
+            {alignmentGuides && alignmentGuides.x.map((val, i) => (
+              <div
+                key={`guide-x-${i}`}
+                className="absolute top-0 bottom-0 border-l border-dashed border-pink-500"
+                style={{ left: val, width: '1px' }}
+              />
+            ))}
+            {alignmentGuides && alignmentGuides.y.map((val, i) => (
+              <div
+                key={`guide-y-${i}`}
+                className="absolute left-0 right-0 border-t border-dashed border-pink-500"
+                style={{ top: val, height: '1px' }}
+              />
+            ))}
+          </div>
+
           {selectedTool === 'eraser' && isMouseOverCanvas && (
             <div
               className="absolute rounded-full border-2 border-slate-400 bg-white/50 pointer-events-none z-[2000] shadow-sm"
@@ -514,6 +606,19 @@ const CanvasArea = ({
               }}
             />
           )}
+
+          {/* Crop Overlay */}
+          {cropState !== null && cropState && selectedLayer && (() => {
+            const layer = layers.find(l => l.id === selectedLayer);
+            return layer && layer.type === 'image' && cropState.layerId === selectedLayer ? (
+              <CropOverlay
+                layer={layer}
+                onApply={onApplyCrop}
+                onCancel={onCancelCrop}
+                zoom={zoom}
+              />
+            ) : null;
+          })()}
         </div>
       </div>
     </div>

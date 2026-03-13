@@ -55,7 +55,7 @@ import PresentationWorkspace from "./components/presentation3/PresentationWorksp
 import PresentationTemplates from "./pages/PresentationTemplates";
 import DocumentTemplates from "./pages/DocumentTemplates";
 import ImageTemplates from "./pages/ImageTemplates";
-
+import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 
 const AppContent = () => {
   const location = useLocation();
@@ -68,7 +68,6 @@ const AppContent = () => {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
 
-      {/* Sidebar */}
       {!isFullScreenRoute && <SideBar />}
 
       {/* Navbar */}
@@ -120,6 +119,7 @@ const AppContent = () => {
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
           <Route path="/bgremove" element={<BackgroundRemover />} />
           <Route path="/imageeditor" element={<ImageEditor />} />
+          <Route path="/create-image" element={<ImageLayout />} />
           <Route path="/canva-clone" element={<CanvaClone />} />
           <Route path="/canva-clone/:id" element={<CanvaClone />} />
           <Route path="/brand-kit" element={<Brandkit />} />
@@ -184,3 +184,4 @@ function App() {
 }
 
 export default App;
+

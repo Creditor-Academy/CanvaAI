@@ -191,9 +191,11 @@ const TopNavbar = () => {
                 </div>
 
                 <div className="font-semibold text-slate-800 text-sm text-center">
-                  {profile?.firstName
+                  {
+                  profile?.firstName
                     ? `${profile.firstName} ${profile.lastName || ""}`
-                    : profile?.email?.split("@")[0]}
+                    : profile?.email?.split("@")[0]
+                    }
                 </div>
 
                 <div className="text-xs text-slate-500 text-center mt-1 break-all">

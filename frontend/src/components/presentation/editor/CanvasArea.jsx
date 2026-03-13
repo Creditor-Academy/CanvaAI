@@ -33,110 +33,57 @@ const CanvasArea = ({
   renderStageContent,
   renderLayerActionBar,
 }) => {
+  const timingBtnShadow = isTimingPanelOpen ? 'shadow-xl' : '';
+
+  const cursorClass = isPanning
+    ? 'cursor-grabbing'
+    : (selectedTool === 'select' && !selectedPreset && !selectedLayerId)
+      ? 'cursor-grab'
+      : selectedPreset
+        ? 'cursor-crosshair'
+        : 'cursor-default';
+
   return (
-    <section
-      style={{
-        background: '#f1f5f9',
-        borderRadius: '22px',
-        padding: '16px',
-        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        height: '100%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
+    <section className="bg-slate-100 rounded-[22px] p-4 shadow-sm flex flex-col gap-3 h-full min-h-0 overflow-hidden">
       {/* Canvas toolbar */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '12px',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px' }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 10px',
-              borderRadius: 10,
-              background: 'rgba(79, 70, 229, 0.12)',
-              color: '#4338ca',
-              fontWeight: 600,
-              fontSize: '0.8rem',
-              whiteSpace: 'nowrap',
-            }}
-          >
+      <div className="flex flex-wrap items-center gap-3 justify-between flex-shrink-0">
+        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-600 font-semibold text-sm">
             <Layers size={12} />
             <span>{activeSlide?.layers.length || 0} layers</span>
           </span>
-          <span style={{ color: '#475569', fontSize: '0.75rem' }}>
-            Tip: Choose a preset on the right, then click anywhere on the slide.
-          </span>
+          <span className="text-slate-600 text-sm">Tip: Choose a preset on the right, then click anywhere on the slide.</span>
         </div>
 
         {/* Timing control */}
-        <div style={{ position: 'relative', flex: '0 1 auto' }}>
+        <div className="relative flex-shrink-0">
           <button
             ref={timingButtonRef}
             onClick={onTimingPanelToggle}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 14px',
-              borderRadius: 14,
-              background: '#ffffff',
-              border: '1px solid rgba(148, 163, 184, 0.18)',
-              fontWeight: 600,
-              color: '#0f172a',
-              cursor: 'pointer',
-              boxShadow: isTimingPanelOpen ? '0 10px 25px rgba(15, 23, 42, 0.12)' : 'none',
-            }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-[14px] bg-white border border-slate-200 font-semibold text-slate-900 ${timingBtnShadow}`}
           >
             <Timer size={16} color="#4f46e5" />
             <span>{slideDuration}s</span>
           </button>
+
           {isTimingPanelOpen && (
             <div
               ref={timingPanelRef}
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 10px)',
-                right: 0,
-                width: 320,
-                borderRadius: 16,
-                background: '#ffffff',
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                boxShadow: '0 18px 40px rgba(15, 23, 42, 0.2)',
-                padding: '14px 16px',
-                zIndex: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-              }}
+              className="absolute top-[calc(100%+10px)] right-0 w-80 rounded-[16px] bg-white border border-slate-200 shadow-2xl p-4 z-20 flex flex-col gap-3"
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>Slide animation timing</span>
-                <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>
-                  {slideDuration}s
-                </span>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-slate-900">Slide animation timing</span>
+                <span className="text-sm text-slate-600 font-semibold">{slideDuration}s</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+              <div className="flex items-center gap-2">
                 <input
                   type="range"
                   min={1}
                   max={60}
                   value={slideDuration}
                   onChange={(e) => onSlideTimingChange(e.target.value)}
-                  style={{ flex: 1 }}
+                  className="flex-1"
                 />
                 <input
                   type="number"
@@ -144,50 +91,24 @@ const CanvasArea = ({
                   max={60}
                   value={slideDuration}
                   onChange={(e) => onSlideTimingChange(e.target.value)}
-                  style={{
-                    width: 60,
-                    borderRadius: 10,
-                    border: '1px solid rgba(148, 163, 184, 0.5)',
-                    padding: '6px 8px',
-                    textAlign: 'center',
-                  }}
+                  className="w-16 rounded-md border border-slate-200 px-2 py-1 text-center"
                 />
               </div>
+
               <button
                 onClick={onApplyTimingToAllSlides}
-                style={{
-                  border: 'none',
-                  borderRadius: 10,
-                  padding: '8px 12px',
-                  background: '#4f46e5',
-                  color: '#fff',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="rounded-md px-3 py-2 bg-indigo-600 text-white font-semibold"
               >
                 Apply to all slides
               </button>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                Determines how long this slide stays visible when animations auto-play.
-              </p>
+
+              <p className="m-0 text-sm text-slate-500 leading-6">Determines how long this slide stays visible when animations auto-play.</p>
             </div>
           )}
         </div>
 
         {/* Layout indicator */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '6px 12px',
-            borderRadius: 12,
-            background: '#ffffff',
-            border: '1px solid rgba(148, 163, 184, 0.18)',
-            fontWeight: 600,
-            color: '#0f172a',
-          }}
-        >
+        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 font-semibold text-slate-900">
           <Maximize size={14} />
           {layout.aspectLabel}
         </div>
@@ -200,28 +121,7 @@ const CanvasArea = ({
         onMouseDown={onPanStart}
         onMouseLeave={onPanEnd}
         data-canvas-container
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-start',
-          overflowY: 'auto',
-          overflowX: 'auto',
-          maxHeight: '100%',
-          maxWidth: '100%',
-          minHeight: 0,
-          minWidth: 0,
-          padding: '20px',
-          position: 'relative',
-          cursor: isPanning
-            ? 'grabbing'
-            : selectedTool === 'select' && !selectedPreset && !selectedLayerId
-            ? 'grab'
-            : selectedPreset
-            ? 'crosshair'
-            : 'default',
-        }}
-        className="custom-scrollbar"
+        className={`flex-1 flex items-start justify-start overflow-auto max-h-full max-w-full min-h-0 min-w-0 p-5 relative ${cursorClass} custom-scrollbar`}
       >
         <div
           ref={stageWrapperRef}
@@ -230,21 +130,40 @@ const CanvasArea = ({
             height: canvasRenderHeight,
             minWidth: canvasRenderWidth,
             minHeight: canvasRenderHeight,
-            background: '#ffffff',
-            borderRadius: 24,
-            boxShadow: '0 30px 60px rgba(15, 23, 42, 0.14)',
-            border: '1px solid rgba(148, 163, 184, 0.25)',
-            position: 'relative',
-            overflow: 'hidden',
-            flexShrink: 0,
             backgroundImage:
               'linear-gradient(0deg, transparent 24%, rgba(148, 163, 184, 0.08) 25%, rgba(148, 163, 184, 0.08) 26%, transparent 27%), linear-gradient(90deg, transparent 24%, rgba(148, 163, 184, 0.08) 25%, rgba(148, 163, 184, 0.08) 26%, transparent 27%)',
             backgroundSize: '40px 40px',
           }}
+          className="bg-white rounded-[24px] shadow-2xl border border-slate-200 relative overflow-hidden flex-shrink-0"
         >
           {/* Stage content is rendered via render prop */}
           {renderStageContent && renderStageContent()}
-          
+
+          {/* GIF Overlay Layer (for animated GIF support) */}
+          {activeSlide?.layers?.map(layer => {
+            if (layer.type === 'image' && layer.isGif) {
+              return (
+                <img
+                  key={layer.id}
+                  src={layer.src}
+                  alt=""
+                  style={{
+                    position: 'absolute',
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    pointerEvents: 'none',
+                    zIndex: 50
+                  }}
+                  draggable={false}
+                />
+              );
+            }
+            return null;
+          })}
+
+
           {/* Layer action bar */}
           {renderLayerActionBar && renderLayerActionBar()}
         </div>
