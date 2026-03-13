@@ -16,6 +16,11 @@ export const useHistory = (initialLayers = []) => {
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
 
+  const resetHistory = useCallback((newLayers = []) => {
+    setHistory([[...newLayers]]);
+    setHistoryIndex(0);
+  }, []);
+
   const undo = useCallback(() => {
     if (historyIndex > 0) {
       setHistoryIndex(prev => prev - 1);
@@ -39,6 +44,7 @@ export const useHistory = (initialLayers = []) => {
     history,
     historyIndex,
     saveToHistory,
+    resetHistory,
     undo,
     redo,
     canUndo,

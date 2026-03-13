@@ -1,19 +1,17 @@
 // Initial state values for CanvaEditor
 export const initialTemplates = [
-  { id: 1, name: 'Default Canvas', width: 800, height: 600, thumbnail: '🧩', category: 'Basic' },
-  { id: 2, name: 'Social Media Post', width: 1080, height: 1080, thumbnail: '📱', category: 'Social' },
-  { id: 3, name: 'Instagram Story', width: 1080, height: 1920, thumbnail: '📸', category: 'Social' },
-  { id: 4, name: 'Facebook Cover', width: 1200, height: 630, thumbnail: '📘', category: 'Social' },
-  { id: 5, name: 'YouTube Thumbnail', width: 1280, height: 720, thumbnail: '🎥', category: 'Video' },
-  { id: 6, name: 'Business Card', width: 1050, height: 600, thumbnail: '💼', category: 'Business' },
-  { id: 7, name: 'Presentation', width: 1920, height: 1080, thumbnail: '📊', category: 'Business' },
-  { id: 8, name: 'Logo Design', width: 800, height: 800, thumbnail: '🎨', category: 'Branding' },
-  { id: 9, name: 'Poster', width: 1080, height: 1350, thumbnail: '🖼️', category: 'Print' },
-  { id: 10, name: 'Banner', width: 1200, height: 300, thumbnail: '🏷️', category: 'Web' },
-  { id: 11, name: 'Flyer', width: 850, height: 1100, thumbnail: '📄', category: 'Print' },
+  { id: 1, name: 'Default Canvas', width: 800, height: 600, category: 'Basic' },
+  // { id: 2, name: 'Social Media Post', width: 1080, height: 1080, category: 'Social' },
+  { id: 3, name: 'Mobile view', width: 1080, height: 1920, category: 'Social' },
+  { id: 4, name: 'Facebook Cover', width: 1200, height: 630, category: 'Social' },
+  { id: 5, name: 'YouTube Thumbnail', width: 1280, height: 720, category: 'Video' },
+  // { id: 6, name: 'Business Card', width: 1050, height: 600, category: 'Business' },
+  // { id: 7, name: 'Presentation', width: 1920, height: 1080, category: 'Business' },
+  // { id: 8, name: 'Logo Design', width: 800, height: 800, category: 'Branding' },
+  // { id: 9, name: 'Poster', width: 1080, height: 1350, category: 'Print' },
+  { id: 10, name: 'Banner', width: 1200, height: 300, category: 'Web' },
+  // { id: 11, name: 'Flyer', width: 850, height: 1100, category: 'Print' },
 ];
-
-
 
 export const initialTextSettings = {
   fontSize: 16,
@@ -26,7 +24,7 @@ export const initialTextSettings = {
 };
 
 export const initialShapeSettings = {
-  fillColor: '#3182ce',
+  fillColor: 'transparent',
   strokeColor: '#000000',
   strokeWidth: 1,
   fillType: 'color', // 'color' | 'image'

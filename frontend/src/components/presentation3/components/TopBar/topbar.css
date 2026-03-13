@@ -1,8 +1,5 @@
-/* =========================================
-   CANVA-STYLE TOPBAR
-========================================= */
 
-/* Wrapper */
+
 .topbar-wrapper {
   background: #ffffff;
   border: 1px solid #f8b21a;
@@ -14,20 +11,19 @@
   box-shadow: 0 4px 20px rgba(248, 178, 26, 0.12), 0 0 10px rgba(248, 178, 26, 0.05);
 }
 
-/* Common row */
+
 .topbar-row {
   display: flex;
   align-items: center;
   padding: 8px 20px;
 }
 
-/* Row 1 */
+
 .topbar-row-1 {
   justify-content: space-between;
   border-bottom: 1px solid #eef2f7;
 }
 
-/* Row 2 (Floating Toolbar Container) */
 .topbar-row-2 {
   position: absolute;
   top: 78px;
@@ -36,12 +32,11 @@
   display: flex;
   justify-content: center;
   pointer-events: none;
-  /* Let clicks pass through to canvas */
+
   z-index: 50;
   padding: 0;
 }
 
-/* Left section */
 .topbar-left {
   display: flex;
   align-items: center;
@@ -55,7 +50,7 @@
   margin-right: -4px;
 }
 
-/* Right section */
+
 .topbar-right {
   display: flex;
   align-items: center;
@@ -68,9 +63,7 @@
   gap: 6px;
 }
 
-/* =========================================
-   Project Input
-========================================= */
+
 
 .project-input {
   padding: 6px 12px;
@@ -90,9 +83,7 @@
   box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.3);
 }
 
-/* =========================================
-   Nav Buttons (Theme / Share / Agent)
-========================================= */
+
 
 .nav-btn {
   background: #ffffff;
@@ -126,7 +117,7 @@
   background: #f8fafc;
 }
 
-/* Special Agent Button Animation */
+
 .agent-nav-btn {
   background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
   color: #0f172a !important;
@@ -146,9 +137,6 @@
   }
 }
 
-/* =========================================
-   Floating Toolbar
-========================================= */
 
 .toolbar-center {
   display: flex;
@@ -163,7 +151,7 @@
 
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
-  /* Enable clicks on the toolbar itself */
+  
 
   transition: all 0.3s ease;
   animation: floatIn 0.3s ease;
@@ -185,9 +173,7 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
-/* =========================================
-   Icon Buttons
-========================================= */
+
 
 .icon-btn {
   width: 40px;
@@ -222,9 +208,7 @@
   border-color: #fecaca;
 }
 
-/* =========================================
-   Zoom Control
-========================================= */
+
 
 .zoom-control {
   display: flex;
@@ -234,9 +218,7 @@
   border-left: 1px solid #e2e8f0;
 }
 
-/* =========================================
-   Present Button (Athena Primary)
-========================================= */
+
 
 .present-btn {
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
@@ -265,9 +247,6 @@
   transform: scale(0.98);
 }
 
-/* =========================================
-   Dropdown
-========================================= */
 
 .dropdown {
   position: relative;
@@ -302,7 +281,7 @@
   }
 }
 
-/* Shapes Dropdown Grid */
+
 .dropdown-menu.shapes-dropdown {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -323,7 +302,7 @@
   margin: 4px 0;
 }
 
-/* Base style for existing dropdown results */
+
 .dropdown-menu button {
   display: flex;
   align-items: center;
@@ -342,9 +321,7 @@
   background: #f1f5f9;
 }
 
-/* =========================================
-   Tooltip
-========================================= */
+
 
 .icon-btn::after {
   content: attr(data-tooltip);
@@ -372,12 +349,11 @@
   transform: translateX(-50%) translateY(0);
 }
 
-/* Hidden input */
 .hidden-input {
   display: none;
 }
 
-/* Modal Overlay */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -392,7 +368,7 @@
   backdrop-filter: blur(4px);
 }
 
-/* Modal Content */
+
 .modal-content {
   background: white;
   padding: 24px;
@@ -481,7 +457,7 @@
   cursor: not-allowed;
 }
 
-/* Loading Overlay */
+
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -531,7 +507,7 @@
   font-size: 16px;
 }
 
-/* Table Creation Popup */
+
 .dropdown-menu.table-popup {
   padding: 0;
   overflow: hidden;

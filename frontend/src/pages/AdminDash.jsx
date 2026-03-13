@@ -3,10 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { listPresentations, deletePresentation } from '../services/presentation/presentation.service';
 import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility } from '../services/Admin/admin';
 import { Trash2, Globe, Lock } from 'lucide-react';
+import { FiLayout } from 'react-icons/fi';
 import './AdminDash.css';
 import PresentationThumbnail from '../components/PresentationThumbnail';
 import { useNavigate } from "react-router-dom";
-import { FiLayout } from "react-icons/fi";
+import ImageDash from '@/components/canva/ImageLayout/imageDash';
 
 const AdminDash = () => {
   const { user } = useAuth();
@@ -175,8 +176,6 @@ const AdminDash = () => {
                   <option value="published">Published</option>
                   <option value="unpublished">Unpublished</option>
                 </select>
-
-
               </div>
             </div>
 
@@ -316,8 +315,10 @@ const AdminDash = () => {
           </div>
         </div>
       )}
+      <ImageDash />
     </div>
   );
 };
 
 export default AdminDash;
+

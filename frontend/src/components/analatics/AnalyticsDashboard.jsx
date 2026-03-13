@@ -84,7 +84,7 @@ export default function CreditsAnalytics() {
   );
 
   return (
-    <div className="min-h-screen px-6 md:px-10 py-10 bg-[#f8fafc]">
+    <div className="min-h-screen pt-22 bg-[#f8fafc]">
       {/* HEADER */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

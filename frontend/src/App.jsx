@@ -52,7 +52,10 @@ import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
-
+import PresentationTemplates from "./pages/PresentationTemplates";
+import DocumentTemplates from "./pages/DocumentTemplates";
+import ImageTemplates from "./pages/ImageTemplates";
+import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 
 const AppContent = () => {
   const location = useLocation();
@@ -65,21 +68,22 @@ const AppContent = () => {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
 
-      {/* Sidebar */}
       {!isFullScreenRoute && <SideBar />}
 
       {/* Navbar */}
       <Navbar />
 
-     
+
 
 
       {/* Page Content */}
       <div
         style={{
           flex: 1,
-          paddingTop: isFullScreenRoute ? 0 : "52px",
-          marginLeft: isFullScreenRoute ? 0 : "63px",
+          width:"100%",
+          minheight: "100vh",
+          
+         
         }}
       >
 
@@ -109,12 +113,13 @@ const AppContent = () => {
           <Route path="/analytics" element={<Analatics />} />
           <Route path="/settings" element={<Setting />} />
           <Route path="/help-support" element={<Help />} />
-          
+
           <Route path="/team" element={<Team />} />
           <Route path="/team/accept" element={<AcceptInvite />} />
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
           <Route path="/bgremove" element={<BackgroundRemover />} />
           <Route path="/imageeditor" element={<ImageEditor />} />
+          <Route path="/create-image" element={<ImageLayout />} />
           <Route path="/canva-clone" element={<CanvaClone />} />
           <Route path="/canva-clone/:id" element={<CanvaClone />} />
           <Route path="/brand-kit" element={<Brandkit />} />
@@ -135,6 +140,9 @@ const AppContent = () => {
           />
 
           <Route path="/presentation" element={<Presentation />} />
+          <Route path="/PresentationTemplates" element={<PresentationTemplates />} />
+          <Route path="/documentTemplates" element={<DocumentTemplates />} />
+          <Route path="/imageTemplates" element={<ImageTemplates />} />
         </Routes>
 
       </div>
@@ -176,3 +184,4 @@ function App() {
 }
 
 export default App;
+

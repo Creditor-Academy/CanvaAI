@@ -24,22 +24,22 @@ export const useElementCreation = (
         tool === 'heading'
           ? 'Heading'
           : tool === 'subheading'
-          ? 'Subheading'
-          : 'Body Text';
+            ? 'Subheading'
+            : 'Body Text';
 
       const presetText =
         tool === 'heading'
           ? 'Add a heading'
           : tool === 'subheading'
-          ? 'Add a subheading'
-          : 'Add some body text';
+            ? 'Add a subheading'
+            : 'Add some body text';
 
       const presetFontSize =
         tool === 'heading'
           ? 32
           : tool === 'subheading'
-          ? 24
-          : 16;
+            ? 24
+            : 16;
 
       const presetFontWeight = isHeading ? '700' : isSubheading ? '600' : '400';
 
@@ -63,17 +63,19 @@ export const useElementCreation = (
         rotation: 0,
       };
     } else if (
-      ['rectangle','roundedRectangle','circle','ellipse','triangle','rightTriangle',
-       'diamond','pentagon','hexagon','star','star6','heart','arrow','arrowLeft',
-       'arrowUp','arrowDown','cloud'].includes(tool)
+      ['rectangle', 'roundedRectangle', 'circle', 'ellipse', 'triangle', 'rightTriangle',
+        'diamond', 'pentagon', 'hexagon', 'star', 'star6', 'heart', 'arrow', 'arrowLeft',
+        'arrowUp', 'arrowDown', 'cloud', 'line'].includes(tool)
     ) {
       const width =
         tool === 'ellipse' || tool === 'roundedRectangle' ? 160
-        : tool.includes('arrow') ? 140
-        : 100;
+          : tool.includes('arrow') ? 140
+            : tool === 'line' ? 300
+              : 100;
       const height =
         tool === 'ellipse' || tool === 'roundedRectangle' ? 100
-        : 100;
+          : tool === 'line' ? 4
+            : 100;
 
       const safeX = clamp(x, 0, canvasSize.width - width);
       const safeY = clamp(y, 0, canvasSize.height - height);

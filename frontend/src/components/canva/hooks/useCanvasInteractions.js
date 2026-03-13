@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useAlignment } from './useAlignment';
 
 /**
  * Custom hook for canvas interactions (drag, resize, rotate)
@@ -10,12 +11,16 @@ export const useCanvasInteractions = (
   setSelectedLayer,
   selectedTool,
   getCanvasPoint,
-  saveToHistory
+  saveToHistory,
+  canvasSize
 ) => {
+  /* ===================== ALIGNMENT ===================== */
+  const { snap, alignmentGuides, setAlignmentGuides, clearGuides } = useAlignment(layers, canvasSize);
   /* ===================== STATE ===================== */
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialLayers, setInitialLayers] = useState([]);
 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({
@@ -50,8 +55,9 @@ export const useCanvasInteractions = (
 
     setIsDragging(true);
     setDragStart({ x, y });
+    setInitialLayers([...layers]); // Store current state of all layers
     setSelectedLayer(layerId);
-  }, [selectedTool, getCanvasPoint, setSelectedLayer]);
+  }, [selectedTool, getCanvasPoint, setSelectedLayer, layers]);
 
   /* ===================== RESIZE ===================== */
 
@@ -194,15 +200,25 @@ export const useCanvasInteractions = (
       const dx = x - dragStart.x;
       const dy = y - dragStart.y;
 
-      setLayers(prev =>
-        prev.map(l =>
-          l.id === selectedLayer
-            ? { ...l, x: l.x + dx, y: l.y + dy }
-            : l
-        )
-      );
+      // Find the initial layer to calculate new position from
+      const initialLayer = initialLayers.find(l => l.id === selectedLayer);
 
-      setDragStart({ x, y });
+      if (initialLayer) {
+        // Calculate raw new position based on total delta from start
+        const rawX = initialLayer.x + dx;
+        const rawY = initialLayer.y + dy;
+
+        // Snap the candidate position
+        const { x: finalX, y: finalY, guides } = snap({ ...initialLayer, x: rawX, y: rawY });
+
+        // Set alignment guides for visualization
+        setAlignmentGuides(guides);
+
+        // Update the layer position in state
+        setLayers(prev =>
+          prev.map(l => l.id === selectedLayer ? { ...l, x: finalX, y: finalY } : l)
+        );
+      }
     }
   }, [
     isDragging,
@@ -210,10 +226,13 @@ export const useCanvasInteractions = (
     isRotating,
     selectedLayer,
     dragStart,
+    initialLayers,
     resizeStart,
     rotateStart,
     getCanvasPoint,
-    setLayers
+    setLayers,
+    snap,
+    setAlignmentGuides
   ]);
 
   /* ===================== MOUSE UP ===================== */
@@ -224,6 +243,9 @@ export const useCanvasInteractions = (
     setIsDragging(false);
     setIsResizing(false);
     setIsRotating(false);
+
+    // Clear alignment guides when drag ends
+    clearGuides();
 
     setResizeStart({
       startX: 0,
@@ -248,7 +270,7 @@ export const useCanvasInteractions = (
       saveToHistory(curr);
       return curr;
     });
-  }, [isDragging, isResizing, isRotating, setLayers, saveToHistory]);
+  }, [isDragging, isResizing, isRotating, setLayers, saveToHistory, clearGuides]);
 
   /* ===================== GLOBAL LISTENERS ===================== */
 
@@ -266,13 +288,11 @@ export const useCanvasInteractions = (
   /* ===================== CANVAS HELPERS ===================== */
 
   const handleCanvasMouseMove = useCallback((e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    // Convert to canvas coordinates for proper cursor positioning
+    const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+    setMousePosition({ x, y });
     setIsMouseOverCanvas(true);
-  }, []);
+  }, [getCanvasPoint]);
 
   const handleCanvasMouseLeave = useCallback(() => {
     setIsMouseOverCanvas(false);
@@ -302,5 +322,6 @@ export const useCanvasInteractions = (
     handleCanvasMouseMove,
     handleCanvasMouseLeave,
     handleCanvasClick,
+    alignmentGuides, // Export guides
   };
 };
