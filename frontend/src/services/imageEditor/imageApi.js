@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import axios from "axios";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -84,17 +85,79 @@ export const updateImage = async (imageId, payload) => {
     }
 };
 
-export const generateImage = async (userId, imageId, prompt) => {
+const styles = {
+    realistic: 'photorealistic, ultra detailed, DSLR photography, cinematic lighting: ${prompt}',
+    anime: 'anime style illustration, japanese anime art, vibrant colors: ${prompt}',
+    cartoon: 'cartoon style illustration, disney pixar style, colorful: ${prompt}',
+    sketch: 'pencil sketch drawing, black and white illustration: ${prompt}',
+    painting: 'oil painting style, artistic brush strokes: ${prompt}',
+};
+
+const applyStyle = (prompt, filter) => {
+    const template = styles[filter];
+    if (!template) return prompt;
+    return template.replace('${prompt}', prompt);
+};
+
+export const generateImage = async (userId, serviceId, prompt, filter = 'realistic') => {
     try {
-        const res = await api.post(`/api/image/generate-image/${userId}/${encodeURIComponent(imageId)}`, { prompt });
-        console.log("Generate Image Response:", res.data.url);
+        const styledPrompt = applyStyle(prompt, filter);
+        const body = { prompt: styledPrompt, filter };
+        const res = await api.post(`/api/image/generate-image/${userId}/${encodeURIComponent(serviceId)}`, body);
         console.log("Generate Image Response:", res.data);
-        return res.data;
+        // backend developer said response = res.url; handle both shapes
+        return res.data || { url: res.url };
     } catch (error) {
         console.error("Generate Image Error:", error.response?.data || error.message);
         throw error;
     }
 };
+
+export default function AIImageGenerator({ userId, serviceId, initialPrompt = '', onGenerated }) {
+    const [prompt, setPrompt] = useState(initialPrompt);
+    const [loading, setLoading] = useState(false);
+    const [resultUrl, setResultUrl] = useState(null);
+
+    const styleKeys = Object.keys(styles);
+
+    const handleGenerate = async (filter) => {
+        if (!userId || !serviceId) {
+            console.warn('userId and serviceId are required');
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await generateImage(userId, serviceId, prompt, filter);
+            const url = res.url || res;
+            setResultUrl(url);
+            if (onGenerated) onGenerated(url);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return React.createElement(
+        'div',
+        { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        React.createElement('input', {
+            value: prompt,
+            onChange: (e) => setPrompt(e.target.value),
+            placeholder: 'Enter prompt',
+            style: { padding: 8, fontSize: 14 },
+        }),
+        React.createElement(
+            'div',
+            { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            ...styleKeys.map((s) => React.createElement('button', { key: s, onClick: () => handleGenerate(s), disabled: loading }, s))
+        ),
+        loading && React.createElement('div', null, 'Generating...'),
+        resultUrl && React.createElement('div', null, 'Result URL: ', React.createElement('a', { href: resultUrl, target: '_blank', rel: 'noreferrer' }, resultUrl))
+    );
+}
+
+
 
 export const exportImage = async (imageId, format) => {
     try {
@@ -138,5 +201,9 @@ export const cloneImage = async (pptId) => {
         throw error;
     }
 };
+
+
+
+
 
 

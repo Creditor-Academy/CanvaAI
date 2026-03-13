@@ -13,6 +13,7 @@ const AIImageGenerator = ({
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('realistic');
 
   const handleAIGenerateImage = async () => {
     if (!aiPrompt.trim()) {
@@ -29,7 +30,7 @@ const AIImageGenerator = ({
 
       const userId = user?._id || user?.id;
       const imageId = Date.now().toString();
-      const data = await generateImage(userId, imageId, aiPrompt);
+      const data = await generateImage(userId, imageId, aiPrompt, selectedFilter);
 
       let respItem = null;
       if (Array.isArray(data) && data.length > 0) respItem = data[0];
@@ -51,6 +52,7 @@ const AIImageGenerator = ({
         id: imageId,
         type: 'image',
         name: `AI Generated: ${aiPrompt.substring(0, 20)}...`,
+        filter: selectedFilter,
         src: imgSrc,
         x: 100,
         y: 100,
@@ -110,6 +112,21 @@ const AIImageGenerator = ({
           } ${isGeneratingAI ? 'opacity-60 cursor-not-allowed' : ''}`}
         disabled={isGeneratingAI}
       />
+      <div className="mb-3">
+        <label className="text-xs text-slate-300 mb-1 block">Image Style</label>
+        <select
+          value={selectedFilter}
+          onChange={(e) => setSelectedFilter(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg text-sm text-white bg-slate-800 border border-slate-600 outline-none"
+          disabled={isGeneratingAI}
+        >
+          <option value="realistic">Realistic</option>
+          <option value="anime">Anime</option>
+          <option value="cartoon">Cartoon</option>
+          <option value="sketch">Sketch</option>
+          <option value="painting">Painting</option>
+        </select>
+      </div>
       {errorMessage && (
         <div className="p-2 mb-2 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed">
           {errorMessage}
