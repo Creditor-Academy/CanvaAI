@@ -52,6 +52,9 @@ import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
+import PresentationTemplates from "./pages/PresentationTemplates";
+import DocumentTemplates from "./pages/DocumentTemplates";
+import ImageTemplates from "./pages/ImageTemplates";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 
 const AppContent = () => {
@@ -66,14 +69,21 @@ const AppContent = () => {
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
 
       {!isFullScreenRoute && <SideBar />}
-      {!isFullScreenRoute && <Navbar />}
+
+      {/* Navbar */}
+      <Navbar />
+
+
+
 
       {/* Page Content */}
       <div
         style={{
           flex: 1,
-          paddingTop: isFullScreenRoute ? 0 : "52px",
-          marginLeft: isFullScreenRoute ? 0 : "63px",
+          width:"100%",
+          minheight: "100vh",
+          
+         
         }}
       >
 
@@ -130,6 +140,9 @@ const AppContent = () => {
           />
 
           <Route path="/presentation" element={<Presentation />} />
+          <Route path="/PresentationTemplates" element={<PresentationTemplates />} />
+          <Route path="/documentTemplates" element={<DocumentTemplates />} />
+          <Route path="/imageTemplates" element={<ImageTemplates />} />
         </Routes>
 
       </div>

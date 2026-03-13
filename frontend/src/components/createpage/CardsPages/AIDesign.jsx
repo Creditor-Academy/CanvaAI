@@ -1,330 +1,311 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../../utils/api";
 import { createPortal } from "react-dom";
 
 export const AIDesign = () => {
   const navigate = useNavigate();
-  const previewRef = useRef(null);
 
   const [prompt, setPrompt] = useState("");
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [generatedImages, setGeneratedImages] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [activePreview, setActivePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [generatedImage, setGeneratedImage] = useState(null);
-  const [activePreview, setActivePreview] = useState(null);
 
-  /* ---------------- BACKGROUND IMAGES ---------------- */
-  const bgImages = [
-    "https://images.unsplash.com/photo-1632734467692-eb8a715e3871?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTI0fHxibHVlJTIwdmludGFnZXxlbnwwfHwwfHx8MA%3D%3D",
-    "https://images.unsplash.com/photo-1642049935373-d0c33134ca82?w=600&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1673328021673-17902775371d?w=600&auto=format&fit=crop&q=60",
-    "https://plus.unsplash.com/premium_photo-1661826076495-67280d6e7925?w=600&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1690037704521-f614da226dac?w=600&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1619014070282-c46f6b1322d8?w=600&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1557701434-aa5a992f0343?w=600&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1611521448635-a3a774ee7c7d?w=600&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1713330028954-e64e3dd4de3c?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDh8fGJsdWUlMjBjYXJ8ZW58MHx8MHx8fDA%3D",
-    "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fGJsdWUlMjB2aW50YWdlfGVufDB8fDB8fHww",
+  const styles = [
+    { name: "Realistic", img: "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=200" },
+    { name: "Anime", img: "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=200" },
+    { name: "Cartoon", img: "https://images.unsplash.com/photo-1673328021673-17902775371d?w=200" },
+    { name: "Sketch", img: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=200" },
+    { name: "Painting", img: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=200" },
   ];
 
   const examplePrompts = [
-    "Futuristic neon city at night",
-    "Minimalist logo of a mountain",
+    "Futuristic neon city",
+    "Minimalist mountain logo",
     "Cyberpunk samurai portrait",
-    "Luxury gold emblem badge",
-    "Cartoon astronaut mascot"
+    "Luxury gold emblem",
+    "Cartoon astronaut mascot",
   ];
 
-  /* ---------------- REALISTIC PROGRESS ---------------- */
+  const mockImages = [
+    "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=600",
+    "https://images.unsplash.com/photo-1611521448635-a3a774ee7c7d?w=600",
+    "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=600",
+    "https://images.unsplash.com/photo-1690037704521-f614da226dac?w=600",
+  ];
+
   useEffect(() => {
     if (!isLoading) return;
 
     setProgress(0);
 
     const timer = setInterval(() => {
-      setProgress((p) => (p < 90 ? p + Math.random() * 8 : p));
-    }, 300);
+      setProgress((p) => (p < 95 ? p + Math.random() * 6 : p));
+    }, 200);
 
     return () => clearInterval(timer);
   }, [isLoading]);
 
-  /* ---------------- AUTO SCROLL TO LOADER ---------------- */
-  useEffect(() => {
-    if (!isLoading) return;
+  const handleGenerate = () => {
+    if (!prompt.trim() || !selectedStyle) return;
 
-    const timer = setTimeout(() => {
-      const el = previewRef.current;
-      if (!el) return;
-
-      const rect = el.getBoundingClientRect();
-
-      const absoluteTop = rect.top + window.pageYOffset;
-
-      // loader ko viewport ke exact middle me lane ka calculation
-      const offset = absoluteTop - (window.innerHeight / 2) + (rect.height / 2);
-
-      window.scrollTo({
-        top: offset,
-        behavior: "smooth"
-      });
-    }, 220); // transition + margin render hone ka wait
-
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
-  /* ---------------- GENERATE ---------------- */
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-
-    setGeneratedImage(null);
-    setProgress(5);
     setIsLoading(true);
+    setGeneratedImages([]);
+    setSelectedImages([]);
 
-
-
-    try {
-      const res = await api.post("/api/generate-logo", { prompt });
-      const data = res.data;
-
-      const clean = data.imageBase64.replace(/\s/g, "");
-      const img = `data:${data.mimeType};base64,${clean}`;
-
+    setTimeout(() => {
       setProgress(100);
-      setGeneratedImage(img);
-    } finally {
+      setGeneratedImages(mockImages);
       setTimeout(() => setIsLoading(false), 400);
-    }
+    }, 2300);
   };
 
-  const openInEditor = () => {
+  const toggleImageSelection = (img) => {
+    setSelectedImages((prev) =>
+      prev.includes(img)
+        ? prev.filter((i) => i !== img)
+        : [...prev, img]
+    );
+  };
+
+  const handleImport = () => {
+    alert(`Importing ${selectedImages.length} images`);
+  };
+
+  const openEditor = () => {
     navigate("/edito", { state: { image: activePreview } });
   };
 
-  const downloadImage = async () => {
-    const res = await fetch(activePreview);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "ai-image.png";
-    a.click();
-
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className="min-h-screen bg-[#e0f2ff] text-[#0c4a6e] relative overflow-hidden">
+    <div className="h-screen bg-[#e9f4ff] relative overflow-hidden flex flex-col">
 
-      {/* ---------------- BACKGROUND COLLAGE ---------------- */}
-      <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+     
 
-        {/* LEFT BIG LANDSCAPE */}
-        <img
-          src={bgImages[0]}
-          className="absolute left-[13%] top-[49vh] w-[220px] h-[190px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* LEFT SMALL PORTRAIT */}
-        <img
-          src={bgImages[1]}
-          className="absolute left-[-5.5%] top-[40vh] w-[240px] h-[170px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* LEFT MID SQUARE */}
-        <img
-          src={bgImages[2]}
-          className="absolute left-[29%] top-[58vh] w-[290px] h-[260px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        <img
-          src={bgImages[9]}
-          className="absolute left-[13%] top-[78vh] w-[220px] h-[160px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* LEFT LOWER WIDE */}
-        <img
-          src={bgImages[3]}
-          className="absolute left-[-5.5%] top-[67vh] w-[240px] h-[200px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* RIGHT BIG LANDSCAPE */}
-        <img
-          src={bgImages[4]}
-          className="absolute right-[0%] top-[32vh] w-[220px] h-[140px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* RIGHT SMALL PORTRAIT */}
-        <img
-          src={bgImages[5]}
-          className="absolute right-[78%] top-[32vh] w-[120px] h-[110px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* RIGHT MID SQUARE */}
-        <img
-          src={bgImages[6]}
-          className="absolute right-[21%] top-[43vh] w-[360px] h-[360px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        {/* RIGHT LOWER WIDE */}
-        <img
-          src={bgImages[7]}
-          className="absolute right-[-1%] top-[70vh] w-[280px] h-[180px] rounded-3xl shadow-2xl object-cover"
-        />
-
-        <img
-          src={bgImages[8]}
-          className="absolute right-[-1%] top-[54vh] w-[280px] h-[100px] rounded-3xl shadow-2xl object-cover"
-        />
-
+      {/* HERO */}
+      <div className="text-center pt-30 z-10 pl-10">
+        <h1 className="text-4xl font-bold text-blue-900">
+          AI IMAGE GENERATOR
+        </h1>
+        <p className="text-blue-700 text-sm mt-1">
+          Generate original images with AI
+        </p>
       </div>
 
-      {/* ---------------- HERO ---------------- */}
-      <div className="relative z-20 flex flex-col items-center text-center pt-28 px-6">
+      {/* MAIN */}
+      <div className="flex-1 flex items-center justify-center pl-10 z-10">
 
-        <h1 className="text-6xl font-semibold tracking-tight">
-          AI Image Generator
-        </h1>
+        <div className="w-full max-w-6xl grid md:grid-cols-2 gap-6">
 
-        <p className="text-gray-500 mt-6 max-w-2xl text-lg leading-relaxed">
-          Type any description and generate high-quality images instantly.
-        </p>
+          {/* LEFT PANEL */}
+          <div className="bg-white border border-blue-700 rounded-xl shadow-md p-5">
 
-        {/* PROMPT BOX */}
-        <div className="mt-20 w-full max-w-3xl relative">
-          <div className="absolute -inset-[1px] rounded-[32px] bg-gradient-to-r from-blue-500/10 via-indigo-500/40 to-purple-500/30 blur-xl opacity-60"></div>
+            <label className="text-sm font-semibold text-blue-900">
+              Prompt
+            </label>
 
-          <div className="relative rounded-[30px] bg-white/10 backdrop-blur-[30px] border border-white/20 shadow-[0_20px_70px_rgba(0,0,0,0.65)] p-5 flex items-center gap-4">
+            <textarea
+              placeholder="for example: Medusa"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="mt-2 w-full border border-blue-700 rounded-lg p-2 h-[80px] resize-none outline-none text-blue-900"
+            />
 
-            {/* TEXTAREA WRAPPER */}
-            <div className="relative flex-1">
+            {/* EXAMPLE PROMPTS */}
+            <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar">
 
-              {/* Visible only when empty */}
-              {prompt.length === 0 && (
-                <span className="pointer-events-none absolute left-3 top-3 text-black/50">
-                  Describe your image...
-                </span>
-              )}
-
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="w-full bg-transparent outline-none resize-none text-lg min-h-[80px] text-black pt-3 pl-3"
-              />
+              {examplePrompts.map((ex, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPrompt(ex)}
+                  className="bg-yellow-300 hover:bg-yellow-400 text-blue-900 text-xs px-3 py-1 rounded-full whitespace-nowrap"
+                >
+                  {ex}
+                </button>
+              ))}
 
             </div>
 
+            {/* STYLES */}
+            <div className="mt-4">
+
+              <p className="text-sm font-semibold text-blue-900 mb-2">
+                Styles
+              </p>
+
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+
+                {styles.map((style) => {
+
+                  const active = selectedStyle === style.name;
+
+                  return (
+                    <button
+                      key={style.name}
+                      onClick={() => setSelectedStyle(style.name)}
+                      className={`relative group min-w-[60px] rounded-lg overflow-hidden border
+                        ${active
+                          ? "border-yellow-400 ring-2 ring-yellow-400"
+                          : "border-blue-700"
+                        }`}
+                    >
+
+                      <img
+                        src={style.img}
+                        className="w-full h-[55px] object-cover"
+                        alt=""
+                      />
+
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition">
+                        {style.name}
+                      </div>
+
+                    </button>
+                  );
+                })}
+
+              </div>
+
+            </div>
+
+            {/* GENERATE */}
             <button
               onClick={handleGenerate}
-              disabled={isLoading}
-              className="bg-[linear-gradient(180deg,#f7971e_0%,#ffd200_100%)] px-8 py-3 rounded-2xl font-semibold whitespace-nowrap transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_14px_28px_rgba(250,204,21,0.45)]"
+              disabled={!prompt || !selectedStyle}
+              className="w-full mt-4 bg-blue-800 hover:bg-blue-900 text-white py-2.5 rounded-full font-semibold disabled:opacity-40"
             >
               Generate
             </button>
 
           </div>
+
+          {/* RIGHT PANEL */}
+          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center">
+
+            {!generatedImages.length && !isLoading && (
+              <>
+                <img
+                  src="https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=900"
+                  className="absolute inset-0 w-full h-full object-cover opacity-20"
+                  alt=""
+                />
+
+                <p className="relative text-blue-900 text-sm font-medium">
+                  Generated images will appear here
+                </p>
+              </>
+            )}
+
+            {isLoading && (
+              <div className="w-[360px] max-w-full text-center">
+
+                <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
+
+                  <div
+                    className="h-full bg-yellow-400 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+
+                </div>
+
+                <p className="mt-2 text-blue-900 font-semibold text-sm">
+                  {Math.floor(progress)}% Generating images
+                </p>
+
+              </div>
+            )}
+
+            {generatedImages.length > 0 && !isLoading && (
+
+              <>
+                <div className="grid grid-cols-2 gap-3">
+
+                  {generatedImages.map((img, idx) => {
+
+                    const selected = selectedImages.includes(img);
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => toggleImageSelection(img)}
+                        className={`relative rounded-lg overflow-hidden cursor-pointer
+                          ${selected
+                            ? "ring-4 ring-yellow-400"
+                            : "ring-1 ring-blue-700"
+                          }`}
+                      >
+
+                        <img
+                          src={img}
+                          className="w-full h-[130px] object-cover"
+                          alt=""
+                        />
+
+                        {!selected && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition">
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePreview(img);
+                              }}
+                              className="bg-white px-3 py-1 rounded-full text-xs"
+                            >
+                              Preview
+                            </button>
+
+                          </div>
+                        )}
+
+                      </div>
+                    );
+                  })}
+
+                </div>
+
+                <button
+                  onClick={handleImport}
+                  disabled={!selectedImages.length}
+                  className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-6 py-2 rounded-full text-sm disabled:opacity-40"
+                >
+                  Import Selected ({selectedImages.length})
+                </button>
+
+              </>
+            )}
+
+          </div>
+
         </div>
 
-        {/* EXAMPLES */}
-        {!generatedImage && !isLoading && (
-          <div className="mt-10 flex flex-wrap justify-center gap-3 max-w-3xl">
-            {examplePrompts.map((ex, i) => (
-              <button
-                key={i}
-                onClick={() => setPrompt(ex)}
-                className="bg-white/80 hover:bg-white/20 border border-white/15 px-4 py-2 rounded-full text-sm backdrop-blur-md"
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
-        )}
-
       </div>
 
-      {/* ---------------- RESULT SECTION ---------------- */}
-      <div
-        ref={previewRef}
-        className={`relative z-30 flex flex-col items-center transition-all duration-500 ${isLoading || generatedImage
-          ? "mt-32 mb-24 opacity-100"
-          : "h-0 overflow-hidden opacity-0"
-          }`}
-      >
-
-        {isLoading && (
-          <div className="w-[420px] max-w-full mt-20">
-
-            <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-
-            <p className="mt-4 text-gray-600 text-center">
-              {Math.floor(progress)}% Generating image...
-            </p>
-
-          </div>
-        )}
-
-        {generatedImage && !isLoading && (
-          <div className="relative group w-[420px] max-w-full mt-20">
-
-            <img
-              src={generatedImage}
-              className="  rounded-3xl shadow-2xl"
-              alt=""
-            />
-
-            <div className="  absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-
-              <button
-                onClick={() => setActivePreview(generatedImage)}
-                className="bg-white text-black px-6 py-2 rounded-xl font-medium"
-              >
-                View
-              </button>
-
-            </div>
-
-          </div>
-        )}
-
-      </div>
-
-      {/* ---------------- MODAL ---------------- */}
+      {/* MODAL */}
       {activePreview &&
         createPortal(
-          <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[9999]">
+          <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-[999]">
 
             <button
               onClick={() => setActivePreview(null)}
-              className="absolute top-6 right-8 text-white text-2xl font-bold"
+              className="absolute top-6 right-8 text-white text-3xl"
             >
               ✕
             </button>
 
-            <div className="text-center px-6 w-full">
+            <div className="text-center">
 
               <img
                 src={activePreview}
-                className="max-h-[88vh] mx-auto rounded-2xl shadow-2xl mb-8"
+                className="max-h-[85vh] rounded-xl"
                 alt=""
               />
 
-              <div className="flex gap-6 justify-center flex-wrap">
+              <div className="flex gap-6 justify-center mt-6">
 
                 <button
-                  onClick={downloadImage}
-                  className="bg-white text-black px-8 py-3 rounded-xl font-semibold hover:scale-105 transition"
-                >
-                  Download
-                </button>
-
-                <button
-                  onClick={openInEditor}
-                  className="bg-blue-600 px-8 py-3 rounded-xl font-semibold hover:scale-105 transition"
+                  onClick={openEditor}
+                  className="bg-blue-800 text-white px-6 py-2 rounded-lg"
                 >
                   Open In Editor
                 </button>
@@ -336,6 +317,14 @@ export const AIDesign = () => {
           </div>,
           document.body
         )}
+
+      <style>
+        {`
+        .no-scrollbar::-webkit-scrollbar { display:none; }
+        .no-scrollbar { scrollbar-width:none; -ms-overflow-style:none; }
+        `}
+      </style>
+
     </div>
   );
 };

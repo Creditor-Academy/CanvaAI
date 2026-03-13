@@ -1,73 +1,84 @@
 import React from "react";
+import { Mail, Phone, MapPin } from "lucide-react";
+import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from "react-icons/fa";
 import "./Footer.css";
 
 const Footer = () => {
   return (
-    <footer className="footer-wrapper">
+    <footer className="footer">
+      {/* FOOTER MAIN */}
 
-      {/* floating logo */}
-      <div className="footer-floating-logo">
-        ✳
-      </div>
+      <div className="footer-main">
 
-      <div className="footer-container">
+        <div className="footer-overlay"></div>
 
-        {/* center heading */}
-        <div className="footer-center">
-          <h2 className="footer-title">Designova AI</h2>
-          <p className="footer-tagline">
-            Where intelligent creativity begins
-          </p>
+        <div className="footer-content">
 
-          <div className="footer-buttons">
-            <button className="footer-btn primary">Start Creating</button>
-            <button className="footer-btn secondary">Join Now</button>
-          </div>
-        </div>
+          {/* LOGO SECTION */}
 
-        <div className="footer-grid">
+          <div className="footer-col logo-section">
 
-          {/* contact */}
-          <div className="footer-column">
-            <h4>Contact</h4>
+            <div className="logo">
+              <div className="logo-circle">D</div>
+              <h3>Designova</h3>
+            </div>
 
             <p>
-              Address
+              Designova AI helps creators generate presentations,
+              documents and visuals instantly with powerful AI tools.
             </p>
 
-            <p>Email</p>
-
-            <div className="footer-social">
-              <a href="#">Twitter ↗</a>
-              <a href="#">LinkedIn ↗</a>
-              <a href="#">GitHub ↗</a>
+            <div className="social-icons">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"><FaFacebookF /></a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"><FaTwitter /></a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"><FaInstagram /></a>
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"><FaLinkedinIn /></a>
             </div>
+
           </div>
 
-          {/* product */}
-          <div className="footer-column">
-            <h4>Product</h4>
-            <a href="#">Presentation Builder</a>
-            <a href="#">Document Generator</a>
-            <a href="#">Image Creator</a>
-            <a href="#">AI Tools</a>
+
+          
+
+          {/* QUICK LINK */}
+
+          <div className="footer-col">
+            <h4>Quick Link</h4>
+
+            <a href="#faq">FAQs</a>
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+
           </div>
 
-          {/* company */}
-          <div className="footer-column">
-            <h4>Company</h4>
-            <a href="#">About</a>
-            <a href="#">Help Center</a>
+          {/* CONTACT US */}
+
+          <div className="footer-col contact-section">
+            <h4>Contact Us</h4>
+
+            <div className="contact-item">
+              <MapPin size={20} />
+              <p>123 AI Street, Tech City, 54321</p>
+            </div>
+            <div className="contact-item">
+              <Mail size={20} />
+              <p>info@designova.com</p>
+            </div>
+            <div className="contact-item">
+              <Phone size={20} />
+              <p>+1 (555) 123-4567</p>
+            </div>
+
           </div>
 
         </div>
 
-        {/* bottom legal */}
         <div className="footer-bottom">
-          © {new Date().getFullYear()} Athena AI — Empowering Creativity
+          © {new Date().getFullYear()} Designova AI — All Rights Reserved
         </div>
 
       </div>
+
     </footer>
   );
 };

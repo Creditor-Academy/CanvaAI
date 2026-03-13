@@ -5,6 +5,11 @@
 * {
   -webkit-user-select: none;
 }
+html, body{
+overflow-x:hidden;
+max-width:100%;
+}
+
 
 .canvas-scroll {
   -ms-overflow-style: none;
@@ -31,7 +36,6 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--athena-font-body);
 }
 
 /* App content responsive layout aligned with fixed sidebar */
@@ -139,4 +143,14 @@ body {
   float: right;
   margin-left: 16px;
   margin-bottom: 8px;
+}
+/* Hide scrollbar but allow scrolling */
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
