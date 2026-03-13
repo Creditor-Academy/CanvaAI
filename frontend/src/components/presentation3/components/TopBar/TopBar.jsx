@@ -70,6 +70,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
 
   const shapesRef = useRef(null);
@@ -142,7 +143,10 @@ const TopBar = ({ onPresent, onAgentClick }) => {
           <input
             type="text"
             value={title || ""}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setHasUnsavedChanges(true);
+            }}
             placeholder="Untitled Project"
             className="project-input"
           />
@@ -154,8 +158,11 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             {/* Save Button */}
             <button
               className="nav-btn"
-              disabled={pastCount === 0}
-              style={{ opacity: pastCount === 0 ? 0.5 : 1, cursor: pastCount === 0 ? 'not-allowed' : 'pointer' }}
+              disabled={pastCount === 0 && !hasUnsavedChanges}
+              style={{
+                opacity: (pastCount === 0 && !hasUnsavedChanges) ? 0.5 : 1,
+                cursor: (pastCount === 0 && !hasUnsavedChanges) ? 'not-allowed' : 'pointer'
+              }}
               onClick={async () => {
                 const { addNotification } = useUIStore.getState();
 
@@ -196,6 +203,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                         }
                       }
 
+                      setHasUnsavedChanges(false);
                       return { success: true };
                     },
                     "top",

@@ -81,7 +81,7 @@ const Presentation = () => {
         position: relative;
         border-radius: 24px;
         padding: 2px;
-        background: linear-gradient(90deg, #1968df, #0ea5e9, #a855f7, #1968df);
+       background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706, #fbbf24);
         background-size: 300% 300%;
         animation: borderTrace 4s linear infinite;
         cursor: pointer;
@@ -104,6 +104,34 @@ const Presentation = () => {
         position: relative;
         overflow: hidden;
       }
+        /* Tracing border animation for Create Fresh button */
+.fresh-btn-wrapper {
+  position: relative;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa, #0ea5e9, #1e40af);
+  background-size: 300% 300%;
+  animation: borderTrace 4s linear infinite;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.fresh-btn-wrapper:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
+}
+
+.fresh-btn-inner {
+  border-radius: 22px;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
 
       /* Glowing section cards */
       .glow-card {
@@ -138,7 +166,8 @@ const Presentation = () => {
       try {
         const res = await listPresentations(user._id);
         const list = Array.isArray(res) ? res : (res.data || []);
-        setPresentations(list);
+        const sortedList = list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        setPresentations(sortedList);
       } catch (error) {
         console.error("Failed to fetch presentations:", error);
       } finally {
@@ -234,8 +263,8 @@ const Presentation = () => {
           {/* Header Section */}
           <div style={styles.header}>
             <div>
-              <h1 style={styles.title}>Empowering Education</h1>
-              <p style={styles.subtitle}>Create professional presentations in seconds with AI or start from scratch.</p>
+              <h1 style={styles.title}>Create Stunning Presentations</h1>
+              <p style={styles.subtitle}> ""Create professional presentations in seconds with AI or start from scratch""</p>
             </div>
           </div>
 
@@ -264,65 +293,36 @@ const Presentation = () => {
 
             {/* Create Fresh */}
             <div
-              onClick={() => window.open('/presentation-editor-v3', '_blank')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-6px)';
-                e.currentTarget.style.boxShadow = '0 25px 40px -12px rgba(59, 130, 246, 0.25)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.06)';
-              }}
-              style={{
-                ...styles.actionCard,
-                background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
-                border: '1px solid rgba(59, 130, 246, 0.15)',
-                borderRadius: '18px',
-                padding: '24px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <div
-                style={{
-                  ...styles.iconContainer,
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%)',
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 10px 20px rgba(59, 130, 246, 0.25)'
-                }}
-              >
-                <FiPlus size={28} color="#ffffff" />
-              </div>
+  className="fresh-btn-wrapper"
+  onClick={() => window.open('/presentation-editor-v3', '_blank')}
+>
+  <div className="fresh-btn-inner">
 
-              <div style={{ marginTop: '18px' }}>
-                <h2
-                  style={{
-                    ...styles.actionTitle,
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: '#0f172a'
-                  }}
-                >
-                  Create Fresh
-                </h2>
-                <p
-                  style={{
-                    ...styles.actionDesc,
-                    marginTop: '6px',
-                    color: '#475569',
-                    fontSize: '14px',
-                    lineHeight: '1.6'
-                  }}
-                >
-                  Open our advanced editor and start your story from scratch.
-                </p>
-              </div>
-            </div>
+    <div
+      style={{
+        ...styles.iconContainer,
+        background: 'linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)',
+        width: '64px',
+        height: '64px',
+        borderRadius: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 10px 20px rgba(59,130,246,0.35)'
+      }}
+    >
+      <FiPlus size={28} color="#ffffff" />
+    </div>
+
+    <div>
+      <h2 style={styles.actionTitle}>Create Fresh</h2>
+      <p style={styles.actionDesc}>
+        Open our advanced editor and start your story from scratch.
+      </p>
+    </div>
+
+  </div>
+</div>
           </div>
 
           {/* Recent Work Section — Glowing Card */}

@@ -63,21 +63,21 @@ export const exportPresentation = async (slides, theme, format) => {
   return response.blob();
 };
 
-/**
- * Rewrite slide content using AI
- * @param {string} content - Original slide content
- * @param {string} instruction - Instruction for rewriting
- * @returns {Promise<Object>} - { rewrittenContent: string }
- */
-export const rewriteContent = async (content, instruction) => {
-  const response = await fetch(`${API_BASE_URL}/rewrite-slide`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ content, instruction })
-  });
-  if (!response.ok) throw new Error(`Failed to rewrite content: ${response.status}`);
-  return response.json();
-};
+// /**
+//  * Rewrite slide content using AI
+//  * @param {string} content - Original slide content
+//  * @param {string} instruction - Instruction for rewriting
+//  * @returns {Promise<Object>} - { rewrittenContent: string }
+//  */
+// export const rewriteContent = async (content, instruction) => {
+//   const response = await fetch(`${API_BASE_URL}/rewrite-slide`, {
+//     method: 'POST',
+//     headers: getAuthHeaders(),
+//     body: JSON.stringify({ content, instruction })
+//   });
+//   if (!response.ok) throw new Error(`Failed to rewrite content: ${response.status}`);
+//   return response.json();
+// };
 
 /**
  * Generate AI image for a slide

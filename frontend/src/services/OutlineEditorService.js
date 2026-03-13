@@ -17,21 +17,28 @@ const getAuthHeaders = () => {
  * @returns {Promise<Object>} - Finalized presentation data
  */
 export const finalizePresentation = async (outlineData) => {
-  // Transform outlineData to backend format
-  // Backend expects: { meta: { topic, tone, slideCount }, slides: [...] }
-  const meta = {
-    topic: outlineData.meta?.topic || outlineData.topic || '',
-    tone: outlineData.meta?.tone || outlineData.tone || 'professional',
-    slideCount: outlineData.slides ? outlineData.slides.length : 0,
-    mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'no-media',
-    theme: outlineData.meta?.theme || {
-      name: 'Default',
-      slideBackground: '#ffffff',
-      titleColor: '#000000',
-      bodyColor: '#333333',
-      accentColor: '#3b82f6'
+  // Use the exact meta object that was sent to get-presentation-outline (preserved in originalMeta).
+  // Note: `topic` is a top-level payload field (not inside meta), so we inject it separately.
+  // Fall back to reconstructing meta only if originalMeta is unavailable.
+  const meta = outlineData.originalMeta
+    ? {
+      ...outlineData.originalMeta,
+      topic: outlineData.meta?.topic || outlineData.topic || '',
+      slideCount: outlineData.slides ? outlineData.slides.length : (outlineData.originalMeta.slideCount || 0)
     }
-  };
+    : {
+      topic: outlineData.meta?.topic || outlineData.topic || '',
+      tone: outlineData.meta?.tone || outlineData.tone || 'professional',
+      slideCount: outlineData.slides ? outlineData.slides.length : 0,
+      mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'no-media',
+      theme: outlineData.meta?.theme || {
+        name: 'Default',
+        slideBackground: '#ffffff',
+        titleColor: '#000000',
+        bodyColor: '#333333',
+        accentColor: '#3b82f6'
+      }
+    };
 
 
   // Transform slides to backend format

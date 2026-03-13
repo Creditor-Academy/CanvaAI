@@ -84,14 +84,25 @@ const AgentPanel = ({ isOpen, onClose }) => {
       if (mode === "generate-image") {
         console.log("--- AgentPanel: Generating image with prompt:", prompt);
         const activeSlide = slides.find(s => s.id === activeSlideId);
-        const res = await aiService.generateAIImage(userId, presentationId, prompt, activeSlide);
+        const res = await aiService.generateAIImage({
+          userId,
+          pptId: presentationId,
+          userPrompt: prompt,
+          activeSlideData: activeSlide
+        });
         if (res.url) {
           addImageLayer(null, res.url, res.key);
         }
       } else if (mode === "generate-slide") {
         console.log("--- AgentPanel: Generating slide. Payload check:", { userId, presentationId, prompt, mediaType });
         const presentationData = { slides };
-        const res = await aiService.generateAISlide(userId, presentationId, prompt, mediaType, presentationData);
+        const res = await aiService.generateAISlide({
+          userId,
+          pptId: presentationId,
+          userPrompt: prompt,
+          mediaStyle: mediaType,
+          presentationData
+        });
         console.log("--- AgentPanel: Generate slide response:", res);
         if (res.success && res.data) {
           appendSlide(res.data);
@@ -110,7 +121,13 @@ const AgentPanel = ({ isOpen, onClose }) => {
           slideDataSample: slideToExpand?.layers?.[0]?.type
         });
 
-        const res = await aiService.expandAISlide(userId, presentationId, prompt, mediaType, slideToExpand);
+        const res = await aiService.expandAISlide({
+          userId,
+          pptId: presentationId,
+          activeSlide: slideToExpand,
+          userPrompt: prompt,
+          mediaStyle: mediaType
+        });
         console.log("--- AgentPanel: Expand slide response:", res);
 
         if (res.success && res.data) {

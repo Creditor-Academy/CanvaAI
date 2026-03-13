@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ThemeCard from './ThemeCard';
 import ThemeBrowserModal from './ThemeBrowserModal';
 import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
@@ -244,40 +244,56 @@ const ThemeGrid = ({ selectedTheme, onOpenModal }) => (
   </div>
 );
 
-const GenerateButton = ({ canGenerate, isGenerating, handleGenerateClick, generationStep }) => (
-  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', marginBottom: '48px' }}>
+const GenerateButton = ({ canGenerate, isGenerating, handleGenerateClick }) => (
+  <div style={{ display: "flex", justifyContent: "center", marginTop: "16px", marginBottom: "48px" }}>
     <button
       onClick={handleGenerateClick}
       disabled={isGenerating || !canGenerate}
       style={{
-        height: '52px',
-        width: '280px',
-        background: '#6366F1',
-        borderRadius: '12px',
-        fontWeight: '600',
-        color: 'white',
-        border: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
+        height: "52px",
+        width: "280px",
+        background: "#6366F1",
+        borderRadius: "12px",
+        fontWeight: "600",
+        color: "white",
+        border: "none",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "12px",
         opacity: isGenerating || !canGenerate ? 0.5 : 1,
-        cursor: isGenerating || !canGenerate ? 'not-allowed' : 'pointer',
-        transition: 'all 0.2s',
-        fontSize: '16px',
+        cursor: isGenerating || !canGenerate ? "not-allowed" : "pointer",
+        transition: "all 0.2s",
+        fontSize: "16px",
         fontFamily: "'Inter', sans-serif",
-        boxShadow: canGenerate && !isGenerating ? '0 4px 12px rgba(99,102,241,0.3)' : 'none'
+        boxShadow: canGenerate && !isGenerating ? "0 4px 12px rgba(99,102,241,0.3)" : "none"
       }}
     >
       <span>Generate Presentation</span>
       {isGenerating && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '14px', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '10px' }}>
-            {generationStep}%
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ animation: "spin 1s linear infinite" }}
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
         </div>
       )}
     </button>
+    <style>{`
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `}</style>
   </div>
 );
 
@@ -303,6 +319,7 @@ const PromptSection = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [previewTheme, setPreviewTheme] = useState(null);
+
 
   const canGenerate =
     prompt.trim() &&
@@ -337,114 +354,113 @@ const PromptSection = ({
 
 
   return (
-  <div
-    className="presentation-studio-creation-hub"
-    style={{
-      width: "100%",
-      minHeight: "100vh",
-      padding: "40px 20px"
-    }}
-  >
     <div
-      className="presentation-studio-content"
+      className="presentation-studio-creation-hub"
       style={{
         width: "100%",
-        maxWidth: "1160px",
-        margin: "0 auto",
+        minHeight: "100vh",
+        padding: "40px 20px"
       }}
     >
-      
-
-      {/* ===== TWO COLUMN LAYOUT ===== */}
-
       <div
+        className="presentation-studio-content"
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "32px"
+          width: "100%",
+          maxWidth: "1160px",
+          margin: "0 auto",
         }}
       >
 
-        {/* LEFT COLUMN */}
 
-        <div style={{
-          background: "white",
-          padding: "32px",
-          borderRadius: "24px",
-          boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
-          display: "flex",
-          flexDirection: "column"
-        }}>
+        {/* ===== TWO COLUMN LAYOUT ===== */}
 
-          <TitleInput prompt={prompt} setPrompt={setPrompt} />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "32px"
+          }}
+        >
 
-          <OutlineInput
-            outlineText={outlineText}
-            setOutlineText={setOutlineText}
-          />
+          {/* LEFT COLUMN */}
 
-          <ToneSelector tone={tone} setTone={setTone} />
+          <div style={{
+            background: "white",
+            padding: "32px",
+            borderRadius: "24px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
+            display: "flex",
+            flexDirection: "column"
+          }}>
 
-          <SlideSelector length={length} setLength={setLength} />
+            <TitleInput prompt={prompt} setPrompt={setPrompt} />
 
-        </div>
-
-        {/* RIGHT COLUMN */}
-
-        <div style={{
-          background: "white",
-          padding: "32px",
-          borderRadius: "24px",
-          boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-
-          <MediaSelector
-            mediaStyle={mediaStyle}
-            setMediaStyle={setMediaStyle}
-          />
-
-          {mediaStyle === "AI Images" && (
-            <ImageStyleSelector
-              imageStyle={imageStyle}
-              setImageStyle={setImageStyle}
+            <OutlineInput
+              outlineText={outlineText}
+              setOutlineText={setOutlineText}
             />
-          )}
 
-          <ThemeGrid
-            selectedTheme={selectedTheme}
-            onOpenModal={(theme) => {
-              setPreviewTheme(theme);
-              setIsModalOpen(true);
-            }}
-          />
+            <ToneSelector tone={tone} setTone={setTone} />
+
+            <SlideSelector length={length} setLength={setLength} />
+
+          </div>
+
+          {/* RIGHT COLUMN */}
+
+          <div style={{
+            background: "white",
+            padding: "32px",
+            borderRadius: "24px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
+            display: "flex",
+            flexDirection: "column"
+          }}>
+
+            <MediaSelector
+              mediaStyle={mediaStyle}
+              setMediaStyle={setMediaStyle}
+            />
+
+            {mediaStyle === "AI Images" && (
+              <ImageStyleSelector
+                imageStyle={imageStyle}
+                setImageStyle={setImageStyle}
+              />
+            )}
+
+            <ThemeGrid
+              selectedTheme={selectedTheme}
+              onOpenModal={(theme) => {
+                setPreviewTheme(theme);
+                setIsModalOpen(true);
+              }}
+            />
+
+          </div>
 
         </div>
+
+        {/* MODAL */}
+
+        <ThemeBrowserModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          initialTheme={previewTheme || selectedTheme}
+          onSelect={setSelectedTheme}
+        />
+
+        {/* GENERATE BUTTON */}
+
+        <GenerateButton
+          canGenerate={canGenerate}
+          isGenerating={isGenerating}
+          handleGenerateClick={handleGenerateClick}
+        />
 
       </div>
-
-      {/* MODAL */}
-
-      <ThemeBrowserModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialTheme={previewTheme || selectedTheme}
-        onSelect={setSelectedTheme}
-      />
-
-      {/* GENERATE BUTTON */}
-
-      <GenerateButton
-        canGenerate={canGenerate}
-        isGenerating={isGenerating}
-        handleGenerateClick={handleGenerateClick}
-        generationStep={generationStep}
-      />
-
     </div>
-  </div>
-);
+  );
 };
 
 export default PromptSection;

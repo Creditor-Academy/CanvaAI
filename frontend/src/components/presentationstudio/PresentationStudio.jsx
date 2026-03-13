@@ -152,6 +152,9 @@ const PresentationStudio = ({ onBack }) => {
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [imageStyle, setImageStyle] = useState(null);
 
+  // Stores the exact meta object sent with get-presentation-outline
+  const [metaState, setMetaState] = useState(null);
+
   // Step 1: Generate Outline
   const handleGenerateOutline = async (payload) => {
     if (!payload?.topic?.trim()) return;
@@ -159,6 +162,10 @@ const PresentationStudio = ({ onBack }) => {
     setIsGenerating(true);
     setError(null);
     setProgress(0);
+
+    // Capture the exact meta object before the API call
+    const capturedMeta = payload.meta || null;
+    setMetaState(capturedMeta);
 
     try {
       const progressPromise = startFakeProgress();
@@ -173,8 +180,12 @@ const PresentationStudio = ({ onBack }) => {
 
       if (!transformedOutline) throw new Error('Invalid response format from server');
 
+      // Wait 1 second after 100% success before moving to Step 2
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // 🔥 EXACT moment loader hits 100 → screen change
-      setOutlineData(transformedOutline);
+      // Embed originalMeta so OutlineEditor forwards it unchanged to finalize-ppt
+      setOutlineData({ ...transformedOutline, originalMeta: capturedMeta });
 
     } catch (error) {
       setError(error.message || 'Failed to generate outline. Please try again.');

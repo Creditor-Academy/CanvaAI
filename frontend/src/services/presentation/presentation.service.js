@@ -14,6 +14,14 @@ const getAuthHeaders = () => {
 
 const IMAGE_API_URL = `${BASE_URL}/api/image`;
 
+const safeStringify = (data) => {
+    try {
+        return JSON.stringify(data);
+    } catch {
+        return "{}";
+    }
+};
+
 const uploadImageTempToReal = async (url, userId, folder, serviceId) => {
     try {
         const payload = {
@@ -192,9 +200,21 @@ export const deletePresentation = async (id, userId) => {
  * or directly: { url, revised_prompt, b64_json, key }
  */
 
-export const generateAIImage = async (userId, pptId, prompt, activeSlideData) => {
-    const url = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
-    const res = await axios.post(url, { prompt, activeSlideData }, getAuthHeaders());
+export const generateAIImage = async ({ userId, pptId, userPrompt, activeSlideData }) => {
+    const apiUrl = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
+
+    // Inject activeSlide JSON inside the prompt string as context
+    const finalPrompt = `
+Generate an image for the slide.
+
+Instruction:
+${userPrompt}
+
+Slide Context:
+${safeStringify(activeSlideData)}
+`;
+
+    const res = await axios.post(apiUrl, { prompt: finalPrompt }, getAuthHeaders());
 
     // Support both wrapped (DALL-E style) and unwrapped response structures
     const first = res.data?.data?.[0] || res.data;
@@ -223,26 +243,36 @@ export const generateAIImage = async (userId, pptId, prompt, activeSlideData) =>
     };
 };
 
-export const generateAISlide = async (userId, pptId, prompt, mediaType, presentationData) => {
-    const url = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
+export const generateAISlide = async ({ userId, pptId, userPrompt, presentationData, mediaStyle }) => {
+    const apiUrl = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
+
+    const slideContent = JSON.stringify({
+        instruction: userPrompt,
+        fullPresentation: presentationData
+    });
+
     const payload = {
-        slideContent: `User Request: ${prompt}\n\nExisting Presentation Context (JSON): ${JSON.stringify(presentationData)}`,
-        mediaStyle: mediaType
+        slideContent: slideContent,
+        mediaStyle: mediaStyle
     };
-    console.log(`--- PresentationService: generateAISlide POST ${url}`, payload);
-    const res = await axios.post(url, payload, getAuthHeaders());
+
+    console.log(`--- PresentationService: generateAISlide POST ${apiUrl}`, payload);
+    const res = await axios.post(apiUrl, payload, getAuthHeaders());
     return res.data;
 };
 
-export const expandAISlide = async (userId, pptId, prompt, mediaType, slideData) => {
-    const url = `${BASE_URL}/api/pp/expand-slide/${userId}/${pptId}`;
+export const expandAISlide = async ({ userId, pptId, activeSlide, userPrompt, mediaStyle }) => {
+    const apiUrl = `${BASE_URL}/api/pp/expand-slide/${userId}/${pptId}`;
+
+    // Backend expects raw slide object in slideContent, and string in prompt
     const payload = {
-        prompt,
-        mediaStyle: mediaType,
-        slideContent: slideData
+        slideContent: activeSlide, // RAW object (no stringify)
+        prompt: userPrompt,
+        mediaStyle: mediaStyle
     };
-    console.log(`--- PresentationService: expandAISlide POST ${url}`, payload);
-    const res = await axios.post(url, payload, getAuthHeaders());
+
+    console.log(`--- PresentationService: expandAISlide POST ${apiUrl}`, payload);
+    const res = await axios.post(apiUrl, payload, getAuthHeaders());
     return res.data;
 };
 
