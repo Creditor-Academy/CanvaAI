@@ -110,21 +110,14 @@ const PresentationStudio = ({ onBack }) => {
     };
   };
   const startFakeProgress = () => {
-    return new Promise(resolve => {
-      let current = 0;
+    let current = 0;
+    const interval = setInterval(() => {
+      current += Math.random() * 10;
+      if (current >= 92) current = 92;
+      setProgress(Math.floor(current));
+    }, 200);
 
-      const interval = setInterval(() => {
-        current += Math.random() * 7;
-
-        if (current >= 95) {
-          current = 95;
-          clearInterval(interval);
-          resolve();
-        }
-
-        setProgress(Math.floor(current));
-      }, 350);
-    });
+    return () => clearInterval(interval);
   };
 
 
@@ -167,12 +160,12 @@ const PresentationStudio = ({ onBack }) => {
     const capturedMeta = payload.meta || null;
     setMetaState(capturedMeta);
 
+    let stopFakeProgress = null;
     try {
-      const progressPromise = startFakeProgress();
-      const apiPromise = generateOutline(payload);
-
-      await progressPromise;
-      const response = await apiPromise;
+      stopFakeProgress = startFakeProgress();
+      const response = await generateOutline(payload);
+      stopFakeProgress?.();
+      stopFakeProgress = null;
       await finishProgress();
 
 
@@ -188,8 +181,10 @@ const PresentationStudio = ({ onBack }) => {
       setOutlineData({ ...transformedOutline, originalMeta: capturedMeta });
 
     } catch (error) {
+      stopFakeProgress?.();
       setError(error.message || 'Failed to generate outline. Please try again.');
     } finally {
+      stopFakeProgress?.();
       setIsGenerating(false);
     }
   };
