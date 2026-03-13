@@ -206,6 +206,24 @@ export const bulletToParagraph = async (text, options = {}) => {
   return await callAITransformAPI(customAction, text, temperature, onChunk);
 };
 
+export const translateText = async (text, language = 'Spanish', options = {}) => {
+  const { temperature = 0.2, onChunk } = options;
+  const customAction = `Translate the following text to ${language}. Preserve the original meaning, tone, and format. Output ONLY the translated text:`;
+  return await callAITransformAPI(customAction, text, temperature, onChunk);
+};
+
+export const paraphraseText = async (text, options = {}) => {
+  const { temperature = 0.7, onChunk } = options;
+  const customAction = `Paraphrase the following text. Say it differently while preserving the exact meaning. Use different words and sentence structure:`;
+  return await callAITransformAPI(customAction, text, temperature, onChunk);
+};
+
+export const improveReadability = async (text, options = {}) => {
+  const { temperature = 0.5, onChunk } = options;
+  const customAction = `Improve the readability of the following text. Make it clearer, easier to understand, and better organized. Fix awkward phrasing and improve flow:`;
+  return await callAITransformAPI(customAction, text, temperature, onChunk);
+};
+
 export const generateCode = async (description, language = 'javascript', options = {}) => {
   const { temperature = 0.7, onChunk } = options;
   const prompt = `Write ${language} code for the following requirement: "${description}". Only output the code, enclosed in markdown code blocks.`;

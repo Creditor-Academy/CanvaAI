@@ -52,6 +52,7 @@ const HeaderMenuBar = React.memo(({
   onZoomChange,
   onPrint,
   onFindReplace,
+  onOpenAIAssistant,  // New callback to open unified AI Assistant
   // Format callbacks
   onToggleBold,
   onToggleItalic,
@@ -81,8 +82,6 @@ const HeaderMenuBar = React.memo(({
   onGrammarCheck
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showAIPanel, setShowAIPanel] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState(null);
   const [showMenuDropdown, setShowMenuDropdown] = useState(null);
   const [showFindReplaceDialog, setShowFindReplaceDialog] = useState(false);
   const [findText, setFindText] = useState('');
@@ -115,48 +114,10 @@ const HeaderMenuBar = React.memo(({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // AI Document Analysis and Suggestions
-  const analyzeDocument = async () => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      const content = editor.getText();
-      const wordCount = content.trim().split(/\s+/).filter(w => w.length > 0).length;
-
-      // Get AI analysis
-      const prompt = `Analyze this document and provide brief insights on:
-1. Writing quality (score 1-10)
-2. Readability (score 1-10)
-3. Top 3 suggestions for improvement
-4. Overall tone
-
-Document content (${wordCount} words):
-${content.substring(0, 2000)}...`;
-
-      const result = await callAIStreamAPI('generate', {
-        prompt,
-        temperature: 0.3,
-        maxTokens: 500
-      });
-
-      setAnalysisResults({
-        wordCount,
-        aiInsights: result,
-        timestamp: new Date()
-      });
-
-      setShowAIPanel(true);
-      toast.success('Document analyzed successfully!');
-    } catch (error) {
-      console.error('Analysis error:', error);
-      toast.error('Failed to analyze document');
-    } finally {
-      setIsAnalyzing(false);
-    }
+  // AI Document Analysis - Opens unified AI Assistant
+  const analyzeDocument = () => {
+    // The unified AI Assistant is now accessed via the toolbar button
+    toast.info('Click the AI Assistant button (✨) in the toolbar for advanced AI features');
   };
 
   // AI Quick Improve
@@ -615,82 +576,6 @@ ${content.substring(0, 2000)}...`;
         </DialogContent>
       </Dialog>
 
-      {/* AI Analysis Panel */}
-      {showAIPanel && analysisResults && (
-        <div className="fixed top-20 right-4 w-96 bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Brain className="w-5 h-5" />
-                <h3 className="font-bold text-lg">Athena AI Insights</h3>
-              </div>
-              <button
-                onClick={() => setShowAIPanel(false)}
-                className="hover:bg-white/20 rounded-full p-1 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                <div className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">Word Count</div>
-                <div className="text-2xl font-bold text-indigo-900">{analysisResults.wordCount}</div>
-              </div>
-              <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
-                <div className="text-xs text-purple-600 font-semibold uppercase tracking-wide">Read Time</div>
-                <div className="text-2xl font-bold text-purple-900">{Math.ceil(analysisResults.wordCount / 200)} min</div>
-              </div>
-            </div>
-
-            {/* AI Insights */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
-                <Lightbulb className="w-4 h-4 text-yellow-500" />
-                AI Recommendations
-              </div>
-              <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border border-gray-200">
-                <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {analysisResults.aiInsights || 'Analysis in progress...'}
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Actions</div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={quickImprove}
-                  className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Wand2 className="w-3 h-3" />
-                  Improve Text
-                </button>
-                <button
-                  onClick={generateSummary}
-                  className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  <ListChecks className="w-3 h-3" />
-                  Summarize
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>Powered by Athena Intelligence</span>
-              <CheckCircle2 className="w-3 h-3 text-green-500" />
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 });

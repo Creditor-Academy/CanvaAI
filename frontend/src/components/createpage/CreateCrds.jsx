@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { FiEdit3, FiFileText, FiLayers } from "react-icons/fi";
+import { FiEdit3, FiFileText, FiLayers, FiImage } from "react-icons/fi";
 
 /* ---------------- CARD DATA ---------------- */
 
@@ -12,6 +12,14 @@ const cards = [
     route: "/create/ai-design",
     image:
       "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    icon: <FiImage size={28} />,
+    title: "Image Creator",
+    desc: "Generate high-quality images and artwork from text prompts.",
+    route: "/create/image-creator",
+    image:
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=900&q=80",
   },
   {
     icon: <FiFileText size={28} />,

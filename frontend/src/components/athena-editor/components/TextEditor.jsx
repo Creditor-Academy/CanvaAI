@@ -42,12 +42,23 @@ import { EditorProvider, useEditorContext } from '../contexts/EditorContent.jsx'
 import { ImageProvider, useImageContext } from '../contexts/ImageContext.jsx';
 import { useExportState } from '../hooks/useExportState.js';
 import { toast } from 'sonner';
+import {
+  rewriteText,
+  expandText,
+  summarizeText,
+  changeTone,
+  bulletToParagraph,
+  paraphraseText,
+  improveReadability,
+  callAIStreamAPI
+} from '../ai/aiUtils.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { DocumentExporter } from '../../../utils/documentExporter.js';
 import { DocumentOutline } from './editor/DocumentOutline';
 import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import HeaderMenuBar from './editor/HeaderMenuBar';
 import { FindReplaceModal } from './editor/FindReplaceModal';
+import { AIAssistant } from './editor/AIAssistant.jsx';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
@@ -146,12 +157,13 @@ import {
   Trash2,
   ChevronDown,
   Play,
+  RefreshCw,
+  BookOpen,
   Check,
   FileEdit,
   RotateCcw,
   Droplets,
   Smile,
-  CheckCircle2,
 } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Tooltip, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -385,6 +397,7 @@ export const EditorToolbar = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   const [currentFontSize, setCurrentFontSizeState] = useState(11);
   const [currentFont, setCurrentFont] = useState("Arial");
@@ -1490,13 +1503,35 @@ export const EditorToolbar = ({
         const options = { temperature: 0.7, signal: controller.signal };
 
         switch (actionOrMode) {
-          case 'rewrite': result = await rewriteText(textOrResult, options); break;
-          case 'expand': result = await expandText(textOrResult, options); break;
-          case 'summarize': result = await summarizeText(textOrResult, options); break;
-          case 'change_tone': result = await changeTone(textOrResult, 'professional', options); break;
-          case 'fix_grammar': result = await fixGrammar(textOrResult, options); break;
-          case 'bullets_to_paragraph': result = await bulletToParagraph(textOrResult, options); break;
-          default: return;
+          case 'rewrite': 
+            result = await rewriteText(textOrResult, options); 
+            break;
+          case 'expand': 
+            result = await expandText(textOrResult, options); 
+            break;
+          case 'summarize': 
+            result = await summarizeText(textOrResult, options); 
+            break;
+          case 'change_tone': 
+            result = await changeTone(textOrResult, 'professional', options); 
+            break;
+          case 'bullets_to_paragraph': 
+            result = await bulletToParagraph(textOrResult, options); 
+            break;
+          case 'paraphrase': 
+            result = await paraphraseText(textOrResult, options); 
+            break;
+          case 'improve_readability': 
+            result = await improveReadability(textOrResult, options); 
+            break;
+          case 'custom': 
+            // For custom actions, use a generic enhancement prompt
+            const customPrompt = `Improve and enhance the following text: ${textOrResult}`;
+            result = await callAIStreamAPI('generate', { prompt: customPrompt, temperature: 0.7 }, null, options.signal);
+            break;
+          default: 
+            toast.error(`Unknown AI action: ${actionOrMode}`);
+            return;
         }
 
         if (!editor) {
@@ -1802,13 +1837,11 @@ export const EditorToolbar = ({
           label: 'Duplicate Document', icon: Copy, action: () => {
             if (editor) {
               const html = editor.getHTML();
+              // Note: Removed localStorage usage. Pass content via URL params or backend storage.
+              // For now, just open a new editor tab - user will need to manually copy content
+              // or save both documents to backend and clone there.
               const newWindow = window.open('/editor', '_blank');
-              if (newWindow) {
-                newWindow.addEventListener('load', () => {
-                  try { newWindow.localStorage?.setItem('duplicatedContent', html); } catch (e) { }
-                });
-              }
-              toast.success('Document duplicated in new tab');
+              toast.success('New editor tab opened. Please save document to backend to clone.');
             }
           }
         },
@@ -3326,86 +3359,99 @@ export const EditorToolbar = ({
                   
             {/* Content */}
             <div className="p-4 max-h-[600px] overflow-y-auto custom-scrollbar">
-              {/* Generate Document Section */}
+              {/* Quick Actions - Always Available */}
               <div className="mb-4">
                 <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                  Generate Document with AI
+                  Quick Actions
                 </h4>
-                <button
-                  onClick={() => {
-                    setShowAIDocumentGenerator(true);
-                    onMenuClose(editor);
-                  }}
-                  className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-purple-50 to-pink-50 text-purple-800 hover:from-purple-100 hover:to-pink-100 transition-all duration-200 border border-purple-200 hover:border-purple-300 hover:shadow-md font-medium"
-                >
-                  <Sparkles className="w-4 h-4 inline mr-2" />
-                  Generate Document
-                </button>
-              </div>
-
-              {/* Generate Image Section */}
-              <div className="mb-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  Visual Content
-                </h4>
-                <button
-                  onClick={() => {
-                    toast.info('Generate Image dialog');
-                    onMenuClose(editor);
-                  }}
-                  className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-blue-50 to-cyan-50 text-blue-800 hover:from-blue-100 hover:to-cyan-100 transition-all duration-200 border border-blue-200 hover:border-blue-300 hover:shadow-md font-medium"
-                >
-                  <Image className="w-4 h-4 inline mr-2" />
-                  Generate Image
-                </button>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    onClick={() => {
+                      setShowAIAssistant(true);
+                      onMenuClose(editor);
+                      // Force focus on image generation by ensuring no text is selected
+                      if (editor) {
+                        editor.chain().focus().run();
+                      }
+                    }}
+                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-blue-50 to-cyan-50 text-blue-800 hover:from-blue-100 hover:to-cyan-100 transition-all duration-200 border border-blue-200 hover:border-blue-300 hover:shadow-md font-medium"
+                  >
+                    <Image className="w-4 h-4 inline mr-2" />
+                    Generate Image with AI
+                  </button>
+                </div>
               </div>
       
-              {/* Transform & Enhance Section */}
-              {editor && editor.state.selection.from !== editor.state.selection.to && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    Transform Selected Text
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={async () => {
-                        const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+              {/* Transform & Enhance Section - Always Visible */}
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  Transform Selected Text
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    disabled={!editor || editor.state.selection.from === editor.state.selection.to}
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
                         await handleAIInlineAction('summarize', text);
                         onMenuClose(editor);
-                      }}
-                      className="text-sm px-3 py-2.5 rounded-xl bg-linear-to-br from-orange-50 to-orange-100 text-orange-800 hover:from-orange-100 hover:to-orange-200 transition-all duration-200 border border-orange-200 hover:border-orange-300 text-left font-medium"
-                    >
-                      <Minus className="w-4 h-4 inline mr-2" />
-                      Summarize
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                    }}
+                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${
+                      !editor || editor.state.selection.from === editor.state.selection.to
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : 'bg-linear-to-br from-orange-50 to-orange-100 text-orange-800 hover:from-orange-100 hover:to-orange-200 border-orange-200 hover:border-orange-300'
+                    }`}
+                  >
+                    <Minus className="w-4 h-4 inline mr-2" />
+                    Summarize
+                  </button>
+                  <button
+                    disabled={!editor || editor.state.selection.from === editor.state.selection.to}
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
                         await handleAIInlineAction('expand', text);
                         onMenuClose(editor);
-                      }}
-                      className="text-sm px-3 py-2.5 rounded-xl bg-linear-to-br from-green-50 to-green-100 text-green-800 hover:from-green-100 hover:to-green-200 transition-all duration-200 border border-green-200 hover:border-green-300 text-left font-medium"
-                    >
-                      <Plus className="w-4 h-4 inline mr-2" />
-                      Expand Content
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                    }}
+                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${
+                      !editor || editor.state.selection.from === editor.state.selection.to
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : 'bg-linear-to-br from-green-50 to-green-100 text-green-800 hover:from-green-100 hover:to-green-200 border-green-200 hover:border-green-300'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    Expand Content
+                  </button>
+                  <button
+                    disabled={!editor || editor.state.selection.from === editor.state.selection.to}
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
                         await handleAIInlineAction('rewrite', text);
                         onMenuClose(editor);
-                      }}
-                      className="text-sm px-3 py-2.5 rounded-xl bg-linear-to-br from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 border border-blue-200 hover:border-blue-300 text-left font-medium col-span-2"
-                    >
-                      <Wand2 className="w-4 h-4 inline mr-2" />
-                      Enhance Content
-                    </button>
-                  </div>
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                    }}
+                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium col-span-2 ${
+                      !editor || editor.state.selection.from === editor.state.selection.to
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : 'bg-linear-to-br from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200 border-blue-200 hover:border-blue-300'
+                    }`}
+                  >
+                    <Wand2 className="w-4 h-4 inline mr-2" />
+                    Enhance Content
+                  </button>
                 </div>
-              )}
+              </div>
 
               {/* AI Agent Inline Changes Section */}
               <div className="mb-4">
@@ -3414,21 +3460,6 @@ export const EditorToolbar = ({
                   AI Agent Inline Changes
                 </h4>
                 <div className="space-y-2">
-                  <button
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('fix_grammar', text);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                      onMenuClose(editor);
-                    }}
-                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-red-50 to-pink-50 text-red-800 hover:from-red-100 hover:to-pink-100 transition-all duration-200 border border-red-200 hover:border-red-300 hover:shadow-md font-medium"
-                  >
-                    <CheckCircle2 className="w-4 h-4 inline mr-2" />
-                    Fix Grammar & Spelling
-                  </button>
                   <button
                     onClick={async () => {
                       const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
@@ -3443,6 +3474,36 @@ export const EditorToolbar = ({
                   >
                     <Smile className="w-4 h-4 inline mr-2" />
                     Change Tone
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
+                        await handleAIInlineAction('paraphrase', text);
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                      onMenuClose(editor);
+                    }}
+                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-amber-50 to-yellow-50 text-amber-800 hover:from-amber-100 hover:to-yellow-100 transition-all duration-200 border border-amber-200 hover:border-amber-300 hover:shadow-md font-medium"
+                  >
+                    <RefreshCw className="w-4 h-4 inline mr-2" />
+                    Paraphrase
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+                      if (text) {
+                        await handleAIInlineAction('improve_readability', text);
+                      } else {
+                        toast.error('Please select text first');
+                      }
+                      onMenuClose(editor);
+                    }}
+                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-emerald-50 to-green-50 text-emerald-800 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 border border-emerald-200 hover:border-emerald-300 hover:shadow-md font-medium"
+                  >
+                    <BookOpen className="w-4 h-4 inline mr-2" />
+                    Improve Readability
                   </button>
                 </div>
               </div>
@@ -3968,6 +4029,44 @@ export const EditorToolbar = ({
         </div>
       )}
 
+      {/* AI Assistant Dialog */}
+      <AIAssistant 
+        open={showAIAssistant} 
+        onOpenChange={setShowAIAssistant}
+        onGenerateDocument={(data) => {
+          console.log('Generate document:', data);
+          // Handle document generation
+          setShowAIAssistant(false);
+        }}
+        onInlineAction={(behavior, content) => {
+          if (!editor) return;
+          if (behavior === 'replace') {
+            editor.chain().focus().deleteSelection().insertContent(content).run();
+          } else if (behavior === 'append') {
+            editor.chain().focus().insertContent(`<p>${content}</p>`).run();
+          }
+          toast.success('AI action applied');
+        }}
+        onImageInsert={(imageUrl, altText) => {
+          if (!editor) return;
+          try {
+            editor.chain().focus().setResizableImage({ 
+              src: imageUrl, 
+              alt: altText, 
+              title: altText || 'AI Generated Image', 
+              width: 400, 
+              height: 300, 
+              align: 'left' 
+            }).run();
+            toast.success('AI image inserted successfully');
+          } catch (error) {
+            editor.chain().focus().setImage({ src: imageUrl, alt: altText }).run();
+            toast.success('AI image inserted');
+          }
+        }}
+        selectedText={editor ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') : ''}
+      />
+
     </motion.div >
   );
 };
@@ -4001,18 +4100,36 @@ const PageBreak = Node.create({
 });
 
 // ─── Wrapper component with providers ────────────────────────────────────────
-const TextEditorWithProviders = () => {
+const TextEditorWithProviders = ({ 
+  initialContent = null, 
+  activeDocId = null, 
+  mongoId = null,
+  onMongoIdSaved = null,
+  onDeleteDocument = null
+}) => {
   return (
     <EditorProvider>
       <ImageProvider>
-        <TextEditorContent />
+        <TextEditorContent 
+          initialContent={initialContent}
+          activeDocId={activeDocId}
+          mongoId={mongoId}
+          onMongoIdSaved={onMongoIdSaved}
+          onDeleteDocument={onDeleteDocument}
+        />
       </ImageProvider>
     </EditorProvider>
   );
 };
 
 // ─── Main TextEditorContent component ─────────────────────────────────────────
-const TextEditorContent = () => {
+const TextEditorContent = ({ 
+  initialContent = null, 
+  activeDocId = null, 
+  mongoId = null,
+  onMongoIdSaved = null,
+  onDeleteDocument = null
+}) => {
   const PAGE_HEIGHT = 1122.5;
   const PAGE_WIDTH = 793.7;
 
@@ -4043,6 +4160,7 @@ const TextEditorContent = () => {
   const [isStarred, setIsStarred] = useState(false);
   const [showFindReplaceModal, setShowFindReplaceModal] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [documentVersions, setDocumentVersions] = useState([{ id: Date.now(), timestamp: new Date(), title: 'Initial Version', content: '', author: 'Current User' }]);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [activeHeadingLevel, setActiveHeadingLevel] = useState(0);
@@ -4654,45 +4772,9 @@ const TextEditorContent = () => {
     // ENDLESS PAGE MODE - No pagination initialization needed
     // Content flows naturally without page wrapping
     
-    
-    const handoffContent = localStorage.getItem('athena_active_doc_content');
-    const handoffTitle = localStorage.getItem('athena_active_doc_title');
-    if (handoffContent !== null) {
-      try {
-        editor.commands.setContent(handoffContent);
-        if (handoffTitle) setDocumentTitle(handoffTitle);
-        localStorage.removeItem('athena_active_doc_content');
-        localStorage.removeItem('athena_active_doc_title');
-        // Explicit pagination after load — onUpdate fires but the debounce
-        // may race with content settling; this 500ms call is the safety net.
-        lastFingerprintRef.current = '';
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            const chars = editor.state.doc?.textContent?.length || 0;
-            if (chars > 20000) runProgressivePageBreaks(editor);
-            else runPastePageBreaks(editor);
-          }
-        }, 500);
-      } catch (e) { console.error('Error loading handoff content:', e); }
-      return;
-    }
-    const savedContent = localStorage.getItem('text-editor-document');
-    if (savedContent) {
-      try {
-        const parsed = JSON.parse(savedContent);
-        editor.commands.setContent(parsed.html || '');
-        if (parsed.title) setDocumentTitle(parsed.title);
-        // Explicit pagination after load
-        lastFingerprintRef.current = '';
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            const chars = editor.state.doc?.textContent?.length || 0;
-            if (chars > 20000) runProgressivePageBreaks(editor);
-            else runPastePageBreaks(editor);
-          }
-        }, 500);
-      } catch (error) { console.error('Error loading saved content:', error); }
-    }
+    // Note: localStorage has been removed. Initial content should be passed via props
+    // or loaded from backend API. Currently no initial content is being loaded.
+    // To load initial content, pass it as a prop to the TextEditor component.
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCopy = useCallback(async () => {
@@ -4712,61 +4794,17 @@ const TextEditorContent = () => {
     if (!editor) return;
     try {
       const html = editor.getHTML();
-      const content = { title: documentTitle, html, savedAt: new Date().toISOString() };
-      localStorage.setItem('text-editor-document', JSON.stringify(content));
-      const activeDocId = localStorage.getItem('athena_active_doc_id');
-      if (activeDocId) {
-        try {
-          const docsRaw = localStorage.getItem('athena_documents');
-          const docs = docsRaw ? JSON.parse(docsRaw) : [];
-          const updated = docs.map(d => d.id === activeDocId ? { ...d, content: html, title: documentTitle, lastOpened: Date.now() } : d);
-          if (!updated.find(d => d.id === activeDocId)) updated.unshift({ id: activeDocId, title: documentTitle, content: html, createdAt: Date.now(), lastOpened: Date.now(), template: 'blank', pinned: false });
-          localStorage.setItem('athena_documents', JSON.stringify(updated));
-        } catch (e) { console.warn('Could not sync to document list:', e); }
-      }
+      // Note: Auto-save to backend (MongoDB) has been disabled.
+      // Backend save should be handled through parent component callbacks.
       
-      // Save to backend (MongoDB)
-      const token = localStorage.getItem('token');
-      if (token && activeDocId && activeDocId.startsWith('doc_')) {
-        try {
-          // Check if this is a backend-synced document by checking for mongodb_id in localStorage
-          const mongoId = localStorage.getItem(`athena_doc_mongo_${activeDocId}`);
-          
-          if (mongoId) {
-            // Update existing document
-            await api.updateEditorDocument(mongoId, {
-              title: documentTitle,
-              content: editor.getJSON(),
-              html: html
-            });
-          } else {
-            // Create new document
-            const result = await api.saveEditorDocument({
-              title: documentTitle,
-              content: editor.getJSON(),
-              html: html
-            });
-            // Store the MongoDB ID for future updates
-            localStorage.setItem(`athena_doc_mongo_${activeDocId}`, result.id);
-          }
-          
-          setLastSaved(new Date());
-          setSaveStatus('saved');
-        } catch (backendError) {
-          console.warn('Backend save failed, but local save succeeded:', backendError);
-          // Still update local state even if backend fails
-          setLastSaved(new Date());
-          setSaveStatus('error');
-        }
-      } else {
-        setLastSaved(new Date());
-        setSaveStatus('saved');
-      }
+      // Just update local state
+      setLastSaved(new Date());
+      setSaveStatus('saved');
     } catch (error) { 
       console.error('Auto-save error:', error);
       setSaveStatus('error');
     }
-  }, [editor, documentTitle, setLastSaved, setSaveStatus, api]);
+  }, [editor, documentTitle, setLastSaved, setSaveStatus]);
   
   // Wire handleAutoSave to ref to avoid TDZ and stale closures
   handleAutoSaveRef.current = handleAutoSave;
@@ -4882,20 +4920,12 @@ const TextEditorContent = () => {
         });
       });
       
-      // Save to localStorage as backup
-      localStorage.setItem('text-editor-document', JSON.stringify({
-        title: documentTitle,
-        html: editor.getHTML(),
-        savedAt: new Date().toISOString()
-      }));
+      // Note: Removed localStorage backup. Only save to backend (MongoDB).
       
       // Save to backend (MongoDB)
-      const token = localStorage.getItem('token');
-      if (token) {
+      if (activeDocId) {
         try {
-          const activeDocId = localStorage.getItem('athena_active_doc_id');
-          const mongoId = localStorage.getItem(`athena_doc_mongo_${activeDocId}`);
-          
+          // Use mongoId from state/props instead of localStorage
           if (mongoId) {
             await api.updateEditorDocument(mongoId, {
               title: documentTitle,
@@ -4908,9 +4938,8 @@ const TextEditorContent = () => {
               content: editor.getJSON(),
               html: editor.getHTML()
             });
-            if (activeDocId) {
-              localStorage.setItem(`athena_doc_mongo_${activeDocId}`, result.id);
-            }
+            // Parent component should track the MongoDB ID via callback or state
+            onMongoIdSaved?.(activeDocId, result.id);
           }
           
           setLastSaved(new Date());
@@ -4923,10 +4952,10 @@ const TextEditorContent = () => {
           return; // Stop here if backend save fails
         }
       } else {
-        // No token - just local save
+        // No activeDocId - just local state update
         setLastSaved(new Date());
         setSaveStatus('saved');
-        toast.success('Document saved locally! 💾');
+        toast.success('Document saved! 💾');
       }
       
       try {
@@ -5123,9 +5152,12 @@ const TextEditorContent = () => {
   const handleDeleteDocument = useCallback(() => {
     if (window.confirm('Are you sure you want to delete this document?')) {
       editor?.commands.clearContent(); setDocumentTitle('Untitled Document');
-      localStorage.removeItem('text-editor-document'); toast.success('Document deleted');
+      // Note: Removed localStorage deletion. Backend deletion should be handled via API call.
+      toast.success('Document cleared');
+      // Call backend deletion if needed
+      onDeleteDocument?.();
     }
-  }, [editor, setDocumentTitle]);
+  }, [editor, setDocumentTitle, onDeleteDocument]);
 
   const handleRestoreVersion = useCallback((versionId) => {
     const version = documentVersions.find(v => v.id === versionId);
@@ -5310,6 +5342,7 @@ const TextEditorContent = () => {
           toggleBulletList={toggleBulletList}
           toggleOrderedList={toggleOrderedList}
           toggleTaskList={toggleTaskList}
+          setShowAIAssistant={setShowAIAssistant}
           toggleUnderline={toggleUnderline}
           toggleBlockquote={toggleBlockquote}
           openExportDialog={openExportDialog}
@@ -5481,6 +5514,43 @@ const TextEditorContent = () => {
             </>
           )}
         </AnimatePresence>
+
+        {/* AI Assistant Panel */}
+        <AIAssistant
+          open={showAIAssistant}
+          onOpenChange={setShowAIAssistant}
+          onGenerateDocument={(data) => {
+            console.log('Generate document:', data);
+            toast.success(`Generating ${data.type} - ${data.pages} page${data.pages > 1 ? 's' : ''}`);
+          }}
+          onInlineAction={(behavior, content) => {
+            if (!editor) return;
+            if (behavior === 'replace') {
+              editor.chain().focus().deleteSelection().insertContent(content).run();
+            } else if (behavior === 'append') {
+              editor.chain().focus().insertContent(`<p>${content}</p>`).run();
+            }
+            toast.success('AI action applied');
+          }}
+          onImageInsert={(imageUrl, altText) => {
+            if (!editor) return;
+            try {
+              editor.chain().focus().setResizableImage({ 
+                src: imageUrl, 
+                alt: altText, 
+                title: altText || 'AI Generated Image', 
+                width: 400, 
+                height: 300, 
+                align: 'left' 
+              }).run();
+              toast.success('AI image inserted successfully');
+            } catch (error) {
+              editor.chain().focus().setImage({ src: imageUrl, alt: altText }).run();
+              toast.success('AI image inserted');
+            }
+          }}
+          selectedText={editor?.state?.doc?.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || ''}
+        />
       </div>
     </TooltipProvider>
   );

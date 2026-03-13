@@ -1,362 +1,546 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
 import {
-  Dialog,
-  DialogContent,
-} from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import {
-  Search,
-  Replace,
-  ArrowUp,
-  ArrowDown,
-  X,
-  CaseSensitive,
-  WholeWord,
-  ReplaceAll
+  Search, X, ChevronUp, ChevronDown, CaseSensitive,
+  WholeWord, Regex, Replace, ReplaceAll, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '../utils';
 
-const FindReplaceModal = ({
-  isOpen,
-  onClose,
-  editor,
-  isReplaceMode = false
-}) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [replaceTerm, setReplaceTerm] = useState('');
-  const [matchCase, setMatchCase] = useState(false);
-  const [wholeWord, setWholeWord] = useState(false);
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const [matches, setMatches] = useState([]);
-  const searchInputRef = useRef(null);
+// ─── ProseMirror Plugin ──────────────────────────────────────────────────────
+// One shared plugin key so Tiptap never duplicates it across renders.
+const FIND_REPLACE_KEY = new PluginKey('athena-find-replace');
 
-  // Find all matches in the document
-  const findAllMatches = () => {
-    if (!editor || !searchTerm) {
-      setMatches([]);
-      setCurrentMatchIndex(0);
-      return [];
-    }
-
-    const { doc } = editor.state;
-    let textContent = '';
-    const positions = [];
-
-    // Map the actual document text precisely to ProseMirror node positions
-    doc.descendants((node, pos) => {
-      if (node.isText) {
-        for (let i = 0; i < node.text.length; i++) {
-          textContent += node.text[i];
-          positions.push(pos + i);
+/**
+ * Build a ProseMirror plugin that decorates all match ranges in the document.
+ * Returns the plugin instance (created once, not per render).
+ */
+function buildFindReplacePlugin() {
+  return new Plugin({
+    key: FIND_REPLACE_KEY,
+    state: {
+      // Plugin state: { matches, currentIndex }
+      init() { return { matches: [], currentIndex: -1 }; },
+      apply(tr, old) {
+        // Plugin state is updated via setMeta
+        const meta = tr.getMeta(FIND_REPLACE_KEY);
+        if (meta !== undefined) return meta;
+        // Remap positions when doc changes
+        if (tr.docChanged && old.matches.length > 0) {
+          const remapped = old.matches
+            .map(m => ({
+              from: tr.mapping.map(m.from),
+              to:   tr.mapping.map(m.to),
+            }))
+            .filter(m => m.from < m.to);
+          return { ...old, matches: remapped };
         }
-      } else if (node.isBlock && textContent.length > 0 && textContent[textContent.length - 1] !== '\n') {
-        textContent += '\n';
-        positions.push(pos);
+        return old;
+      },
+    },
+    props: {
+      decorations(state) {
+        const { matches, currentIndex } = FIND_REPLACE_KEY.getState(state);
+        if (!matches.length) return DecorationSet.empty;
+
+        const decorations = matches.map((m, i) =>
+          Decoration.inline(m.from, m.to, {
+            class: i === currentIndex
+              ? 'find-replace-current'
+              : 'find-replace-match',
+          })
+        );
+        return DecorationSet.create(state.doc, decorations);
+      },
+    },
+  });
+}
+
+// Singleton plugin instance — created once per module load
+let _pluginInstance = null;
+function getFindReplacePlugin() {
+  if (!_pluginInstance) _pluginInstance = buildFindReplacePlugin();
+  return _pluginInstance;
+}
+
+// ─── Match Finder ────────────────────────────────────────────────────────────
+
+/**
+ * Walk the ProseMirror doc and return all { from, to } ranges matching the
+ * search options. Works across block boundaries by accumulating a flat char map.
+ */
+function findMatchesInDoc(doc, searchTerm, { matchCase, wholeWord, useRegex }) {
+  if (!doc || !searchTerm) return [];
+
+  // Build flat text + position map
+  const chars = []; // chars[i] = { char, pos }
+  doc.descendants((node, pos) => {
+    if (node.isText) {
+      for (let i = 0; i < node.text.length; i++) {
+        chars.push({ char: node.text[i], pos: pos + i });
       }
-    });
-
-    let flags = 'g';
-    if (!matchCase) flags += 'i'; // If not case sensitive, apply ignore-case flag
-
-    // Escape standard regex characters in search term
-    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let regexPattern = escapeRegExp(searchTerm);
-
-    if (wholeWord) {
-      regexPattern = `\\b${regexPattern}\\b`;
+    } else if (node.isBlock && chars.length > 0) {
+      chars.push({ char: '\n', pos: pos });
     }
+  });
 
-    try {
-      const regex = new RegExp(regexPattern, flags);
-      const foundMatches = [];
-      let match;
+  const text = chars.map(c => c.char).join('');
 
-      while ((match = regex.exec(textContent)) !== null) {
-        if (match[0].length === 0) break; // Prevent infinite loop on empty matches
+  let flags = 'g';
+  if (!matchCase) flags += 'i';
 
-        const startIndex = match.index;
-        const endIndex = match.index + match[0].length - 1;
-
-        // Ensure positions map correctly back to Prosemirror limits
-        if (positions[startIndex] !== undefined && positions[endIndex] !== undefined) {
-          foundMatches.push({
-            from: positions[startIndex],
-            to: positions[endIndex] + 1, // +1 because Tiptap selection 'to' is exclusive
-            match: match[0]
-          });
-        }
-      }
-
-      setMatches(foundMatches);
-      return foundMatches;
-    } catch (error) {
-      console.error('Invalid search pattern:', error);
-      setMatches([]);
-      return [];
+  let pattern;
+  try {
+    if (useRegex) {
+      pattern = new RegExp(searchTerm, flags);
+    } else {
+      const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      pattern = new RegExp(wholeWord ? `\\b${escaped}\\b` : escaped, flags);
     }
-  };
+  } catch {
+    return []; // invalid regex
+  }
 
-  // Highlight current match
-  const highlightMatch = (matchIndex) => {
-    if (!editor || matches.length === 0) return;
-
-    const match = matches[matchIndex];
-    if (!match) return;
-
-    // Perform selection exactly at the proseMirror document nodes mapped!
-    editor.commands.setTextSelection({
-      from: match.from,
-      to: match.to
-    });
-
-    editor.commands.focus();
-    editor.commands.scrollIntoView(); // Scrolls correctly into view
-  };
-
-  // Find next match
-  const findNext = () => {
-    if (matches.length === 0) return;
-
-    const nextIndex = (currentMatchIndex + 1) % matches.length;
-    setCurrentMatchIndex(nextIndex);
-    highlightMatch(nextIndex);
-  };
-
-  // Find previous match
-  const findPrevious = () => {
-    if (matches.length === 0) return;
-
-    const prevIndex = currentMatchIndex === 0 ? matches.length - 1 : currentMatchIndex - 1;
-    setCurrentMatchIndex(prevIndex);
-    highlightMatch(prevIndex);
-  };
-
-  // Replace current match
-  const replaceCurrent = () => {
-    if (!editor || matches.length === 0) return;
-
-    const match = matches[currentMatchIndex];
-    if (!match) return;
-
-    // Set selection directly on the match and insert!
-    editor.commands.setTextSelection({
-      from: match.from,
-      to: match.to
-    });
-    editor.commands.insertContent(replaceTerm);
-    toast.success('Replaced current match');
-
-    // Re-evaluate matches immediately after replacement alters the document flow
-    setTimeout(() => {
-      const newMatches = findAllMatches();
-      if (newMatches.length > 0) {
-        // Because the current match was just removed, its index essentially passed down to the next valid match
-        const newIndex = Math.min(currentMatchIndex, newMatches.length - 1);
-        setCurrentMatchIndex(newIndex);
-        highlightMatch(newIndex);
-      }
-    }, 50);
-  };
-
-  // Replace all matches
-  const replaceAll = () => {
-    if (!editor || !searchTerm || matches.length === 0) return;
-
-    try {
-      let tr = editor.state.tr;
-
-      // Iterate exactly in backwards flow so earlier replace modifications don't skew the index limits of matches later down!
-      const reversedMatches = [...matches].reverse();
-
-      reversedMatches.forEach(m => {
-        tr.insertText(replaceTerm, m.from, m.to);
+  const matches = [];
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    if (m[0].length === 0) { pattern.lastIndex++; continue; }
+    const start = m.index;
+    const end   = m.index + m[0].length - 1;
+    if (chars[start] && chars[end]) {
+      matches.push({
+        from:  chars[start].pos,
+        to:    chars[end].pos + 1,
+        match: m[0],
+        groups: m, // for regex capture group replace
       });
-
-      editor.view.dispatch(tr);
-
-      toast.success(`Replaced ${matches.length} occurrences`);
-      findAllMatches();
-
-      if (!isReplaceMode) {
-        onClose();
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error('Error replacing text');
     }
-  };
+  }
+  return matches;
+}
 
-  // Update search when options change
-  useEffect(() => {
-    if (isOpen && searchTerm) {
-      const matches = findAllMatches();
-      if (matches.length > 0) {
-        highlightMatch(0);
-        setCurrentMatchIndex(0);
-      }
-    }
-  }, [searchTerm, matchCase, wholeWord, isOpen]);
+// ─── Helper: compute replacement string with capture group substitution ──────
+function computeReplacement(replaceTerm, groups) {
+  if (!groups) return replaceTerm;
+  return replaceTerm.replace(/\$(\d+)/g, (_, n) => groups[parseInt(n)] ?? '');
+}
 
-  // Focus search input when dialog opens
+// ─── Component ───────────────────────────────────────────────────────────────
+
+const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) => {
+  const [searchTerm,    setSearchTerm]    = useState('');
+  const [replaceTerm,   setReplaceTerm]   = useState('');
+  const [matchCase,     setMatchCase]     = useState(false);
+  const [wholeWord,     setWholeWord]     = useState(false);
+  const [useRegex,      setUseRegex]      = useState(false);
+  const [showReplace,   setShowReplace]   = useState(isReplaceMode);
+  const [regexError,    setRegexError]    = useState('');
+  const [matches,       setMatches]       = useState([]);
+  const [currentIndex,  setCurrentIndex]  = useState(-1);
+
+  const searchInputRef  = useRef(null);
+  const replaceInputRef = useRef(null);
+
+  // ── Sync replace panel with prop ─────────────────────────────────────────
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
+    setShowReplace(isReplaceMode);
+  }, [isReplaceMode]);
+
+  // ── Focus on open ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 80);
+    } else {
+      // Clear decorations when closed
+      clearDecorations();
     }
   }, [isOpen]);
 
-  // Get current match text
-  const currentMatchText = matches.length > 0
-    ? `${currentMatchIndex + 1} of ${matches.length}`
-    : '0 of 0';
+  // ── Core: update decorations whenever search params change ───────────────
+  const updateDecorations = useCallback((term, idx, opts) => {
+    if (!editor) return [];
+    setRegexError('');
+
+    if (!term) {
+      clearDecorations();
+      setMatches([]);
+      setCurrentIndex(-1);
+      return [];
+    }
+
+    // Validate regex
+    if (opts.useRegex) {
+      try { new RegExp(term); }
+      catch (e) {
+        setRegexError(e.message);
+        clearDecorations();
+        setMatches([]);
+        return [];
+      }
+    }
+
+    const found = findMatchesInDoc(editor.state.doc, term, opts);
+    const safeIdx = found.length === 0 ? -1 : Math.min(idx, found.length - 1);
+
+    // Push into ProseMirror plugin via a meta transaction
+    const tr = editor.state.tr;
+    tr.setMeta(FIND_REPLACE_KEY, { matches: found, currentIndex: safeIdx });
+    editor.view.dispatch(tr);
+
+    setMatches(found);
+    setCurrentIndex(safeIdx);
+
+    // Scroll current match into view
+    if (found.length > 0 && safeIdx >= 0) {
+      scrollToMatch(found[safeIdx]);
+    }
+
+    return found;
+  }, [editor]);
+
+  const clearDecorations = useCallback(() => {
+    if (!editor) return;
+    try {
+      const tr = editor.state.tr;
+      tr.setMeta(FIND_REPLACE_KEY, { matches: [], currentIndex: -1 });
+      editor.view.dispatch(tr);
+    } catch {}
+  }, [editor]);
+
+  // Re-run search whenever any option changes
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDecorations(searchTerm, currentIndex < 0 ? 0 : currentIndex, { matchCase, wholeWord, useRegex });
+  }, [searchTerm, matchCase, wholeWord, useRegex, isOpen]);
+
+  // ── Scroll helper ─────────────────────────────────────────────────────────
+  const scrollToMatch = (match) => {
+    if (!editor || !match) return;
+    try {
+      editor.commands.setTextSelection({ from: match.from, to: match.to });
+      editor.commands.scrollIntoView();
+    } catch {}
+  };
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const goToIndex = useCallback((idx) => {
+    if (!matches.length) return;
+    const safeIdx = ((idx % matches.length) + matches.length) % matches.length;
+    setCurrentIndex(safeIdx);
+    scrollToMatch(matches[safeIdx]);
+
+    const tr = editor.state.tr;
+    tr.setMeta(FIND_REPLACE_KEY, { matches, currentIndex: safeIdx });
+    editor.view.dispatch(tr);
+  }, [matches, editor]);
+
+  const findNext     = () => goToIndex(currentIndex + 1);
+  const findPrevious = () => goToIndex(currentIndex - 1);
+
+  // ── Replace ───────────────────────────────────────────────────────────────
+  const replaceCurrent = useCallback(() => {
+    if (!editor || !matches.length || currentIndex < 0) return;
+    const match = matches[currentIndex];
+    const replacement = computeReplacement(replaceTerm, match.groups);
+
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: match.from, to: match.to })
+      .insertContent(replacement)
+      .run();
+
+    // Re-scan after a tick (doc has changed)
+    setTimeout(() => {
+      const found = updateDecorations(searchTerm, currentIndex, { matchCase, wholeWord, useRegex });
+      if (found.length > 0) goToIndex(Math.min(currentIndex, found.length - 1));
+    }, 30);
+  }, [editor, matches, currentIndex, replaceTerm, searchTerm, matchCase, wholeWord, useRegex, updateDecorations, goToIndex]);
+
+  const replaceAll = useCallback(() => {
+    if (!editor || !matches.length) return;
+    try {
+      let tr = editor.state.tr;
+      // Iterate backwards so earlier positions stay valid
+      [...matches].reverse().forEach(m => {
+        const replacement = computeReplacement(replaceTerm, m.groups);
+        tr.insertText(replacement, m.from, m.to);
+      });
+      const count = matches.length;
+      editor.view.dispatch(tr);
+      toast.success(`Replaced ${count} occurrence${count !== 1 ? 's' : ''}`);
+
+      // Re-scan
+      setTimeout(() => {
+        updateDecorations(searchTerm, 0, { matchCase, wholeWord, useRegex });
+      }, 30);
+    } catch (e) {
+      toast.error('Replace failed: ' + e.message);
+    }
+  }, [editor, matches, replaceTerm, searchTerm, matchCase, wholeWord, useRegex, updateDecorations]);
+
+  // ── Keyboard handling ────────────────────────────────────────────────────
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.shiftKey ? findPrevious() : findNext();
+    }
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    if (e.key === 'Tab' && showReplace) {
+      e.preventDefault();
+      replaceInputRef.current?.focus();
+    }
+  };
+
+  const handleReplaceKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); replaceCurrent(); }
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    if (e.key === 'Tab') { e.preventDefault(); searchInputRef.current?.focus(); }
+  };
+
+  // ── Derived UI state ──────────────────────────────────────────────────────
+  const matchLabel = searchTerm
+    ? matches.length === 0
+      ? 'No results'
+      : `${currentIndex + 1} / ${matches.length}`
+    : '';
+
+  const hasMatches     = matches.length > 0;
+  const canReplace     = hasMatches && currentIndex >= 0;
+  const canReplaceAll  = hasMatches;
+
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] p-0 gap-0 shadow-2xl border-2">
-        {/* Google Docs-style header bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 rounded-t-lg">
-          <div className="flex items-center gap-3 flex-1">
-            <Search className="w-5 h-5 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Find and replace</span>
+    <>
+      {/* Inject decoration CSS once */}
+      <style>{`
+        .find-replace-match {
+          background-color: rgba(255, 165, 0, 0.35);
+          border-radius: 2px;
+        }
+        .find-replace-current {
+          background-color: rgba(255, 200, 0, 0.8);
+          border-radius: 2px;
+          outline: 2px solid #f59e0b;
+          outline-offset: -1px;
+        }
+      `}</style>
+
+      {/* Floating panel — top-right, non-blocking */}
+      <div
+        className="fixed top-16 right-4 z-[9999] w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden"
+        style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-semibold text-gray-700 tracking-tight">
+              Find & Replace
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-4 h-4 text-gray-500" />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Toggle Replace Panel */}
+            <button
+              onClick={() => setShowReplace(v => !v)}
+              className={`text-xs px-2 py-1 rounded font-medium transition-colors ${
+                showReplace
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+              title="Toggle replace"
+            >
+              Replace
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-200 rounded-lg transition-colors ml-1"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
         </div>
 
-        {/* Main content area - Google Docs style */}
-        <div className="p-4 space-y-3 bg-gray-50">
-          {/* Search input with integrated buttons */}
-          <div className="flex gap-2">
+        {/* ── Search Row ── */}
+        <div className="px-4 pt-3 pb-0">
+          <div className="flex items-center gap-2">
+            {/* Search field */}
             <div className="relative flex-1">
-              <Input
+              <input
                 ref={searchInputRef}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Find..."
-                className="pl-3 pr-10 h-10 border-2 focus:border-blue-500 focus:ring-0"
-                autoFocus
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Find…"
+                className={`w-full h-9 pl-3 pr-16 text-sm border rounded-lg outline-none transition-all
+                  ${regexError
+                    ? 'border-red-400 bg-red-50 focus:ring-1 focus:ring-red-400'
+                    : 'border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200'
+                  }`}
+                spellCheck={false}
+                autoComplete="off"
               />
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setMatches([]);
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded"
-                >
-                  <X className="w-3 h-3 text-gray-400" />
-                </button>
+              {/* Match count badge */}
+              {matchLabel && (
+                <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-mono px-1.5 py-0.5 rounded-md font-medium
+                  ${matches.length === 0 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'}`}>
+                  {matchLabel}
+                </span>
               )}
             </div>
-            
-            {/* Navigation buttons integrated into search bar */}
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={findPrevious}
-                disabled={matches.length === 0}
-                className="h-10 w-10 hover:bg-gray-100"
-              >
-                <ArrowUp className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={findNext}
-                disabled={matches.length === 0}
-                className="h-10 w-10 hover:bg-gray-100"
-              >
-                <ArrowDown className="w-4 h-4" />
-              </Button>
-            </div>
+
+            {/* Prev / Next */}
+            <button
+              onClick={findPrevious}
+              disabled={!hasMatches}
+              title="Previous match (Shift+Enter)"
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronUp className="w-4 h-4 text-gray-600" />
+            </button>
+            <button
+              onClick={findNext}
+              disabled={!hasMatches}
+              title="Next match (Enter)"
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronDown className="w-4 h-4 text-gray-600" />
+            </button>
           </div>
 
-          {/* Replace input */}
-          <div className="relative">
-            <Input
-              value={replaceTerm}
-              onChange={(e) => setReplaceTerm(e.target.value)}
-              placeholder="Replace with..."
-              className="pl-3 h-10 border-2 focus:border-blue-500 focus:ring-0"
-            />
-          </div>
-
-          {/* Options row - compact */}
-          <div className="flex items-center gap-4 text-sm">
-            <label className="flex items-center gap-2 cursor-pointer hover:text-gray-700">
-              <input
-                type="checkbox"
-                checked={matchCase}
-                onChange={(e) => setMatchCase(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="flex items-center gap-1">
-                <CaseSensitive className="w-3.5 h-3.5" />
-                Match case
-              </span>
-            </label>
-            
-            <label className="flex items-center gap-2 cursor-pointer hover:text-gray-700">
-              <input
-                type="checkbox"
-                checked={wholeWord}
-                onChange={(e) => setWholeWord(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="flex items-center gap-1">
-                <WholeWord className="w-3.5 h-3.5" />
-                Match whole word
-              </span>
-            </label>
-          </div>
-
-          {/* Match counter */}
-          {searchTerm && (
-            <div className={cn(
-              "text-sm text-center py-1.5 rounded",
-              matches.length > 0 
-                ? "bg-blue-50 text-blue-700 font-medium" 
-                : "bg-gray-100 text-gray-500"
-            )}>
-              {currentMatchText}
-            </div>
+          {/* Regex error */}
+          {regexError && (
+            <p className="text-[11px] text-red-500 mt-1 pl-1 truncate">{regexError}</p>
           )}
-
-          {/* Action buttons - Google Docs style */}
-          <div className="flex gap-2 pt-2 border-t border-gray-200">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={replaceCurrent}
-              disabled={matches.length === 0 || !replaceTerm}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Replace className="w-4 h-4 mr-1.5" />
-              Replace
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={replaceAll}
-              disabled={matches.length === 0 || !replaceTerm}
-              className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-            >
-              <ReplaceAll className="w-4 h-4 mr-1.5" />
-              Replace All
-            </Button>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* ── Replace Row (collapsible) ── */}
+        {showReplace && (
+          <div className="px-4 pt-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  ref={replaceInputRef}
+                  value={replaceTerm}
+                  onChange={e => setReplaceTerm(e.target.value)}
+                  onKeyDown={handleReplaceKeyDown}
+                  placeholder={useRegex ? 'Replace… ($1 for groups)' : 'Replace with…'}
+                  className="w-full h-9 pl-3 pr-3 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all"
+                  spellCheck={false}
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Replace current */}
+              <button
+                onClick={replaceCurrent}
+                disabled={!canReplace}
+                title="Replace current (Enter)"
+                className="flex items-center gap-1 px-3 h-9 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+                Replace
+              </button>
+
+              {/* Replace all */}
+              <button
+                onClick={replaceAll}
+                disabled={!canReplaceAll}
+                title="Replace all occurrences"
+                className="flex items-center gap-1 px-3 h-9 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+              >
+                <ReplaceAll className="w-3.5 h-3.5" />
+                All
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Options Row ── */}
+        <div className="flex items-center gap-1 px-4 py-2.5">
+          <OptionToggle
+            active={matchCase}
+            onClick={() => setMatchCase(v => !v)}
+            Icon={CaseSensitive}
+            label="Match case"
+            shortcut="Alt+C"
+          />
+          <OptionToggle
+            active={wholeWord}
+            onClick={() => setWholeWord(v => !v)}
+            disabled={useRegex}
+            Icon={WholeWord}
+            label="Whole word"
+            shortcut="Alt+W"
+          />
+          <OptionToggle
+            active={useRegex}
+            onClick={() => setUseRegex(v => !v)}
+            Icon={Regex}
+            label="Regular expression"
+            shortcut="Alt+R"
+          />
+          {useRegex && (
+            <span className="ml-auto text-[10px] text-gray-400 font-mono">
+              Use $1, $2… for groups in replace
+            </span>
+          )}
+        </div>
+
+        {/* ── Results Summary Bar ── */}
+        {searchTerm && (
+          <div className={`px-4 py-2 border-t border-gray-100 flex items-center justify-between
+            ${matches.length === 0 ? 'bg-red-50' : 'bg-blue-50'}`}>
+            <span className={`text-xs font-medium ${matches.length === 0 ? 'text-red-600' : 'text-blue-700'}`}>
+              {matches.length === 0
+                ? 'No matches found'
+                : `${matches.length} match${matches.length !== 1 ? 'es' : ''} in document`}
+            </span>
+            {matches.length > 0 && (
+              <div className="flex gap-1">
+                {/* Mini dots — show up to 10 match indicators */}
+                {matches.slice(0, 10).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goToIndex(i)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      i === currentIndex
+                        ? 'bg-blue-600 scale-125'
+                        : 'bg-blue-300 hover:bg-blue-500'
+                    }`}
+                  />
+                ))}
+                {matches.length > 10 && (
+                  <span className="text-[10px] text-blue-500 ml-1">+{matches.length - 10}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 
-export { FindReplaceModal };
+// ── Small toggle button component ────────────────────────────────────────────
+const OptionToggle = ({ active, onClick, disabled, Icon, label, shortcut }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    title={`${label} (${shortcut})`}
+    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all
+      ${active
+        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+      }
+      ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+    `}
+  >
+    <Icon className="w-3.5 h-3.5" />
+    <span className="hidden sm:inline">{label}</span>
+  </button>
+);
+
+export { FindReplaceModal, getFindReplacePlugin, FIND_REPLACE_KEY };

@@ -1484,7 +1484,6 @@ export const EditorToolbar = ({
           case 'expand': result = await expandText(textOrResult, options); break;
           case 'summarize': result = await summarizeText(textOrResult, options); break;
           case 'change_tone': result = await changeTone(textOrResult, 'professional', options); break;
-          case 'fix_grammar': result = await fixGrammar(textOrResult, options); break;
           case 'bullets_to_paragraph': result = await bulletToParagraph(textOrResult, options); break;
           default: return;
         }
@@ -1801,13 +1800,11 @@ export const EditorToolbar = ({
           label: 'Duplicate Document', icon: Copy, action: () => {
             if (editor) {
               const html = editor.getHTML();
+              // Note: Removed localStorage usage. Pass content via URL params or backend storage.
+              // For now, just open a new editor tab - user will need to manually copy content
+              // or save both documents to backend and clone there.
               const newWindow = window.open('/editor', '_blank');
-              if (newWindow) {
-                newWindow.addEventListener('load', () => {
-                  try { newWindow.localStorage?.setItem('duplicatedContent', html); } catch (e) { }
-                });
-              }
-              toast.success('Document duplicated in new tab');
+              toast.success('New editor tab opened. Please save document to backend to clone.');
             }
           }
         },

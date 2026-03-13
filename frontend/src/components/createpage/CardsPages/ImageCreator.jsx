@@ -10,24 +10,15 @@ const EXAMPLES = [
 ]
 
 const styles = ['Realistic', 'Illustration', '3D Render', 'Anime', 'Watercolor']
-const ratios = [
-  { key: '1:1', label: '1:1 Square', aspect: '1 / 1' },
-  { key: '3:4', label: '3:4 Portrait', aspect: '3 / 4' },
-  { key: '4:3', label: '4:3 Landscape', aspect: '4 / 3' },
-  { key: '16:9', label: '16:9 Wide', aspect: '16 / 9' },
-]
 
 const wrapper = { background: '#fff', border: '1.6px solid #efeefa', borderRadius: 16, boxShadow: '0 3px 16px #e9e4f33d' }
 
 const ImageCreator = () => {
   const [prompt, setPrompt] = useState('')
   const [style, setStyle] = useState(styles[0])
-  const [ratio, setRatio] = useState(ratios[0].key)
   const [quality, setQuality] = useState(80)
   const [isLoading, setIsLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
-
-  const activeAspect = useMemo(() => ratios.find(r => r.key === ratio)?.aspect || '1 / 1', [ratio])
 
 const handleGenerate = async () => {
   if (!prompt.trim()) return;
@@ -35,7 +26,7 @@ const handleGenerate = async () => {
   setImageUrl('');
 
   try {
-    const data = await api.generateAIImage(prompt, style, ratio, quality);
+    const data = await api.generateAIImage(prompt, style, quality);
 
     setImageUrl(data.imageUrl || '');
   } catch (error) {
@@ -84,22 +75,13 @@ const handleGenerate = async () => {
           />
 
           {/* Controls row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 14, alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14, alignItems: 'center' }}>
             {/* Style */}
             <div>
               <div style={{ color: '#6a6fa1', fontWeight: 700, marginBottom: 6 }}>Style</div>
               <select value={style} onChange={(e) => setStyle(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ebe9fb', color: '#3b3f70', fontWeight: 700 }}>
                 {styles.map((s) => (
                   <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            {/* Aspect Ratio */}
-            <div>
-              <div style={{ color: '#6a6fa1', fontWeight: 700, marginBottom: 6 }}>Aspect Ratio</div>
-              <select value={ratio} onChange={(e) => setRatio(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ebe9fb', color: '#3b3f70', fontWeight: 700 }}>
-                {ratios.map((r) => (
-                  <option key={r.key} value={r.key}>{r.label}</option>
                 ))}
               </select>
             </div>
@@ -142,14 +124,13 @@ const handleGenerate = async () => {
             <div style={{ color: '#6a6fa1', lineHeight: 1.6 }}>
               <div><strong>Current Settings:</strong></div>
               <div>Style: {style}</div>
-              <div>Ratio: {ratios.find(r => r.key === ratio)?.label}</div>
               <div>Quality: {quality}%</div>
             </div>
           </div>
 
           <div style={{ ...wrapper, padding: 16 }}>
             <div style={{ fontWeight: 800, marginBottom: 8, color: '#1b1f4b' }}>Preview</div>
-            <div style={{ width: '100%', aspectRatio: activeAspect, border: '2px dashed #cfcaf5', borderRadius: 16, background: '#faf9ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '100%', minHeight: 300, border: '2px dashed #cfcaf5', borderRadius: 16, background: '#faf9ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {imageUrl ? (
                 <img src={imageUrl} alt="result" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 12 }} />
               ) : (
