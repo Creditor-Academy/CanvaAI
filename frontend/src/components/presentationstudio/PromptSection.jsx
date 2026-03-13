@@ -337,86 +337,114 @@ const PromptSection = ({
 
 
   return (
-    <div className="presentation-studio-creation-hub" style={{ width: '100%' }}>
+  <div
+    className="presentation-studio-creation-hub"
+    style={{
+      width: "100%",
+      minHeight: "100vh",
+      padding: "40px 20px"
+    }}
+  >
+    <div
+      className="presentation-studio-content"
+      style={{
+        width: "100%",
+        maxWidth: "1160px",
+        margin: "0 auto",
+      }}
+    >
+      
+
+      {/* ===== TWO COLUMN LAYOUT ===== */}
+
       <div
-        className="presentation-studio-content"
         style={{
-          width: '100%',
-          maxWidth: '800px',
-          margin: '0 auto',
-          padding: '40px 24px',
-          background: 'white',
-          borderRadius: '24px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-          border: '1px solid #f3f4f6'
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "32px"
         }}
       >
-        <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .theme-scroll-container::-webkit-scrollbar {
-            width: 8px;
-          }
-          .theme-scroll-container::-webkit-scrollbar-track {
-            background: #f3f4f6;
-            border-radius: 10px;
-          }
-          .theme-scroll-container::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 10px;
-          }
-          .theme-scroll-container::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-          }
-        `}</style>
 
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#111827', fontFamily: "'Inter', sans-serif" }}>AI Presentation Studio</h2>
-          <p style={{ color: '#6B7280', fontSize: '15px', marginTop: '8px', fontFamily: "'Inter', sans-serif" }}>Configure your professional slide deck</p>
+        {/* LEFT COLUMN */}
+
+        <div style={{
+          background: "white",
+          padding: "32px",
+          borderRadius: "24px",
+          boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+
+          <TitleInput prompt={prompt} setPrompt={setPrompt} />
+
+          <OutlineInput
+            outlineText={outlineText}
+            setOutlineText={setOutlineText}
+          />
+
+          <ToneSelector tone={tone} setTone={setTone} />
+
+          <SlideSelector length={length} setLength={setLength} />
+
         </div>
 
-        <TitleInput prompt={prompt} setPrompt={setPrompt} />
-        <OutlineInput outlineText={outlineText} setOutlineText={setOutlineText} />
+        {/* RIGHT COLUMN */}
 
-        <hr style={{ borderTop: '1px solid #f3f4f6', margin: '32px 0' }} />
+        <div style={{
+          background: "white",
+          padding: "32px",
+          borderRadius: "24px",
+          boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
+          display: "flex",
+          flexDirection: "column"
+        }}>
 
-        <ToneSelector tone={tone} setTone={setTone} />
-        <SlideSelector length={length} setLength={setLength} />
-        <MediaSelector mediaStyle={mediaStyle} setMediaStyle={setMediaStyle} />
+          <MediaSelector
+            mediaStyle={mediaStyle}
+            setMediaStyle={setMediaStyle}
+          />
 
-        {mediaStyle === "AI Images" && (
-          <ImageStyleSelector imageStyle={imageStyle} setImageStyle={setImageStyle} />
-        )}
+          {mediaStyle === "AI Images" && (
+            <ImageStyleSelector
+              imageStyle={imageStyle}
+              setImageStyle={setImageStyle}
+            />
+          )}
 
-        <hr style={{ borderTop: '1px solid #f3f4f6', margin: '32px 0' }} />
+          <ThemeGrid
+            selectedTheme={selectedTheme}
+            onOpenModal={(theme) => {
+              setPreviewTheme(theme);
+              setIsModalOpen(true);
+            }}
+          />
 
-        <ThemeGrid
-          selectedTheme={selectedTheme}
-          onOpenModal={(theme) => {
-            setPreviewTheme(theme);
-            setIsModalOpen(true);
-          }}
-        />
-
-        <ThemeBrowserModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          initialTheme={previewTheme || selectedTheme}
-          onSelect={setSelectedTheme}
-        />
-
-        <GenerateButton
-          canGenerate={canGenerate}
-          isGenerating={isGenerating}
-          handleGenerateClick={handleGenerateClick}
-          generationStep={generationStep}
-        />
+        </div>
 
       </div>
+
+      {/* MODAL */}
+
+      <ThemeBrowserModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialTheme={previewTheme || selectedTheme}
+        onSelect={setSelectedTheme}
+      />
+
+      {/* GENERATE BUTTON */}
+
+      <GenerateButton
+        canGenerate={canGenerate}
+        isGenerating={isGenerating}
+        handleGenerateClick={handleGenerateClick}
+        generationStep={generationStep}
+      />
+
     </div>
-  );
+  </div>
+);
 };
 
 export default PromptSection;
