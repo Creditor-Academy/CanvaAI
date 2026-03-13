@@ -1,4 +1,6 @@
 import React from "react";
+import { Mail, Phone, MapPin } from "lucide-react";
+import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from "react-icons/fa";
 import "./Footer.css";
 
 const Footer = () => {
@@ -27,48 +29,45 @@ const Footer = () => {
             </p>
 
             <div className="social-icons">
-              <span>f</span>
-              <span>t</span>
-              <span>▶</span>
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"><FaFacebookF /></a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"><FaTwitter /></a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"><FaInstagram /></a>
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"><FaLinkedinIn /></a>
             </div>
 
           </div>
 
-          {/* NAVIGATION */}
 
-          <div className="footer-col">
-            <h4>Navigation</h4>
-            <a href="#">Home</a>
-            <a href="#">Pages</a>
-            <a href="#">About Us</a>
-            <a href="#">Services</a>
-            <a href="#">404</a>
-          </div>
+          
 
           {/* QUICK LINK */}
 
           <div className="footer-col">
             <h4>Quick Link</h4>
-            <a href="#">Contact Us</a>
-            <a href="#">FAQs</a>
-            <a href="#">Blog</a>
-            <a href="#">Gallery</a>
-            <a href="#">Pricing</a>
+
+            <a href="#faq">FAQs</a>
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+
           </div>
 
-          {/* WORK HOURS */}
+          {/* CONTACT US */}
 
-          <div className="footer-col">
-            <h4>Work Hours</h4>
+          <div className="footer-col contact-section">
+            <h4>Contact Us</h4>
 
-            <p className="work-time">7 AM - 5 PM, Mon - Sat</p>
-
-            <p>
-              Our support team is available during working
-              hours to help you with Designova AI tools.
-            </p>
-
-            <button className="call-btn">Call Us</button>
+            <div className="contact-item">
+              <MapPin size={20} />
+              <p>123 AI Street, Tech City, 54321</p>
+            </div>
+            <div className="contact-item">
+              <Mail size={20} />
+              <p>info@designova.com</p>
+            </div>
+            <div className="contact-item">
+              <Phone size={20} />
+              <p>+1 (555) 123-4567</p>
+            </div>
 
           </div>
 
