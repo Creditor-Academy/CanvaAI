@@ -533,6 +533,106 @@ const CanvasShell = () => {
               {dragCoords.x}, {dragCoords.y}
             </div>
           )}
+
+          {/* Link Popup Tooltip */}
+          {(() => {
+            if (!selectedLayerId || draggingId || resizingId || rotatingId || editingLayerId) return null;
+            const sLayer = activeSlide.layers?.find(l => l.id === selectedLayerId);
+            if (!sLayer || !sLayer.link) return null;
+
+            return (
+              <div
+                style={{
+                  position: "absolute",
+                  left: sLayer.x,
+                  top: sLayer.y + sLayer.height + 14,
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  zIndex: 1000,
+                  cursor: "default",
+                }}
+                onMouseDown={(e) => e.stopPropagation()} // Prevent deselection
+              >
+                <a
+                  href={sLayer.link.startsWith("http") ? sLayer.link : `https://${sLayer.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "#0c4a6e",
+                    textDecoration: "underline",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    maxWidth: "200px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseOver={(e) => e.target.style.color = "#f59e0b"}
+                  onMouseOut={(e) => e.target.style.color = "#0c4a6e"}
+                >
+                  {sLayer.link}
+                </a>
+                <div style={{ width: "1px", height: "16px", background: "#cbd5e1" }} />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (sLayer.type === "text" || sLayer.type === "shape") {
+                      setEditingLayer(sLayer.id);
+                    }
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#0c4a6e",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 8px",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.target.style.background = "#f1f5f9"}
+                  onMouseOut={(e) => e.target.style.background = "transparent"}
+                >
+                  ✎ Edit Text
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateTextLayer(sLayer.id, { link: "" });
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#e11d48",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 8px",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.target.style.background = "#fff1f2"}
+                  onMouseOut={(e) => e.target.style.background = "transparent"}
+                  title="Remove Link"
+                >
+                  ✕ Remove
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

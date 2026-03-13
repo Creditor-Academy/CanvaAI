@@ -2,13 +2,13 @@
 
 .topbar-wrapper {
   background: #ffffff;
-  border: 1px solid #1e40af;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.4);
+  border: 1px solid #f8b21a;
+  border-bottom: 2px solid rgba(248, 178, 26, 0.591);
   display: flex;
   flex-direction: column;
-  font-family: Inter, sans-serif;
+  font-family: 'Inter', sans-serif;
   position: relative;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12), 0 0 10px rgba(59, 130, 246, 0.05);
+  box-shadow: 0 4px 20px rgba(248, 178, 26, 0.12), 0 0 10px rgba(248, 178, 26, 0.05);
 }
 
 
@@ -70,7 +70,8 @@
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
-  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
   font-weight: 500;
   min-width: 220px;
   transition: all 0.2s ease;
@@ -86,10 +87,11 @@
 
 .nav-btn {
   background: #ffffff;
-  border: 1.5px solid #3b82f6;
+  border: 1.5px solid #cbd5e1;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
-  font-size: 14px;
-  color: #2563eb;
+  font-size: 15px;
+  color: #334155;
   cursor: pointer;
   padding: 8px 16px;
   border-radius: 10px;
@@ -97,14 +99,14 @@
   align-items: center;
   gap: 8px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .nav-btn:hover:not(:disabled) {
-  background: #eff6ff;
-  border-color: #1d4ed8;
-  color: #1d4ed8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0c4a6e;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
 }
 
@@ -117,9 +119,9 @@
 
 
 .agent-nav-btn {
-  background: linear-gradient(white, white) padding-box,
-    linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899) border-box;
-  border: 2px solid transparent !important;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #0f172a !important;
+  border: none !important;
   position: relative;
   overflow: hidden;
   animation: agentGlowPulse 3s infinite alternate;
@@ -127,11 +129,11 @@
 
 @keyframes agentGlowPulse {
   0% {
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.3), 0 0 0 1px rgba(245, 158, 11, 0.1);
   }
 
   100% {
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.6), 0 0 0 2px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.6), 0 0 0 2px rgba(245, 158, 11, 0.2);
   }
 }
 
@@ -219,25 +221,25 @@
 
 
 .present-btn {
-  background: #1d4ed8;
-  color: #ffffff;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
   padding: 10px 24px;
   border-radius: 10px;
+  font-family: 'Inter', sans-serif;
   font-weight: 700;
-  font-size: 14px;
-  border: 2px solid #2563eb;
+  font-size: 15px;
+  border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(29, 78, 216, 0.3);
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
 }
 
 .present-btn:hover {
-  background: #1e40af;
-  border-color: #1d4ed8;
-  box-shadow: 0 6px 20px rgba(29, 78, 216, 0.4);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
   transform: scale(1.02);
 }
 
@@ -382,6 +384,7 @@
     opacity: 0;
     transform: scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -433,22 +436,24 @@
 }
 
 .primary-btn {
-  background: #3b82f6;
-  color: white;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000000;
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  transform: translateY(-1px);
 }
 
 .primary-btn:disabled {
-  background: #93c5fd;
+  background: #fde68a;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 
@@ -487,8 +492,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-content p {

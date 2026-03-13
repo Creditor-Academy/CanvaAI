@@ -186,7 +186,7 @@ const ImageAdmin = () => {
                             const previewSrc = thumbnails[image._id];
                             return (
                                 <div
-
+                                    key={image._id || image.imageId}
                                     className="group bg-white rounded-2xl border border-slate-300 overflow-hidden transition-all duration-300 block"
                                 >
                                     <div className="aspect-[16/10] bg-slate-100 relative overflow-hidden">

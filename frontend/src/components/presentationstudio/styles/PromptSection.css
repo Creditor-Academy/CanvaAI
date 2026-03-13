@@ -50,9 +50,7 @@
 }
 
 .presentation-studio-title {
-  background: var(--athena-hero-gradient);
-  -webkit-background-clip: text;
-  color: transparent;
+  color:rgb(33, 33, 182);
   font-size: 2.5rem;
   font-weight: 800;
   margin: 0;
@@ -62,7 +60,7 @@
 .presentation-studio-subtitle {
   font-size: 1rem;
   font-weight: 500;
-  color: var(--ps-text-secondary);
+  color: #000000;
   margin-top: 0.5rem;
 }
 

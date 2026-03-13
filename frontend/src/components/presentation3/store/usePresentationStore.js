@@ -226,10 +226,32 @@ const normalizeLayer = (layer, forceNewId = false) => {
   // 4. Migration for old text layers without content
   if (normalizedLayer.type === "text" && normalizedLayer.text !== undefined && !normalizedLayer.content) {
     const { text, ...rest } = normalizedLayer;
-    return {
+    normalizedLayer = {
       ...rest,
       content: convertTextToSlate(text),
     };
+  }
+
+  // 5. Shapes (migration and defaults)
+  if (normalizedLayer.type === "shape") {
+    // Migrate old names
+    if (normalizedLayer.fill !== undefined && normalizedLayer.fillColor === undefined) {
+      normalizedLayer.fillColor = normalizedLayer.fill;
+    }
+    if (normalizedLayer.stroke !== undefined && normalizedLayer.strokeColor === undefined) {
+      normalizedLayer.strokeColor = normalizedLayer.stroke;
+    }
+
+    // Ensure defaults
+    if (normalizedLayer.strokeWidth === undefined) {
+      normalizedLayer.strokeWidth = (normalizedLayer.shapeType === "line" || normalizedLayer.shapeType === "arrow") ? 8 : 1;
+    }
+    if (normalizedLayer.fillColor === undefined) {
+      normalizedLayer.fillColor = (normalizedLayer.shapeType === "line" || normalizedLayer.shapeType === "arrow") ? "transparent" : "#ffffff";
+    }
+    if (normalizedLayer.strokeColor === undefined) {
+      normalizedLayer.strokeColor = "#1e40af";
+    }
   }
 
   return normalizedLayer;
@@ -304,9 +326,9 @@ const createDefaultTextLayers = () => [
     id: nanoid(),
     type: "text",
     content: createInitialValue(),
-    placeholder: "Click to add title",
+    placeholder: "Double click to add title",
     hasBeenEdited: false,
-    x: 120,
+    x: 180,
     y: 160,
     width: 600,
     height: 80,
@@ -324,10 +346,10 @@ const createDefaultTextLayers = () => [
     id: nanoid(),
     type: "text",
     content: createInitialValue(),
-    placeholder: "Click to add subtitle",
+    placeholder: "Double click to add subtitle",
     hasBeenEdited: false,
     x: 180,
-    y: 260,
+    y: 280,
     width: 600,
     height: 60,
     fontSize: 24,
@@ -757,7 +779,7 @@ const usePresentationStore = create((set, get) => {
                   width: 260,
                   height: 80,
                   content: createInitialValue(),
-                  placeholder: "Click to add text",
+                  placeholder: "Double click to add text",
                   hasBeenEdited: false,
                   fontSize: 24,
                   color: "#000000",
@@ -793,8 +815,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    applyGlobalTextStyle: (layerId, style) => {
-      get().saveToHistory();
+    applyGlobalTextStyle: (layerId, style, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => {
         const slides = state.slides.map((slide) => ({
           ...slide,
@@ -960,13 +982,20 @@ const usePresentationStore = create((set, get) => {
     updateShapeLayer: (layerId, updates, saveHistory = true) => {
       if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
+
+      // Safety: Clamp strokeWidth if it's being updated
+      let safeUpdates = { ...updates };
+      if (safeUpdates.strokeWidth !== undefined) {
+        safeUpdates.strokeWidth = Math.max(0, Number(safeUpdates.strokeWidth));
+      }
+
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
               ...slide,
               layers: slide.layers.map((layer) =>
-                layer.id === layerId ? { ...layer, ...updates } : layer
+                layer.id === layerId ? { ...layer, ...safeUpdates } : layer
               ),
             }
             : slide
@@ -1144,7 +1173,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTableCell: (tableId, row, col, updates) => {
+    updateTableCell: (tableId, row, col, updates, saveHistory = false) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
           slide.id !== state.activeSlideId

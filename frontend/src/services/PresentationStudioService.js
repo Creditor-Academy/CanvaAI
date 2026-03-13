@@ -23,13 +23,8 @@ export const generateOutline = async (params) => {
   const response = await fetch(`${API_BASE_URL}/get-presentation-outline`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({
-      topic: params.topic,
-      tone: params.tone,
-      length: params.length,
-      mediaStyle: params.mediaStyle,
-      outlineText: params.outlineText
-    })
+    body: JSON.stringify(params)
+
   });
   if (!response.ok) throw new Error(`Failed to generate outline: ${response.status}`);
   return response.json();
@@ -45,14 +40,8 @@ export const generatePresentation = async (params) => {
   const response = await fetch(`${API_BASE_URL}/get-presentation-outline`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({
-      topic: params.prompt,
-      tone: params.tone,
-      length: params.length,
-      mediaStyle: params.mediaStyle,
-      // useBrandStyle: params.useBrandStyle,
-      outlineText: params.outlineText
-    })
+    body: JSON.stringify(params)
+
   });
   if (!response.ok) throw new Error(`Failed to generate presentation: ${response.status}`);
   return response.json();
@@ -74,21 +63,21 @@ export const exportPresentation = async (slides, theme, format) => {
   return response.blob();
 };
 
-/**
- * Rewrite slide content using AI
- * @param {string} content - Original slide content
- * @param {string} instruction - Instruction for rewriting
- * @returns {Promise<Object>} - { rewrittenContent: string }
- */
-export const rewriteContent = async (content, instruction) => {
-  const response = await fetch(`${API_BASE_URL}/rewrite-slide`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ content, instruction })
-  });
-  if (!response.ok) throw new Error(`Failed to rewrite content: ${response.status}`);
-  return response.json();
-};
+// /**
+//  * Rewrite slide content using AI
+//  * @param {string} content - Original slide content
+//  * @param {string} instruction - Instruction for rewriting
+//  * @returns {Promise<Object>} - { rewrittenContent: string }
+//  */
+// export const rewriteContent = async (content, instruction) => {
+//   const response = await fetch(`${API_BASE_URL}/rewrite-slide`, {
+//     method: 'POST',
+//     headers: getAuthHeaders(),
+//     body: JSON.stringify({ content, instruction })
+//   });
+//   if (!response.ok) throw new Error(`Failed to rewrite content: ${response.status}`);
+//   return response.json();
+// };
 
 /**
  * Generate AI image for a slide

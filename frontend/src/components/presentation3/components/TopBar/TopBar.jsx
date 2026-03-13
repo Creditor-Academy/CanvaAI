@@ -32,7 +32,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
-import { exportToPDF, exportToPPTX } from "../../utils/PresentationExportService";
 
 const TopBar = ({ onPresent, onAgentClick }) => {
   const { user } = useAuth();
@@ -71,6 +70,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
 
   const shapesRef = useRef(null);
@@ -134,16 +134,19 @@ const TopBar = ({ onPresent, onAgentClick }) => {
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" className="topbar-brand-icon">
             <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
             <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" stroke="#CCCCCC" strokeWidth="0.816">
-              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+              <path fill="none" stroke="#f8b21a" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
             </g>
             <g id="SVGRepo_iconCarrier">
-              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+              <path fill="none" stroke="#f8b21a" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
             </g>
           </svg>
           <input
             type="text"
             value={title || ""}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setHasUnsavedChanges(true);
+            }}
             placeholder="Untitled Project"
             className="project-input"
           />
@@ -155,11 +158,14 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             {/* Save Button */}
             <button
               className="nav-btn"
-              disabled={pastCount === 0}
-              style={{ opacity: pastCount === 0 ? 0.5 : 1, cursor: pastCount === 0 ? 'not-allowed' : 'pointer' }}
+              disabled={pastCount === 0 && !hasUnsavedChanges}
+              style={{
+                opacity: (pastCount === 0 && !hasUnsavedChanges) ? 0.5 : 1,
+                cursor: (pastCount === 0 && !hasUnsavedChanges) ? 'not-allowed' : 'pointer'
+              }}
               onClick={async () => {
                 const { addNotification } = useUIStore.getState();
-                
+
                 try {
                   await withHybridLoader(
                     async () => {
@@ -196,7 +202,8 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                           addNotification("Presentation saved, but could not retrieve ID. Please refresh.", "warning");
                         }
                       }
-                      
+
+                      setHasUnsavedChanges(false);
                       return { success: true };
                     },
                     "top",
@@ -224,24 +231,34 @@ const TopBar = ({ onPresent, onAgentClick }) => {
 
               {showDownload && (
                 <div className="dropdown-menu">
-                  <button onClick={async () => {
-                    await withHybridLoader(
-                      async () => exportToPDF(slides, title),
-                      "top",
-                      "Exporting to PDF..."
-                    );
-                    setShowDownload(false);
-                  }}>
+                  <button
+                    disabled={!presentationId}
+                    onClick={async () => {
+                      await withHybridLoader(
+                        async () => {
+                          const service = await import("../../../../services/presentation");
+                          await service.exportPresentation(presentationId, "pdf");
+                        },
+                        "top",
+                        "Exporting to PDF..."
+                      );
+                      setShowDownload(false);
+                    }}>
                     PDF Document (.pdf)
                   </button>
-                  <button onClick={async () => {
-                    await withHybridLoader(
-                      async () => exportToPPTX(slides, title),
-                      "top",
-                      "Exporting to PPTX..."
-                    );
-                    setShowDownload(false);
-                  }}>
+                  <button
+                    disabled={!presentationId}
+                    onClick={async () => {
+                      await withHybridLoader(
+                        async () => {
+                          const service = await import("../../../../services/presentation");
+                          await service.exportPresentation(presentationId, "pptx");
+                        },
+                        "top",
+                        "Exporting to PPTX..."
+                      );
+                      setShowDownload(false);
+                    }}>
                     PowerPoint (.pptx)
                   </button>
                 </div>
@@ -431,20 +448,20 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
-            
+
               try {
                 await withHybridLoader(
                   async () => {
                     // presentationId might be null for new presentations
                     const pptId = presentationId || "new";
                     const { url, key } = await uploadFile(file, user?._id, pptId);
-            
+
                     // Add the image layer with S3 URL and Key
                     // We don't store base64 in the store
                     addImageLayer(null, url, key);
-                              
+
                     e.target.value = "";
-                              
+
                     return { url, key };
                   },
                   "top",
@@ -469,14 +486,14 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                   className="url-input-field"
                 />
                 <div className="modal-buttons">
-                  <button 
-                    className="secondary-btn" 
+                  <button
+                    className="secondary-btn"
                     onClick={() => setShowUrlModal(false)}
                   >
                     Cancel
                   </button>
-                  <button 
-                    className="primary-btn" 
+                  <button
+                    className="primary-btn"
                     onClick={handleAddImageFromUrl}
                     disabled={!imageUrlInput.trim()}
                   >

@@ -13,9 +13,9 @@ const ShapeRenderer = ({ layer }) => {
       style={{ overflow: "visible" }}
     >
       <Shape
-        fill={layer.fill}
-        stroke={layer.stroke}
-        strokeWidth={layer.strokeWidth}
+        fillColor={layer.fillColor || "transparent"}
+        strokeColor={layer.strokeColor || "transparent"}
+        strokeWidth={layer.strokeWidth ?? 0}
       />
     </svg>
   );

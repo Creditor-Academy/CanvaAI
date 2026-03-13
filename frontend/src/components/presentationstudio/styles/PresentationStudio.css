@@ -22,20 +22,14 @@
 
 .presentation-studio {
   min-height: 100vh;
-  background: var( --athena-bg-gradient);
+  background: #d0e5fe;
   padding: 1rem;
-  font-family: var(--athena-font-body);
-  color: var(--ps-text-primary);
   position: relative;
   width: 100%;
   max-width: 100vw;
   overflow: hidden;
 }
 
-.presentation-studio h1,
-.presentation-studio .presentation-studio-title {
-  font-family: var(--athena-font-heading);
-}
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
@@ -93,7 +87,7 @@
   left: 0;
   right: 0;
   height: 200px;
-  background: linear-gradient(180deg, rgba(251, 191, 36, 0.03) 0%, transparent 100%);
+ 
   pointer-events: none;
 }
 
@@ -119,13 +113,11 @@
 }
 
 .presentation-studio ::-webkit-scrollbar-thumb {
-  background: var(--ps-border-accent);
+  
   border-radius: 4px;
 }
 
-.presentation-studio ::-webkit-scrollbar-thumb:hover {
-  background: var(--ps-accent-primary);
-}
+
 
 /* Touch Targets for Mobile */
 @media (hover: none) and (pointer: coarse) {

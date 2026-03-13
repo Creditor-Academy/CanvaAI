@@ -566,6 +566,18 @@
   color: #6b7280;
 }
 
+.slide-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #0a5dbbff;
+  background-color: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
 /* ================= RESPONSIVE ================= */
 
 /* Large Desktop */

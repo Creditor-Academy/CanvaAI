@@ -3,7 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { listPresentations, deletePresentation } from '../services/presentation/presentation.service';
 import { getPublicPresentations, getUnpublicPresentations, updatePPTVisibility } from '../services/Admin/admin';
 import { Trash2, Globe, Lock } from 'lucide-react';
+import { FiLayout } from 'react-icons/fi';
 import './AdminDash.css';
+import PresentationThumbnail from '../components/PresentationThumbnail';
 import { useNavigate } from "react-router-dom";
 import ImageDash from '@/components/canva/ImageLayout/imageDash';
 
@@ -43,8 +45,7 @@ const AdminDash = () => {
           title: ppt.title || "Untitled Presentation",
           category: "presentation",
           createdAt: ppt.createdAt || ppt.updatedAt,
-          preview:
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI6kyGvk51WegGvlf-MdBLorUpRaZ8KfnaEg&s",
+          data: ppt.data,
           url: `/presentation-editor-v3/${ppt._id}`,
           isPublished: publicIds.has(ppt._id) ? true : false,
         }));
@@ -60,6 +61,30 @@ const AdminDash = () => {
 
     fetchAllData();
   }, [user?._id]);
+
+  const getSlideData = (data) => {
+    if (!data) return null;
+    let parsedData = data;
+    if (typeof data === 'string') {
+      try {
+        parsedData = JSON.parse(data);
+      } catch (e) { return null; }
+    }
+    // Return first slide or the data itself if it has layers
+    return parsedData.slides?.[0] || (parsedData.layers ? parsedData : null);
+  };
+
+  const getSlideCount = (data) => {
+    if (!data) return 0;
+    let parsedData = data;
+    if (typeof data === 'string') {
+      try {
+        parsedData = JSON.parse(data);
+      } catch (e) { return 0; }
+    }
+    if (Array.isArray(parsedData.slides)) return parsedData.slides.length;
+    return parsedData.layers ? 1 : 0;
+  };
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
@@ -171,7 +196,11 @@ const AdminDash = () => {
 
 
                     <div className="recent-thumb">
-                      <img src={temp.preview} alt="preview" />
+                      {getSlideData(temp.data) ? (
+                        <PresentationThumbnail slide={getSlideData(temp.data)} width="100%" height="100%" />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: '#94a3b8', fontSize: 14 }}>No preview</div>
+                      )}
                     </div>
 
                     <div className="recent-info">
@@ -211,6 +240,12 @@ const AdminDash = () => {
 
                       <span className="recent-date">
                         {new Date(temp.createdAt).toLocaleDateString()}
+                        {getSlideCount(temp.data) > 0 && (
+                          <span className="slide-badge">
+                            <FiLayout size={12} style={{ marginRight: '4px' }} />
+                            {getSlideCount(temp.data)} {getSlideCount(temp.data) === 1 ? 'Slide' : 'Slides'}
+                          </span>
+                        )}
                       </span>
                     </div>
 
