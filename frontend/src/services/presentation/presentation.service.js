@@ -14,6 +14,14 @@ const getAuthHeaders = () => {
 
 const IMAGE_API_URL = `${BASE_URL}/api/image`;
 
+const safeStringify = (data) => {
+    try {
+        return JSON.stringify(data);
+    } catch {
+        return "{}";
+    }
+};
+
 const uploadImageTempToReal = async (url, userId, folder, serviceId) => {
     try {
         const payload = {
@@ -156,9 +164,24 @@ export const listPresentations = async (userId) => {
     return res.data;
 };
 
-export const getPresentationById = async (pptId) => {
-    const res = await axios.get(`${API_URL}/get/ppt/${pptId}`, getAuthHeaders());
+export const getPresentationById = async (pptId, userId, template = false) => {
+    const res = await axios.get(`${API_URL}/get/ppt/${pptId}?userId=${userId}&template=${template}`, getAuthHeaders());
+    console.log(res);
     return res.data;
+};
+
+export const getPublicTemplateById = async (pptId) => {
+    // Endpoint: http://localhost:5000/api/public/templates/ppt/:pptId
+    const res = await axios.get(`${BASE_URL}/api/public/templates/ppt/${pptId}`, getAuthHeaders());
+    return res.data;
+};
+
+export const getAdminTemplates = async () => {
+    // Endpoint: http://localhost:5000/api/public/templates/ppt
+    // We use BASE_URL to ensure it works in both dev and prod
+    const res = await axios.get(`${BASE_URL}/api/public/templates/ppt`, getAuthHeaders());
+    // Assuming the response structure is { success: true, data: [...] } or just an array
+    return res.data?.data || res.data || [];
 };
 
 export const deletePresentation = async (id, userId) => {
@@ -173,39 +196,124 @@ export const deletePresentation = async (id, userId) => {
 /**
  * Generate image for PPT via API.
  * POST /api/image/generate-image/:userId/:pptId with body { prompt }.
- * Response: { created, data: [{ b64_json, revised_prompt, url }] }
+ * Response can be: { created, data: [{ b64_json, revised_prompt, url }] }
+ * or directly: { url, revised_prompt, b64_json, key }
  */
-export const generateAIImage = async (userId, pptId, prompt) => {
-    const url = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
-    const res = await axios.post(url, { prompt }, getAuthHeaders());
-    const first = res.data?.data?.[0];
-    if (!first) throw new Error("No image data in response");
+
+export const generateAIImage = async ({ userId, pptId, userPrompt, activeSlideData }) => {
+    const apiUrl = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
+
+    // Inject activeSlide JSON inside the prompt string as context
+    const finalPrompt = `
+Generate an image for the slide.
+
+Instruction:
+${userPrompt}
+
+Slide Context:
+${safeStringify(activeSlideData)}
+`;
+
+    const res = await axios.post(apiUrl, { prompt: finalPrompt }, getAuthHeaders());
+
+    // Support both wrapped (DALL-E style) and unwrapped response structures
+    const first = res.data?.data?.[0] || res.data;
+
+    if (!first || (!first.url && !first.b64_json && !first.base64)) {
+        throw new Error("No image data in response");
+    }
+
+    // Extract key from URL if not provided by backend
+    let key = first.key;
+    if (!key && first.url) {
+        try {
+            const urlObj = new URL(first.url);
+            // pathname usually is /temp/userId/pptId/filename.png
+            key = urlObj.pathname.substring(1);
+        } catch (e) {
+            console.warn("Failed to extract key from URL:", first.url);
+        }
+    }
+
     return {
         url: first.url,
         revised_prompt: first.revised_prompt,
-        b64_json: first.b64_json
+        b64_json: first.b64_json || first.base64,
+        key: key
     };
 };
 
-export const generateAISlide = async (userId, pptId, prompt, mediaType) => {
-    const url = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
+export const generateAISlide = async ({ userId, pptId, userPrompt, presentationData, mediaStyle }) => {
+    const apiUrl = `${BASE_URL}/api/pp/generate-slide/${userId}/${pptId}`;
+
+    const slideContent = JSON.stringify({
+        instruction: userPrompt,
+        fullPresentation: presentationData
+    });
+
     const payload = {
-        slideContent: prompt,
-        mediaStyle: mediaType
+        slideContent: slideContent,
+        mediaStyle: mediaStyle
     };
-    console.log(`--- PresentationService: generateAISlide POST ${url}`, payload);
-    const res = await axios.post(url, payload, getAuthHeaders());
+
+    console.log(`--- PresentationService: generateAISlide POST ${apiUrl}`, payload);
+    const res = await axios.post(apiUrl, payload, getAuthHeaders());
     return res.data;
 };
 
-export const expandAISlide = async (userId, pptId, prompt, mediaType, slideData) => {
-    const url = `${BASE_URL}/api/pp/expand-slide/${userId}/${pptId}`;
+export const expandAISlide = async ({ userId, pptId, activeSlide, userPrompt, mediaStyle }) => {
+    const apiUrl = `${BASE_URL}/api/pp/expand-slide/${userId}/${pptId}`;
+
+    // Backend expects raw slide object in slideContent, and string in prompt
     const payload = {
-        prompt,
-        mediaStyle: mediaType,
-        slideContent: slideData
+        slideContent: activeSlide, // RAW object (no stringify)
+        prompt: userPrompt,
+        mediaStyle: mediaStyle
     };
-    console.log(`--- PresentationService: expandAISlide POST ${url}`, payload);
-    const res = await axios.post(url, payload, getAuthHeaders());
+
+    console.log(`--- PresentationService: expandAISlide POST ${apiUrl}`, payload);
+    const res = await axios.post(apiUrl, payload, getAuthHeaders());
     return res.data;
+};
+
+export const exportPresentation = async (id, format) => {
+    try {
+        const url = `${BASE_URL}/api/pp/${id}/export?format=${format}`;
+        const response = await axios.get(url, {
+            ...getAuthHeaders(),
+            responseType: 'blob'
+        });
+
+        // Error Handling for Blob Failures
+        if (response.data.type === "application/json") {
+            const text = await response.data.text();
+            const error = JSON.parse(text);
+            throw new Error(error.message || "Export failed");
+        }
+
+        // Filename Handling
+        const contentDisposition = response.headers['content-disposition'];
+        let fileName = `presentation.${format}`;
+
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="(.+)"/);
+            if (match?.[1]) fileName = match[1];
+        }
+
+        const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+
+        // Memory Cleanup
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+
+        return { success: true };
+    } catch (error) {
+        console.error(`Export to ${format} failed:`, error);
+        throw error;
+    }
 };

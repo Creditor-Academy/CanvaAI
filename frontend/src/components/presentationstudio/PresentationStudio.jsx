@@ -110,21 +110,14 @@ const PresentationStudio = ({ onBack }) => {
     };
   };
   const startFakeProgress = () => {
-    return new Promise(resolve => {
-      let current = 0;
+    let current = 0;
+    const interval = setInterval(() => {
+      current += Math.random() * 10;
+      if (current >= 92) current = 92;
+      setProgress(Math.floor(current));
+    }, 200);
 
-      const interval = setInterval(() => {
-        current += Math.random() * 7;
-
-        if (current >= 95) {
-          current = 95;
-          clearInterval(interval);
-          resolve();
-        }
-
-        setProgress(Math.floor(current));
-      }, 350);
-    });
+    return () => clearInterval(interval);
   };
 
 
@@ -149,46 +142,49 @@ const PresentationStudio = ({ onBack }) => {
 
 
 
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [imageStyle, setImageStyle] = useState(null);
+
+  // Stores the exact meta object sent with get-presentation-outline
+  const [metaState, setMetaState] = useState(null);
+
   // Step 1: Generate Outline
-  const handleGenerateOutline = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerateOutline = async (payload) => {
+    if (!payload?.topic?.trim()) return;
 
     setIsGenerating(true);
     setError(null);
     setProgress(0);
 
+    // Capture the exact meta object before the API call
+    const capturedMeta = payload.meta || null;
+    setMetaState(capturedMeta);
+
+    let stopFakeProgress = null;
     try {
-
-      // start both together
-      const progressPromise = startFakeProgress();
-
-      const apiPromise = generateOutline({
-        topic: prompt,
-        tone: tone?.toLowerCase(),
-        length: parseInt(length),
-        mediaStyle: mediaStyle,
-        outlineText: outlineText
-      });
-
-      // wait until loader reaches 95
-      await progressPromise;
-
-      // wait api (if not completed yet)
-      const response = await apiPromise;
-
-      // now finish 95 → 100 instantly smooth
+      stopFakeProgress = startFakeProgress();
+      const response = await generateOutline(payload);
+      stopFakeProgress?.();
+      stopFakeProgress = null;
       await finishProgress();
+
 
       const transformedOutline = transformOutlineResponse(response);
 
       if (!transformedOutline) throw new Error('Invalid response format from server');
 
+      // Wait 1 second after 100% success before moving to Step 2
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // 🔥 EXACT moment loader hits 100 → screen change
-      setOutlineData(transformedOutline);
+      // Embed originalMeta so OutlineEditor forwards it unchanged to finalize-ppt
+      setOutlineData({ ...transformedOutline, originalMeta: capturedMeta });
 
     } catch (error) {
+      stopFakeProgress?.();
       setError(error.message || 'Failed to generate outline. Please try again.');
     } finally {
+      stopFakeProgress?.();
       setIsGenerating(false);
     }
   };
@@ -287,6 +283,10 @@ const PresentationStudio = ({ onBack }) => {
           setLength={setLength}
           mediaStyle={mediaStyle}
           setMediaStyle={setMediaStyle}
+          imageStyle={imageStyle}
+          setImageStyle={setImageStyle}
+          selectedTheme={selectedTheme}
+          setSelectedTheme={setSelectedTheme}
           useBrandStyle={useBrandStyle}
           setUseBrandStyle={setUseBrandStyle}
           showAdvanced={showAdvanced}

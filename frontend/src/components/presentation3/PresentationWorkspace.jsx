@@ -11,14 +11,18 @@ import TopProgressBar from "./components/TopProgressBar/TopProgressBar";
 import AILoaderOverlay from "./components/AILoaderOverlay/AILoaderOverlay";
 import Notifications from "./components/Notifications/Notifications";
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
+import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
 
 const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isTemplate = searchParams.get("template") === "true";
+  const { user } = useAuth();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
   // Loading if ID is present and we don't have initialData
@@ -26,6 +30,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const [error, setError] = useState(null);
 
   const { setPresentation, resetPresentation } = usePresentationStore();
+  const hasCloned = React.useRef(false);
 
   useEffect(() => {
     if (initialData) {
@@ -33,20 +38,40 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
       setPresentation(initialData);
       setIsLoading(false);
     } else if (id) {
+      // If template=true, we only want to fetch/clone once for this ID
+      if (isTemplate && hasCloned.current) return;
+
+      // Wait for user to be loaded if we are about to clone
+      if (!user?._id) return;
+
+      if (isTemplate) hasCloned.current = true;
+
       setIsLoading(true);
-      getPresentationById(id)
+      getPresentationById(id, user?._id, isTemplate)
         .then((data) => {
           console.log("--- Workspace: Fetched data for ID:", id, data);
-          // Normalize data if necessary (e.g. if API returns { data: ... })
+
+          // Get the actual presentation ID from the response (could be at root or nested)
+          const respId = data.presentationId || (data.data && (data.data._id || data.data.id));
+
+          // Handle Redirect if template=true and backend returns a different presentationId
+          if (isTemplate && respId && respId !== id) {
+            console.log("--- Workspace: Template cloned, redirecting to:", respId);
+            navigate(`/presentation-editor-v3/${respId}?template=false`, { replace: true });
+            return;
+          }
+
+          // Normalize data if necessary
           const pptData = data.data || data;
-          // Ensure ID is present in the data passed to store
-          if (!pptData.id && !pptData._id && !pptData.presentationId && id) {
-            pptData.id = id;
+
+          // Ensure title is present and prefers data.title
+          pptData.title = data.title || pptData.title || "Untitled Presentation";
+
+          // Ensure ID is present in normalized data
+          if (!pptData.presentationId && !pptData.id && !pptData._id) {
+            pptData.presentationId = respId || id;
           }
-          // Ensure title is present
-          if (!pptData.title && data.title) {
-            pptData.title = data.title;
-          }
+
           setPresentation(pptData);
           setIsLoading(false);
         })
@@ -54,6 +79,8 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
           console.error("Failed to load presentation:", err);
           setError("Failed to load presentation");
           setIsLoading(false);
+          // Optional: reset hasCloned if you want to allow retry
+          if (isTemplate) hasCloned.current = false;
         });
     } else {
       // New presentation -> Reset store
@@ -61,7 +88,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
       resetPresentation();
       setIsLoading(false);
     }
-  }, [id, initialData, setPresentation, resetPresentation]);
+  }, [id, isTemplate, initialData, user?._id, setPresentation, resetPresentation, navigate]);
 
   if (isLoading) {
     return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>Loading Presentation...</div>;
@@ -110,7 +137,9 @@ const styles = {
   },
   body: {
     flex: 1,
-    display: "flex"
+    display: "flex",
+    position: "relative",
+    overflow: "hidden"
   }
 };
 

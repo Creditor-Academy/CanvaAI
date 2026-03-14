@@ -10,6 +10,7 @@
 
   width: 150px;
   max-height: calc(100vh - 120px);
+  height: fit-content;
 
   display: flex;
   flex-direction: column;
@@ -17,7 +18,7 @@
   background: #ffffff;
 
   border-radius: 8px;
-  border: 2px solid #1e40af;
+  border: 2px solid #f8b21a;
 
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.1);
@@ -70,7 +71,8 @@
 
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 0 8px 8px 0; /* Rounded only on the right side */
+  border-radius: 0 8px 8px 0;
+  /* Rounded only on the right side */
 
   display: flex;
   align-items: center;
@@ -79,7 +81,7 @@
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
 
   box-shadow:
     2px 0 6px rgba(0, 0, 0, 0.08);
@@ -89,13 +91,14 @@
 }
 
 .slides-panel.collapsed .collapse-btn {
-  right: -28px; /* Move out to be fully visible at edge */
+  right: -28px;
+  /* Move out to be fully visible at edge */
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.12);
 }
 
 .collapse-btn:hover {
   background: #f8fafc;
-  color: #2563eb;
+  color: #0c4a6e;
   width: 32px;
   right: -18px;
 }
@@ -122,7 +125,7 @@
 .slides-title {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: #0c4a6e;
 }
 
 /* =========================
@@ -136,8 +139,8 @@
   border-radius: 8px;
   border: none;
 
-  background: #2563eb;
-  color: #ffffff;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000000;
 
   font-size: 16px;
   font-weight: 600;
@@ -148,13 +151,13 @@
   align-items: center;
   justify-content: center;
 
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
   transition: all 0.2s ease;
 }
 
 .add-slide-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.45);
 }
 
 /* =========================
@@ -199,7 +202,7 @@
   width: 16px;
   font-size: 11px;
   font-weight: 500;
-  color: #64748b;
+  color: #475569;
   padding-top: 6px;
   user-select: none;
 }
@@ -234,8 +237,8 @@
 
 /* Active slide */
 .thumbnail.active {
-  border: 2px solid #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
 /* =========================
@@ -280,7 +283,7 @@
 /* Duplicate */
 .duplicate-btn {
   background: #e2e8f0;
-  color: #475569;
+  color: #334155;
 }
 
 .duplicate-btn:hover {

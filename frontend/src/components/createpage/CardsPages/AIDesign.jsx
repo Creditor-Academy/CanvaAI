@@ -275,6 +275,16 @@ export const AIDesign = () => {
               </>
             )}
 
+            <button
+              onClick={handleImport}
+              disabled={selectedImages.length === 0}
+              className={`mt-4 px-10 py-4 rounded-3xl font-bold text-lg transition-all shadow-xl ${selectedImages.length === 0
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                  : "bg-[#0c4a6e] text-white hover:scale-105 hover:bg-[#072a42] border border-[#0c4a6e]"
+                }`}
+            >
+              Import Selected ({selectedImages.length})
+            </button>
           </div>
 
         </div>
