@@ -12,14 +12,15 @@ const PresentationStudio = ({ onBack }) => {
 
   // Form data (Step 1: Input)
   const [prompt, setPrompt] = useState('');
-  const [tone, setTone] = useState('Professional');
-  const [length, setLength] = useState('5');
-  const [mediaStyle, setMediaStyle] = useState('AI Images');
+  const [tone, setTone] = useState(null);
+  const [length, setLength] = useState(null);
+  const [mediaStyle, setMediaStyle] = useState(null);
   const [useBrandStyle, setUseBrandStyle] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [outlineText, setOutlineText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+
 
   // Step 2: Outline data
   const [outlineData, setOutlineData] = useState(null);
@@ -44,14 +45,14 @@ const PresentationStudio = ({ onBack }) => {
         content = { mode: 'raw', rawText: typeof slide.content === 'string' ? slide.content : String(slide.content || '') };
       } else if (slide.contentType === 'bullets') {
         if (Array.isArray(slide.content)) {
-          content = { 
-            mode: 'bullets', 
-            bullets: slide.content 
+          content = {
+            mode: 'bullets',
+            bullets: slide.content
           };
         } else if (typeof slide.content === 'string') {
           // Convert string to array of bullets
-          content = { 
-            mode: 'bullets', 
+          content = {
+            mode: 'bullets',
             bullets: slide.content.split('\n').filter(line => line.trim())
           };
         } else {
@@ -59,8 +60,8 @@ const PresentationStudio = ({ onBack }) => {
         }
       } else if (slide.contentType === 'comparison') {
         if (typeof slide.content === 'object' && slide.content !== null && !Array.isArray(slide.content)) {
-          content = { 
-            mode: 'comparison', 
+          content = {
+            mode: 'comparison',
             left: Array.isArray(slide.content.left) ? slide.content.left : [],
             right: Array.isArray(slide.content.right) ? slide.content.right : []
           };
@@ -72,11 +73,11 @@ const PresentationStudio = ({ onBack }) => {
         if (typeof slide.content === 'string') {
           content = { mode: 'raw', rawText: slide.content };
         } else if (Array.isArray(slide.content)) {
-          content = { mode: 'bullets', bullets: slide.content };
+          content = { mode: 'bullets', bullets: slide.bullets };
         } else if (typeof slide.content === 'object' && slide.content !== null) {
           if (slide.content.left && slide.content.right) {
-            content = { 
-              mode: 'comparison', 
+            content = {
+              mode: 'comparison',
               left: Array.isArray(slide.content.left) ? slide.content.left : [],
               right: Array.isArray(slide.content.right) ? slide.content.right : []
             };
@@ -87,6 +88,7 @@ const PresentationStudio = ({ onBack }) => {
       }
 
       return {
+        bullets: slide.bullets || (content.mode === 'bullets' ? content.bullets : []),
         slideId: `slide-${slide.slideNo || index + 1}`,
         slideNo: slide.slideNo || index + 1,
         source: 'ai',
@@ -107,38 +109,88 @@ const PresentationStudio = ({ onBack }) => {
       slides: transformedSlides
     };
   };
+  const startFakeProgress = () => {
+    let current = 0;
+    const interval = setInterval(() => {
+      current += Math.random() * 10;
+      if (current >= 92) current = 92;
+      setProgress(Math.floor(current));
+    }, 200);
+
+    return () => clearInterval(interval);
+  };
+
+
+  const finishProgress = () => {
+    return new Promise(resolve => {
+      let current = 95;
+
+      const interval = setInterval(() => {
+        current += 1.5;
+
+        if (current >= 100) {
+          current = 100;
+          clearInterval(interval);
+          resolve();
+        }
+
+        setProgress(Math.floor(current));
+      }, 20);
+    });
+  };
+
+
+
+
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [imageStyle, setImageStyle] = useState(null);
+
+  // Stores the exact meta object sent with get-presentation-outline
+  const [metaState, setMetaState] = useState(null);
 
   // Step 1: Generate Outline
-  const handleGenerateOutline = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerateOutline = async (payload) => {
+    if (!payload?.topic?.trim()) return;
+
     setIsGenerating(true);
-    setGenerationStep(0);
     setError(null);
+    setProgress(0);
 
+    // Capture the exact meta object before the API call
+    const capturedMeta = payload.meta || null;
+    setMetaState(capturedMeta);
+
+    let stopFakeProgress = null;
     try {
-      // Call the service
-      const response = await generateOutline({
-        topic: prompt,
-        tone: tone.toLowerCase(),
-        length: parseInt(length) || 5,
-        mediaStyle: mediaStyle,
-        outlineText: outlineText
-      });
+      stopFakeProgress = startFakeProgress();
+      const response = await generateOutline(payload);
+      stopFakeProgress?.();
+      stopFakeProgress = null;
+      await finishProgress();
 
-      // Transform the response to OutlineEditor format
+
       const transformedOutline = transformOutlineResponse(response);
-      if (transformedOutline) {
-        setOutlineData(transformedOutline);
-      } else {
-        throw new Error('Invalid response format from server');
-      }
+
+      if (!transformedOutline) throw new Error('Invalid response format from server');
+
+      // Wait 1 second after 100% success before moving to Step 2
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 🔥 EXACT moment loader hits 100 → screen change
+      // Embed originalMeta so OutlineEditor forwards it unchanged to finalize-ppt
+      setOutlineData({ ...transformedOutline, originalMeta: capturedMeta });
+
     } catch (error) {
-      console.error('Error generating outline:', error);
+      stopFakeProgress?.();
       setError(error.message || 'Failed to generate outline. Please try again.');
     } finally {
+      stopFakeProgress?.();
       setIsGenerating(false);
     }
   };
+
+
+
 
   // Step 3: Handle final presentation from OutlineEditor
   const handleFinalize = (finalPresentation) => {
@@ -146,16 +198,28 @@ const PresentationStudio = ({ onBack }) => {
   };
 
   // Reset to start over
-  const handleReset = () => {
+  const handleResetAll = () => {
     setOutlineData(null);
     setFinalPresentationData(null);
     setPrompt('');
-    setTone('Professional');
-    setLength('5');
-    setMediaStyle('AI Images');
+    setTone(null);
+    setLength(null);
+    setMediaStyle(null);
     setUseBrandStyle(false);
     setOutlineText('');
     setError(null);
+    setProgress(0);
+  };
+
+  // back from outline → prompt (keep filled data)
+  const handleBackToPrompt = () => {
+    setOutlineData(null);
+    setFinalPresentationData(null);
+  };
+
+  // back from workspace → outline
+  const handleBackToOutline = () => {
+    setFinalPresentationData(null);
   };
 
 
@@ -163,31 +227,53 @@ const PresentationStudio = ({ onBack }) => {
   const renderCurrentStep = () => {
     // Step 3: Final Presentation Workspace
     if (finalPresentationData) {
-      // Convert final PPT JSON to PresentationWorkspace format
-      // Default to 16:9 widescreen layout (1920x1080)
       const layout = { width: 1920, height: 1080 };
       return (
-        <PresentationWorkspace
-          layout={layout}
-          initialData={finalPresentationData}
-          onBack={handleReset}
-        />
+        <>
+          <Header
+            onBack={handleBackToOutline}
+            title="Presentation Editor"
+            subtitle="Design and customize your slides"
+          />
+
+          <PresentationWorkspace
+            layout={layout}
+            initialData={finalPresentationData}
+            onBack={handleResetAll}
+          />
+        </>
       );
     }
+
 
     // Step 2: Outline Editor
     if (outlineData) {
       return (
-        <OutlineEditor
-          outlineData={outlineData}
-          onFinalize={handleFinalize}
-        />
+        <>
+          <Header
+            onBack={handleBackToPrompt}
+            title="Edit Outline"
+            subtitle="Review and edit your presentation outline. You can modify titles and content."
+          />
+
+          <OutlineEditor
+            outlineData={outlineData}
+            onFinalize={handleFinalize}
+          />
+        </>
       );
     }
+
 
     // Step 1: Presentation Studio (Input)
     return (
       <>
+        <Header
+          onBack={() => navigate('/presentation')}
+          title="AI Presentation Studio"
+          subtitle="Create stunning presentations with AI in seconds"
+        />
+
         <PromptSection
           prompt={prompt}
           setPrompt={setPrompt}
@@ -197,6 +283,10 @@ const PresentationStudio = ({ onBack }) => {
           setLength={setLength}
           mediaStyle={mediaStyle}
           setMediaStyle={setMediaStyle}
+          imageStyle={imageStyle}
+          setImageStyle={setImageStyle}
+          selectedTheme={selectedTheme}
+          setSelectedTheme={setSelectedTheme}
           useBrandStyle={useBrandStyle}
           setUseBrandStyle={setUseBrandStyle}
           showAdvanced={showAdvanced}
@@ -205,14 +295,15 @@ const PresentationStudio = ({ onBack }) => {
           setOutlineText={setOutlineText}
           handleGenerate={handleGenerateOutline}
           isGenerating={isGenerating}
-          generationStep={generationStep}
+          generationStep={progress}
         />
+
         {error && (
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '1rem', 
-            background: '#fee2e2', 
-            border: '1px solid #fecaca', 
+          <div style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
             borderRadius: '8px',
             color: '#991b1b',
             textAlign: 'center'
@@ -227,15 +318,7 @@ const PresentationStudio = ({ onBack }) => {
   return (
     <div className="presentation-studio">
       <div className="presentation-studio-container">
-        {!finalPresentationData && (
-          <Header
-            handleSavePresentation={() => {}}
-            handleExport={() => {}}
-            handleSharePresentation={() => {}}
-            isExporting={false}
-            onBack={onBack}
-          />
-        )}
+
 
         {renderCurrentStep()}
       </div>

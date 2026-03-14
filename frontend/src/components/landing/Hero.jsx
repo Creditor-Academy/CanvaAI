@@ -1,86 +1,93 @@
-// src/components/landing/Hero.jsx
 import React from "react";
-import { motion } from "framer-motion";
-import HeroBgGradient from "./HeroBgGradient";
 import "./Hero.css";
+import herovideo from "../../assets/herovideo.mp4";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
   return (
-    <section className="hero section reveal" id="hero">
-      <HeroBgGradient />
-      <div className="hero-inner">
+    <section className="hero">
+
+      {/* SVG background shape */}
+      <svg
+        className="hero-bg"
+        viewBox="0 0 1440 320"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill="#b3dbff"
+          d="M0,120L80,140C160,160,320,200,480,210C640,220,800,200,960,170C1120,140,1280,120,1360,110L1440,100L1440,0L0,0Z"
+        ></path>
+      </svg>
+
+      <div className="hero-container">
+
+        {/* LEFT CONTENT */}
         <div className="hero-left">
-          <div className="kicker">Athena AI • Creative Suite</div>
-          <motion.h1 className="hero-title" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}>
-            What will you <span>create</span> today?
-          </motion.h1>
-          <motion.p className="hero-lead" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}>
-            Design, write, generate code, and create videos — all powered by AI.
-            Build solo or collaborate with your team. Fast, flexible, and beautiful.
-          </motion.p>
 
-          <motion.div className="hero-ctas" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}>
-            <a className="btn btn-cta" href="/login">Start Creating</a>
-            <a className="btn btn-ghost" href="/login">Explore Tools</a>
-          </motion.div>
+          <h1>
+            Design <span> Projects</span><br />
+            With Our Designova AI
+          </h1>
 
-          <div className="hero-features">
-            <div className="hf-item">AI Design Generator</div>
-            <div className="hf-sep" />
-            <div className="hf-item">Image & Video Editor</div>
-            <div className="hf-sep" />
-            <div className="hf-item">Team Collaboration</div>
-          </div>
+          <p>
+            Generate presentations, documents and visuals instantly
+            using powerful AI technology.
+          </p>
+
+          <button
+            className="cta-btn"
+            onClick={() => navigate("/login")}
+          >
+            Get Started
+          </button>
+
         </div>
 
+        {/* RIGHT SIDE */}
         <div className="hero-right">
-          <motion.div className="mockup-card" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut", delay: 0.08 }}>
-            <div className="mockup-topbar">
-              <div className="dot red" />
-              <div className="dot yellow" />
-              <div className="dot green" />
+
+          <div className="laptop">
+
+            {/* Laptop Screen */}
+            <div className="laptop-screen">
+
+              <div className="camera"></div>
+
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                className="hero-video"
+              >
+                <source
+                  src={herovideo}
+                  type="video/webm"
+                />
+                <source
+                  src={herovideo}
+                  type="video/mp4"
+                />
+              </video>
+
             </div>
 
-            <div className="mockup-canvas">
-              <div className="mockup-leftpanel">
-                <div className="mp-item">Templates</div>
-                <div className="mp-item">Projects</div>
-                <div className="mp-item active">Designs</div>
-                <div className="mp-item">Assets</div>
-              </div>
+            {/* Hinge */}
+            <div className="hinge"></div>
 
-              <div className="mockup-main">
-                <div className="mockup-stage">
-                  <div className="widget code">
-                    <div className="w-title">AI Code</div>
-                    <pre>{`<Button variant="primary">Create</Button>`}</pre>
-                  </div>
-
-                  <div className="widget image">
-                    <div className="w-title">Image Editor</div>
-                    <div className="img-sample" />
-                  </div>
-
-                  <div className="widget chat">
-                    <div className="w-title">AI Assist</div>
-                    <div className="chat-line">Describe your idea and Athena will help — try “instagram post”</div>
-                  </div>
-                </div>
-              </div>
+            {/* Laptop Base */}
+            <div className="laptop-base">
+              <div className="trackpad"></div>
             </div>
 
-            <div className="mockup-floating">
-              <div className="tag">New • Templates</div>
-              <div className="icons-inline">
-                <div className="ico-small">🎨</div>
-                <div className="ico-small">✍️</div>
-                <div className="ico-small">💻</div>
-                <div className="ico-small">🎬</div>
-              </div>
-            </div>
-          </motion.div>
+          </div>
+
         </div>
+
       </div>
+
     </section>
   );
 };

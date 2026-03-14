@@ -1,0 +1,358 @@
+/* ===============================
+   Agent Panel — Athena AI Flow
+================================ */
+
+.agent-panel {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  width: 380px;
+  max-height: calc(100vh - 140px);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  transform: translateX(420px);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.agent-panel.open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.agent-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.agent-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.agent-content {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-header {
+  margin-bottom: 24px;
+}
+
+.agent-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.agent-title h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0c4a6e;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.agent-title svg {
+  color: #f59e0b;
+}
+
+.agent-subtitle {
+  font-size: 14px;
+  color: #475569;
+}
+
+/* Flow Container */
+.agent-flow-container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Context Panels */
+.agent-prompt-panel,
+.slide-picker-panel {
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0c4a6e;
+}
+
+.agent-prompt-input {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #0c4a6e;
+  resize: none;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.agent-prompt-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
+}
+
+.media-options {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.radio-label input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.agent-submit-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000000;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.agent-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  transform: translateY(-1px);
+}
+
+.agent-submit-btn:disabled {
+  background: #fde68a;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slide Picker */
+.slide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.slide-box {
+  aspect-ratio: 1;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.slide-box:hover {
+  border-color: #cbd5e1;
+}
+
+.slide-box.selected {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.slide-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.slide-box.selected .slide-num {
+  color: #d97706;
+}
+
+.check-icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #d97706;
+}
+
+/* Action Cards */
+.agent-primary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agent-action-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.agent-action-card:hover:not(:disabled) {
+  border-color: #0c4a6e;
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(12, 74, 110, 0.05);
+}
+
+.agent-action-card.active {
+  background: #f1f5f9;
+  border-color: #0c4a6e;
+  box-shadow: 0 4px 12px rgba(12, 74, 110, 0.1);
+}
+
+.icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.slide-icon {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.expand-icon {
+  background: #f5f3ff;
+  color: #8b5cf6;
+}
+
+.image-icon {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.text-box h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0c4a6e;
+  margin: 0 0 2px 0;
+}
+
+.text-box p {
+  font-size: 12px;
+  color: #475569;
+  margin: 0;
+}
+
+/* Conditional Padding/Transform when mode !== default */
+.agent-primary-actions.has-context {
+  margin-top: 10px;
+  opacity: 0.9;
+}
+
+/* Simple Animation */
+.animate-in {
+  animation: slideDownIn 0.3s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

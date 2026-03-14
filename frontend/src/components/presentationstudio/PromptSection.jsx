@@ -1,236 +1,463 @@
-import React from 'react';
-import { FiSettings, FiRefreshCw } from 'react-icons/fi';
-import { MdAutoAwesome } from 'react-icons/md';
+import React, { useState, useEffect } from 'react';
+import ThemeCard from './ThemeCard';
+import ThemeBrowserModal from './ThemeBrowserModal';
+import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
 
-const PromptSection = ({ 
-  prompt, 
-  setPrompt, 
-  tone, 
-  setTone, 
-  length, 
-  setLength, 
-  mediaStyle, 
-  setMediaStyle, 
-  useBrandStyle, 
-  setUseBrandStyle, 
-  showAdvanced, 
-  setShowAdvanced, 
-  outlineText, 
-  setOutlineText, 
-  handleGenerate, 
-  isGenerating, 
-  generationStep 
+// Modular Subcomponents
+// ... (rest of subcomponents)
+
+const TitleInput = ({ prompt, setPrompt }) => (
+  <div style={{ marginBottom: '24px' }}>
+    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+      Title
+    </label>
+    <textarea
+      value={prompt}
+      onChange={(e) => setPrompt(e.target.value)}
+      placeholder="Write your presentation title..."
+      style={{
+        width: '100%',
+        border: '1px solid #e5e7eb',
+        borderRadius: '12px',
+        padding: '16px',
+        minHeight: '56px',
+        resize: 'none',
+        fontSize: '15px',
+        fontFamily: "'Inter', sans-serif",
+        outline: 'none',
+        transition: 'border-color 0.2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+      }}
+      onFocus={(e) => e.target.style.borderColor = '#6366f1'}
+      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+    />
+  </div>
+);
+
+const OutlineInput = ({ outlineText, setOutlineText }) => (
+  <div style={{ marginBottom: '32px' }}>
+    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+      Outline (Optional)
+    </label>
+    <textarea
+      value={outlineText || ""}
+      onChange={(e) => setOutlineText(e.target.value)}
+      placeholder="Write bullet points or structured outline..."
+      style={{
+        width: '100%',
+        border: '1px solid #e5e7eb',
+        borderRadius: '12px',
+        padding: '16px',
+        minHeight: '120px',
+        resize: 'none',
+        fontSize: '15px',
+        fontFamily: "'Inter', sans-serif",
+        outline: 'none',
+        transition: 'border-color 0.2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+      }}
+      onFocus={(e) => e.target.style.borderColor = '#6366f1'}
+      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+    />
+  </div>
+);
+
+const ToneSelector = ({ tone, setTone }) => {
+  const tones = ['Professional', 'Friendly', 'Creative', 'Corporate'];
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+        Tone
+      </label>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {tones.map(t => {
+          const isActive = tone === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTone(t)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
+                background: isActive ? '#6366f1' : 'white',
+                color: isActive ? 'white' : '#4b5563',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                fontFamily: "'Inter', sans-serif",
+                transition: 'all 0.2s',
+                boxShadow: isActive ? '0 2px 4px rgba(99,102,241,0.2)' : 'none'
+              }}
+            >
+              {t} {isActive && '●'}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  );
+};
+
+const SlideSelector = ({ length, setLength }) => {
+  const slides = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+        Slides
+      </label>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {slides.map(num => {
+          const s = String(num);
+          const isActive = length === s;
+          return (
+            <button
+              key={num}
+              onClick={() => setLength(s)}
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
+                background: isActive ? '#6366f1' : 'white',
+                color: isActive ? 'white' : '#4b5563',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '14px',
+                fontFamily: "'Inter', sans-serif",
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                boxShadow: isActive ? '0 2px 4px rgba(99,102,241,0.2)' : 'none'
+              }}
+            >
+              {num}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  );
+};
+
+const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
+  const options = ['AI Images', 'No Media'];
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+        Media
+      </label>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {options.map(opt => {
+          const isActive = mediaStyle === opt;
+          return (
+            <button
+              key={opt}
+              onClick={() => setMediaStyle(opt)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
+                background: isActive ? '#6366f1' : 'white',
+                color: isActive ? 'white' : '#4b5563',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                fontFamily: "'Inter', sans-serif",
+                transition: 'all 0.2s',
+                boxShadow: isActive ? '0 2px 4px rgba(99,102,241,0.2)' : 'none'
+              }}
+            >
+              {opt} {isActive && '●'}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  );
+};
+
+const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
+  const styles = ['Realistic', 'Anime', 'Cartoon', 'Sketch', 'Painting'];
+  return (
+    <div style={{ marginBottom: '24px', animation: 'fadeIn 0.3s ease-in-out' }}>
+      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+        Image Style
+      </label>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {styles.map(s => {
+          const isActive = imageStyle === s;
+          return (
+            <button
+              key={s}
+              onClick={() => setImageStyle(s)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
+                background: isActive ? '#8b5cf6' : 'white',
+                color: isActive ? 'white' : '#4b5563',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '13px',
+                fontFamily: "'Inter', sans-serif",
+                transition: 'all 0.2s',
+                boxShadow: isActive ? '0 2px 4px rgba(139,92,246,0.2)' : 'none'
+              }}
+            >
+              {s} {isActive && '●'}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  );
+};
+
+const ThemeGrid = ({ selectedTheme, onOpenModal }) => (
+  <div style={{ marginBottom: '40px' }}>
+    <label style={{ display: 'block', marginBottom: '16px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+      Theme
+    </label>
+    <div className="theme-scroll-container" style={{
+      maxHeight: '378px', /* (110px height * 3) + (16px gap * 2) + 16px bottom padding */
+      overflowY: 'auto',
+      paddingRight: '8px',
+      paddingBottom: '16px'
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '16px'
+      }}>
+        {PRESENTATION_THEMES.map(theme => (
+          <ThemeCard
+            key={theme.id}
+            theme={theme}
+            isSelected={selectedTheme?.id === theme.id}
+            onClick={() => onOpenModal(theme)}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const GenerateButton = ({ canGenerate, isGenerating, handleGenerateClick }) => (
+  <div style={{ display: "flex", justifyContent: "center", marginTop: "16px", marginBottom: "48px" }}>
+    <button
+      onClick={handleGenerateClick}
+      disabled={isGenerating || !canGenerate}
+      style={{
+        height: "52px",
+        width: "280px",
+        background: "#6366F1",
+        borderRadius: "12px",
+        fontWeight: "600",
+        color: "white",
+        border: "none",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "12px",
+        opacity: isGenerating || !canGenerate ? 0.5 : 1,
+        cursor: isGenerating || !canGenerate ? "not-allowed" : "pointer",
+        transition: "all 0.2s",
+        fontSize: "16px",
+        fontFamily: "'Inter', sans-serif",
+        boxShadow: canGenerate && !isGenerating ? "0 4px 12px rgba(99,102,241,0.3)" : "none"
+      }}
+    >
+      <span>Generate Presentation</span>
+      {isGenerating && (
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ animation: "spin 1s linear infinite" }}
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        </div>
+      )}
+    </button>
+    <style>{`
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
+
+// MAIN COMPONENT
+const PromptSection = ({
+  prompt,
+  setPrompt,
+  tone,
+  setTone,
+  length,
+  setLength,
+  mediaStyle,
+  setMediaStyle,
+  imageStyle,
+  setImageStyle,
+  selectedTheme,
+  setSelectedTheme,
+  outlineText,
+  setOutlineText,
+  handleGenerate,
+  isGenerating,
+  generationStep,
 }) => {
-  const tones = ['Professional', 'Friendly', 'Minimal', 'Corporate', 'Creative'];
-  const lengths = ['2', '3', '5', '7', '10'];
-  const mediaStyles = ['AI Images', 'No Media'];
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState(null);
+
+
+  const canGenerate =
+    prompt.trim() &&
+    tone &&
+    length &&
+    mediaStyle &&
+    (mediaStyle !== "AI Images" || imageStyle) &&
+    selectedTheme;
+
+  const handleGenerateClick = () => {
+    const topic = prompt.trim();
+    if (!topic || !selectedTheme) return;
+
+    handleGenerate({
+      topic: topic,
+      outline: outlineText?.trim() || "",
+      meta: {
+        tone: tone ? tone.toLowerCase() : "professional",
+        slideCount: length ? Number(length) : 5,
+        mediaStyle: mediaStyle === "AI Images" ? "ai-image" : "no-media",
+        imageStyle: mediaStyle === "AI Images" ? imageStyle : undefined,
+        theme: {
+          name: selectedTheme.name,
+          slideBackground: selectedTheme.slideBackground,
+          titleColor: selectedTheme.titleColor,
+          bodyColor: selectedTheme.bodyColor,
+          accentColor: selectedTheme.accentColor
+        }
+      }
+    });
+  };
+
 
   return (
-    <div className="presentation-studio-creation-hub">
-      <div className="presentation-studio-creation-container">
-        <div className="presentation-studio-creation-header">
-          <h2 className="presentation-studio-creation-title">Create Your Presentation</h2>
-          <p className="presentation-studio-creation-subtitle">
-            Describe what you need and let AI generate a beautiful presentation for you
-          </p>
-        </div>
+    <div
+      className="presentation-studio-creation-hub"
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        padding: "40px 20px"
+      }}
+    >
+      <div
+        className="presentation-studio-content"
+        style={{
+          width: "100%",
+          maxWidth: "1160px",
+          margin: "0 auto",
+        }}
+      >
 
-        <div className="presentation-studio-form">
-          {/* Prompt Input */}
-          <div className="presentation-studio-form-group">
-            <label className="presentation-studio-label">
-              Presentation Topic
-            </label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., 'Annual Marketing Strategy for 2024' or 'Introduction to Machine Learning'"
-              className="presentation-studio-textarea"
+
+        {/* ===== TWO COLUMN LAYOUT ===== */}
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "32px"
+          }}
+        >
+
+          {/* LEFT COLUMN */}
+
+          <div style={{
+            background: "white",
+            padding: "32px",
+            borderRadius: "24px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
+            display: "flex",
+            flexDirection: "column"
+          }}>
+
+            <TitleInput prompt={prompt} setPrompt={setPrompt} />
+
+            <OutlineInput
+              outlineText={outlineText}
+              setOutlineText={setOutlineText}
             />
+
+            <ToneSelector tone={tone} setTone={setTone} />
+
+            <SlideSelector length={length} setLength={setLength} />
+
           </div>
 
-          {/* Options Grid (Cards Instead of Dropdowns) */}
-          <div className="presentation-studio-card-options">
-            {/* Tone Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Tone</label>
-              <div className="presentation-studio-card-grid">
-                {tones.map(t => (
-                  <div
-                    key={t}
-                    className={`presentation-studio-card-option ${tone === t ? "selected" : ""}`}
-                    onClick={() => setTone(t)}
-                    data-tone={t}
-                  >
-                    {t !== 'Professional' && t !== 'Friendly' && t !== 'Minimal' && t !== 'Corporate' && (
-                      <img 
-                        src={`/assets/tone/${t.toLowerCase()}.png`} 
-                        alt={t} 
-                        className="presentation-studio-card-image"
-                      />
-                    )}
-                    <span>{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* RIGHT COLUMN */}
 
-            {/* Length Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Length</label>
-              <div className="presentation-studio-card-grid">
-                {lengths.map(l => (
-                  <div
-                    key={l}
-                    className={`presentation-studio-card-option ${length === l ? "selected" : ""}`}
-                    onClick={() => setLength(l)}
-                    data-length={l}
-                  >
-                    <span>{l} slides</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div style={{
+            background: "white",
+            padding: "32px",
+            borderRadius: "24px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
+            display: "flex",
+            flexDirection: "column"
+          }}>
 
-            {/* Media Style Cards */}
-            <div className="presentation-studio-form-group">
-              <label className="presentation-studio-label">Media Style</label>
-              <div className="presentation-studio-card-grid">
-                {mediaStyles.map(s => (
-                  <div
-                    key={s}
-                    className={`presentation-studio-card-option ${mediaStyle === s ? "selected" : ""} ${s === 'AI Images' ? 'ai-images-card' : ''} ${s === 'No Media' ? 'no-media-card' : ''}`}
-                    onClick={() => setMediaStyle(s)}
-                    {...(s === 'AI Images' ? { 'data-media': 'ai-images' } : {})}
-                    {...(s === 'No Media' ? { 'data-media': 'no-media' } : {})}
-                  >
-                    <span>{s}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MediaSelector
+              mediaStyle={mediaStyle}
+              setMediaStyle={setMediaStyle}
+            />
 
-            {/* Brand Style Checkbox */}
-            <div className="presentation-studio-checkbox-group" style={{ marginTop: "1rem" }}>
-              <input
-                type="checkbox"
-                id="brandStyle"
-                checked={useBrandStyle}
-                onChange={(e) => setUseBrandStyle(e.target.checked)}
-                className="presentation-studio-checkbox"
+            {mediaStyle === "AI Images" && (
+              <ImageStyleSelector
+                imageStyle={imageStyle}
+                setImageStyle={setImageStyle}
               />
-              <label htmlFor="brandStyle" className="presentation-studio-checkbox-label">
-                Use Brand Style
-              </label>
-            </div>
-          </div>
-
-          {/* Advanced Options */}
-          <div className="presentation-studio-advanced-options">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="presentation-studio-advanced-toggle"
-            >
-              <span>{showAdvanced ? 'Hide' : 'Show'} Advanced Options</span>
-              <FiSettings className={`presentation-studio-advanced-icon ${showAdvanced ? 'presentation-studio-advanced-icon-open' : ''}`} />
-            </button>
-
-            {showAdvanced && (
-              <div className="presentation-studio-advanced-content">
-                <div className="presentation-studio-form-group">
-                  <label className="presentation-studio-label">
-                    Outline (Optional)
-                  </label>
-                  <textarea
-                    value={outlineText}
-                    onChange={(e) => setOutlineText(e.target.value)}
-                    placeholder="Provide a structured outline for your presentation..."
-                    className="presentation-studio-textarea presentation-studio-textarea-small"
-                  />
-                </div>
-                <div className="presentation-studio-form-group">
-                  <label className="presentation-studio-label">
-                    Reference Document
-                  </label>
-                  <div className="presentation-studio-file-upload">
-                    <label className="presentation-studio-file-upload-label">
-                      <div className="presentation-studio-file-upload-content">
-                        <svg className="presentation-studio-file-upload-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg>
-                        <p className="presentation-studio-file-upload-text">
-                          <span className="presentation-studio-file-upload-bold">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="presentation-studio-file-upload-subtext">
-                          PDF, DOC, DOCX (MAX. 10MB)
-                        </p>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="presentation-studio-file-input" 
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            // Handle file upload
-                            alert(`File selected: ${e.target.files[0].name}`);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
             )}
+
+            <ThemeGrid
+              selectedTheme={selectedTheme}
+              onOpenModal={(theme) => {
+                setPreviewTheme(theme);
+                setIsModalOpen(true);
+              }}
+            />
+
           </div>
 
-          {/* Generate Button */}
-          <div className="presentation-studio-generate-container">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isGenerating && prompt.trim()) {
-                  handleGenerate();
-                }
-              }}
-              disabled={isGenerating || !prompt.trim()}
-              className={`presentation-studio-generate-button ${isGenerating || !prompt.trim() ? 'presentation-studio-generate-button-disabled' : ''}`}
-            >
-              {isGenerating ? (
-                <>
-                  <FiRefreshCw className="presentation-studio-spinner" />
-                  {[
-                    'Structuring story...',
-                    'Visualizing content...',
-                    'Designing slides...',
-                    'Finalizing presentation...'
-                  ][generationStep] || 'Generating...'}
-                </>
-              ) : (
-                <>
-                  <MdAutoAwesome className="presentation-studio-generate-icon" />
-                  Generate Outline
-                </>
-              )}
-            </button>
-          </div>
-          
-          {/* Progress bar during generation */}
-          {isGenerating && (
-            <div className="presentation-studio-progress-container">
-              <div className="presentation-studio-progress-bar">
-                <div 
-                  className="presentation-studio-progress-fill" 
-                  style={{ width: `${((generationStep + 1) / 4) * 100}%` }}
-                ></div>
-              </div>
-              <div className="presentation-studio-progress-labels">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* MODAL */}
+
+        <ThemeBrowserModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          initialTheme={previewTheme || selectedTheme}
+          onSelect={setSelectedTheme}
+        />
+
+        {/* GENERATE BUTTON */}
+
+        <GenerateButton
+          canGenerate={canGenerate}
+          isGenerating={isGenerating}
+          handleGenerateClick={handleGenerateClick}
+        />
+
       </div>
     </div>
   );

@@ -1,20 +1,19 @@
 import React, { useEffect } from "react";
 import Hero from '../components/landing/Hero';
 import Features from '../components/landing/Features';
-import WhyChoose from '../components/landing/WhyChoose';
-import Showcase from '../components/landing/Showcase';
-import CreateSection from '../components/landing/CreateSection';
-import ProjectsSection from '../components/landing/ProjectsSection';
-import FavoritesSection from '../components/landing/FavoritesSection';
-import TeamSection from '../components/landing/TeamSection';
-import AnalyticsSection from '../components/landing/AnalyticsSection';
-import Testimonials from '../components/landing/Testimonials';
+
+
+import HowItWorks from '../components/landing/HowItWorks';
+
+
+
+
+
 import FAQ from '../components/landing/FAQ';
 import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 import Navbar from '../components/landing/Navbar';
 import { initScrollReveal } from '../components/landing/ScrollReveal';
-import '../components/landing/landing.css';
 
 const LandingPage = () => {
   useEffect(() => {
@@ -29,14 +28,13 @@ const LandingPage = () => {
       <Navbar />
       <Hero />
       <Features />
-      <CreateSection />
-      <ProjectsSection />
-      <FavoritesSection />
-      <TeamSection />
-      <AnalyticsSection />
-      <WhyChoose />
-      <Showcase />
-      <Testimonials />
+      <HowItWorks />
+   
+    
+   
+      
+     
+      
       <FAQ />
       <CTA />
       <Footer />

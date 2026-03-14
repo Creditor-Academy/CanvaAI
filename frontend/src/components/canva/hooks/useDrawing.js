@@ -28,8 +28,7 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
     const eraserRadius = drawingSettings.brushSize / 2;
     const lastPoint = lastPointRef.current || { x, y };
 
-    // Find layers that might be hit (simple bounding box check)
-    // Expand bounding box to cover the entire swept segment
+    // Find layers that might be hit
     const minX = Math.min(x, lastPoint.x) - eraserRadius;
     const maxX = Math.max(x, lastPoint.x) + eraserRadius;
     const minY = Math.min(y, lastPoint.y) - eraserRadius;
@@ -41,8 +40,6 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
       const layerRight = layer.x + layer.width;
       const layerTop = layer.y;
       const layerBottom = layer.y + layer.height;
-
-      // Check intersection with swept bounds
       return !(layerLeft > maxX || layerRight < minX || layerTop > maxY || layerBottom < minY);
     });
 
@@ -53,32 +50,59 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
         const layerToErase = layersToUpdate.find(l => l.id === layer.id);
         if (!layerToErase) return layer;
 
-        let pathChanged = false;
-        let pendingGap = false;
+        // Densify with finer granularity for smoother erasure
+        const densifiedPath = [];
+        const maxSegmentLength = Math.max(eraserRadius * 0.3, 2); // Finer density
 
-        // Reconstruct path with gaps (forceMove)
+        for (let i = 0; i < layer.path.length; i++) {
+          const point = layer.path[i];
+          densifiedPath.push({ ...point });
+
+          if (i < layer.path.length - 1 && !layer.path[i + 1].forceMove) {
+            const nextPoint = layer.path[i + 1];
+            const dx = nextPoint.x - point.x;
+            const dy = nextPoint.y - point.y;
+            const segmentLength = Math.hypot(dx, dy);
+
+            if (segmentLength > maxSegmentLength) {
+              const numIntermediatePoints = Math.ceil(segmentLength / maxSegmentLength);
+              for (let j = 1; j < numIntermediatePoints; j++) {
+                const t = j / numIntermediatePoints;
+                densifiedPath.push({
+                  x: point.x + dx * t,
+                  y: point.y + dy * t,
+                  pressure: point.pressure || 1
+                });
+              }
+            }
+          }
+        }
+
+        // Process with smoother boundary detection
         const newPath = [];
+        let pathChanged = false;
+        let wasErased = false;
 
-        layer.path.forEach((point) => {
-          // Check distance to the sweep segment (lastPoint -> currentPoint)
-          // Relative coordinates because point is relative to layer.x/y
+        for (let i = 0; i < densifiedPath.length; i++) {
+          const point = densifiedPath[i];
           const absPoint = { x: point.x + layer.x, y: point.y + layer.y };
           const distance = distToSegment(absPoint, lastPoint, { x, y });
+          const isErased = distance <= eraserRadius;
 
-          if (distance <= eraserRadius) {
-            // Point is erased
+          if (isErased) {
             pathChanged = true;
-            pendingGap = true;
+            wasErased = true;
           } else {
-            // Point is kept
-            const newPoint = { ...point };
-            if (pendingGap) {
-              newPoint.forceMove = true; // Start a new sub-path here
-              pendingGap = false;
+            // Keep this point
+            if (wasErased && newPath.length > 0) {
+              // Transition from erased to non-erased - start new segment
+              newPath.push({ ...point, forceMove: true });
+              wasErased = false;
+            } else {
+              newPath.push({ ...point });
             }
-            newPath.push(newPoint);
           }
-        });
+        }
 
         if (!pathChanged) return layer;
         hasChanges = true;
@@ -90,7 +114,6 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
 
       if (hasChanges) {
         setLayers(newLayers);
-        // saveToHistory(newLayers); // Optional throttling
       }
     }
 

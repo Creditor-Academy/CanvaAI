@@ -1,53 +1,75 @@
 import React from "react";
 import usePresentationStore from "../store/usePresentationStore";
+import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
+import SlateTextEditor from "../editors/slate/SlateTextEditor";
+import { debounce } from "lodash";
 
-const TextLayer = ({ layer }) => {
-  const {
-    selectedLayerId,
-    setSelectedLayer,
-    updateLayerPosition,
-  } = usePresentationStore();
+const TextLayer = ({ layer, isEditing }) => {
+  const { updateTextLayer } = usePresentationStore();
 
-  const isSelected = selectedLayerId === layer.id;
+  const debouncedUpdate = React.useMemo(
+    () =>
+      debounce((id, updates) => {
+        updateTextLayer(id, updates, false);
+      }, 500),
+    [updateTextLayer]
+  );
+
+  const handleSlateChange = (newValue) => {
+    // Immediate local state update is handled by Slate
+    // but we persist to store with debounce
+    debouncedUpdate(layer.id, { content: newValue, hasBeenEdited: true });
+  };
+
+  const isPlaceholderVisible =
+    !layer.hasBeenEdited &&
+    (!layer.content ||
+      (layer.content.length === 1 &&
+        layer.content[0]?.children?.[0]?.text === ""));
+
+  const containerStyle = {
+    width: "100%",
+    height: "100%",
+    outline: "none",
+    wordBreak: "break-word",
+    whiteSpace: "pre-wrap",
+    lineHeight: 1.2,
+    cursor: isEditing ? "text" : "move",
+  };
+
+  // ONLY block-level styles here
+  const textBlockStyle = {
+    fontFamily: layer.fontFamily,
+    fontSize: `${layer.fontSize}px`,
+    textAlign: layer.textAlign,
+    color: layer.color || "#ffffff",
+  };
+
+  if (isEditing) {
+    return (
+      <div style={containerStyle}>
+        <SlateTextEditor
+          value={
+            layer.content || [
+              { type: "paragraph", children: [{ text: "" }] },
+            ]
+          }
+          onChange={handleSlateChange}
+          style={textBlockStyle}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: layer.x,
-        top: layer.y,
-        width: layer.width,
-        height: layer.height,
-        padding: 6,
-        border: isSelected
-          ? "1.5px solid #2563eb"
-          : "1px solid transparent",
-        cursor: "move",
-        boxSizing: "border-box",
-      }}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        setSelectedLayer(layer.id);
-      }}
-    >
-      <div
-        contentEditable
-        suppressContentEditableWarning
-        style={{
-          width: "100%",
-          height: "100%",
-          fontSize: layer.fontSize,
-          color: layer.color,
-          fontFamily: layer.fontFamily,
-          fontWeight: layer.fontWeight,
-          fontStyle: layer.fontStyle,
-          textDecoration: layer.textDecoration,
-          textAlign: layer.textAlign,
-          outline: "none",
-        }}
-      >
-        {layer.text}
-      </div>
+    <div style={{ ...containerStyle, ...textBlockStyle }}>
+      {isPlaceholderVisible ? (
+        <span style={{ color: "#94a3b8" }}>
+          {layer.placeholder || "Click to add text"}
+        </span>
+      ) : (
+        <SlateStaticRenderer value={layer.content} />
+      )}
     </div>
   );
 };

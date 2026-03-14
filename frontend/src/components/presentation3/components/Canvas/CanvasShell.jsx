@@ -25,7 +25,20 @@ const CanvasShell = () => {
     undo,
     redo,
     canvasZoom,
+    editingLayerId,
+    setEditingLayer,
+    clearEditingLayer,
+    migrateTextLayers,
+    editingCell,
+    setEditingCell,
   } = usePresentationStore();
+
+  /* =========================
+     MIGRATION (Legacy text -> Slate JSON)
+  ========================= */
+  useEffect(() => {
+    migrateTextLayers();
+  }, [migrateTextLayers]);
 
   const activeSlide = slides.find(
     (slide) => slide.id === activeSlideId
@@ -48,6 +61,9 @@ const CanvasShell = () => {
   ========================= */
   useEffect(() => {
     const handler = (e) => {
+      // If we're editing text, let Slate handle keyboard shortcuts
+      if (editingLayerId) return;
+
       // Delete key
       if (e.key === "Delete" && selectedLayerId) {
         deleteSelectedLayer();
@@ -68,7 +84,7 @@ const CanvasShell = () => {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedLayerId, deleteSelectedLayer, undo, redo]);
+  }, [selectedLayerId, editingLayerId, deleteSelectedLayer, undo, redo]);
 
   const handleMouseMove = (e) => {
     const slideRect = e.currentTarget.getBoundingClientRect();
@@ -82,7 +98,7 @@ const CanvasShell = () => {
       const mouseXRatio = (e.clientX - slideRect.left - offset.x) / totalScale;
       const mouseYRatio = (e.clientY - slideRect.top - offset.y) / totalScale;
 
-      const layer = activeSlide.layers.find(l => l.id === draggingId);
+      const layer = activeSlide.layers?.find(l => l.id === draggingId);
       if (!layer) return;
 
       let newX = mouseXRatio;
@@ -115,7 +131,7 @@ const CanvasShell = () => {
       snapY(SLIDE_HEIGHT / 2 - layer.height / 2, SLIDE_HEIGHT / 2);
 
       // 2. Snap to other layers
-      activeSlide.layers.forEach(other => {
+      activeSlide.layers?.forEach(other => {
         if (other.id === draggingId) return;
 
         // X alignments
@@ -149,7 +165,7 @@ const CanvasShell = () => {
 
     if (rotatingId) {
       const scale = slideRect.width / SLIDE_WIDTH;
-      const layer = activeSlide.layers.find((l) => l.id === rotatingId);
+      const layer = activeSlide.layers?.find((l) => l.id === rotatingId);
       if (layer) {
         // Calculate center of layer in SCREEN pixels
         const layerCenterX = slideRect.left + (layer.x + layer.width / 2) * scale;
@@ -197,10 +213,15 @@ const CanvasShell = () => {
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
               clearSelection();
+              if (editingLayerId || editingCell) {
+                saveToHistory();
+                clearEditingLayer();
+                setEditingCell(null);
+              }
             }
           }}
         >
-          {activeSlide.layers.map((layer) => {
+          {activeSlide.layers?.map((layer) => {
             const selected = selectedLayerId === layer.id;
 
             if (layer.type === "shape") {
@@ -275,6 +296,7 @@ const CanvasShell = () => {
                     userSelect: "none",
                     transform: `rotate(${layer.rotation || 0}deg)`,
                     transformOrigin: "center center",
+                    borderRadius: layer.borderRadius || 0,
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -294,6 +316,10 @@ const CanvasShell = () => {
                     height: '100%',
                     position: 'relative',
                     pointerEvents: 'none',
+                    overflow: 'hidden',
+                    borderRadius: layer.borderRadius || 0,
+                    border: `${layer.borderWidth || 0}px solid ${layer.borderColor || '#000'}`,
+                    boxSizing: 'border-box',
                   }}>
                     <ImageLayer layer={layer} />
                   </div>
@@ -345,6 +371,9 @@ const CanvasShell = () => {
                     transformOrigin: "center center",
                   }}
                   onMouseDown={(e) => {
+                    // Prevent dragging if a cell is being edited
+                    if (editingCell && editingCell.tableId === layer.id) return;
+
                     e.stopPropagation();
                     saveToHistory();
                     setSelectedLayer(layer.id);
@@ -390,12 +419,7 @@ const CanvasShell = () => {
               );
             }
 
-            if (layer.type !== "text") return null;
-            const Wrapper = layer.link ? "a" : "div";
-
-            const isPlaceholderVisible =
-              !layer.hasBeenEdited && (!layer.text || layer.text.trim() === "");
-
+            const isEditing = editingLayerId === layer.id;
 
             return (
               <div
@@ -407,94 +431,40 @@ const CanvasShell = () => {
                   width: layer.width,
                   height: layer.height,
                   padding: "6px",
-                  border: selected
-                    ? "1.5px solid #2563eb"
-                    : "1px solid transparent",
-                  cursor: "move",
-                  userSelect: "none",
+                  border:
+                    selected && !isEditing
+                      ? "1.5px solid #2563eb"
+                      : "1px solid transparent",
+                  cursor: isEditing ? "text" : "move",
+                  userSelect: isEditing ? "text" : "none",
                   boxSizing: "border-box",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
                 onMouseDown={(e) => {
+                  if (isEditing) return;
                   e.stopPropagation();
                   saveToHistory();
                   setSelectedLayer(layer.id);
                   setDraggingId(layer.id);
 
-                  const rect =
-                    e.currentTarget.getBoundingClientRect();
+                  const rect = e.currentTarget.getBoundingClientRect();
                   setOffset({
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top,
                   });
                 }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  if (!isEditing) {
+                    saveToHistory();
+                    setEditingLayer(layer.id);
+                  }
+                }}
               >
-                <Wrapper
-                  href={layer.link || undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  contentEditable={!layer.link}
-                  suppressContentEditableWarning
+                <TextLayer layer={layer} isEditing={isEditing} />
 
-                  onFocus={(e) => {
-                    // Remove placeholder visually on focus (not stored)
-                    if (isPlaceholderVisible) {
-                      e.target.innerText = "";
-                    }
-                  }}
-
-
-                  onBlur={(e) => {
-                    const value = e.target.innerText.trim();
-
-                    // 👇 IMPORTANT: restore placeholder in DOM
-                    if (value.length === 0) {
-                      e.target.innerText = layer.placeholder;
-                    }
-
-                    // Optional: call saveToHistory here if text change is discrete
-                    // Actually updateTextLayer in store will handle it if we put it there.
-                    updateTextLayer(layer.id, {
-                      text: value,
-                      hasBeenEdited: value.length > 0,
-                    });
-                  }}
-
-
-                  onClick={(e) => {
-                    if (layer.link) {
-                      // Force open in new window as requested
-                      e.preventDefault();
-                      window.open(layer.link, "_blank", "noopener,noreferrer");
-                    } else {
-                      e.preventDefault();
-                    }
-                  }}
-
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    fontSize: layer.fontSize,
-                    color: isPlaceholderVisible ? "#000000" : layer.color,
-                    fontFamily: layer.fontFamily,
-                    fontWeight: layer.fontWeight,
-                    fontStyle: layer.fontStyle,
-                    textDecoration: layer.textDecoration,
-                    textAlign: layer.textAlign,
-                    outline: "none",
-                    cursor: layer.link ? "pointer" : "text",
-                    userSelect: "text",
-                  }}
-                >
-                  {isPlaceholderVisible
-                    ? layer.placeholder
-                    : layer.text}
-                </Wrapper>
-
-
-                {selected && (
+                {selected && !isEditing && (
                   <>
                     <div
                       style={styles.resizeHandle}
@@ -563,6 +533,106 @@ const CanvasShell = () => {
               {dragCoords.x}, {dragCoords.y}
             </div>
           )}
+
+          {/* Link Popup Tooltip */}
+          {(() => {
+            if (!selectedLayerId || draggingId || resizingId || rotatingId || editingLayerId) return null;
+            const sLayer = activeSlide.layers?.find(l => l.id === selectedLayerId);
+            if (!sLayer || !sLayer.link) return null;
+
+            return (
+              <div
+                style={{
+                  position: "absolute",
+                  left: sLayer.x,
+                  top: sLayer.y + sLayer.height + 14,
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  zIndex: 1000,
+                  cursor: "default",
+                }}
+                onMouseDown={(e) => e.stopPropagation()} // Prevent deselection
+              >
+                <a
+                  href={sLayer.link.startsWith("http") ? sLayer.link : `https://${sLayer.link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "#0c4a6e",
+                    textDecoration: "underline",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    maxWidth: "200px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseOver={(e) => e.target.style.color = "#f59e0b"}
+                  onMouseOut={(e) => e.target.style.color = "#0c4a6e"}
+                >
+                  {sLayer.link}
+                </a>
+                <div style={{ width: "1px", height: "16px", background: "#cbd5e1" }} />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (sLayer.type === "text" || sLayer.type === "shape") {
+                      setEditingLayer(sLayer.id);
+                    }
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#0c4a6e",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 8px",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.target.style.background = "#f1f5f9"}
+                  onMouseOut={(e) => e.target.style.background = "transparent"}
+                >
+                  ✎ Edit Text
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateTextLayer(sLayer.id, { link: "" });
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#e11d48",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "4px 8px",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.target.style.background = "#fff1f2"}
+                  onMouseOut={(e) => e.target.style.background = "transparent"}
+                  title="Remove Link"
+                >
+                  ✕ Remove
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -579,7 +649,7 @@ const styles = {
   canvasWrapper: {
     flex: 1,
     background: "#f3f4f6", // Subtle grey, as requested
-    padding: "32px 48px",  // Intentional padding
+    padding: "79px 48px",  // Increased top padding to move content down
     overflow: "auto",      // Handle scrolling if needed
     display: "flex",       // To allow centering the editor-center
     flexDirection: "column",

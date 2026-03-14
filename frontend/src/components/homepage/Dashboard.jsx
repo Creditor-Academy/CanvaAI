@@ -1,448 +1,494 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+
+import {
+  HiOutlinePresentationChartLine,
+  HiOutlineDocumentText
+} from "react-icons/hi2";
+
+import { FaRegImage } from "react-icons/fa";
+
 import {
   FiPlus,
-  FiZap,
-  FiLayout,
-  FiImage,
-  FiFileText,
-  FiSearch,
+  FiChevronLeft,
+  FiChevronRight,
   FiX,
+  FiZap
 } from "react-icons/fi";
-import { RiPresentationFill } from "react-icons/ri";
-import { HiOutlinePresentationChartLine } from "react-icons/hi2";
-import { IoDocument } from "react-icons/io5";
-import { MdOutlineDocumentScanner } from "react-icons/md";
-import { CiImageOn } from "react-icons/ci";   // ✅ correct
-import { FaRegImages } from "react-icons/fa";
-import Creation from "./Creation";
-import AISuggestTemp from "./AISuggestTemp";
-import Recents from "./Recents";
 
-/* ===== BRAND COLORS ===== */
-const COLORS = {
-  deepBlue: "#1d3fAf",
-  primaryBlue: "#60a5fa",
-  Grey: "#455469",
-  gold: "#fabf23",
-  lightGold: "#f8d77d",
-  navyText: "#0c496e",
-  bgLight: "#f9fafb",
-};
-const {
-  deepBlue,
-  primaryBlue,
-  Grey,
-  gold,
-  lightGold,
-  navyText,
-  bgLight,
-} = COLORS;
+import logo from "../../assets/logo.png";
+import api from "../../services/api";
 
-
-const TABS = [
-  { key: "your-designs", label: "Your designs" },
-  { key: "templates", label: "Templates" },
-  { key: "ai", label: "AI" },
-];
-const QUICK_CREATE = [
+const TOOLS = [
   {
-    label: "Presentation",
-    defaultIcon: HiOutlinePresentationChartLine,
-    hoverIcon: RiPresentationFill,
+    name: "PPT",
+    icon: HiOutlinePresentationChartLine,
     route: "/presentation",
-    color1: deepBlue,
-    color2: primaryBlue,
+    color: "bg-blue-600 text-white"
   },
   {
-    label: "Document",
-    defaultIcon: IoDocument,
-    hoverIcon: MdOutlineDocumentScanner,
-    route: "/editor",
-    color1: gold,
-    color2: lightGold,
-  },
-  {
-    label: "Image Editing",
-    defaultIcon: CiImageOn,
-    hoverIcon: FaRegImages,
+    name: "Image",
+    icon: FaRegImage,
     route: "/canva-clone",
-    color1: navyText,
-    color2: primaryBlue,
+    color: "bg-yellow-400 text-black"
   },
+  {
+    name: "Doc",
+    icon: HiOutlineDocumentText,
+    route: "/editor",
+    color: "bg-blue-500 text-white"
+  },
+  {
+    name: "AI PPT",
+    icon: HiOutlinePresentationChartLine,
+    route: "/ai-presentation",
+    color: "bg-blue-700 text-white"
+  },
+  {
+    name: "AI Image",
+    icon: FaRegImage,
+    route: "/create/ai-design",
+    color: "bg-yellow-300 text-black"
+  },
+  {
+    name: "AI Doc",
+    icon: HiOutlineDocumentText,
+    route: "/create/content-writer",
+    color: "bg-blue-800 text-white"
+  }
+];
+const toolImages = [
+  "https://images.pexels.com/photos/221185/pexels-photo-221185.jpeg",
+  "https://images.pexels.com/photos/160994/family-outdoor-happy-happiness-160994.jpeg",
+  "https://images.pexels.com/photos/256467/pexels-photo-256467.jpeg",
+  "https://images.pexels.com/photos/6476783/pexels-photo-6476783.jpeg",
+  "https://images.pexels.com/photos/161963/chicago-illinois-skyline-skyscrapers-161963.jpeg",
+  "https://images.pexels.com/photos/590045/pexels-photo-590045.jpeg"
 ];
 
 
 
+export default function Dashboard() {
 
-const Dashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("your-designs");
-  const [inputText, setInputText] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedDate, setSelectedDate] = useState("all");
-  const [uploadType, setUploadType] = useState(null);
-  const [appliedSearch, setAppliedSearch] = useState("");
+  const [scrollX, setScrollX] = useState(0);
+  const scrollRef = React.useRef(null);
 
-
-
-  const getPlaceholder = () => {
-    if (activeTab === "your-designs") return "Search your designs...";
-    if (activeTab === "templates") return "Search templates...";
-    return "Create your design...";
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
+    }
   };
 
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
+    }
+  };
+
+  const [profile, setProfile] = useState(null);
+  const [page, setPage] = useState(0);
+  const [showCreate, setShowCreate] = useState(false);
+  const [tab, setTab] = useState("manual");
+
+  const templates = Array.from({ length: 24 }, (_, i) => i + 1);
+  const perPage = 8;
+
+  useEffect(() => {
+
+    let mounted = true;
+
+    (async () => {
+
+      try {
+        const data = await api.getProfile();
+        if (mounted) setProfile(data || null);
+      } catch { }
+
+    })();
+
+    return () => mounted = false;
+
+  }, []);
+
+  const fullName =
+    profile?.firstName
+      ? `${profile.firstName} ${profile.lastName || ""}`
+      : profile?.email?.split("@")[0] || "User";
+
+  const tokens = profile?.tokens || 120;
+
+  const visibleTemplates = templates.slice(
+    page * perPage,
+    page * perPage + perPage
+  );
+
+  const manualTools = [
+    {
+      icon: HiOutlinePresentationChartLine,
+      title: "Presentation",
+      route: "/presentation"
+    },
+    {
+      icon: FaRegImage,
+      title: "Image",
+      route: "/canva-clone"
+    },
+    {
+      icon: HiOutlineDocumentText,
+      title: "Document",
+      route: "/editor"
+    }
+  ];
+
+  const aiTools = [
+    {
+      icon: HiOutlinePresentationChartLine,
+      title: "AI PPT",
+      route: "/ai-presentation"
+    },
+    {
+      icon: FaRegImage,
+      title: "AI Image",
+      route: "/create/ai-design"
+    },
+    {
+      icon: HiOutlineDocumentText,
+      title: "AI Doc",
+      route: "/create/content-writer"
+    }
+  ];
+
   return (
-    <div
-      className="min-h-screen w-full overflow-x-hidden px-4 py-12"
-      style={{
-        background:
-          "linear-gradient(135deg,#e0f2ff 0%,#eff6ff 40%,#ffffff 100%)",
-      }}
-    >
-      {/* ================= HEADER ================= */}
-      <div className="max-w-5xl mx-auto text-center">
 
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
-          <span
-            className="bg-gradient-to-r bg-clip-text text-transparent"
-            style={{
-              backgroundImage:
-                "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
-              backgroundSize: "200% auto",
-            }}
-          >
-            {activeTab === "templates" && "Create using templates"}
-            {activeTab === "ai" && "Create with AI"}
-            {activeTab === "your-designs" && "Create your next big idea"}
-          </span>
-        </h1>
+    <div className="bg-[#eef4ff] min-h-screen">
 
-        <p className="mt-4 text-slate-600 text-sm sm:text-lg">
-          Design presentations, documents and images effortlessly
-        </p>
+      <div className="ml-[60px] pt-24 px-14">
 
-        <div className="mt-8 flex justify-center gap-4 flex-wrap relative">
-          {TABS.map((tab) => {
-            const active = activeTab === tab.key;
+        {/* HERO */}
 
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`relative px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300
-    ${active
-                    ? "text-white shadow-lg"
-                    : "bg-white border border-slate-200 text-slate-600 hover:bg-[#f5f5f5] hover:shadow-md"
-                  }
-  `}
-                style={
-                  active
-                    ? {
-                      background: navyText,
-                    }
-                    : {}
-                }
-              >
-                {tab.label}
-              </button>
-
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ================= MAIN BOX ================= */}
-      <div className="max-w-4xl mx-auto mt-12">
-        <div
-          className="rounded-3xl shadow-xl overflow-hidden border"
-          style={{
-            background: "#ffffff",
-            backdropFilter: "blur(12px)",
-            borderColor: Grey,
-          }}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-[#0f3c68] to-[#1e5aa5] rounded-3xl p-12 shadow-xl flex justify-between items-center"
         >
-          {/* ===== INPUT ROW ===== */}
-          <div className="flex items-center gap-3 px-5 py-5">
 
-            <button
-              onClick={() => {
-                if (activeTab === "ai") {
-                  setUploadType("choose");
-                }
-              }}
-              className="w-10 h-10 rounded-full border border-dashed flex items-center justify-center text-slate-500 hover:bg-[#f5f5f5] transition"
-            >
-              {activeTab === "ai" ? <FiPlus /> : <FiSearch />}
-            </button>
+          <div className="flex items-center ">
 
+            <img src={logo} className="h-26" />
 
-            <input
-              type="text"
-              placeholder={getPlaceholder()}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 outline-none text-sm sm:text-base bg-transparent"
-            />
+            <div>
 
-            <button
-              onClick={() => {
-                if (activeTab !== "ai") {
-                  setAppliedSearch(inputText);
-                }
-              }}
-              className="w-11 h-11 rounded-full flex items-center justify-center text-white transition transform hover:scale-105"
-              style={{
-                background:navyText
-              }}
-            >
-              <FiZap />
+              <h1 className="text-3xl font-bold text-white">
+                Welcome, {fullName} 👋
+              </h1>
+
+              <p className="text-blue-200">
+                Create presentations, images and documents using AI
+              </p>
+
+            </div>
+
+          </div>
+
+          <div className="bg-white px-6 py-4 rounded-xl shadow flex items-center gap-6">
+
+            <div>
+
+              <p className="text-xs text-gray-500">
+                Available Tokens
+              </p>
+
+              <p className="text-2xl font-bold text-blue-800">
+                {tokens}
+              </p>
+
+            </div>
+
+            <button className="bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2 rounded-lg font-semibold">
+              Renew
             </button>
 
           </div>
 
-          {/* YOUR DESIGNS */}
-          {activeTab === "your-designs" && (
-            <div className="bg-[#f5f5f5] px-5 py-4 flex flex-col gap-4">
+        </motion.div>
 
-              <div className="flex flex-wrap gap-6">
+        {/* EXPLORE */}
 
-                <div className="flex py-4 gap-4">
+        <div className="flex justify-between items-center mt-16">
 
-                  {(selectedCategory !== "all" || selectedDate !== "all") && (
-                    <div className="px-3 py-1 bg-white border  rounded-full shadow">
-                      <FiX
-                        className="cursor-pointer text-slate-600"
-                        onClick={() => {
-                          setSelectedCategory("all");
-                          setSelectedDate("all");
-                        }}
-                      />
-                    </div>
-                  )}
+          <h2 className="text-2xl font-bold text-blue-900">
+            Explore Tools
+          </h2>
 
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2 rounded-full font-semibold shadow"
+          >
+            <FiPlus />
+            Create
+          </button>
+
+        </div>
+
+        {/* TOOLS */}
+        <div className="mt-10 relative">
+
+          {/* LEFT ARROW */}
+
+          <button
+            onClick={scrollLeft}
+            className="absolute left-[-20px] top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center"
+          >
+            <FiChevronLeft />
+          </button>
+
+          {/* CAROUSEL */}
+
+          <div className="overflow-hidden">
+
+            <div
+              ref={scrollRef}
+              className="flex gap-6 overflow-x-auto scroll-smooth hide-scrollbar"
+              style={{ scrollBehavior: "smooth" }}
+            >
+
+              {TOOLS.map((tool, i) => {
+
+                const colors = [
+                  "bg-blue-100",
+                  "bg-cyan-100",
+                  "bg-blue-200",
+                  "bg-yellow-100",
+                  "bg-blue-300",
+                  "bg-yellow-200"
+                ]
+
+                return (
+
+                  <motion.div
+                    key={i}
+                    whileHover={{ scale: 1.04 }}
+                    onClick={() => navigate(tool.route)}
+                    className={`min-w-[210px] h-[90px] flex-shrink-0 rounded-2xl px-5 py-4 cursor-pointer relative overflow-hidden ${colors[i]} shadow-sm hover:shadow-md`}
+                  >
+
+                    {/* TEXT */}
+
+                    <p className="text-sm font-semibold text-gray-800">
+                      {tool.name}
+                    </p>
+
+                    {/* IMAGE */}
+
+                    <img
+                      src={`${toolImages[i]}?q=80&w=400&sig=${i}`}
+                      className="absolute right-2 bottom-[-2px] w-24 rotate-[12deg] object-cover rounded-lg"
+                    />
+
+                  </motion.div>
+
+                )
+
+              })}
+
+            </div>
+
+          </div>
+
+          {/* RIGHT ARROW */}
+
+          <button
+            onClick={scrollRight}
+            className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center"
+          >
+            <FiChevronRight />
+          </button>
+
+        </div>
+
+        {/* TEMPLATES */}
+
+        <div className="mt-20 pb-20">
+
+          <h2 className="text-2xl font-bold text-blue-900 mb-8">
+            Ready Templates
+          </h2>
+
+          <div className="grid grid-cols-4 gap-6">
+
+            {visibleTemplates.map((i) => (
+
+              <motion.div
+                key={i}
+                whileHover={{ scale: 1.05 }}
+                className="bg-white rounded-xl shadow border border-blue-100 overflow-hidden"
+              >
+
+                <img
+                  src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&sig=${i}`}
+                  className="h-36 w-full object-cover"
+                />
+
+                <div className="p-4">
+
+                  <h3 className="font-semibold text-blue-900 text-sm">
+                    Template {i}
+                  </h3>
+
+                  <p className="text-xs text-gray-500">
+                    Editable layout
+                  </p>
 
                 </div>
-                {/* Category */}
 
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="mt-1 px-5 py-2 rounded-full text-sm border border=[#0c496e]"
+              </motion.div>
+
+            ))}
+
+          </div>
+
+          <div className="flex justify-center gap-4 mt-8">
+
+            <button
+              disabled={page === 0}
+              onClick={() => setPage(page - 1)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-1 disabled:opacity-40"
+            >
+              <FiChevronLeft />
+              Prev
+            </button>
+
+            <button
+              disabled={(page + 1) * perPage >= templates.length}
+              onClick={() => setPage(page + 1)}
+              className="bg-yellow-400 text-black px-4 py-2 rounded-lg flex items-center gap-1"
+            >
+              Next
+              <FiChevronRight />
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* CREATE MODAL */}
+
+      <AnimatePresence>
+
+        {showCreate && (
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+          >
+
+            <motion.div
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-[700px] p-10 relative"
+            >
+
+              <button
+                onClick={() => setShowCreate(false)}
+                className="absolute top-6 right-6 text-gray-500"
+              >
+                <FiX size={22} />
+              </button>
+
+              <h2 className="text-2xl font-bold text-blue-900 mb-6">
+                Quick Start
+              </h2>
+
+              <div className="flex bg-gray-100 rounded-full p-1 w-fit mb-8">
+
+                <button
+                  onClick={() => setTab("manual")}
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition
+            ${tab === "manual"
+                      ? "bg-blue-600 text-white shadow"
+                      : "text-gray-600"
+                    }`}
                 >
-                  <option value="all">All Categories</option>
-                  <option value="presentation">Presentation</option>
-                  <option value="document">Document</option>
-                  <option value="image">Image</option>
-                </select>
+                  Manual
+                </button>
 
-
-                {/* Date */}
-
-                <select
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="mt-1 px-5 py-2 rounded-full text-sm border border-[#0c496e]"
+                <button
+                  onClick={() => setTab("ai")}
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition
+            ${tab === "ai"
+                      ? "bg-yellow-400 text-black shadow"
+                      : "text-gray-600"
+                    }`}
                 >
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                </select>
-
-
-
+                  AI
+                </button>
 
               </div>
 
+              {/* IMPROVED CARDS */}
 
-
-            </div>
-          )}
-
-          {/* TEMPLATES */}
-          {activeTab === "templates" && (
-            <div className="bg-[#f5f5f5] px-5 py-4 flex flex-wrap gap-4">
-              {[
-                "Modern PPT",
-                "Simple PPT",
-                "Creative Slides",
-                "Minimal Layout",
-                "Clean Design",
-              ].map((tag) => (
-                <span
-                  key={tag}
-                  className="px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition cursor-pointer"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* AI OPTIONS */}
-          {activeTab === "ai" && (
-            <div className="bg-[#f5f5f5] px-5 py-4 flex flex-wrap gap-4">
-
-              <button
-                onClick={() => navigate("/presentation")}
-                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition"
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="grid grid-cols-3 gap-6"
               >
-                <FiLayout /> Design PPT
-              </button>
 
-              <button
-                onClick={() => navigate("/image-editor")}
-                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition"
-              >
-                <FiImage /> Generate Image
-              </button>
+                {(tab === "manual" ? manualTools : aiTools).map((tool, i) => {
 
-              <button
-                onClick={() => navigate("/editor")}
-                className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#f5f5f5] border border-[#0c496e] text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition"
-              >
-                <FiFileText /> Generate Document
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+                  const Icon = tool.icon;
 
-      {activeTab === "your-designs" && (
-        <div className="max-w-6xl mx-auto mt-14 space-y-10">
+                  return (
 
-          {/* ===== QUICK CREATE ICON ROW ===== */}
-          <div className="flex flex-wrap justify-center gap-10">
+                    <motion.div
+                      key={i}
+                      whileHover={{ scale: 1.06, y: -4 }}
+                      onClick={() => navigate(tool.route)}
+                      className="cursor-pointer p-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50 shadow-sm hover:shadow-xl transition flex flex-col items-center justify-center gap-3 h-[130px] relative"
+                    >
 
-            {QUICK_CREATE.map((item, index) => {
-              const DefaultIcon = item.defaultIcon;
-              const HoverIcon = item.hoverIcon;
+                      <div className={`w-12 h-12 flex items-center justify-center rounded-xl
+                ${tab === "ai" ? "bg-yellow-100 text-yellow-600" : "bg-blue-100 text-blue-600"}`}>
 
+                        <Icon size={22} />
 
-              return (
-                <div
-                  key={index}
-                  onClick={() => navigate(item.route)}
-                  className="flex -mb-12 flex-col items-center cursor-pointer group transition-all duration-500"
-                >
-                  {/* Circle */}
-                  <div
-                    className="relative w-15 h-15 flex items-center justify-center rounded-full text-white text-3xl transition-all duration-500 group-hover:scale-110"
-                    style={{
-                      background: `linear-gradient(135deg, ${item.color1}, ${item.color2})`,
-                      boxShadow: "0 8px 25px rgba(0,0,0,0.08)",
-                    }}
-                  >
-                    {/* Default Icon */}
-                    <DefaultIcon className="absolute transition-all duration-300 opacity-100 group-hover:opacity-0 scale-100 group-hover:scale-0" />
+                      </div>
 
-                    {/* Hover Icon */}
-                    <HoverIcon className="absolute transition-all duration-300 opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100" />
-                  </div>
+                      <p className="font-semibold text-blue-900 text-sm">
+                        {tool.title}
+                      </p>
 
-                  {/* Label */}
-                  <span className="mt-3 text-sm font-semibold text-slate-800 group-hover:text-[#0c496e] transition">
-                    {item.label}
-                  </span>
+                      {tab === "ai" && (
+                        <span className="absolute top-3 right-3 text-yellow-500">
+                          <FiZap size={16} />
+                        </span>
+                      )}
 
-                  {/* Subtitle */}
-                  <span className="text-xs font-medium text-slate-500 group-hover:text-[#0c496e] transition">
-                    Create
-                  </span>
-                </div>
-              );
-            })}
+                    </motion.div>
 
-          </div>
+                  )
 
+                })}
 
-          {/* Show Suggested ONLY when no filter active */}
-          {selectedCategory === "all" &&
-            selectedDate === "all" &&
-            appliedSearch.trim() === "" && (
-              <AISuggestTemp />
-            )}
+              </motion.div>
 
+            </motion.div>
 
-          {/* Recents always visible */}
-          <Recents
-            selectedCategory={selectedCategory}
-            selectedDate={selectedDate}
-            searchQuery={appliedSearch}
-          />
+          </motion.div>
 
+        )}
 
-        </div>
-      )}
-
-
-      {activeTab === "templates" && (
-        <div className="max-w-6xl mx-auto mt-14">
-          <Creation searchQuery={inputText} />
-        </div>
-      )}
-
-      <p className="mt-16 text-center text-xs text-slate-500">
-        AI generated results may contain inaccuracies. Please verify important information.
-      </p>
-      {uploadType && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-2xl shadow-xl w-80">
-
-            {uploadType === "choose" && (
-              <>
-                <h3 className="text-lg font-semibold mb-4">Upload Media</h3>
-
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => setUploadType("image")}
-                    className="px-4 py-2 border rounded-xl hover:[#f5f5f5]"
-                  >
-                    Upload Image
-                  </button>
-
-                  <button
-                    onClick={() => setUploadType("document")}
-                    className="px-4 py-2 border rounded-xl hover:[#f5f5f5]"
-                  >
-                    Upload Document
-                  </button>
-                </div>
-              </>
-            )}
-
-            {(uploadType === "image" || uploadType === "document") && (
-              <>
-                <input
-                  type="file"
-                  accept={
-                    uploadType === "image"
-                      ? "image/*"
-                      : ".pdf,.doc,.docx,.txt"
-                  }
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    console.log("Selected File:", file);
-                    setUploadType(null);
-                  }}
-                />
-              </>
-            )}
-
-            <button
-              onClick={() => setUploadType(null)}
-              className="mt-4 text-sm text-[#0c496e]"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      </AnimatePresence>
 
     </div>
-  );
-};
 
-export default Dashboard;
+  );
+
+}

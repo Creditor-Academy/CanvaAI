@@ -176,7 +176,7 @@ export const drawTextLayer = (ctx, layer) => {
     contrast: layer.contrast ?? 100,
     blur: layer.blur ?? 0
   });
-  
+
   if (layer.shadows?.enabled) {
     ctx.shadowColor = hexToRgba(layer.shadows.color, (layer.shadows.opacity ?? 50) / 100);
     ctx.shadowBlur = layer.shadows.blur ?? 0;
@@ -188,40 +188,82 @@ export const drawTextLayer = (ctx, layer) => {
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
   }
-  
+
   ctx.fillStyle = layer.color || '#000000';
   const fontWeight = layer.fontWeight || 'normal';
   const fontSize = layer.fontSize || 16;
   const fontFamily = layer.fontFamily || 'Arial';
   ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
   ctx.textBaseline = 'top';
-  
+
   if (layer.fontStyle === 'italic') {
     ctx.font = `italic ${fontWeight} ${fontSize}px ${fontFamily}`;
   }
-  
+
+  const textAlign = layer.textAlign || 'left';
+  ctx.textAlign = textAlign;
+
   const x = layer.x + 4;
   const y = layer.y + 4;
-  const maxWidth = Math.max(10, (layer.width || 300) - 8);
-  const lines = (layer.text || '').split(/\n/);
-  let offsetY = 0;
-  
+  const width = Math.max(10, (layer.width || 300) - 8);
+
+  // Calculate draw X based on alignment
+  let drawX = x;
+  if (textAlign === 'center') {
+    drawX = x + width / 2;
+  } else if (textAlign === 'right') {
+    drawX = x + width;
+  }
+
+  const text = layer.text || '';
+  const lines = text.split(/\n/);
+  const wrappedLines = [];
+
+  // Simple wrapping logic
   for (const line of lines) {
+    const words = line.split(' ');
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + ' ' + word : word;
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > width && currentLine) {
+        wrappedLines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    wrappedLines.push(currentLine);
+  }
+
+  let offsetY = 0;
+  for (const line of wrappedLines) {
+    ctx.fillText(line, drawX, y + offsetY, width);
+
     if (layer.textDecoration === 'underline') {
       const metrics = ctx.measureText(line);
       const underlineY = y + offsetY + fontSize;
-      ctx.fillText(line, x, y + offsetY, maxWidth);
+      let lineStartX = drawX;
+
+      if (textAlign === 'center') {
+        lineStartX = drawX - metrics.width / 2;
+      } else if (textAlign === 'right') {
+        lineStartX = drawX - metrics.width;
+      }
+
+      ctx.save();
       ctx.beginPath();
-      ctx.moveTo(x, underlineY + 2);
-      ctx.lineTo(x + metrics.width, underlineY + 2);
+      ctx.moveTo(lineStartX, underlineY + 2);
+      ctx.lineTo(lineStartX + metrics.width, underlineY + 2);
       ctx.lineWidth = Math.max(1, Math.floor(fontSize / 12));
       ctx.strokeStyle = layer.color || '#000000';
       ctx.stroke();
-    } else {
-      ctx.fillText(line, x, y + offsetY, maxWidth);
+      ctx.restore();
     }
+
     offsetY += fontSize * 1.3;
   }
-  
+
   ctx.restore();
 };

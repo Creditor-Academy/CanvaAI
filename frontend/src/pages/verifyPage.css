@@ -1,0 +1,137 @@
+/* ===== Athena Verify Page ===== */
+
+.athena-verify-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+  to bottom right,
+  #6366f1,
+  #a855f7,
+  #9333ea
+);
+  padding: 20px;
+}
+
+.athena-verify-card {
+  background: white;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 35px;
+  border-radius: 18px;
+  box-shadow: 0 20px 40px rgba(30, 64, 175, 0.15);
+  text-align: center;
+  animation: fadeIn 0.4s ease;
+}
+
+.athena-verify-title {
+  font-size: 28px;
+  color: var(--athena-deep-blue);
+  margin-bottom: 12px;
+}
+
+.athena-verify-subtext {
+  color: var(--athena-text-secondary);
+  margin-bottom: 25px;
+  font-size: 14px;
+}
+
+.athena-verify-email {
+  color: var(--athena-text-primary);
+  font-weight: 600;
+}
+
+.athena-verify-msg {
+  font-size: 14px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+/* Dynamic message colors */
+.athena-verify-msg.success {
+  color: #16a34a;
+}
+.athena-verify-msg.error {
+  color: #dc2626;
+}
+.athena-verify-msg.warning {
+  color: #f59e0b;
+}
+.athena-verify-msg.info {
+  color: var(--athena-primary-blue);
+}
+
+.athena-verify-input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  margin-bottom: 20px;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.athena-verify-input:focus {
+  outline: none;
+  border-color: var(--athena-primary-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.athena-verify-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  color: white;
+  background: var(--athena-btn-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.athena-verify-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.4);
+}
+
+.athena-verify-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.athena-verify-resend {
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--athena-text-secondary);
+}
+
+.athena-verify-resend span {
+  color: var(--athena-primary-blue);
+  font-weight: 600;
+}
+
+.athena-resend-btn {
+  background: none;
+  border: none;
+  color: var(--athena-deep-blue);
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.athena-resend-btn:hover {
+  color: var(--athena-amber);
+}
+
+/* subtle animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

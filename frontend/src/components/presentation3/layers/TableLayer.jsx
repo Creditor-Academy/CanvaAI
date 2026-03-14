@@ -1,8 +1,60 @@
 import React from "react";
 import usePresentationStore from "../store/usePresentationStore";
+import SlateTextEditor from "../editors/slate/SlateTextEditor";
+import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
+
+const FALLBACK_SLATE = [{ type: "paragraph", children: [{ text: "" }] }];
 
 const TableLayer = ({ layer }) => {
-    const { updateTableCell, saveToHistory } = usePresentationStore();
+    const {
+        updateTableCell,
+        editingCell,
+        setEditingCell
+    } = usePresentationStore();
+
+    const resolveCell = (rawCell) => {
+        if (!rawCell) {
+            return {
+                content: FALLBACK_SLATE,
+                fontFamily: "Arial",
+                fontSize: 14,
+                textAlign: "center",
+                color: "#ffffff"
+            };
+        }
+
+        if (typeof rawCell === "string") {
+            return {
+                content: [{ type: "paragraph", children: [{ text: rawCell }] }],
+                fontFamily: "Arial",
+                fontSize: 14,
+                textAlign: "center",
+                color: "#ffffff"
+            };
+        }
+
+        const isSlateValid =
+            Array.isArray(rawCell.content) &&
+            rawCell.content[0]?.type &&
+            Array.isArray(rawCell.content[0]?.children);
+
+        return {
+            content: isSlateValid ? rawCell.content : FALLBACK_SLATE,
+            fontFamily: rawCell.fontFamily || "Arial",
+            fontSize: rawCell.fontSize || 14,
+            textAlign: rawCell.textAlign || "center",
+            color: rawCell.color || "#ffffff"
+        };
+    };
+
+    const rows = layer.rows || 0;
+    const cols = layer.cols || 0;
+    const borderWidth = layer.borderWidth || 1;
+    const borderColor = layer.borderColor || "#000000";
+
+    const safeGrid = Array.isArray(layer.cells) && layer.cells.length === rows
+        ? layer.cells
+        : Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
 
     return (
         <div
@@ -10,57 +62,77 @@ const TableLayer = ({ layer }) => {
                 width: "100%",
                 height: "100%",
                 display: "grid",
-                gridTemplateColumns: `repeat(${layer.cols}, 1fr)`,
-                gridTemplateRows: `repeat(${layer.rows}, 1fr)`,
-                border: `1px solid ${layer.borderColor || "#d1d5db"}`,
-                background: "#fff",
+                gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                gridTemplateRows: `repeat(${rows}, 1fr)`,
+                border: `${borderWidth}px solid ${borderColor}`,
                 boxSizing: "border-box",
+                backgroundColor: layer.tableBgColor || "transparent",
             }}
         >
-            {layer.cells.map((row, r) =>
-                row.map((cell, c) => (
-                    <div
-                        key={`${r}-${c}`}
-                        contentEditable
-                        suppressContentEditableWarning
-                        style={{
-                            border: "1px solid #e5e7eb",
-                            padding: "6px",
-                            fontSize: layer.fontSize || 14,
-                            color: layer.color || "#000000",
-                            fontWeight: layer.fontWeight || "normal",
-                            fontStyle: layer.fontStyle || "normal",
-                            textDecoration: layer.textDecoration || "none",
-                            textAlign: layer.textAlign || "center",
-                            outline: "none",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: layer.textAlign === "left" ? "flex-start" : layer.textAlign === "right" ? "flex-end" : "center",
-                            wordBreak: "break-word",
-                            overflow: "hidden",
-                            cursor: layer.link ? "pointer" : "text",
-                        }}
-                        onClick={(e) => {
-                            if (layer.link && !e.target.isContentEditable) {
-                                window.open(layer.link, "_blank", "noopener,noreferrer");
-                            }
-                        }}
-                        onFocus={() => {
-                            // We might want to save history on focus if we want to capture state before edit
-                            // but let's stick to simple onBlur update for now as per prompt.
-                        }}
-                        onBlur={(e) => {
-                            const newValue = e.target.innerText;
-                            if (newValue !== cell) {
-                                saveToHistory();
-                                updateTableCell(layer.id, r, c, newValue);
-                            }
-                        }}
-                    >
-                        {cell}
-                    </div>
-                ))
-            )}
+            {safeGrid.map((row, r) => {
+                const safeRow = Array.isArray(row) ? row : Array.from({ length: cols }, () => null);
+                return safeRow.map((rawCell, c) => {
+                    const cell = resolveCell(rawCell);
+                    const isEditing =
+                        editingCell?.tableId === layer.id &&
+                        editingCell?.row === r &&
+                        editingCell?.col === c;
+
+                    const cellStyle = {
+                        border: `${borderWidth}px solid ${borderColor}`,
+                        padding: "6px",
+                        overflow: "hidden",
+                        color: cell.color,
+                        fontFamily: cell.fontFamily,
+                        fontSize: `${cell.fontSize}px`,
+                        textAlign: cell.textAlign,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center"
+                    };
+
+                    const safeValue = Array.isArray(cell.content) ? cell.content : FALLBACK_SLATE;
+
+                    return (
+                        <div
+                            key={`${r}-${c}`}
+                            onMouseDown={(e) => {
+                                if (isEditing) e.stopPropagation();
+                            }}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setEditingCell({ tableId: layer.id, row: r, col: c });
+                            }}
+                            style={cellStyle}
+                        >
+                            {isEditing ? (
+                                <SlateTextEditor
+                                    value={safeValue}
+                                    onChange={(newValue) =>
+                                        updateTableCell(layer.id, r, c, { content: newValue })
+                                    }
+                                    style={{
+                                        fontFamily: cell.fontFamily,
+                                        fontSize: `${cell.fontSize}px`,
+                                        textAlign: cell.textAlign,
+                                        color: cell.color
+                                    }}
+                                />
+                            ) : (
+                                <SlateStaticRenderer
+                                    value={safeValue}
+                                    style={{
+                                        fontFamily: cell.fontFamily,
+                                        fontSize: `${cell.fontSize}px`,
+                                        textAlign: cell.textAlign,
+                                        color: cell.color
+                                    }}
+                                />
+                            )}
+                        </div>
+                    );
+                });
+            })}
         </div>
     );
 };

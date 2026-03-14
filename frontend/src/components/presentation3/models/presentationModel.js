@@ -14,9 +14,9 @@ export const createShapeLayer = (shapeType) => ({
   height: shapeType === "line" || shapeType === "arrow" ? 40 : 80, // Increased hit area
 
   // style
-  fill: shapeType === "line" || shapeType === "arrow" ? "transparent" : "#3b82f6",
-  stroke: "#1e40af",
-  strokeWidth: shapeType === "line" || shapeType === "arrow" ? 8 : 2, // Thicker default
+  fillColor: (shapeType === "line" || shapeType === "arrow") ? "transparent" : "#ffffff",
+  strokeColor: "#1e40af",
+  strokeWidth: (shapeType === "line" || shapeType === "arrow") ? 8 : 1, // Thicker default for line/arrow, 1 otherwise
 
   // transforms
   rotation: 0,
@@ -26,13 +26,18 @@ export const createShapeLayer = (shapeType) => ({
   locked: false,
 });
 
-export const createImageLayer = (src) => ({
+export const createImageLayer = (src, imageUrl, imageKey) => ({
   id: crypto.randomUUID(),
   type: "image",
-  src,
+  src, // Keep for backward compatibility or direct URL addition
+  imageUrl,
+  imageKey,
   x: 200,
   y: 150,
   width: 240,
   height: 160,
   rotation: 0,
+  borderRadius: 0,
+  borderWidth: 0,
+  borderColor: "#000000",
 });

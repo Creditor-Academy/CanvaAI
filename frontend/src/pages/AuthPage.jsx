@@ -1,147 +1,121 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../services/api';
-import { Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import api from "../services/api";
+import { Eye, EyeOff, XCircle, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const AuthPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const [isSignup, setIsSignup] = useState(false);
+
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    username: ''
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    username: ""
   });
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMsg, setForgotMsg] = useState("");
 
   const processedTokenRef = useRef(null);
 
+  const handleGoogleAuth = () => {
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/auth/google`;
+  };
+
   const handleForgotPassword = async () => {
     if (!formData.email) {
-      setForgotMsg("❌ Please enter your email first");
+      setForgotMsg("Please enter your email first");
       return;
     }
 
     try {
       setForgotLoading(true);
       setForgotMsg("");
-
       await api.forgetPassword(formData.email);
-
       setForgotMsg("Reset link sent to your email");
-
     } catch (err) {
-      setForgotMsg(
-        err.response?.data?.msg || "❌ Failed to send reset link"
-      );
+      setForgotMsg(err.response?.data?.msg || "Failed to send reset link");
     } finally {
       setForgotLoading(false);
     }
   };
 
-
-  // Handle token-based authentication from LMS
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams.get("token");
+    const googleToken = searchParams.get("googleToken");
+    const authToken = token || googleToken;
 
-    // Skip if no token or if we've already processed this token
-    if (!token || processedTokenRef.current === token) {
-      return;
-    }
+    if (!authToken) return;
+    if (processedTokenRef.current === authToken) return;
 
-    // Mark this token as being processed
-    processedTokenRef.current = token;
+    processedTokenRef.current = authToken;
 
-    const handleTokenAuth = async () => {
-      // Clear any existing token first to prevent AuthContext from using an old one
-      localStorage.removeItem('token');
-
-      setIsLoading(true);
-      setError(null);
-
+    const authenticate = async () => {
       try {
-        // Verify the token with the backend
-        const response = await api.verifyToken(token);
+        setIsLoading(true);
+        const response = await api.verifyToken(authToken);
 
         if (response.success && response.token) {
-          // Store the token in localStorage and wait for profile fetch
           await login(response.token);
-
-          if (response.created) {
-            // New user - show welcome message before redirecting
-            setMessage('Account created and authenticated! Redirecting...');
-            setTimeout(() => {
-              navigate('/home', { replace: true });
-            }, 1000);
-          } else {
-            // Existing user - redirect immediately to Create page
-            navigate('/home', { replace: true });
-          }
+          navigate("/home", { replace: true });
         } else {
-          setError(response.msg || 'Invalid or expired session');
-          // Redirect to landing page after showing error
-          setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 3000);
+          throw new Error(response.msg || "Invalid session");
         }
       } catch (err) {
-        console.error('Token verification failed:', err);
-        setError(err.message || 'Invalid or expired session');
-
-        // Redirect to home after showing error
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 3000);
+        setError("Authentication failed. Redirecting...");
+        setTimeout(() => navigate("/", { replace: true }), 2500);
       } finally {
         setIsLoading(false);
       }
     };
 
-    handleTokenAuth();
-  }, [searchParams, login, navigate]); // Dependencies are now stable
+    authenticate();
+  }, [searchParams, login, navigate]);
 
   const toggleForm = () => {
-    setIsSignup(!isSignup);
-    setFormData({ firstName: '', lastName: '', email: '', password: '' });
+    setIsSignup((prev) => !prev);
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      username: ""
+    });
   };
 
-  const handleChange = e => {
+  const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
     try {
       let response;
+
       if (isSignup) {
         response = await api.register(formData);
-
         await api.sendOTP(formData.email);
         localStorage.setItem("email", formData.email);
-
-        navigate('/verify', { state: { email: formData.email } });
+        navigate("/verify", { state: { email: formData.email } });
         return;
       } else {
         response = await api.login(formData);
         console.log("Login response:", response);
         if (response.unverified) {
-
           localStorage.setItem("email", formData.email);
-
-          navigate("/verify", {
-            state: { email: formData.email }
-          });
-
+          navigate("/verify", { state: { email: formData.email } });
           return;
         }
 
@@ -159,60 +133,35 @@ const AuthPage = () => {
       }
 
       await login(response.token);
-      navigate('/home');
+      navigate("/home");
     } catch (err) {
-      console.error('Login/Signup error:', err);
       alert(
-        (isSignup ? 'Signup' : 'Login') + ' failed! ' +
-        (err.message || 'Please try again.')
+        (isSignup ? "Signup" : "Login") +
+          " failed! " +
+          (err.message || "Please try again.")
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading or message state when verifying token
-  if (searchParams.get('token')) {
+  if (searchParams.get("token") || searchParams.get("googleToken")) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-5">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600">
         <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
           {isLoading && (
             <>
               <div className="w-16 h-16 border-4 border-gray-100 border-t-indigo-500 rounded-full mx-auto mb-5 animate-spin" />
-              <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-                Verifying your session...
-              </h2>
-              <p className="text-sm text-gray-500">
-                Please wait while we authenticate you
-              </p>
+              <h2 className="text-xl font-semibold">Verifying session...</h2>
             </>
           )}
 
-          {message && !isLoading && (
+          {error && (
             <>
-              <div className="w-16 h-16 bg-green-500 rounded-full mx-auto mb-5 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-red-500 rounded-full mx-auto flex items-center justify-center mb-5">
+                <XCircle className="text-white" />
               </div>
-              <h2 className="text-2xl font-semibold text-green-500 mb-3">
-                {message}
-              </h2>
-            </>
-          )}
-
-          {error && !isLoading && (
-            <>
-              <div className="w-16 h-16 bg-red-500 rounded-full mx-auto mb-5 flex items-center justify-center">
-                <XCircle className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-semibold text-red-500 mb-3">
-                Authentication Failed
-              </h2>
-              <p className="text-sm text-gray-500 mb-5">
-                {error}
-              </p>
-              <p className="text-xs text-gray-400">
-                Redirecting to login page...
-              </p>
+              <p>{error}</p>
             </>
           )}
         </div>
@@ -221,146 +170,178 @@ const AuthPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-5">
-      <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md transition-all duration-300">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">
-            {isSignup ? 'Create Account' : 'Welcome Back'}
-          </h2>
-          <p className="text-sm text-gray-500">
-            {isSignup ? 'Sign up to get started' : 'Sign in to your account'}
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(135deg,#0c4a6ecc,#1e40afcc,#0ea5e9cc)] p-6">
+
+      <motion.div
+  initial={{ opacity: 0, y: 60, scale: 0.95 }}
+  animate={{ opacity: 1, y: 0, scale: 1 }}
+  transition={{ duration: 0.7, ease: "easeOut" }}
+  className="relative max-w-[900px] w-full min-h-[560px] bg-white rounded-[30px] shadow-2xl overflow-hidden"
+>
+
+        {/* LOGIN PANEL */}
+        <div className={`absolute top-0 left-0 h-full w-1/2 flex items-center justify-center px-12 transition-all duration-700 ${isSignup ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+          <div className="w-full">
+
+            <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
+              Welcome Back
+            </h2>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+              <input
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
+                required
+              />
+
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none pr-10 focus:ring-2 focus:ring-indigo-400"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-500"
+                >
+                  {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="bg-[#fbbf24] text-black py-3 rounded-full font-semibold hover:bg-[#f59e0b] transition-all hover:scale-[1.03] active:scale-[0.98]"
+              >
+                {isLoading ? <Loader2 className="animate-spin mx-auto"/> : "Sign In"}
+              </button>
+
+            </form>
+
+            <button
+              onClick={handleForgotPassword}
+              className="text-sm text-indigo-800 mt-4 w-full text-center hover:underline"
+            >
+              {forgotLoading ? "Sending..." : "Forgot Password?"}
+            </button>
+
+            {forgotMsg && <p className="text-sm text-center mt-2">{forgotMsg}</p>}
+
+            {/* GOOGLE BUTTON WITH ANIMATION */}
+            <button
+              onClick={handleGoogleAuth}
+              className="group mt-5 border px-6 py-3 rounded-full flex items-center gap-3 justify-center w-full
+              bg-white hover:bg-gray-50
+              transition-all duration-300
+              hover:shadow-lg
+              hover:scale-[1.04]
+              active:scale-[0.97]"
+            >
+              <svg
+                className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12"
+                viewBox="0 0 48 48"
+              >
+                <path fill="#EA4335" d="M24 9.5c3.2 0 6 1.1 8.2 3.2l6.1-6.1C34.7 2.6 29.8 0 24 0 14.6 0 6.6 5.4 2.7 13.2l7.4 5.7C12 13 17.6 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-2.7-.4-4H24v7.6h12.7c-.3 1.9-1.9 4.7-5.5 6.6l8.5 6.6c4.9-4.5 7.7-11.1 7.7-18.8z"/>
+                <path fill="#FBBC05" d="M10.1 28.9c-.5-1.4-.8-2.9-.8-4.4s.3-3 .8-4.4l-7.4-5.7C1 17.7 0 20.8 0 24s1 6.3 2.7 9.6l7.4-4.7z"/>
+                <path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-5.7l-8.5-6.6c-2.3 1.6-5.3 2.7-7.5 2.7-6.4 0-12-4.3-13.9-10.1l-7.4 5.7C6.6 42.6 14.6 48 24 48z"/>
+              </svg>
+
+              <span className="font-medium text-gray-700">
+                Continue with Google
+              </span>
+            </button>
+
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {isSignup && (
+        {/* SIGNUP PANEL */}
+        <div className={`absolute top-0 left-0 h-full w-1/2 flex items-center justify-center px-12 transition-all duration-700 ${isSignup ? "translate-x-full opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className="w-full">
+
+            <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
+              Create Account
+            </h2>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+              <input name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400" required />
+
+              <input name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400" required />
+
+              <input name="email" placeholder="Email" value={formData.email} onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400" required />
+
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none pr-10 focus:ring-2 focus:ring-indigo-400"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={()=>setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-500"
+                >
+                  {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="bg-[#fbbf24] text-black py-3 rounded-full font-semibold hover:bg-[#f59e0b] transition-all hover:scale-[1.03] active:scale-[0.98]"
+              >
+                {isLoading ? <Loader2 className="animate-spin mx-auto"/> : "Sign Up"}
+              </button>
+
+            </form>
+
+          </div>
+        </div>
+
+        {/* OVERLAY PANEL */}
+        <div className={`absolute top-0 right-0 w-1/2 h-full bg-[linear-gradient(135deg,#2180b7,#798fda)] text-white flex flex-col items-center justify-center text-center px-10 transition-all duration-700 ${isSignup ? "-translate-x-full" : ""}`}>
+
+          {isSignup ? (
             <>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">
-                  First Name
-                </label>
-                <input
-                  name="firstName"
-                  type="text"
-                  placeholder="Enter your first name"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required={isSignup}
-                  className="px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">
-                  Last Name
-                </label>
-                <input
-                  name="lastName"
-                  type="text"
-                  placeholder="Enter your last name"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required={isSignup}
-                  className="px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
-                />
-              </div>
+              <h2 className="text-3xl font-bold mb-4">Welcome Back!</h2>
+              <p className="mb-6">To keep connected with us please login</p>
+              <button onClick={toggleForm} className="border border-white px-8 py-2 rounded-full hover:bg-white hover:text-indigo-600 transition">
+                Sign In
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-3xl font-bold mb-4">Hello, User!</h2>
+              <p className="mb-6">Enter your details and start journey with us</p>
+              <button onClick={toggleForm} className="border border-white px-8 py-2 rounded-full hover:bg-white hover:text-indigo-600 transition">
+                Sign Up
+              </button>
             </>
           )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
-              Email
-            </label>
-            <input
-              name="email"
-              type="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg text-base transition-all duration-200 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className=" cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:text-indigo-500"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Forgot Password */}
-          {!isSignup && (
-            <div className="flex justify-end -mt-3">
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={forgotLoading}
-                className="text-sm text-indigo-500 hover:text-indigo-700 font-medium transition disabled:opacity-70"
-              >
-                {forgotLoading ? "Sending..." : "Forgot Password?"}
-              </button>
-              {forgotMsg && (
-                <span className="ml-4 text-sm font-medium text-gray-600">
-                  {forgotMsg}
-                </span>
-              )}
-            </div>
-          )}
-
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="relative h-12 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-none rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-80 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
-          >
-            {isLoading ? (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <Loader2 className="w-5 h-5 animate-spin text-white" />
-              </div>
-            ) : (
-              <span>{isSignup ? 'Create Account' : 'Sign In'}</span>
-            )}
-          </button>
-        </form>
-
-        <div className="text-center mt-8 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500 mb-3">
-            {isSignup ? 'Already have an account?' : "Don't have an account?"}
-          </p>
-          <button
-            onClick={toggleForm}
-            className="bg-transparent border-none text-indigo-500 text-sm font-semibold cursor-pointer px-4 py-2 rounded-md transition-all duration-200 hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-          >
-            {isSignup ? 'Sign In' : 'Create Account'}
-          </button>
         </div>
-      </div>
+
+      </motion.div>
+
     </div>
   );
 };
 
 export default AuthPage;
-
-

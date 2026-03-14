@@ -2,6 +2,321 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { createShapeLayer, createImageLayer } from "../models/presentationModel";
 import useHistoryStore from "./useHistoryStore";
+import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
+
+
+// Helper to ensure colors are in #rrggbb format for <input type="color">
+export const normalizeColor = (color) => {
+  if (!color || typeof color !== "string") return "#000000";
+  // Convert #rgb to #rrggbb
+  if (color.length === 4 && color.startsWith("#")) {
+    return "#" + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+  }
+  // If it's not a hex color (like 'transparent' or 'red'), return black or a default for picker
+  if (!color.startsWith("#")) {
+    // For picker, we need a valid hex. For style, we can keep the original.
+    // We'll handle this in the components using normalizeColor for pickers only.
+    return color;
+  }
+  return color;
+};
+
+const normalizeTableLayer = (layer) => {
+  if (!layer || layer.type !== "table") return layer;
+
+  // 🔒 Skip normalization if table is already properly structured
+  if (
+    Array.isArray(layer.cells) &&
+    Array.isArray(layer.cells[0]) &&
+    Array.isArray(layer.cells[0][0]?.content)
+  ) {
+    return layer;
+  }
+
+  // 0. Handle nested content object if AI provided it that way
+  let source = layer;
+  if (layer.content && typeof layer.content === "object" && !Array.isArray(layer.content)) {
+    // If the content object has rows/cols/cells, it's a nested data format
+    if (layer.content.rows || layer.content.cols || layer.content.cells) {
+      source = layer.content;
+    }
+  }
+
+  // 1. Determine dimensions and format
+  let headers = source.headerRow || source.headers;
+  let dataRows = Array.isArray(source.rows) ? source.rows : (source.rowsData || source.rows_data || []);
+  let cells = source.cells;
+
+  let nRows = typeof source.rows === "number" ? source.rows : 0;
+  let nCols = typeof source.cols === "number" ? source.cols : 0;
+
+  // Format B: headerRow + rows[][] array
+  if (Array.isArray(headers) && Array.isArray(dataRows)) {
+    nRows = dataRows.length + 1;
+    nCols = headers.length;
+  }
+  // Format A / 2D: Infer dimensions if missing
+  else if (Array.isArray(cells) && cells.length > 0) {
+    if (!nRows || !nCols) {
+      if (Array.isArray(cells[0])) {
+        nRows = cells.length;
+        nCols = cells[0].length;
+      } else {
+        let maxR = 0; let maxC = 0;
+        cells.forEach(c => {
+          const r = c.row ?? 0; const col = c.col ?? 0;
+          if (r > maxR) maxR = r;
+          if (col > maxC) maxC = col;
+        });
+        nRows = maxR + 1;
+        nCols = maxC + 1;
+      }
+    }
+  }
+
+  nRows = Math.max(nRows, 1);
+  nCols = Math.max(nCols, 1);
+
+  // 2. Create clean grid with unique object references (Deep Clone Pattern)
+  const grid = Array.from({ length: nRows }, () =>
+    Array.from({ length: nCols }, () => ({
+      content: createInitialValue(),
+      fontSize: 14,
+      color: "#000000",
+      fontFamily: "Arial",
+      textAlign: "center",
+    }))
+  );
+
+  const toSlate = (raw) => {
+    if (!raw) return createInitialValue();
+    // Handle cell object vs raw content
+    const data = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? (raw.content || raw) : raw;
+
+    if (typeof data === "string") return convertTextToSlate(data);
+    if (Array.isArray(data)) return JSON.parse(JSON.stringify(data)); // Deep clone Slate array
+
+    if (typeof data === "object") {
+      const { text, ...marks } = data;
+      return [
+        {
+          type: "paragraph",
+          children: [{ text: text || "", ...marks }],
+        },
+      ];
+    }
+    return createInitialValue();
+  };
+
+  // 3. Fill grid
+  if (Array.isArray(headers) && Array.isArray(dataRows)) {
+    headers.forEach((h, c) => {
+      if (c < nCols) {
+        grid[0][c].content = toSlate(h);
+        if (grid[0][c].content[0]?.children[0]) {
+          grid[0][c].content[0].children[0].bold = true;
+        }
+      }
+    });
+    dataRows.forEach((row, r) => {
+      if (Array.isArray(row) && (r + 1) < nRows) {
+        row.forEach((cell, c) => {
+          if (c < nCols) grid[r + 1][c].content = toSlate(cell);
+        });
+      }
+    });
+  } else if (Array.isArray(cells)) {
+    const is2D = Array.isArray(cells[0]);
+    cells.forEach((item, idx) => {
+      if (is2D) {
+        const r = idx;
+        if (r < nRows) {
+          item.forEach((cell, c) => {
+            if (c < nCols) grid[r][c].content = toSlate(cell);
+          });
+        }
+      } else {
+        const r = item.row ?? Math.floor(idx / nCols);
+        const c = item.col ?? (idx % nCols);
+        if (r < nRows && c < nCols) grid[r][c].content = toSlate(item);
+      }
+    });
+  }
+
+  return {
+    ...layer,
+    rows: nRows,
+    cols: nCols,
+    cells: grid,
+    borderWidth: layer.borderWidth ?? 1,
+    borderColor: normalizeColor(layer.borderColor || "#000000"),
+    tableBgColor: normalizeColor(layer.tableBgColor || "transparent"),
+  };
+};
+
+const normalizeCells = (cells, rows, cols) => {
+  // Legacy helper - kept for compatibility but normalizeTableLayer is preferred
+  return Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => ({
+      content: createInitialValue(),
+      fontSize: 14,
+      color: "#000000",
+      fontFamily: "Arial",
+      textAlign: "center",
+    }))
+  );
+};
+
+/* =========================
+   NORMALIZATION HELPERS
+========================= */
+
+const normalizeLayer = (layer, forceNewId = false) => {
+  if (!layer) return layer;
+
+  let normalizedLayer = {
+    ...layer,
+    id: forceNewId ? nanoid() : (layer.id || nanoid()),
+  };
+
+  // 1. Tables
+  if (normalizedLayer.type === "table") {
+    normalizedLayer = normalizeTableLayer(normalizedLayer);
+  }
+
+  // 2. Images (handle nested src object from AI)
+  if (normalizedLayer.type === "image") {
+    if (typeof normalizedLayer.src === "object" && normalizedLayer.src !== null) {
+      normalizedLayer.imageUrl = normalizedLayer.src.url;
+      normalizedLayer.imageKey = normalizedLayer.src.key;
+      normalizedLayer.src = normalizedLayer.src.url;
+    }
+    if (!normalizedLayer.imageUrl && typeof normalizedLayer.src === "string") {
+      normalizedLayer.imageUrl = normalizedLayer.src;
+    }
+  }
+
+  // General Color Normalization
+  if (normalizedLayer.color) normalizedLayer.color = normalizeColor(normalizedLayer.color);
+  if (normalizedLayer.backgroundColor) normalizedLayer.backgroundColor = normalizeColor(normalizedLayer.backgroundColor);
+
+  // 3. Legacy Lists (v2 style hardcoded lists)
+  if (
+    (normalizedLayer.type === "bulleted-list" || normalizedLayer.type === "numbered-list") &&
+    normalizedLayer.children
+  ) {
+    const listType = normalizedLayer.type;
+    normalizedLayer = {
+      ...normalizedLayer,
+      type: "text",
+      content: [
+        {
+          type: listType,
+          children: normalizedLayer.children,
+        },
+      ],
+      fontSize: normalizedLayer.fontSize || 24,
+      fontFamily: normalizedLayer.fontFamily || "Arial",
+      color: normalizedLayer.color || "#000000",
+      textAlign: normalizedLayer.textAlign || "left",
+    };
+    delete normalizedLayer.children;
+  }
+
+  // 4. Migration for old text layers without content
+  if (normalizedLayer.type === "text" && normalizedLayer.text !== undefined && !normalizedLayer.content) {
+    const { text, ...rest } = normalizedLayer;
+    normalizedLayer = {
+      ...rest,
+      content: convertTextToSlate(text),
+    };
+  }
+
+  // 5. Shapes (migration and defaults)
+  if (normalizedLayer.type === "shape") {
+    // Migrate old names
+    if (normalizedLayer.fill !== undefined && normalizedLayer.fillColor === undefined) {
+      normalizedLayer.fillColor = normalizedLayer.fill;
+    }
+    if (normalizedLayer.stroke !== undefined && normalizedLayer.strokeColor === undefined) {
+      normalizedLayer.strokeColor = normalizedLayer.stroke;
+    }
+
+    // Ensure defaults
+    if (normalizedLayer.strokeWidth === undefined) {
+      normalizedLayer.strokeWidth = (normalizedLayer.shapeType === "line" || normalizedLayer.shapeType === "arrow") ? 8 : 1;
+    }
+    if (normalizedLayer.fillColor === undefined) {
+      normalizedLayer.fillColor = (normalizedLayer.shapeType === "line" || normalizedLayer.shapeType === "arrow") ? "transparent" : "#ffffff";
+    }
+    if (normalizedLayer.strokeColor === undefined) {
+      normalizedLayer.strokeColor = "#1e40af";
+    }
+  }
+
+  return normalizedLayer;
+};
+
+const normalizeSlide = (slide, forceNewId = false) => {
+  if (!slide) return slide;
+
+  return {
+    ...slide,
+    id: forceNewId ? nanoid() : (slide.id || nanoid()),
+    layers: (slide.layers || []).map((layer) => normalizeLayer(layer, forceNewId)),
+  };
+};
+
+/* =========================
+   TEXT STYLING HELPERS
+========================= */
+
+const applyStylesToNodes = (nodes, styles) => {
+  return nodes.map((node) => {
+    if (node.text !== undefined) {
+      const newNode = { ...node };
+      if (styles.color !== undefined) newNode.color = styles.color;
+      if (styles.fontSize !== undefined) newNode.fontSize = styles.fontSize;
+      if (styles.fontFamily !== undefined) newNode.fontFamily = styles.fontFamily;
+      if (styles.fontWeight !== undefined) {
+        if (styles.fontWeight === "bold") newNode.bold = true;
+        else delete newNode.bold;
+      }
+      if (styles.fontStyle !== undefined) {
+        if (styles.fontStyle === "italic") newNode.italic = true;
+        else delete newNode.italic;
+      }
+      if (styles.textDecoration !== undefined) {
+        if (styles.textDecoration.includes("underline")) newNode.underline = true;
+        else delete newNode.underline;
+      }
+      return newNode;
+    }
+    if (node.children) {
+      const newNode = {
+        ...node,
+        children: applyStylesToNodes(node.children, styles),
+      };
+      if (styles.textAlign !== undefined) newNode.textAlign = styles.textAlign;
+      return newNode;
+    }
+    return node;
+  });
+};
+
+const applyMarkToAllLeaves = (content, property, value) => {
+  if (!content) return content;
+
+  return content.map((block) => ({
+    ...block,
+    children: block.children
+      ? block.children.map((child) => ({
+        ...child,
+        [property]: value,
+      }))
+      : [],
+  }));
+};
 
 /* =========================
    DEFAULT LAYOUT
@@ -10,16 +325,16 @@ const createDefaultTextLayers = () => [
   {
     id: nanoid(),
     type: "text",
-    text: "",
-    placeholder: "Click to add title",
+    content: createInitialValue(),
+    placeholder: "Double click to add title",
     hasBeenEdited: false,
-    x: 120,
+    x: 180,
     y: 160,
-    width: 720,
+    width: 600,
     height: 80,
     fontSize: 48,
     fontFamily: "Arial",
-    fontWeight: "bold",
+    fontWeight: "normal",
     fontStyle: "normal",
     textDecoration: "none",
     textAlign: "center",
@@ -30,11 +345,11 @@ const createDefaultTextLayers = () => [
   {
     id: nanoid(),
     type: "text",
-    text: "",
-    placeholder: "Click to add subtitle",
+    content: createInitialValue(),
+    placeholder: "Double click to add subtitle",
     hasBeenEdited: false,
     x: 180,
-    y: 260,
+    y: 280,
     width: 600,
     height: 60,
     fontSize: 24,
@@ -43,18 +358,20 @@ const createDefaultTextLayers = () => [
     fontStyle: "normal",
     textDecoration: "none",
     textAlign: "center",
-    color: "#4b5563",
+    color: "#000000",
     link: "",
     rotation: 0,
   },
 ];
 
+/* =========================
+   STORE DEFINITION
+========================= */
 
 const usePresentationStore = create((set, get) => {
   const initialSlideId = nanoid();
 
   // Listen to history changes to ensure reactivity in UI components
-  // that only subscribe to usePresentationStore.
   useHistoryStore.subscribe((historyState) => {
     set({
       pastCount: historyState.past.length,
@@ -67,7 +384,7 @@ const usePresentationStore = create((set, get) => {
     futureCount: 0,
 
     /* =========================
-       SLIDES
+       SLIDES STATE
     ========================= */
     slides: [
       {
@@ -76,13 +393,68 @@ const usePresentationStore = create((set, get) => {
         layers: createDefaultTextLayers(),
       },
     ],
-
     activeSlideId: initialSlideId,
     canvasZoom: 1.0,
 
+    /* =========================
+       PRESENTATION METADATA
+    ========================= */
+    presentationId: null,
+    title: "Untitled Presentation",
+    isSaving: false,
+
+    setPresentationId: (id) => set({ presentationId: id }),
+    setTitle: (title) => set({ title }),
+    updatePresentationState: (updates) => set(updates),
+
+    /* =========================
+       LOAD / RESET
+    ========================= */
+    setPresentation: (data) => {
+      const rawSlides = data.slides || (data.data && data.data.slides) || [];
+      const slides = rawSlides.map((slide) => normalizeSlide(slide));
+
+      const id =
+        data.presentationId ||
+        data._id ||
+        data.id ||
+        (data.data && (data.data._id || data.data.id));
+
+      set({
+        presentationId: id,
+        title: data.title || (data.data && data.data.title) || "Untitled Presentation",
+        slides: slides,
+        activeSlideId: slides.length > 0 ? slides[0].id : null,
+        selectedLayerId: null,
+      });
+      useHistoryStore.getState().clear();
+    },
+
+    resetPresentation: () => {
+      const newSlideId = nanoid();
+      const defaultSlides = [
+        {
+          id: newSlideId,
+          background: "#ffffff",
+          layers: createDefaultTextLayers(),
+        },
+      ];
+
+      set({
+        presentationId: null,
+        title: "Untitled Presentation",
+        slides: defaultSlides,
+        activeSlideId: newSlideId,
+        selectedLayerId: null,
+      });
+      useHistoryStore.getState().clear();
+    },
+
     setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
 
-    // History for undo/redo
+    /* =========================
+       HISTORY
+    ========================= */
     saveToHistory: () => {
       useHistoryStore.getState().saveToHistory(get().slides);
     },
@@ -101,15 +473,16 @@ const usePresentationStore = create((set, get) => {
       }
     },
 
-    // Simplified access for TopBar
     get past() {
       return useHistoryStore.getState().past;
     },
-
     get future() {
       return useHistoryStore.getState().future;
     },
 
+    /* =========================
+       SLIDE MANIPULATION
+    ========================= */
     setActiveSlide: (slideId) => {
       set({ activeSlideId: slideId, selectedLayerId: null });
     },
@@ -133,6 +506,57 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
+    appendSlide: (slideData) => {
+      get().saveToHistory();
+      const normalizedSlide = normalizeSlide(slideData, true);
+      set((state) => ({
+        slides: [...state.slides, normalizedSlide],
+        activeSlideId: normalizedSlide.id,
+        selectedLayerId: null,
+      }));
+    },
+
+    updateSlide: (slideId, slideData) => {
+      get().saveToHistory();
+      const normalizedSlide = normalizeSlide(slideData);
+      set((state) => ({
+        slides: state.slides.map((s) =>
+          s.id === slideId ? { ...normalizedSlide, id: slideId } : s
+        ),
+      }));
+    },
+
+    appendLayersToSlide: (slideId, layersData) => {
+      if (!layersData) return;
+      get().saveToHistory();
+
+      // Safe extraction of layers
+      const incomingLayers = Array.isArray(layersData.layers)
+        ? layersData.layers
+        : Array.isArray(layersData)
+          ? layersData
+          : [];
+
+      set((state) => ({
+        slides: state.slides.map((slide) => {
+          if (slide.id !== slideId) return slide;
+
+          const newNormalizedLayers = incomingLayers.map((layer) => {
+            // Regeneration of unique IDs to prevent collisions
+            return normalizeLayer({
+              ...layer,
+              id: nanoid(),
+            });
+          });
+
+          return {
+            ...slide,
+            layers: [...(slide.layers || []), ...newNormalizedLayers],
+          };
+        }),
+      }));
+    },
+
     deleteSlide: (slideId) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
@@ -143,9 +567,7 @@ const usePresentationStore = create((set, get) => {
       set({
         slides: updatedSlides,
         activeSlideId:
-          activeSlideId === slideId
-            ? updatedSlides[0].id
-            : activeSlideId,
+          activeSlideId === slideId ? updatedSlides[0].id : activeSlideId,
         selectedLayerId: null,
       });
     },
@@ -153,12 +575,10 @@ const usePresentationStore = create((set, get) => {
     duplicateSlide: (slideId) => {
       get().saveToHistory();
       const { slides } = get();
-
       const slideIndex = slides.findIndex((s) => s.id === slideId);
       if (slideIndex === -1) return;
 
       const slideToDuplicate = slides[slideIndex];
-
       const duplicatedSlide = {
         ...slideToDuplicate,
         id: nanoid(),
@@ -178,8 +598,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateSlideBackground: (slideId, color) => {
-      get().saveToHistory();
+    updateSlideBackground: (slideId, color, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
           slide.id === slideId ? { ...slide, background: color } : slide
@@ -187,32 +607,58 @@ const usePresentationStore = create((set, get) => {
       }));
     },
 
-    setSlideBackgroundImage: (slideId, imageSrc) => {
-      get().saveToHistory();
+    setSlideBackgroundImage: (slideId, imageSrc, imageKey, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
-          slide.id === slideId ? { ...slide, backgroundImage: imageSrc } : slide
+          slide.id === slideId
+            ? {
+              ...slide,
+              backgroundImage: imageSrc,
+              backgroundKey: imageKey,
+              backgroundType: imageSrc ? "image" : undefined,
+            }
+            : slide
         ),
       }));
     },
 
     /* =========================
-       LAYERS (GENERAL)
+       LAYER MANAGEMENT (GENERAL)
     ========================= */
     selectedLayerId: null,
+    editingLayerId: null,
+    editingCell: null,
+    activeEditor: null,
+    selectionMarks: {},
 
     setSelectedLayer: (layerId) => {
-      set({ selectedLayerId: layerId });
+      set({ selectedLayerId: layerId, editingLayerId: null, editingCell: null });
     },
 
     clearSelection: () => {
-      set({ selectedLayerId: null });
+      set({ selectedLayerId: null, editingLayerId: null, editingCell: null });
     },
+
+    setEditingLayer: (layerId) => {
+      set({ editingLayerId: layerId });
+    },
+
+    clearEditingLayer: () => {
+      set({ editingLayerId: null, selectionMarks: {} });
+    },
+
+    setSelectionMarks: (marks) => {
+      set({ selectionMarks: marks });
+    },
+
+    setEditingCell: (cell) => set({ editingCell: cell }),
+    setActiveEditor: (editor) => set({ activeEditor: editor }),
 
     getSelectedLayer: () => {
       const { slides, activeSlideId, selectedLayerId } = get();
       const slide = slides.find((s) => s.id === activeSlideId);
-      return slide?.layers.find((l) => l.id === selectedLayerId) || null;
+      return slide?.layers?.find((l) => l.id === selectedLayerId) || null;
     },
 
     deleteSelectedLayer: () => {
@@ -254,10 +700,7 @@ const usePresentationStore = create((set, get) => {
       set({
         slides: slides.map((s) =>
           s.id === activeSlideId
-            ? {
-              ...s,
-              layers: [...s.layers, copiedLayer],
-            }
+            ? { ...s, layers: [...s.layers, copiedLayer] }
             : s
         ),
         selectedLayerId: copiedLayer.id,
@@ -265,10 +708,7 @@ const usePresentationStore = create((set, get) => {
     },
 
     updateLayerPosition: (layerId, x, y) => {
-      // NOTE: saveToHistory should be called by the UI component onMouseDown
-      // to avoid history spam during dragging.
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -284,9 +724,7 @@ const usePresentationStore = create((set, get) => {
     },
 
     updateLayerRotation: (layerId, rotation) => {
-      // NOTE: saveToHistory should be called by the UI component onMouseDown
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -301,11 +739,9 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    // Relative rotation for properties panel button
     rotateLayer: (layerId, degrees) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -328,7 +764,6 @@ const usePresentationStore = create((set, get) => {
     addTextLayer: () => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -343,8 +778,8 @@ const usePresentationStore = create((set, get) => {
                   y: 120,
                   width: 260,
                   height: 80,
-                  text: "",
-                  placeholder: "Click to add text",
+                  content: createInitialValue(),
+                  placeholder: "Double click to add text",
                   hasBeenEdited: false,
                   fontSize: 24,
                   color: "#000000",
@@ -363,10 +798,9 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTextLayer: (layerId, updates) => {
-      get().saveToHistory();
+    updateTextLayer: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -378,6 +812,60 @@ const usePresentationStore = create((set, get) => {
             }
             : slide
         ),
+      });
+    },
+
+    applyGlobalTextStyle: (layerId, style, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
+      set((state) => {
+        const slides = state.slides.map((slide) => ({
+          ...slide,
+          layers: slide.layers.map((layer) => {
+            if (layer.id !== layerId) return layer;
+            let updatedLayer = { ...layer, ...style };
+
+            if (layer.type === "text" && layer.content) {
+              let updatedContent = [...layer.content];
+              Object.entries(style).forEach(([key, value]) => {
+                let slateKey = key;
+                let slateValue = value;
+
+                if (key === "fontWeight") {
+                  slateKey = "bold";
+                  slateValue = value === "bold" ? true : undefined;
+                } else if (key === "fontStyle") {
+                  slateKey = "italic";
+                  slateValue = value === "italic" ? true : undefined;
+                } else if (key === "textDecoration") {
+                  slateKey = "underline";
+                  slateValue = value === "underline" ? true : undefined;
+                }
+
+                if (["bold", "italic", "underline", "fontSize", "color", "fontFamily"].includes(slateKey)) {
+                  updatedContent = updatedContent.map((block) => ({
+                    ...block,
+                    children: block.children
+                      ? block.children.map((child) => {
+                        const newChild = { ...child };
+                        if (slateValue === undefined) delete newChild[slateKey];
+                        else newChild[slateKey] = slateValue;
+                        return newChild;
+                      })
+                      : [],
+                  }));
+                } else if (slateKey === "textAlign") {
+                  updatedContent = updatedContent.map((block) => ({
+                    ...block,
+                    textAlign: slateValue,
+                  }));
+                }
+              });
+              updatedLayer.content = updatedContent;
+            }
+            return updatedLayer;
+          }),
+        }));
+        return { slides };
       });
     },
 
@@ -429,7 +917,10 @@ const usePresentationStore = create((set, get) => {
               ...slide,
               layers: slide.layers.map((layer) =>
                 layer.id === layerId
-                  ? { ...layer, textDecoration: layer.textDecoration === "underline" ? "none" : "underline" }
+                  ? {
+                    ...layer,
+                    textDecoration: layer.textDecoration === "underline" ? "none" : "underline",
+                  }
                   : layer
               ),
             }
@@ -456,7 +947,6 @@ const usePresentationStore = create((set, get) => {
     },
 
     resizeTextBox: (layerId, width, height) => {
-      // NOTE: saveToHistory should be called by the UI component onMouseDown
       const { slides, activeSlideId } = get();
       set({
         slides: slides.map((slide) =>
@@ -483,25 +973,29 @@ const usePresentationStore = create((set, get) => {
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
-            ? {
-              ...slide,
-              layers: [...slide.layers, createShapeLayer(shapeType)],
-            }
+            ? { ...slide, layers: [...slide.layers, createShapeLayer(shapeType)] }
             : slide
         ),
       });
     },
 
-    updateShapeLayer: (layerId, updates) => {
-      get().saveToHistory();
+    updateShapeLayer: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
+
+      // Safety: Clamp strokeWidth if it's being updated
+      let safeUpdates = { ...updates };
+      if (safeUpdates.strokeWidth !== undefined) {
+        safeUpdates.strokeWidth = Math.max(0, Number(safeUpdates.strokeWidth));
+      }
+
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
               ...slide,
               layers: slide.layers.map((layer) =>
-                layer.id === layerId ? { ...layer, ...updates } : layer
+                layer.id === layerId ? { ...layer, ...safeUpdates } : layer
               ),
             }
             : slide
@@ -512,15 +1006,29 @@ const usePresentationStore = create((set, get) => {
     /* =========================
        IMAGE LAYERS
     ========================= */
-    addImageLayer: (src) => {
+    addImageLayer: (src, imageUrl, imageKey) => {
       get().saveToHistory();
+      const { slides, activeSlideId } = get();
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? { ...slide, layers: [...slide.layers, createImageLayer(src, imageUrl, imageKey)] }
+            : slide
+        ),
+      });
+    },
+
+    updateLayerStyle: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
               ...slide,
-              layers: [...slide.layers, createImageLayer(src)],
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId ? { ...layer, ...updates } : layer
+              ),
             }
             : slide
         ),
@@ -592,9 +1100,7 @@ const usePresentationStore = create((set, get) => {
           s.id === activeSlideId
             ? {
               ...s,
-              layers: s.layers.map((l) =>
-                l.id === layerId ? { ...l, x: newX, y: newY } : l
-              ),
+              layers: s.layers.map((l) => (l.id === layerId ? { ...l, x: newX, y: newY } : l)),
             }
             : s
         ),
@@ -615,31 +1121,31 @@ const usePresentationStore = create((set, get) => {
 
       const newLayers = [...slide.layers];
       const targetIndex = direction === "forward" ? layerIndex + 1 : layerIndex - 1;
-
-      [newLayers[layerIndex], newLayers[targetIndex]] = [
-        newLayers[targetIndex],
-        newLayers[layerIndex],
-      ];
+      [newLayers[layerIndex], newLayers[targetIndex]] = [newLayers[targetIndex], newLayers[layerIndex]];
 
       set({
-        slides: slides.map((s) =>
-          s.id === activeSlideId ? { ...s, layers: newLayers } : s
-        ),
+        slides: slides.map((s) => (s.id === activeSlideId ? { ...s, layers: newLayers } : s)),
       });
     },
+
     /* =========================
        TABLE LAYERS
     ========================= */
     addTableLayer: (rows = 3, cols = 3) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
-
       const cells = Array.from({ length: rows }, () =>
-        Array.from({ length: cols }, () => "")
+        Array.from({ length: cols }, () => ({
+          content: createInitialValue(),
+          fontFamily: "Arial",
+          fontSize: 14,
+          color: "#000000",
+          textAlign: "center",
+        }))
       );
 
       const newLayer = {
-        id: crypto.randomUUID(),
+        id: nanoid(),
         type: "table",
         x: 200,
         y: 150,
@@ -648,7 +1154,9 @@ const usePresentationStore = create((set, get) => {
         rows,
         cols,
         cells,
-        borderColor: "#d1d5db",
+        tableBgColor: "transparent",
+        borderColor: "#e5e7eb",
+        borderWidth: 1,
         fontSize: 14,
         color: "#000000",
         textAlign: "center",
@@ -665,38 +1173,36 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTableCell: (layerId, row, col, value) => {
-      // NOTE: We might want to call saveToHistory here if we want undo for every cell blur
-      // The user prompt didn't explicitly say where to call it, but usually onBlur is a good place.
-      const { slides, activeSlideId } = get();
-
-      set({
-        slides: slides.map((slide) =>
-          slide.id === activeSlideId
-            ? {
+    updateTableCell: (tableId, row, col, updates, saveHistory = false) => {
+      if (saveHistory) get().saveToHistory();
+      set((state) => ({
+        slides: state.slides.map((slide) =>
+          slide.id !== state.activeSlideId
+            ? slide
+            : {
               ...slide,
               layers: slide.layers.map((layer) =>
-                layer.id === layerId
-                  ? {
+                layer.id !== tableId
+                  ? layer
+                  : {
                     ...layer,
-                    cells: layer.cells.map((r, ri) =>
-                      r.map((c, ci) =>
-                        ri === row && ci === col ? value : c
-                      )
+                    cells: layer.cells.map((rArr, rIndex) =>
+                      rIndex !== row
+                        ? rArr
+                        : rArr.map((cell, cIndex) =>
+                          cIndex !== col ? cell : { ...cell, ...updates }
+                        )
                     ),
                   }
-                  : layer
               ),
             }
-            : slide
         ),
-      });
+      }));
     },
 
     addTableRow: (layerId) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -708,10 +1214,15 @@ const usePresentationStore = create((set, get) => {
                     ...layer,
                     rows: layer.rows + 1,
                     cells: [
-                      ...layer.cells,
-                      Array.from({ length: layer.cols }, () => ""),
+                      ...layer.cells.map((row) => row.map((cell) => ({ ...cell }))),
+                      Array.from({ length: layer.cols }, () => ({
+                        content: createInitialValue(),
+                        fontFamily: "Arial",
+                        fontSize: 14,
+                        color: "#000000",
+                        textAlign: "center",
+                      })),
                     ],
-                    height: layer.height + (layer.height / layer.rows), // Heuristic: increase height proportionally
                   }
                   : layer
               ),
@@ -724,7 +1235,6 @@ const usePresentationStore = create((set, get) => {
     addTableColumn: (layerId) => {
       get().saveToHistory();
       const { slides, activeSlideId } = get();
-
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
@@ -735,8 +1245,16 @@ const usePresentationStore = create((set, get) => {
                   ? {
                     ...layer,
                     cols: layer.cols + 1,
-                    cells: layer.cells.map((row) => [...row, ""]),
-                    width: layer.width + (layer.width / layer.cols), // Heuristic: increase width proportionally
+                    cells: layer.cells.map((row) => [
+                      ...row.map((cell) => ({ ...cell })),
+                      {
+                        content: createInitialValue(),
+                        fontFamily: "Arial",
+                        fontSize: 14,
+                        color: "#000000",
+                        textAlign: "center",
+                      },
+                    ]),
                   }
                   : layer
               ),
@@ -745,6 +1263,69 @@ const usePresentationStore = create((set, get) => {
         ),
       });
     },
+
+    removeTableRow: (layerId) => {
+      const { slides, activeSlideId } = get();
+      const slide = slides.find((s) => s.id === activeSlideId);
+      const layer = slide?.layers.find((l) => l.id === layerId);
+      if (!layer || layer.type !== "table" || layer.rows <= 1) return;
+
+      get().saveToHistory();
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((l) =>
+                l.id === layerId
+                  ? {
+                    ...l,
+                    rows: l.rows - 1,
+                    cells: l.cells.slice(0, -1).map((row) => row.map((cell) => ({ ...cell }))),
+                  }
+                  : l
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    removeTableColumn: (layerId) => {
+      const { slides, activeSlideId } = get();
+      const slide = slides.find((s) => s.id === activeSlideId);
+      const layer = slide?.layers.find((l) => l.id === layerId);
+      if (!layer || layer.type !== "table" || layer.cols <= 1) return;
+
+      get().saveToHistory();
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((l) =>
+                l.id === layerId
+                  ? {
+                    ...l,
+                    cols: l.cols - 1,
+                    cells: l.cells.map((row) =>
+                      row.slice(0, -1).map((cell) => ({ ...cell }))
+                    ),
+                  }
+                  : l
+              ),
+            }
+            : slide
+        ),
+      });
+    },
+
+    migrateTextLayers: () => {
+      set((state) => ({
+        slides: state.slides.map((slide) => normalizeSlide(slide)),
+      }));
+    },
+    normalizeColor,
   };
 });
 

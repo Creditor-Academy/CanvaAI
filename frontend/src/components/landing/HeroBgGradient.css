@@ -1,4 +1,4 @@
-.hero-bg-gradient{
+/* .hero-bg-gradient{
   position: absolute;
   inset: -80px -120px -40px -120px;
   z-index: 0;
@@ -11,4 +11,4 @@
 @keyframes heroGlow { 
   0% { filter: blur(22px); opacity: 0.6 }
   100% { filter: blur(28px); opacity: 0.8 }
-}
+} */

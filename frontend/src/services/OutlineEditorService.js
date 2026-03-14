@@ -1,3 +1,5 @@
+//import { title } from "node:process";
+
 const API_BASE_URL = '/api/pp';
 
 // Helper to get auth headers
@@ -15,28 +17,44 @@ const getAuthHeaders = () => {
  * @returns {Promise<Object>} - Finalized presentation data
  */
 export const finalizePresentation = async (outlineData) => {
-  // Transform outlineData to backend format
-  // Backend expects: { meta: { topic, tone, slideCount }, slides: [...] }
-  const meta = {
-    topic: outlineData.meta?.topic || outlineData.topic || '',
-    tone: outlineData.meta?.tone || outlineData.tone || 'professional',
-    slideCount: outlineData.meta?.slideCount || outlineData.slides?.length || 0
-  };
+  // Use the exact meta object that was sent to get-presentation-outline (preserved in originalMeta).
+  // Note: `topic` is a top-level payload field (not inside meta), so we inject it separately.
+  // Fall back to reconstructing meta only if originalMeta is unavailable.
+  const meta = outlineData.originalMeta
+    ? {
+      ...outlineData.originalMeta,
+      topic: outlineData.meta?.topic || outlineData.topic || '',
+      slideCount: outlineData.slides ? outlineData.slides.length : (outlineData.originalMeta.slideCount || 0)
+    }
+    : {
+      topic: outlineData.meta?.topic || outlineData.topic || '',
+      tone: outlineData.meta?.tone || outlineData.tone || 'professional',
+      slideCount: outlineData.slides ? outlineData.slides.length : 0,
+      mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'no-media',
+      theme: outlineData.meta?.theme || {
+        name: 'Default',
+        slideBackground: '#ffffff',
+        titleColor: '#000000',
+        bodyColor: '#333333',
+        accentColor: '#3b82f6'
+      }
+    };
+
 
   // Transform slides to backend format
   // Backend expects content as: string (paragraph), array (bullets), or object (comparison)
   const slides = outlineData.slides.map(slide => {
     let content = slide.content;
-    
+
     // Normalize contentType to match backend enum: 'paragraph', 'bullets', 'comparison'
     let contentType = slide.contentType || 'paragraph';
-    
+
     // Map invalid values to valid enum values
     if (contentType === 'list') {
       contentType = 'bullets';
     } else if (!['paragraph', 'bullets', 'comparison'].includes(contentType)) {
       // If contentType is invalid, try to infer from content structure
-      if (Array.isArray(slide.content) || (slide.content && slide.content.mode === 'bullets')) {
+      if (Array.isArray(slide.content) || (slide.bullets && slide.content.mode === 'bullets')) {
         contentType = 'bullets';
       } else if (slide.content && slide.content.mode === 'comparison') {
         contentType = 'comparison';
@@ -68,7 +86,7 @@ export const finalizePresentation = async (outlineData) => {
           const rightMatch = rawText.match(/Right:\s*([\s\S]*?)$/i);
           const leftText = leftMatch ? leftMatch[1].trim() : '';
           const rightText = rightMatch ? rightMatch[1].trim() : '';
-          
+
           content = {
             left: leftText ? leftText.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l) : [],
             right: rightText ? rightText.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(l => l) : []
@@ -113,7 +131,7 @@ export const finalizePresentation = async (outlineData) => {
   if (!meta.topic || meta.topic.trim() === '') {
     throw new Error('Topic is required to finalize presentation');
   }
-  
+
   if (slides.length === 0) {
     throw new Error('At least one slide is required to finalize presentation');
   }
@@ -142,19 +160,19 @@ export const finalizePresentation = async (outlineData) => {
     } catch (e) {
       errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
     }
-    
+
     const errorMessage = errorData.details || errorData.error || `Failed to finalize presentation: ${response.status}`;
     console.error('Finalize presentation error:', {
       status: response.status,
       statusText: response.statusText,
       errorData: errorData
     });
-    
+
     throw new Error(errorMessage);
   }
 
   const responseData = await response.json();
-  
+  console.log('Received response from finalize-ppt:', responseData);
   // Transform backend response to frontend format
   // Backend returns: { success: true, presentationId, data: { meta, slides, ... } }
   // Frontend expects: { success: true, presentationId, meta, slides }
@@ -163,7 +181,8 @@ export const finalizePresentation = async (outlineData) => {
       success: true,
       presentationId: responseData.presentationId,
       meta: responseData.data.meta,
-      slides: responseData.data.slides
+      // title: responseData.data.title || responseData.data.meta?.topic || '',
+      slides: responseData.data.data.slides
     };
   }
 

@@ -14,10 +14,17 @@ const TextStyleModal = ({ text, onClose, onAddToCanvas }) => {
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const data = await generateTextStyles(text);
-      setStyles(data.images);
+      // Normalize images array: accept strings or objects with url/src
+      const imgs = Array.isArray(data.images) ? data.images.map(item => {
+        if (!item) return null;
+        if (typeof item === 'string') return item;
+        if (typeof item === 'object') return item.url || item.src || item.image || null;
+        return null;
+      }).filter(Boolean) : [];
+      setStyles(imgs);
     } catch (err) {
       console.error('Error generating styles:', err);
       setError(err.message || 'Failed to generate text styles');
@@ -32,8 +39,27 @@ const TextStyleModal = ({ text, onClose, onAddToCanvas }) => {
   }, []);
 
   const handleStyleSelect = (imageUrl) => {
-    onAddToCanvas(imageUrl);
-    onClose();
+    try {
+      if (!imageUrl) {
+        console.error('Invalid image selected');
+        return;
+      }
+
+      let url = imageUrl;
+      if (typeof imageUrl === 'object') {
+        url = imageUrl.url || imageUrl.src || imageUrl.image || null;
+      }
+
+      if (!url || typeof url !== 'string') {
+        console.error('Selected style does not contain a valid URL', imageUrl);
+        return;
+      }
+
+      if (typeof onAddToCanvas === 'function') onAddToCanvas(url);
+      if (typeof onClose === 'function') onClose();
+    } catch (err) {
+      console.error('Error handling style select', err);
+    }
   };
 
   const modalStyles = {
@@ -135,14 +161,14 @@ const TextStyleModal = ({ text, onClose, onAddToCanvas }) => {
           <h2 style={modalStyles.title}>AI Text Styles</h2>
           <button style={modalStyles.closeButton} onClick={onClose}>×</button>
         </div>
-        
+
         <div style={modalStyles.content}>
           {error && <div style={modalStyles.error}>{error}</div>}
-          
+
           <button style={modalStyles.button} onClick={generateStyles} disabled={loading}>
             {loading ? 'Generating...' : 'Regenerate Styles'}
           </button>
-          
+
           {loading ? (
             <div style={modalStyles.loading}>Generating stylish text designs...</div>
           ) : styles.length > 0 ? (
