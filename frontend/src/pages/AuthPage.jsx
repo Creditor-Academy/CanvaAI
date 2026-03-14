@@ -112,10 +112,22 @@ const AuthPage = () => {
         return;
       } else {
         response = await api.login(formData);
-
+        console.log("Login response:", response);
         if (response.unverified) {
           localStorage.setItem("email", formData.email);
           navigate("/verify", { state: { email: formData.email } });
+          return;
+        }
+
+
+        if (response?.unverified) {
+
+          localStorage.setItem("email", formData.email);
+
+          navigate("/verify", {
+            state: { email: formData.email }
+          });
+
           return;
         }
       }
