@@ -71,19 +71,17 @@ const AppContent = () => {
       {!isFullScreenRoute && <SideBar />}
 
       {/* Navbar */}
-      <Navbar />
-
-
+      {!isFullScreenRoute && <Navbar />}
 
 
       {/* Page Content */}
       <div
         style={{
           flex: 1,
-          width:"100%",
+          width: "100%",
           minheight: "100vh",
-          
-         
+
+
         }}
       >
 
@@ -113,7 +111,6 @@ const AppContent = () => {
           <Route path="/analytics" element={<Analatics />} />
           <Route path="/settings" element={<Setting />} />
           <Route path="/help-support" element={<Help />} />
-
           <Route path="/team" element={<Team />} />
           <Route path="/team/accept" element={<AcceptInvite />} />
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
@@ -129,7 +126,6 @@ const AppContent = () => {
           <Route path="/editor" element={<EditorTabPage />} />
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
-
           <Route
             path="/admin-dash"
             element={

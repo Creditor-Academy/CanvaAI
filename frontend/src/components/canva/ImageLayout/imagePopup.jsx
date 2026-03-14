@@ -15,7 +15,7 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-2xl max-w-4xl w-full mx-auto overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300"
+                className="bg-white rounded-2xl max-w-2xl w-full mx-auto overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header with gradient */}
@@ -45,13 +45,13 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                 </div>
 
                 {/* Image container with enhanced styling */}
-                <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8 min-h-[400px]">
+                <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4 ">
                     {thumbnail ? (
                         <div className="relative group">
                             <img
                                 src={thumbnail}
                                 alt={image.title}
-                                className="max-h-[450px] w-auto object-contain rounded-xl shadow-lg transition-all duration-300 group-hover:shadow-xl"
+                                className="max-h-[300px] max-w-[90%] w-auto object-contain rounded-xl shadow-lg transition-all duration-300 group-hover:shadow-xl"
                             />
 
                             {/* Zoom indicator on hover */}
@@ -100,10 +100,7 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
 
                             <button
                                 onClick={async () => {
-                                    // If admin, delegate to parent handler (existing behavior)
-                                    if (isAdmin) return onImport(image)
-
-                                    // Non-admin: clone via API then open cloned project
+                                    // Always clone the template into the current user's account
                                     const targetId = image.imageId || image._id
                                     try {
                                         setImporting(true)
@@ -140,6 +137,5 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
 };
 
 export default ImagePopup;
-
 
 

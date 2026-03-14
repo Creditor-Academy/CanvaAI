@@ -115,7 +115,7 @@ const ImageUser = () => {
     const filteredImages = images.filter(img => (img.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase()))
 
     return (
-        <div className=" bg-slate-50/50 p-8">
+        <div className=" bg-slate-50/50">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row md:items:center justify-between gap-6 mb-10">
                     <div>
@@ -197,11 +197,9 @@ const ImageUser = () => {
                         })}
                     </div>
                 ) : (!loading && (
-                    <div className="text-center py-32 bg-white rounded-3xl border border-dashed border-slate-200">
+                    <div className="text-center py-8 bg-white rounded-3xl border border-dashed border-slate-200">
                         <div className="max-w-xs mx-auto">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </div>
+                            
                             <h3 className="text-xl font-bold text-slate-800 mb-2">No designs yet</h3>
                             <p className="text-slate-500 text-sm mb-8">Start your creative journey by creating your first digital masterpiece.</p>
                             <a href="/canva-clone" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20">Start Creating</a>

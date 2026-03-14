@@ -13,11 +13,8 @@ const ImageAdmin = () => {
     const { isAdmin } = useAuth()
     const [selectedImage, setSelectedImage] = useState(null)
 
-
     const handleImport = async (image) => {
         const targetId = image.imageId || image._id;
-
-        // Admins open the template directly (existing template metadata)
         if (isAdmin) {
             try {
                 sessionStorage.setItem(`prefill_project_${targetId}`, JSON.stringify(image));

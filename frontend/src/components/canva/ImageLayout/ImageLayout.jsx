@@ -4,7 +4,7 @@ import ImageAdmin from './imageAdmin'
 
 const ImageLayout = () => {
   return (
-    <div>
+    <div className='p-22'>
         <ImageUser />
         <ImageAdmin />
     </div>
