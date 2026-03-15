@@ -46,7 +46,7 @@ const PhoneSupport = ({ onClose }) => {
     const selectedDate = new Date(preferredDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate < today) {
       setError("Please select a future date");
       return;
@@ -55,7 +55,8 @@ const PhoneSupport = ({ onClose }) => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/phone/schedule-call", {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/phone/schedule-call`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +81,7 @@ const PhoneSupport = ({ onClose }) => {
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      
+
       // Reset form after showing confirmation
       setTimeout(() => {
         handleCloseSchedule();
@@ -122,11 +123,11 @@ const PhoneSupport = ({ onClose }) => {
               <h3>Schedule a Call</h3>
               <button className="schedule-modal-close" onClick={handleCloseSchedule} aria-label="Close">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
-            
+
             <div className="schedule-modal-body">
               {isSubmitted ? (
                 <div className="schedule-success">
@@ -154,8 +155,8 @@ const PhoneSupport = ({ onClose }) => {
                           i === 0
                             ? "Today"
                             : i === 1
-                            ? "Tomorrow"
-                            : date.toLocaleDateString(undefined, {
+                              ? "Tomorrow"
+                              : date.toLocaleDateString(undefined, {
                                 weekday: "short",
                                 day: "numeric",
                                 month: "short",
