@@ -4,6 +4,7 @@ import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
 import api from "../services/api";
 import logo from "../assets/logo.png";
 import { FiMenu } from "react-icons/fi";
+import userService from "../services/UserDash/User.service";
 
 const TopNavbar = () => {
   const navigate = useNavigate();
@@ -13,11 +14,11 @@ const TopNavbar = () => {
   const profileRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
-
-  const [credits] = useState({
-    total: 100,
-    used: 35,
+  const [wallet, setWallet] = useState({
+    totalTokens: 0,
+    remainingTokens: 0
   });
+
   const [openMenu, setOpenMenu] = useState(false);
 
   /* ---------------- Close notification outside click ---------------- */
@@ -47,12 +48,27 @@ const TopNavbar = () => {
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.getProfile();
-        if (mounted) setProfile(data || null);
-      } catch { }
-    })();
+        const profileData = await api.getProfile();
+        if (mounted) setProfile(profileData || null);
+
+        const walletRes = await userService.getWalletDashboard();
+        const data = walletRes.data;
+
+        if (mounted) {
+          setWallet({
+            totalTokens: data.totalTokens,
+            remainingTokens: data.remainingTokens
+          });
+        }
+
+      } catch (err) {
+        console.error("Navbar fetch error:", err);
+      }
+    };
+
+    fetchData();
 
     return () => (mounted = false);
   }, []);
@@ -118,8 +134,7 @@ const TopNavbar = () => {
             <div
               className="absolute right-0 mt-3 w-72 rounded-xl shadow-xl p-3"
               style={{
-                background: "rgba(255,255,255,0.9)",
-                backdropFilter: "blur(10px)",
+                background: "rgba(255,255,255)",
                 border: "1px solid rgba(0,0,0,0.06)",
               }}
             >
@@ -166,8 +181,7 @@ const TopNavbar = () => {
             <div
               className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
               style={{
-                background: "rgba(255,255,255,0.95)",
-                backdropFilter: "blur(12px)",
+                background: "rgba(255,255,255)",
                 border: "1px solid rgba(0,0,0,0.06)",
               }}
             >
@@ -203,9 +217,9 @@ const TopNavbar = () => {
               {/* credits */}
 
               <div className="px-4 pb-2 text-xs text-slate-500 flex justify-between">
-                <span>Total Credits</span>
+                <span>Tokens</span>
                 <span>
-                  {credits.used} / {credits.total}
+                  {wallet.remainingTokens} / {wallet.totalTokens}
                 </span>
               </div>
 
@@ -239,14 +253,14 @@ const TopNavbar = () => {
             </div>
           )}
         </div>
-<button
-        onClick={() => setOpenMenu(!openMenu)}
-        className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-yellow-100"
-      >
-        <FiMenu size={20} />
-      </button>
+        <button
+          onClick={() => setOpenMenu(!openMenu)}
+          className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-yellow-100"
+        >
+          <FiMenu size={20} />
+        </button>
       </div>
-      
+
       {openMenu && (
         <div
           className="absolute top-[70px] right-4 w-64 rounded-xl shadow-xl p-4 md:hidden"

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import api from "../../services/api";
 import userService from "../../services/UserDash/User.service";
 
@@ -14,8 +13,10 @@ export default function CreditsAnalytics() {
   const [wallet, setWallet] = useState({
     totalBalance: 0,
     usedBalance: 0,
-    remainingBalance: 0
+    totalTokens: 0,
+    remainingTokens: 0
   });
+  const [loading, setLoading] = useState(true);
 
 
   const [userName, setUserName] = useState("");
@@ -38,6 +39,7 @@ export default function CreditsAnalytics() {
         const res = await userService.getWalletDashboard();
 
         const data = res.data;
+        console.log(data)
 
         setTotalCredits(res.totalTokens);
 
@@ -60,8 +62,11 @@ export default function CreditsAnalytics() {
         setWallet({
           totalBalance: data.totalBalance,
           usedBalance: data.usedBalance,
-          remainingBalance: data.remainingBalance
+          remainingTokens: data.remainingTokens,
+          totalTokens: data.totalTokens
+
         });
+        setLoading(false);
 
       } catch (error) {
         console.error("Dashboard API error:", error);
@@ -73,25 +78,29 @@ export default function CreditsAnalytics() {
 
   }, []);
 
-  const remaining = wallet.remainingBalance;
+
   const percent =
     wallet.totalBalance > 0
       ? (wallet.usedBalance / wallet.totalBalance) * 100
       : 0;
 
   const Row = ({ label, value, color }) => {
-    const p = Math.min(100, value * 100);
+
+    const numericValue = Number(value?.toString().replace("$", "") || 0);
+    const formattedValue = `$${numericValue.toFixed(3)}`;// 3 decimal places
+
+    const p = Math.min(100, numericValue * 100);
+
     return (
       <div className="space-y-1">
         <div className="flex justify-between text-[13px]">
           <span className="text-slate-600">{label}</span>
-          <span className="font-semibold text-slate-900">{value}</span>
+          <span className="font-semibold text-slate-900">{formattedValue}</span>
         </div>
+
         <div className="h-[6px] rounded-full bg-slate-200 overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: p + "%" }}
-            transition={{ duration: 0.7 }}
+          <div
+            style={{ width: `${p}%` }}
             className={`h-full rounded-full ${color}`}
           />
         </div>
@@ -100,11 +109,8 @@ export default function CreditsAnalytics() {
   };
 
   const Section = ({ title, icon, color, children }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="group relative rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 overflow-hidden"
+    <div
+      className="group relative rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-sm hover:shadow-xl hover:-translate-y-1 overflow-hidden"
     >
       {/* top bar */}
       <div className={`h-2 w-full ${color}`}></div>
@@ -122,15 +128,13 @@ export default function CreditsAnalytics() {
       <div className="px-6 py-6 space-y-5">
         {children}
       </div>
-    </motion.div>
+    </div>
   );
 
   return (
     <div className="min-h-screen pt-22 bg-[#f8fafc]">
       {/* HEADER */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className="max-w-6xl mx-auto mb-10 grid md:grid-cols-4 gap-4"
       >
         <div className="col-span-3 relative rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-md p-7 shadow-sm overflow-hidden">
@@ -175,22 +179,21 @@ export default function CreditsAnalytics() {
 
               <div className="flex justify-between text-sm text-slate-600 font-medium">
                 <span>Monthly Usage</span>
-                <span>{wallet.usedBalance} / {wallet.totalBalance}</span>
+                <span>
+                  {Number(wallet.remainingTokens || 0).toFixed(3)} /
+                  {Number(wallet.totalTokens || 0).toFixed(3)}
+                </span>
               </div>
 
               {/* FULL WIDTH BAR */}
               <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: percent + "%" }}
-                  transition={{ duration: 1 }}
+                <div
+                  style={{ width: `${percent}%` }}
                   className="h-full bg-[#fbbf24] rounded-full"
                 />
               </div>
 
-              <div className="text-xs text-slate-500">
-                {wallet.remainingBalance} credits remaining
-              </div>
+
 
             </div>
           </div>
@@ -215,10 +218,10 @@ export default function CreditsAnalytics() {
           <div className="relative z-10">
             <div className="text-sm opacity-90">Remaining</div>
             <div className="text-4xl font-bold tracking-tight">
-              {wallet.remainingBalance}
+              ${Number(wallet.usedBalance || 0).toFixed(3)}
             </div>
             <div className="text-xs opacity-80">
-              of {wallet.totalBalance}
+              of  ${wallet.totalBalance}
             </div>
 
             <button className="mt-5 w-full bg-white text-[#1e293b] font-semibold py-2.5 rounded-xl
@@ -227,7 +230,7 @@ export default function CreditsAnalytics() {
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
 
@@ -236,10 +239,10 @@ export default function CreditsAnalytics() {
           color="bg-blue-800"
           icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2" /><path d="M8 20h8" /></svg>}
         >
-          <Row label="PPT Generation" value={usage.ppt.pptGeneration} color="bg-blue-800" />
-          <Row label="Slide Generation" value={usage.ppt.slideGeneration} color="bg-blue-800" />
-          <Row label="Slide Expand" value={usage.ppt.slideExpand} color="bg-blue-800" />
-          <Row label="Images inside PPT" value={usage.ppt.imagesInsidePPT} color="bg-blue-800" />
+          <Row label="PPT Generation" value={`$${usage.ppt.pptGeneration}`} color="bg-blue-800" />
+          <Row label="Slide Generation" value={`$${usage.ppt.slideGeneration}`} color="bg-blue-800" />
+          <Row label="Slide Expand" value={`$${usage.ppt.slideExpand}`} color="bg-blue-800" />
+          <Row label="Images inside PPT" value={`$${usage.ppt.imagesInsidePPT}`} color="bg-blue-800" />
         </Section>
 
         <Section
@@ -247,8 +250,8 @@ export default function CreditsAnalytics() {
           color="bg-[#475569]"
           icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>}
         >
-          <Row label="AI Generator" value={usage.image.aiGenerator} color="bg-[#475569]" />
-          <Row label="Editor Usage" value={usage.image.editor} color="bg-[#475569]" />
+          <Row label="AI Generator" value={`$${usage.image.aiGenerator}`} color="bg-[#475569]" />
+          <Row label="Editor Usage" value={`$${usage.image.editor}`} color="bg-[#475569]" />
         </Section>
 
         <Section
@@ -256,8 +259,8 @@ export default function CreditsAnalytics() {
           color="bg-[#62b2e1]"
           icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2z" /><path d="M14 2v6h6" /></svg>}
         >
-          <Row label="AI Generator" value={usage.document.aiGenerator} color="bg-[#62b2e1]" />
-          <Row label="Editor Images" value={usage.document.editorImages} color="bg-[#62b2e1]" />
+          <Row label="AI Generator" value={`$${usage.document.aiGenerator}`} color="bg-[#62b2e1]" />
+          <Row label="Editor Images" value={`$${usage.document.editorImages}`} color="bg-[#62b2e1]" />
         </Section>
 
       </div>

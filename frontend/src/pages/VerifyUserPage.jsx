@@ -96,9 +96,10 @@ const VerifyUserPage = () => {
 
       const res = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/auth/verify-otp`,
-        { email, otp: finalOtp }
+        { email, otp }
       );
 
+      console.log(res);
       setMsg({
         text: res.data.message,
         type: "success"
@@ -131,7 +132,7 @@ const VerifyUserPage = () => {
 
       await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/auth/resend-otp`,
-        { email }
+        {email}
       );
 
       setMsg({

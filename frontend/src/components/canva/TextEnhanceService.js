@@ -1,7 +1,8 @@
 // src/components/canva/TextEnhanceService.js
 // Service for handling AI text enhancement API calls
 
-const API_ENDPOINT = 'http://localhost:5000/api/text-enhance/enhance';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_ENDPOINT = `${API_BASE_URL}/api/text-enhance/enhance`;
 
 /**
  * Enhance text using AI
@@ -29,7 +30,7 @@ export const enhanceText = async (text, isHeading = false) => {
   }
 
   const data = await response.json();
-  
+
   if (!data.enhancedText) {
     throw new Error('No enhanced text received');
   }

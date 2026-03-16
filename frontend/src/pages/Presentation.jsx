@@ -489,7 +489,7 @@ const styles = {
   container: {
     minHeight: '100vh',
     background: 'transparent',
-    padding: '40px 20px',
+     padding: '120px 20px 40px', 
     position: 'relative',
     zIndex: 1,
   },

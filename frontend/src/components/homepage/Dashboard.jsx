@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import userService from "../../services/UserDash/User.service";
 
 import {
   HiOutlinePresentationChartLine,
@@ -59,13 +60,14 @@ const TOOLS = [
   }
 ];
 const toolImages = [
-  "https://images.pexels.com/photos/221185/pexels-photo-221185.jpeg",
-  "https://images.pexels.com/photos/160994/family-outdoor-happy-happiness-160994.jpeg",
-  "https://images.pexels.com/photos/256467/pexels-photo-256467.jpeg",
+  "https://i.pinimg.com/736x/96/52/26/965226daa2d2a6aab40d6458646f34f4.jpg",
+  "https://i.pinimg.com/1200x/7e/d5/4e/7ed54e337f028c3cd32335c62ee95e0f.jpg",
+  "https://i.pinimg.com/1200x/ee/df/40/eedf409776e505b5c1db7141dfff5317.jpg",
   "https://images.pexels.com/photos/6476783/pexels-photo-6476783.jpeg",
-  "https://images.pexels.com/photos/161963/chicago-illinois-skyline-skyscrapers-161963.jpeg",
-  "https://images.pexels.com/photos/590045/pexels-photo-590045.jpeg"
+  "https://i.pinimg.com/736x/70/d3/de/70d3dea50a707732f92d493961ad29b9.jpg",
+  "https://i.pinimg.com/1200x/f2/5d/cd/f25dcd144cc08c007d3e64cdc91349f0.jpg"
 ];
+
 
 
 
@@ -99,14 +101,24 @@ export default function Dashboard() {
 
     let mounted = true;
 
-    (async () => {
-
+    const fetchData = async () => {
       try {
-        const data = await api.getProfile();
-        if (mounted) setProfile(data || null);
-      } catch { }
 
-    })();
+        const profileData = await api.getProfile();
+        if (mounted) setProfile(profileData || null);
+
+        const walletRes = await userService.getWalletDashboard();
+
+        const data = walletRes.data;
+
+       if (mounted) setTokens(data.usedBalance);
+
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      }
+    };
+
+    fetchData();
 
     return () => mounted = false;
 
@@ -117,7 +129,7 @@ export default function Dashboard() {
       ? `${profile.firstName} ${profile.lastName || ""}`
       : profile?.email?.split("@")[0] || "User";
 
-  const tokens = profile?.tokens || 120;
+  const [tokens, setTokens] = useState(0);
 
   const visibleTemplates = templates.slice(
     page * perPage,
@@ -256,7 +268,7 @@ export default function Dashboard() {
               </p>
 
               <p className="text-2xl font-bold text-blue-800">
-                {tokens}
+                 ${Number(tokens || 0).toFixed(3)}
               </p>
 
             </div>
@@ -339,7 +351,7 @@ export default function Dashboard() {
 
                     <img
                       src={`${toolImages[i]}?q=80&w=400&sig=${i}`}
-                      className="absolute right-2 bottom-[-2px] w-24 rotate-[12deg] object-cover rounded-lg"
+                      className="absolute right-2 bottom-[-15px] w-24 rotate-[12deg] object-cover rounded-lg"
                     />
 
                   </motion.div>
@@ -505,7 +517,7 @@ export default function Dashboard() {
                     <div className={tab === "ai" ? "ai-tool-wrapper" : ""}>
                       <motion.div
                         key={i}
-                        
+
                         onClick={() => navigate(tool.route)}
                         className={`cursor-pointer rounded-2xl border border-blue-100 
     shadow-sm  transition flex flex-col items-center justify-center gap-3 h-[130px] relative
