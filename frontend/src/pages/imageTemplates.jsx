@@ -6,6 +6,7 @@ id:1,
 title:"Instagram Post",
 img:"https://images.unsplash.com/photo-1542744173-8e7e53415bb0"
 },
+
 {
 id:2,
 title:"YouTube Thumbnail",
