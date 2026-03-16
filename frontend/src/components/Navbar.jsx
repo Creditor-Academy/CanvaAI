@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
 import api from "../services/api";
 import logo from "../assets/logo.png";
+import { FiMenu } from "react-icons/fi";
 
 const TopNavbar = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const TopNavbar = () => {
     total: 100,
     used: 35,
   });
+  const [openMenu, setOpenMenu] = useState(false);
 
   /* ---------------- Close notification outside click ---------------- */
 
@@ -49,7 +51,7 @@ const TopNavbar = () => {
       try {
         const data = await api.getProfile();
         if (mounted) setProfile(data || null);
-      } catch {}
+      } catch { }
     })();
 
     return () => (mounted = false);
@@ -57,11 +59,11 @@ const TopNavbar = () => {
 
   return (
     <header
-      className="fixed z-[100] flex items-center justify-between px-5"
+      className="fixed z-[100] flex items-center justify-between px-4 md:px-6"
       style={{
         top: 12,
-        left: 40,
-        right: 40,
+        left: 20,
+        right: 20,
         height: 62,
 
         /* GLASS BACKGROUND */
@@ -80,15 +82,14 @@ const TopNavbar = () => {
     >
       {/* LEFT LOGO */}
 
-      <div className="flex items-center -ml-6">
+      <div className="flex items-center gap-2">
         <img
           src={logo}
           alt="Designova Logo"
-          className="h-25 object-contain cursor-pointer"
-          onClick={() => navigate("/dashboard")}
+          className="h-12 md:h-16 object-contain cursor-pointer"
         />
         <div className="flex items-center  text-slate-700 font-semibold text-[16px] tracking-wide">Designova</div>
-        
+
       </div>
 
       {/* RIGHT ACTIONS */}
@@ -96,23 +97,20 @@ const TopNavbar = () => {
       <div className="flex items-center gap-2 relative">
 
         {/* HELP */}
-
         <button
           onClick={() => navigate("/help-support")}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-yellow-100 transition"
+          className="hidden md:flex w-8 h-8 rounded-lg items-center justify-center text-slate-600 hover:bg-yellow-100 transition"
         >
           <FiHelpCircle size={18} />
         </button>
 
         {/* NOTIFICATIONS */}
-
-        <div ref={notifRef}>
+        <div ref={notifRef} className="relative">
           <button
             onClick={() => setOpenNotif(!openNotif)}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-yellow-100 transition relative"
           >
             <FiBell size={18} />
-
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
@@ -144,9 +142,8 @@ const TopNavbar = () => {
           )}
         </div>
 
-        {/* PROFILE */}
-
-        <div className="relative" ref={profileRef}>
+        {/* PROFILE (desktop only) */}
+        <div className="hidden md:block relative" ref={profileRef}>
           <div
             onClick={() => setopenProfile(!openProfile)}
             className="w-8 h-8 rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center text-white text-sm font-semibold cursor-pointer overflow-hidden"
@@ -192,10 +189,10 @@ const TopNavbar = () => {
 
                 <div className="font-semibold text-slate-800 text-sm text-center">
                   {
-                  profile?.firstName
-                    ? `${profile.firstName} ${profile.lastName || ""}`
-                    : profile?.email?.split("@")[0]
-                    }
+                    profile?.firstName
+                      ? `${profile.firstName} ${profile.lastName || ""}`
+                      : profile?.email?.split("@")[0]
+                  }
                 </div>
 
                 <div className="text-xs text-slate-500 text-center mt-1 break-all">
@@ -242,8 +239,74 @@ const TopNavbar = () => {
             </div>
           )}
         </div>
-
+<button
+        onClick={() => setOpenMenu(!openMenu)}
+        className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-yellow-100"
+      >
+        <FiMenu size={20} />
+      </button>
       </div>
+      
+      {openMenu && (
+        <div
+          className="absolute top-[70px] right-4 w-64 rounded-xl shadow-xl p-4 md:hidden"
+          style={{
+            background: "rgba(255,255,255,0.95)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(0,0,0,0.06)",
+          }}
+        >
+
+          {/* PROFILE INFO */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">
+              {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
+            </div>
+
+            <div className="text-sm">
+              <div className="font-semibold">
+                {profile?.firstName
+                  ? `${profile.firstName} ${profile.lastName || ""}`
+                  : profile?.email?.split("@")[0]}
+              </div>
+              <div className="text-xs text-slate-500">{profile?.email}</div>
+            </div>
+          </div>
+
+          {/* MENU ITEMS */}
+
+          <button
+            onClick={() => {
+              navigate("/help-support");
+              setOpenMenu(false);
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100"
+          >
+            <FiHelpCircle size={18} />
+            Help & Support
+          </button>
+
+          <button
+            onClick={() => navigate("/settings", { state: { profile } })}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100"
+          >
+            <FiUser size={18} />
+            Personal Settings
+          </button>
+
+          <button
+            onClick={() => {
+              localStorage.removeItem("token");
+              navigate("/login", { replace: true });
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600"
+          >
+            <FiLogOut size={18} />
+            Logout
+          </button>
+
+        </div>
+      )}
     </header>
   );
 };

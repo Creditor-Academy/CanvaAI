@@ -159,6 +159,61 @@ export default function Dashboard() {
       route: "/create/content-writer"
     }
   ];
+  useEffect(() => {
+    const style = document.createElement("style");
+
+    style.innerHTML = `
+  @keyframes borderTrace {
+  0% { background-position: 0% 0%; }
+  25% { background-position: 100% 0%; }
+  50% { background-position: 100% 100%; }
+  75% { background-position: 0% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+.ai-tool-wrapper {
+  position: relative;
+  border-radius: 24px;
+  padding: 2px;
+  background: linear-gradient(
+    90deg,
+    #a8af1e,
+   #f3f63b,
+    #faf260,
+    #e5e90e,
+    #afaa1e
+  );
+  background-size: 300% 300%;
+  animation: borderTrace 4s linear infinite;
+  box-shadow:
+    0 6px 0 rgba(235, 232, 37, 0.9),   
+    0 20px 25px -5px rgba(246, 234, 59, 0.35),
+    0 10px 10px -5px rgba(227, 246, 59, 0.15);
+
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.ai-tool-wrapper:hover{
+ transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(230, 246, 59, 0.35), 0 10px 10px -5px rgba(246, 221, 59, 0.15);
+}
+
+.ai-tool-inner{
+  border-radius: 22px;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+  `;
+
+    document.head.appendChild(style);
+
+    return () => document.head.removeChild(style);
+  }, []);
 
   return (
 
@@ -447,31 +502,35 @@ export default function Dashboard() {
 
                   return (
 
-                    <motion.div
-                      key={i}
-                      whileHover={{ scale: 1.06, y: -4 }}
-                      onClick={() => navigate(tool.route)}
-                      className="cursor-pointer p-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50 shadow-sm hover:shadow-xl transition flex flex-col items-center justify-center gap-3 h-[130px] relative"
-                    >
+                    <div className={tab === "ai" ? "ai-tool-wrapper" : ""}>
+                      <motion.div
+                        key={i}
+                        
+                        onClick={() => navigate(tool.route)}
+                        className={`cursor-pointer rounded-2xl border border-blue-100 
+    shadow-sm  transition flex flex-col items-center justify-center gap-3 h-[130px] relative
+    ${tab === "ai" ? "ai-tool-inner" : "p-6 bg-gradient-to-br from-white to-yellow-50"}`}
+                      >
 
-                      <div className={`w-12 h-12 flex items-center justify-center rounded-xl
-                ${tab === "ai" ? "bg-yellow-100 text-yellow-600" : "bg-blue-100 text-blue-600"}`}>
+                        <div className={`w-12 h-12 flex items-center justify-center rounded-xl
+                ${tab === "ai" ? "bg-yellow-100 text-yellow-600" : "bg-blue-100 text-amber-600"}`}>
 
-                        <Icon size={22} />
+                          <Icon size={22} />
 
-                      </div>
+                        </div>
 
-                      <p className="font-semibold text-blue-900 text-sm">
-                        {tool.title}
-                      </p>
+                        <p className="font-semibold text-blue-900 text-sm">
+                          {tool.title}
+                        </p>
 
-                      {tab === "ai" && (
-                        <span className="absolute top-3 right-3 text-yellow-500">
-                          <FiZap size={16} />
-                        </span>
-                      )}
+                        {tab === "ai" && (
+                          <span className="absolute top-3 right-3 text-yellow-500">
+                            <FiZap size={16} />
+                          </span>
+                        )}
 
-                    </motion.div>
+                      </motion.div>
+                    </div>
 
                   )
 

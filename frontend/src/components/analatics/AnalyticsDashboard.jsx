@@ -1,44 +1,86 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import api from "../../services/api";
+import userService from "../../services/UserDash/User.service";
 
 export default function CreditsAnalytics() {
-  const usage = {
-    ppt: { pptGeneration: 10, slideGeneration: 12, slideExpand: 8, pptImages: 10 },
-    image: { aiGenerator: 15, editor: 5 },
-    document: { aiGenerator: 18, editorImages: 7 }
-  };
+  const [usage, setUsage] = useState({
+    ppt: { pptGeneration: 0, slideGeneration: 0, slideExpand: 0, imagesInsidePPT: 0 },
+    image: { aiGenerator: 0, editor: 0 },
+    document: { aiGenerator: 0, editorImages: 0 }
+  });
 
-  const TOTAL_CREDITS = 100;
+  const [TOTAL_CREDITS, setTotalCredits] = useState(0);
+  const [wallet, setWallet] = useState({
+    totalBalance: 0,
+    usedBalance: 0,
+    remainingBalance: 0
+  });
 
-  const usedCredits = Object.values(usage).reduce(
-    (sum, cat) => sum + Object.values(cat).reduce((a, b) => a + b, 0),
-    0
-  );
+
   const [userName, setUserName] = useState("");
   useEffect(() => {
-  const fetchProfile = async () => {
-    try {
-      const data = await api.getProfile();
 
-      console.log("PROFILE RESPONSE:", data);   // <-- yaha
+    const fetchProfile = async () => {
+      try {
+        const data = await api.getProfile();
 
-      const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
-      setUserName(fullName);
-    } catch (err) {
-  console.error("Failed to fetch user profile:", err);
-  console.error("Server message:", err?.response?.data);
-}
-  };
+        const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+        setUserName(fullName);
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err);
+      }
+    };
 
-  fetchProfile();
-}, []);
+    const fetchDashboard = async () => {
+      try {
 
-  const remaining = TOTAL_CREDITS - usedCredits;
-  const percent = Math.max(0, (usedCredits / TOTAL_CREDITS) * 100);
+        const res = await userService.getWalletDashboard();
+
+        const data = res.data;
+
+        setTotalCredits(res.totalTokens);
+
+        setUsage({
+          ppt: {
+            pptGeneration: data.presentation.pptGeneration,
+            slideGeneration: data.presentation.slideGeneration,
+            slideExpand: data.presentation.slideExpand,
+            imagesInsidePPT: data.presentation.imagesInsidePPT
+          },
+          image: {
+            aiGenerator: data.image.aiImageGenerator,
+            editor: data.image.imageEditorUsage
+          },
+          document: {
+            aiGenerator: data.document.aiDocumentGenerator,
+            editorImages: data.document.editorImageGeneration
+          }
+        });
+        setWallet({
+          totalBalance: data.totalBalance,
+          usedBalance: data.usedBalance,
+          remainingBalance: data.remainingBalance
+        });
+
+      } catch (error) {
+        console.error("Dashboard API error:", error);
+      }
+    };
+
+    fetchProfile();
+    fetchDashboard();
+
+  }, []);
+
+  const remaining = wallet.remainingBalance;
+  const percent =
+    wallet.totalBalance > 0
+      ? (wallet.usedBalance / wallet.totalBalance) * 100
+      : 0;
 
   const Row = ({ label, value, color }) => {
-    const p = Math.min(100, value);
+    const p = Math.min(100, value * 100);
     return (
       <div className="space-y-1">
         <div className="flex justify-between text-[13px]">
@@ -125,7 +167,7 @@ export default function CreditsAnalytics() {
             </div>
 
 
-            
+
 
 
             {/* USAGE */}
@@ -133,7 +175,7 @@ export default function CreditsAnalytics() {
 
               <div className="flex justify-between text-sm text-slate-600 font-medium">
                 <span>Monthly Usage</span>
-                <span>{usedCredits} / {TOTAL_CREDITS}</span>
+                <span>{wallet.usedBalance} / {wallet.totalBalance}</span>
               </div>
 
               {/* FULL WIDTH BAR */}
@@ -147,7 +189,7 @@ export default function CreditsAnalytics() {
               </div>
 
               <div className="text-xs text-slate-500">
-                {remaining} credits remaining
+                {wallet.remainingBalance} credits remaining
               </div>
 
             </div>
@@ -172,8 +214,12 @@ export default function CreditsAnalytics() {
 
           <div className="relative z-10">
             <div className="text-sm opacity-90">Remaining</div>
-            <div className="text-4xl font-bold tracking-tight">{remaining}</div>
-            <div className="text-xs opacity-80">of {TOTAL_CREDITS}</div>
+            <div className="text-4xl font-bold tracking-tight">
+              {wallet.remainingBalance}
+            </div>
+            <div className="text-xs opacity-80">
+              of {wallet.totalBalance}
+            </div>
 
             <button className="mt-5 w-full bg-white text-[#1e293b] font-semibold py-2.5 rounded-xl
                    hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 shadow-md">
@@ -193,7 +239,7 @@ export default function CreditsAnalytics() {
           <Row label="PPT Generation" value={usage.ppt.pptGeneration} color="bg-blue-800" />
           <Row label="Slide Generation" value={usage.ppt.slideGeneration} color="bg-blue-800" />
           <Row label="Slide Expand" value={usage.ppt.slideExpand} color="bg-blue-800" />
-          <Row label="Images inside PPT" value={usage.ppt.pptImages} color="bg-blue-800" />
+          <Row label="Images inside PPT" value={usage.ppt.imagesInsidePPT} color="bg-blue-800" />
         </Section>
 
         <Section

@@ -10,7 +10,7 @@ const Navbar = () => {
     <header className="navv-root">
       <div className="navv-inner">
         <div className="navv-left">
-          <a href="/" className="brand">
+          <a className="brand">
             <img src={logo} alt="Designova AI" className="brand-logo" />
             <div className="brand-text"> <strong>Designova </strong> </div>
             
@@ -24,7 +24,7 @@ const Navbar = () => {
         </nav>
 
         <div className="nav-actions">
-          <a className="btn btn-ghost navv-btn" href="/login">Log in</a>
+          <a className="btn btn-ghost login-btn" href="/login">Log in</a>
 
           <button
             className={`hamburger ${open ? "is-active" : ""}`}
