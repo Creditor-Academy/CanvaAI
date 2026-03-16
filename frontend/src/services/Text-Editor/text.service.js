@@ -375,6 +375,19 @@ async function deleteDocument(documentId) {
   return response.data;
 }
 
+/**
+ * Get all documents from backend (for Recent Documents list)
+ * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string, ownerId: string}>}>}
+ */
+async function getAllDocuments() {
+  const response = await axios.get(
+    `${API_BASE_URL}/api/text-editor/documents`,
+    getAuthConfig()
+  );
+  
+  return response.data;
+}
+
 // Export all service functions
 export const TextEditorService = {
   // AI Functions
@@ -391,4 +404,5 @@ export const TextEditorService = {
   getDocumentById,
   updateDocument,
   deleteDocument,
+  getAllDocuments,
 };

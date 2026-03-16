@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/athena-editor/components/ui/button';
 import { toast } from 'sonner';
+import { TextEditorService } from '../services/Text-Editor/text.service.js';
 
 // ── Template content map ──────────────────────────────────────────────────────
 const TEMPLATE_CONTENT = {
@@ -42,7 +43,19 @@ const TEMPLATES = [
     { id: 'blank', title: 'Code Documentation', type: 'blank', tab: 'Code Docs', author: 'Developer', color: '#1e293b', dark: true },
 ];
 
+// ── Backend API Integration ──────────────────────────────────────────────
 const STORAGE_KEY = 'athena_documents';
+
+// Load documents from backend API
+const loadDocumentsFromBackend = async () => {
+    try {
+        const result = await TextEditorService.getAllDocuments();
+        return result.documents || [];
+    } catch (error) {
+        console.error('Failed to load documents from backend:', error);
+        return [];
+    }
+};
 
 const loadDocuments = () => {
     try {
@@ -72,7 +85,8 @@ const timeAgo = (date) => {
 
 const EditorIntro = () => {
     const [activeTab, setActiveTab] = useState('Recommended');
-    const [documents, setDocuments] = useState(loadDocuments);
+    const [documents, setDocuments] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [templateSearch, setTemplateSearch] = useState('');
     const [recentFilter, setRecentFilter] = useState('All');
@@ -82,14 +96,62 @@ const EditorIntro = () => {
     const [renameValue, setRenameValue] = useState('');
     const fileInputRef = useRef(null);
 
-    // Update docs list when localStorage changes (e.g. from editor tab)
+    // Load documents from backend on mount
     useEffect(() => {
-        const onStorage = () => setDocuments(loadDocuments());
-        window.addEventListener('storage', onStorage);
-
-        // Also poll every 5s (for same-tab edits)
-        const interval = setInterval(() => setDocuments(loadDocuments()), 5000);
-        return () => { window.removeEventListener('storage', onStorage); clearInterval(interval); };
+        const fetchDocuments = async () => {
+            setIsLoading(true);
+            try {
+                // Try to load from backend first
+                const backendResult = await TextEditorService.getAllDocuments();
+                const backendDocs = backendResult?.documents || [];
+                
+                if (backendDocs.length > 0) {
+                    // Merge backend docs with localStorage metadata
+                    const localDocs = loadDocuments();
+                    const mergedDocs = backendDocs.map(backendDoc => {
+                        // Find matching local doc by title or mongoBackendId
+                        const matchingLocal = localDocs.find(d => 
+                            d.mongoBackendId === backendDoc.id || 
+                            (d.title === backendDoc.title && Math.abs(d.createdAt - new Date(backendDoc.createdAt).getTime()) < 60000)
+                        );
+                        
+                        return {
+                            id: backendDoc.id, // Use MongoDB ID as primary
+                            title: backendDoc.title,
+                            content: '', // Will be loaded when opening
+                            createdAt: new Date(backendDoc.createdAt).getTime(),
+                            lastOpened: matchingLocal?.lastOpened || Date.now(),
+                            template: matchingLocal?.template || 'document',
+                            pinned: matchingLocal?.pinned || false,
+                            slideCount: 0,
+                            isBackend: true // Mark as backend document
+                        };
+                    });
+                    
+                    setDocuments(mergedDocs);
+                } else {
+                    // Fallback to localStorage if backend returns empty
+                    setDocuments(loadDocuments());
+                }
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                setDocuments(loadDocuments());
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        fetchDocuments();
+        
+        // Poll every 5s for updates
+        const interval = setInterval(() => {
+            setDocuments(prev => {
+                const updated = loadDocuments();
+                return updated.length > prev.length ? updated : prev;
+            });
+        }, 5000);
+        
+        return () => clearInterval(interval);
     }, []);
 
     const persistDocs = (docs) => {
@@ -97,16 +159,52 @@ const EditorIntro = () => {
         saveDocuments(docs);
     };
 
-    const openEditor = (templateType = 'blank', docId = null) => {
+    const openEditor = async (templateType = 'blank', docId = null) => {
         if (docId) {
-            // Open existing document
-            localStorage.setItem('athena_active_doc_id', docId);
-            const doc = documents.find(d => d.id === docId);
-            if (doc) {
-                localStorage.setItem('athena_active_doc_content', doc.content || '');
+            // Check if this is a MongoDB ID (24 character hex string) or localStorage ID
+            const isMongoId = /^[0-9a-fA-F]{24}$/.test(docId);
+            
+            try {
+                let doc;
+                if (isMongoId) {
+                    // Load from backend
+                    doc = await TextEditorService.getDocumentById(docId);
+                } else {
+                    // Load from localStorage first
+                    const localDoc = documents.find(d => d.id === docId);
+                    if (!localDoc) {
+                        throw new Error('Document not found locally');
+                    }
+                    
+                    // If document has mongoBackendId, use that
+                    if (localDoc.mongoBackendId) {
+                        doc = await TextEditorService.getDocumentById(localDoc.mongoBackendId);
+                    } else {
+                        // Use localStorage content
+                        doc = {
+                            id: localDoc.id,
+                            title: localDoc.title,
+                            data: {
+                                html: localDoc.content || '',
+                                content: localDoc.content || ''
+                            }
+                        };
+                    }
+                }
+                
+                localStorage.setItem('athena_active_doc_id', doc.id);
+                localStorage.setItem('athena_active_doc_content', doc.data?.html || doc.content || '');
                 localStorage.setItem('athena_active_doc_title', doc.title || 'Untitled');
+                
                 // Update last opened
-                persistDocs(documents.map(d => d.id === docId ? { ...d, lastOpened: Date.now() } : d));
+                const updatedDocs = documents.map(d => 
+                    d.id === docId ? { ...d, lastOpened: Date.now() } : d
+                );
+                persistDocs(updatedDocs);
+            } catch (error) {
+                console.error('Failed to load document:', error);
+                toast.error('Failed to load document: ' + (error.message || 'Unknown error'));
+                return;
             }
         } else {
             // New document from template
@@ -119,7 +217,7 @@ const EditorIntro = () => {
                 lastOpened: Date.now(),
                 template: templateType,
                 pinned: false,
-                slideCount: 0 // Initialize slideCount
+                slideCount: 0
             };
             const updated = [newDoc, ...documents];
             persistDocs(updated);
@@ -248,7 +346,7 @@ const EditorIntro = () => {
                         </div>
                         <div className="flex-1 text-white">
                             <h2 className="text-xl font-extrabold leading-tight">Create with AI</h2>
-                            <p className="text-sm text-white/90 mt-1">Let AI generate a complete presentation from your topic.</p>
+                            <p className="text-sm text-white/90 mt-1">Let AI generate a complete Document from your topic.</p>
                         </div>
                     </motion.div>
 
@@ -267,17 +365,17 @@ const EditorIntro = () => {
                     </motion.div>
                 </section>
 
-                {/* ── Recent Presentations (Updated to visual thumbnails) ── */}
+                {/* ── Recent Documents (Updated to visual thumbnails) ── */}
                 <section className="mt-12 bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-[20px] font-extrabold text-slate-950">Recent Presentations</h2>
+                        <h2 className="text-[20px] font-extrabold text-slate-950">Recent Documents</h2>
                         <div className="flex gap-2.5">
                             {/* Search keeps functioning */}
                             <div className="relative">
                                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search presentations"
+                                    placeholder="Search documents"
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     className="h-10 w-64 bg-slate-100 rounded-full pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
@@ -302,7 +400,7 @@ const EditorIntro = () => {
                         <div className="text-center py-20 px-6 border-2 border-dashed border-slate-200 rounded-2xl">
                             <FileText className="w-14 h-14 text-slate-200 mx-auto mb-4" />
                             <p className="text-slate-600 font-bold text-lg">
-                                {searchQuery ? `No presentations match "${searchQuery}"` : 'No recent presentations'}
+                                {searchQuery ? `No documents match "${searchQuery}"` : 'No recent documents         '}
                             </p>
                             <p className="text-slate-400 text-sm mt-1.5">Start with AI or create a new one to get started</p>
                         </div>
@@ -320,7 +418,7 @@ const EditorIntro = () => {
                                         setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY });
                                     }}
                                 >
-                                    {/* Visual representation card */}
+                                    {/* Visual representation of the document card (placeholder) */}
                                     {recentSlideshowPlaceholder(doc.title, doc.slideCount)}
 
                                     {/* Footer with actions and info */}
@@ -369,10 +467,10 @@ const EditorIntro = () => {
                     )}
                 </section>
 
-                {/* ── Start from a template (Updated to presentation thumbnails) ── */}
+                {/* ── Start from a template (Updated to document thumbnails) ── */}
                 <section className="mt-14 bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-[20px] font-extrabold text-slate-950">Featured Templates</h2>
+                        <h2 className="text-[20px] font-extrabold text-slate-950">Featured Documents</h2>
                         {/* Tab bar is cleaner in the new layout */}
                         <div className="flex gap-1.5 bg-slate-100 rounded-full p-1.5 border border-slate-200 shadow-inner max-w-lg overflow-x-auto no-scrollbar">
                             {TEMPLATE_TABS.map(({ label, icon: Icon }) => (
@@ -482,7 +580,7 @@ const EditorIntro = () => {
                 whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
                 onClick={() => openEditor('blank')}
                 className="fixed bottom-8 right-8 w-15 h-15 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center z-[100] group hover:bg-blue-700 transition-colors"
-                title="New Presentation"
+                title="New Document"
             >
                 <Plus className="w-7 h-7 transition-transform group-hover:rotate-90 duration-200" />
             </motion.button>
@@ -499,7 +597,7 @@ const EditorIntro = () => {
                         >
                             <div className="bg-white rounded-3xl shadow-3xl w-full max-w-xl p-10" onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-between mb-8">
-                                    <h2 className="text-2xl font-extrabold text-slate-950">Import Presentation File</h2>
+                                    <h2 className="text-2xl font-extrabold text-slate-950">Import Document</h2>
                                     <button onClick={() => setShowUploadZone(false)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500">
                                         <X className="w-6 h-6" />
                                     </button>
@@ -509,7 +607,7 @@ const EditorIntro = () => {
                                     className="border-2 border-dashed border-blue-200 rounded-2xl p-16 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/70 transition-all group shadow-inner"
                                 >
                                     <Upload className="w-14 h-14 text-blue-400 mx-auto mb-5 group-hover:text-blue-600 transition-colors" />
-                                    <p className="font-extrabold text-slate-800 text-lg mb-1.5">Click to browse or drag & drop</p>
+                                    <p className="font-extrabold text-slate-800 text-lg mb-1.5">Click to browse or drag & drop for Document</p>
                                     <p className="text-sm text-slate-500">Supports .txt, .html, .md, .rtf files for slide generation</p>
                                 </div>
                                 <input ref={fileInputRef} type="file" accept=".txt,.html,.md,.rtf" multiple className="hidden" onChange={handleFileUpload} />

@@ -62,6 +62,7 @@ import { AIAssistant } from './editor/AIAssistant.jsx';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
+import { TextEditorService } from '../../../services/Text-Editor/text.service.js';
 import {
   Bold,
   Italic,
@@ -4948,21 +4949,27 @@ const TextEditorContent = ({
       
       // Note: Removed localStorage backup. Only save to backend (MongoDB).
       
-      // Save to backend (MongoDB)
+      // Save to backend (MongoDB) using TextEditorService
       if (activeDocId) {
         try {
           // Use mongoId from state/props instead of localStorage
           if (mongoId) {
-            await api.updateEditorDocument(mongoId, {
+            // Update existing document using /api/text-editor/document/:id
+            await TextEditorService.updateDocument(mongoId, {
               title: documentTitle,
-              content: editor.getJSON(),
-              html: editor.getHTML()
+              data: {
+                content: editor.getJSON(),
+                html: editor.getHTML()
+              }
             });
           } else {
-            const result = await api.saveEditorDocument({
+            // Save new document using /api/text-editor/save
+            const result = await TextEditorService.saveDocument({
               title: documentTitle,
-              content: editor.getJSON(),
-              html: editor.getHTML()
+              data: {
+                content: editor.getJSON(),
+                html: editor.getHTML()
+              }
             });
             // Parent component should track the MongoDB ID via callback or state
             onMongoIdSaved?.(activeDocId, result.id);
@@ -4984,25 +4991,7 @@ const TextEditorContent = ({
         toast.success('Document saved! 💾');
       }
       
-      try {
-        // Create and download JSON file (local export) - separate operation
-        const jsonString = JSON.stringify(documentData, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${documentTitle || 'document'}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        toast.success('Document exported as JSON successfully! 📄');
-      } catch (exportError) {
-        console.warn('JSON export failed, but document was saved:', exportError);
-        // Don't show error for export failure since save succeeded
-      }
-      
+      // Document saved successfully to backend - no file export
     } catch (error) {
       console.error('❌ Save error:', error);
       console.error('Error stack:', error.stack);
