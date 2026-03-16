@@ -3,7 +3,7 @@ import { getPublicTemplateImages, deleteImage, cloneImage } from '../../../servi
 import { exportCanvasAsImage } from '../export/exportCanvasAsImage'
 import { toast } from 'sonner'
 import { useAuth } from '../../../contexts/AuthContext'
-import ImagePopup from './ImagePopup'
+import ImagePopup from './imagePopup'
 const ImageAdmin = () => {
     const [images, setImages] = useState([])
     const [loading, setLoading] = useState(false)
