@@ -119,6 +119,7 @@ const EditorIntro = () => {
                 lastOpened: Date.now(),
                 template: templateType,
                 pinned: false,
+                slideCount: 0 // Initialize slideCount
             };
             const updated = [newDoc, ...documents];
             persistDocs(updated);
@@ -143,6 +144,7 @@ const EditorIntro = () => {
                     lastOpened: Date.now(),
                     template: 'upload',
                     pinned: false,
+                    slideCount: 0
                 };
                 persistDocs(prev => {
                     const updated = [newDoc, ...prev];
@@ -171,7 +173,7 @@ const EditorIntro = () => {
     const duplicateDoc = (id) => {
         const doc = documents.find(d => d.id === id);
         if (!doc) return;
-        const copy = { ...doc, id: `doc_${Date.now()}`, title: `${doc.title} (copy)`, createdAt: Date.now(), lastOpened: Date.now(), pinned: false };
+        const copy = { ...doc, id: `doc_${Date.now()}`, title: `${doc.title} (copy)`, createdAt: Date.now(), lastOpened: Date.now(), pinned: false, slideCount: doc.slideCount };
         persistDocs([copy, ...documents]);
         toast.success('Document duplicated');
         setContextMenu(null);
@@ -207,97 +209,122 @@ const EditorIntro = () => {
         ? [...pinnedDocs, ...regularDocs].filter(d => d.pinned)
         : [...pinnedDocs, ...regularDocs];
 
+    // Placeholder content for visual recent documents (thumbnails)
+    const recentSlideshowPlaceholder = (title, slideCount) => (
+        <div className="aspect-[16/9] border border-slate-200 rounded-lg p-3 bg-slate-50 flex flex-col gap-2 overflow-hidden shadow-inner">
+            <p className="text-[11px] font-bold text-slate-800 line-clamp-1">{title}</p>
+            <div className="h-1.5 w-full rounded bg-white/70" />
+            <div className="h-1.5 w-3/4 rounded bg-white/50" />
+            <div className="h-1.5 w-full rounded bg-white/40" />
+            <div className="flex-1" />
+            <div className="h-1.5 w-1/2 rounded bg-white/40" />
+        </div>
+    );
+
+
     return (
         <div
-            className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans overflow-y-auto pl-[60px]"
+            className="min-h-screen bg-[#f1f5f9] text-slate-800 font-sans overflow-y-auto pl-[60px]"
             onClick={() => setContextMenu(null)}
         >
             {/* ── Main Content ── */}
             <main className="max-w-7xl mx-auto px-4 sm:px-8 pb-24 pt-8">
 
-                {/* ── Hero banner ── */}
-                <section className="mt-8 relative rounded-3xl overflow-hidden flex flex-col justify-center bg-gradient-to-r from-blue-700 via-indigo-700 to-violet-800 shadow-xl min-h-[200px] px-10 py-10">
-                    {/* Decorative blobs */}
-                    <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
-                    <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-indigo-300/10 rounded-full translate-y-1/2 blur-2xl pointer-events-none" />
+                {/* ── Title Header ── */}
+                <header className="mb-10 py-10">
+                    <h1 className="text-[32px] font-extrabold text-slate-950 tracking-tight leading-tight">Write Better. Format Faster. Edit Smarter.</h1>
+                    <p className="text-slate-600 text-[14px] mt-1.5">"Create, edit, and share content effortlessly with our advanced editing tool."</p>
+                </header>
 
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative z-10">
-                        <p className="text-white/70 text-sm font-medium mb-1">Welcome back 👋</p>
-                        <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-6">
-                            What would you like to create today?
-                        </h1>
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <motion.button
-                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                onClick={() => openEditor('blank')}
-                                className="inline-flex items-center gap-3 bg-white text-blue-700 font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all text-sm"
-                            >
-                                <Plus className="w-5 h-5" /> New Blank Document
-                            </motion.button>
-                            <motion.button
-                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                onClick={() => openEditor('blank')}
-                                className="inline-flex items-center gap-3 bg-white/10 border border-white/20 text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/20 transition-all text-sm"
-                            >
-                                <Sparkles className="w-5 h-5" /> Generate with AI
-                            </motion.button>
+                {/* ── Main Action Cards ── */}
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                    <motion.div
+                        whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }}
+                        onClick={() => openEditor('blank')} // Keep logic to start blank, or map to an AI generator if implemented
+                        className="bg-amber-400 hover:bg-amber-500 rounded-3xl p-7 flex gap-5 cursor-pointer shadow-lg transition-colors items-center"
+                    >
+                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                            <Sparkles className="w-9 h-9 text-white" />
+                        </div>
+                        <div className="flex-1 text-white">
+                            <h2 className="text-xl font-extrabold leading-tight">Create with AI</h2>
+                            <p className="text-sm text-white/90 mt-1">Let AI generate a complete presentation from your topic.</p>
+                        </div>
+                    </motion.div>
+
+                    <motion.div
+                        whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }}
+                        onClick={() => openEditor('blank')}
+                        className="bg-blue-600 hover:bg-blue-700 rounded-3xl p-7 flex gap-5 cursor-pointer shadow-lg transition-colors items-center"
+                    >
+                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                            <Plus className="w-9 h-9 text-white" />
+                        </div>
+                        <div className="flex-1 text-white">
+                            <h2 className="text-xl font-extrabold leading-tight">Create Fresh</h2>
+                            <p className="text-sm text-white/90 mt-1">Open our advanced editor and start your story from scratch.</p>
                         </div>
                     </motion.div>
                 </section>
 
-                {/* ── Recent Documents ── */}
-                <section className="mt-12">
-                    <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-xl font-bold text-slate-900">Recent documents</h2>
-                        <div className="flex gap-1">
-                            {['All', 'Pinned'].map(f => (
-                                <button
-                                    key={f}
-                                    onClick={() => setRecentFilter(f)}
-                                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${recentFilter === f ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`}
-                                >
-                                    {f}
-                                </button>
-                            ))}
+                {/* ── Recent Presentations (Updated to visual thumbnails) ── */}
+                <section className="mt-12 bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
+                    <div className="flex items-center justify-between mb-8">
+                        <h2 className="text-[20px] font-extrabold text-slate-950">Recent Presentations</h2>
+                        <div className="flex gap-2.5">
+                            {/* Search keeps functioning */}
+                            <div className="relative">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search presentations"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="h-10 w-64 bg-slate-100 rounded-full pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
+                                />
+                            </div>
+                            {/* Filter keeps functioning */}
+                            <div className="flex gap-1 bg-slate-100 rounded-full p-1 border border-slate-200 shadow-inner">
+                                {['All', 'Pinned'].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setRecentFilter(f)}
+                                        className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all ${recentFilter === f ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:bg-white/60'}`}
+                                    >
+                                        {f}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
                     {recentDocs.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm text-center py-16 px-6">
-                            <FileText className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                            <p className="text-slate-500 font-medium text-sm">
-                                {searchQuery ? `No documents match "${searchQuery}"` : 'No recent documents'}
+                        <div className="text-center py-20 px-6 border-2 border-dashed border-slate-200 rounded-2xl">
+                            <FileText className="w-14 h-14 text-slate-200 mx-auto mb-4" />
+                            <p className="text-slate-600 font-bold text-lg">
+                                {searchQuery ? `No presentations match "${searchQuery}"` : 'No recent presentations'}
                             </p>
-                            <p className="text-slate-400 text-xs mt-1">Create a new document or import a file to get started</p>
-                            <Button onClick={() => openEditor('blank')} className="mt-5 bg-blue-600 text-white text-xs">
-                                <Plus className="w-3.5 h-3.5 mr-1" /> New Document
-                            </Button>
+                            <p className="text-slate-400 text-sm mt-1.5">Start with AI or create a new one to get started</p>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            {/* Column header */}
-                            <div className="grid grid-cols-[1fr_160px_100px_40px] px-5 py-2.5 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                <span>Name</span>
-                                <span>Last Opened</span>
-                                <span>Type</span>
-                                <span />
-                            </div>
-
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {recentDocs.slice(0, 10).map((doc, idx) => (
-                                <div
+                                <motion.div
                                     key={doc.id}
-                                    className="grid grid-cols-[1fr_160px_100px_40px] px-5 py-3.5 items-center hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group relative cursor-pointer"
-                                    onClick={() => openEditor(null, doc.id)}
+                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
+                                    className="group relative cursor-pointer"
+                                    onClick={() => openEditor(null, doc.id)} // Keep opening existing
                                     onContextMenu={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY });
                                     }}
                                 >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-8 h-10 bg-blue-50 rounded flex items-center justify-center flex-shrink-0">
-                                            <FileText className="w-4 h-4 text-blue-500" />
-                                        </div>
+                                    {/* Visual representation card */}
+                                    {recentSlideshowPlaceholder(doc.title, doc.slideCount)}
+
+                                    {/* Footer with actions and info */}
+                                    <div className="mt-4 flex items-center justify-between gap-2 px-1">
                                         <div className="min-w-0">
                                             {renameId === doc.id ? (
                                                 <input
@@ -307,116 +334,109 @@ const EditorIntro = () => {
                                                     onBlur={saveRename}
                                                     onKeyDown={e => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setRenameId(null); }}
                                                     onClick={e => e.stopPropagation()}
-                                                    className="text-sm border border-blue-400 rounded px-1 py-0.5 w-full focus:outline-none"
+                                                    className="text-[13px] border border-blue-400 rounded-lg px-2 py-1 w-full focus:outline-none bg-white shadow-md z-10 relative"
                                                 />
                                             ) : (
-                                                <h4 className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
-                                                    {doc.pinned && <span className="mr-1 text-amber-500" title="Pinned">📌</span>}
+                                                <h4 className="text-[13px] font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                                                    {doc.pinned && <span className="mr-1.5 text-amber-500" title="Pinned">📌</span>}
                                                     {doc.title}
                                                 </h4>
                                             )}
-                                            <p className="text-[10px] text-slate-400 mt-0.5 truncate capitalize">{doc.template || 'document'}</p>
+                                            <p className="text-[11px] text-slate-500 mt-1 capitalize flex items-center gap-1.5">
+                                                <Clock className="w-3.5 h-3.5 text-slate-300" />
+                                                {timeAgo(doc.lastOpened)} · {doc.template || 'document'}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            {/* Slide Count Label (matches image) */}
+                                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-1.5 rounded-full border border-blue-100">
+                                                <Grid className="w-3.5 h-3.5" />
+                                                {doc.slideCount ? `${doc.slideCount} Slides` : 'Blank'}
+                                            </div>
+
+                                            {/* Three-dot menu button */}
+                                            <button
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-slate-100 text-slate-400"
+                                                onClick={(e) => { e.stopPropagation(); setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY }); }}
+                                            >
+                                                <MoreVertical className="w-4.5 h-4.5" />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                                        <Clock className="w-3.5 h-3.5 text-slate-300" />
-                                        {timeAgo(doc.lastOpened)}
-                                    </div>
-                                    <div className="text-xs text-slate-400 capitalize truncate">{doc.template === 'blank' ? 'Document' : doc.template || 'Document'}</div>
-                                    <button
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-100 text-slate-400"
-                                        onClick={(e) => { e.stopPropagation(); setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY }); }}
-                                    >
-                                        <MoreVertical className="w-4 h-4" />
-                                    </button>
-                                </div>
+                                </motion.div>
                             ))}
-
-                            {recentDocs.length > 10 && (
-                                <div className="px-5 py-3 border-t border-slate-100 text-center">
-                                    <button className="text-xs text-blue-600 font-semibold hover:underline">
-                                        Show all {recentDocs.length} documents
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     )}
                 </section>
 
-                {/* ── Templates ── */}
-                <section className="mt-14">
-                    <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-xl font-bold text-slate-900">Start from a template</h2>
-                        <div className="relative hidden sm:block">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search templates"
-                                value={templateSearch}
-                                onChange={e => setTemplateSearch(e.target.value)}
-                                className="h-8 bg-slate-100 rounded-lg pl-8 pr-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-400 w-48 transition-all"
-                            />
+                {/* ── Start from a template (Updated to presentation thumbnails) ── */}
+                <section className="mt-14 bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
+                    <div className="flex items-center justify-between mb-8">
+                        <h2 className="text-[20px] font-extrabold text-slate-950">Featured Templates</h2>
+                        {/* Tab bar is cleaner in the new layout */}
+                        <div className="flex gap-1.5 bg-slate-100 rounded-full p-1.5 border border-slate-200 shadow-inner max-w-lg overflow-x-auto no-scrollbar">
+                            {TEMPLATE_TABS.map(({ label, icon: Icon }) => (
+                                <button
+                                    key={label}
+                                    onClick={() => setActiveTab(label)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-all ${activeTab === label
+                                        ? 'bg-white text-blue-700 shadow-md'
+                                        : 'text-slate-600 hover:bg-white/60'}`}
+                                >
+                                    <Icon className="w-4 h-4" /> {label}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Tab bar */}
-                    <div className="flex gap-1 overflow-x-auto pb-1 mb-6 no-scrollbar">
-                        {TEMPLATE_TABS.map(({ label, icon: Icon }) => (
-                            <button
-                                key={label}
-                                onClick={() => setActiveTab(label)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activeTab === label
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-600 hover:bg-slate-100'}`}
-                            >
-                                <Icon className="w-3.5 h-3.5" /> {label}
-                            </button>
-                        ))}
+                    {/* Search inside templates block functioning */}
+                    <div className="mb-8 relative max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search templates"
+                            value={templateSearch}
+                            onChange={e => setTemplateSearch(e.target.value)}
+                            className="h-10 w-full bg-slate-100 rounded-full pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all border border-slate-200"
+                        />
                     </div>
 
-                    {/* Template grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {/* Template grid (visual placeholders) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredTemplates.map((template, idx) => (
                             <motion.div
                                 key={`${template.id}-${idx}`}
-                                initial={{ opacity: 0, y: 16 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.04 }}
+                                initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
                                 onClick={() => openEditor(template.type)}
-                                className="group cursor-pointer"
+                                className="group cursor-pointer relative"
                             >
-                                <div
-                                    className="aspect-[3/4] rounded-xl overflow-hidden shadow-sm border border-slate-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:border-transparent transition-all duration-200 relative flex flex-col p-3"
+                                {/* Thumbnail card */}
+                                <div className="aspect-[16/9] rounded-2xl overflow-hidden shadow-md border border-slate-200 transition-all group-hover:shadow-lg group-hover:scale-[1.01] p-5 flex flex-col gap-2.5 relative"
                                     style={{ backgroundColor: template.color }}
                                 >
-                                    {template.dark && <div className="absolute inset-0 bg-slate-900 opacity-95 rounded-xl" />}
-                                    <div className="relative z-10 flex flex-col h-full gap-1.5">
-                                        {template.type === 'blank' && !template.dark ? (
-                                            <div className="flex-1 flex items-center justify-center">
-                                                <div className="w-10 h-12 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center group-hover:border-blue-400 transition-colors">
-                                                    <Plus className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className={`h-2.5 w-3/4 rounded ${template.dark ? 'bg-white/30' : 'bg-white/70'}`} />
-                                                <div className={`h-1.5 w-full rounded ${template.dark ? 'bg-white/15' : 'bg-white/50'}`} />
-                                                <div className={`h-1.5 w-4/5 rounded ${template.dark ? 'bg-white/15' : 'bg-white/50'}`} />
-                                                <div className={`h-1.5 w-full rounded ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
-                                                <div className="flex-1" />
-                                                <div className={`h-1.5 w-1/2 rounded ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
-                                            </>
-                                        )}
+                                    {template.dark && <div className="absolute inset-0 bg-slate-950 opacity-90 rounded-2xl" />}
+                                    <div className="relative z-10 flex flex-col h-full gap-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className={`h-3 w-3/4 rounded-full ${template.dark ? 'bg-white/30' : 'bg-white/60'}`} />
+                                            <Grid className={`w-4 h-4 ${template.dark ? 'bg-white/10' : 'bg-white/40'}`} />
+                                        </div>
+                                        <div className={`h-2 w-full rounded-full ${template.dark ? 'bg-white/15' : 'bg-white/40'}`} />
+                                        <div className={`h-2 w-4/5 rounded-full ${template.dark ? 'bg-white/15' : 'bg-white/40'}`} />
+                                        <div className="flex-1" />
+                                        <div className={`h-1.5 w-1/2 rounded-full ${template.dark ? 'bg-white/10' : 'bg-white/30'}`} />
                                     </div>
-                                    <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors rounded-xl" />
+                                    <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/5 transition-colors rounded-2xl" />
                                 </div>
-                                <div className="mt-2 px-0.5">
-                                    <h3 className={`text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1`}>
-                                        {template.title}
-                                    </h3>
-                                    {template.author && (
-                                        <p className="text-[10px] text-slate-400 mt-0.5 truncate">{template.author}</p>
-                                    )}
+
+                                {/* Text & info */}
+                                <div className="mt-4 flex items-center justify-between gap-3 px-1">
+                                    <div className="min-w-0">
+                                        <h3 className="text-[13px] font-bold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1">{template.title}</h3>
+                                        {template.author && <p className="text-[11px] text-slate-500 mt-1 truncate">{template.author}</p>}
+                                    </div>
+                                    <Button onClick={() => openEditor(template.type)} size="sm" className="bg-blue-600 text-white rounded-full text-xs px-5 h-8 font-semibold">
+                                        View
+                                    </Button>
                                 </div>
                             </motion.div>
                         ))}
@@ -424,24 +444,14 @@ const EditorIntro = () => {
                 </section>
             </main>
 
-            {/* ── FAB ── */}
-            <motion.button
-                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-                onClick={() => openEditor('blank')}
-                className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center z-[100] group hover:bg-blue-700 transition-colors"
-                title="New Document"
-            >
-                <Plus className="w-6 h-6 transition-transform group-hover:rotate-90 duration-200" />
-            </motion.button>
-
-            {/* ── Context Menu ── */}
+            {/* ── Existing Context Menu ── (Position adjusted slightly for new layout context) */}
             <AnimatePresence>
                 {contextMenu && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="fixed z-[200] bg-white rounded-xl shadow-2xl border border-slate-200 py-1 w-44 text-sm"
+                        className="fixed z-[200] bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 w-48 text-[13px]"
                         style={{ top: contextMenu.y, left: contextMenu.x }}
                         onClick={e => e.stopPropagation()}
                     >
@@ -453,46 +463,59 @@ const EditorIntro = () => {
                             { type: 'sep' },
                             { icon: Trash2, label: 'Delete', action: () => deleteDoc(contextMenu.docId), danger: true },
                         ].map((item, i) => item.type === 'sep' ? (
-                            <div key={i} className="border-t border-slate-100 my-1" />
+                            <div key={i} className="border-t border-slate-100 my-1.5" />
                         ) : (
                             <button
                                 key={i}
                                 onClick={item.action}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 transition-colors text-left ${item.danger ? 'text-red-500 hover:bg-red-50' : 'text-slate-700'}`}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors text-left ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-800'}`}
                             >
-                                <item.icon className="w-3.5 h-3.5" /> {item.label}
+                                <item.icon className={`w-4 h-4 ${item.danger ? 'text-red-500' : 'text-slate-500'}`} /> {item.label}
                             </button>
                         ))}
                     </motion.div>
                 )}
             </AnimatePresence>
 
+            {/* ── FAB & Modals (Keep as-is for functionality) ── */}
+            <motion.button
+                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
+                onClick={() => openEditor('blank')}
+                className="fixed bottom-8 right-8 w-15 h-15 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center z-[100] group hover:bg-blue-700 transition-colors"
+                title="New Presentation"
+            >
+                <Plus className="w-7 h-7 transition-transform group-hover:rotate-90 duration-200" />
+            </motion.button>
+
             {/* ── Upload Dropzone Modal ── */}
             <AnimatePresence>
                 {showUploadZone && (
                     <>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/40 z-[150]" onClick={() => setShowUploadZone(false)} />
+                            className="fixed inset-0 bg-black/50 z-[150]" onClick={() => setShowUploadZone(false)} />
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 25 }}
                             className="fixed inset-0 z-[160] flex items-center justify-center p-4"
                         >
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8" onClick={e => e.stopPropagation()}>
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-bold text-slate-900">Import File</h2>
-                                    <button onClick={() => setShowUploadZone(false)} className="p-1 rounded-lg hover:bg-slate-100">
-                                        <X className="w-5 h-5 text-slate-500" />
+                            <div className="bg-white rounded-3xl shadow-3xl w-full max-w-xl p-10" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between mb-8">
+                                    <h2 className="text-2xl font-extrabold text-slate-950">Import Presentation File</h2>
+                                    <button onClick={() => setShowUploadZone(false)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500">
+                                        <X className="w-6 h-6" />
                                     </button>
                                 </div>
                                 <div
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-blue-300 rounded-2xl p-12 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all group"
+                                    className="border-2 border-dashed border-blue-200 rounded-2xl p-16 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/70 transition-all group shadow-inner"
                                 >
-                                    <Upload className="w-10 h-10 text-blue-400 mx-auto mb-3 group-hover:text-blue-600 transition-colors" />
-                                    <p className="font-semibold text-slate-700 mb-1">Click to browse or drag & drop</p>
-                                    <p className="text-xs text-slate-400">Supports .txt, .html, .md files</p>
+                                    <Upload className="w-14 h-14 text-blue-400 mx-auto mb-5 group-hover:text-blue-600 transition-colors" />
+                                    <p className="font-extrabold text-slate-800 text-lg mb-1.5">Click to browse or drag & drop</p>
+                                    <p className="text-sm text-slate-500">Supports .txt, .html, .md, .rtf files for slide generation</p>
                                 </div>
                                 <input ref={fileInputRef} type="file" accept=".txt,.html,.md,.rtf" multiple className="hidden" onChange={handleFileUpload} />
+                                <div className='flex justify-end mt-8'>
+                                    <Button onClick={() => setShowUploadZone(false)} size="lg" className="bg-slate-200 text-slate-800 rounded-full font-bold">Cancel</Button>
+                                </div>
                             </div>
                         </motion.div>
                     </>

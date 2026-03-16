@@ -164,6 +164,7 @@ import {
   RotateCcw,
   Droplets,
   Smile,
+  Upload
 } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Tooltip, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -710,13 +711,25 @@ export const EditorToolbar = ({
   }, [showTablePicker]);
 
   const insertTable = (rows, cols) => {
-    if (!editor) {
+    console.log('[TextEditor] insertTable called with:', rows, 'x', cols);
+    
+    if (!editor || editor.isDestroyed) {
+      console.error('[TextEditor] Editor not available or destroyed');
       toast.error('Editor not available');
       return;
     }
 
     try {
-      // Insert table using HTML for reliable compatibility
+      // Validate input
+      if (!rows || !cols || rows <= 0 || cols <= 0) {
+        console.error('[TextEditor] Invalid dimensions:', rows, 'x', cols);
+        toast.error('Invalid table dimensions');
+        return;
+      }
+
+      console.log('[TextEditor] Building table structure...');
+      
+      // Build table HTML for reliable insertion
       const tableHTML = `
         <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
           <tbody>
@@ -734,17 +747,30 @@ export const EditorToolbar = ({
         </table>
       `;
 
-      const result = editor.chain().focus().insertContent(tableHTML).run();
+      console.log('[TextEditor] Inserting table HTML...');
       
-      if (result) {
-        toast.success(`${rows}×${cols} table inserted`);
-      } else {
-        toast.error('Failed to insert table');
-      }
-
+      // Use runWithSavedSelection to maintain cursor position and prevent blur
+      const result = runWithSavedSelection(editor, (chain) => chain.insertContent(tableHTML));
+      
+      console.log('[TextEditor] Insert result:', result);
+      
+      // Close picker and reset state
       setShowTablePicker(false);
       setSelectedRows(0);
       setSelectedCols(0);
+      
+      if (result) {
+        toast.success(`${rows}×${cols} table inserted`);
+        // Focus the editor after a short delay
+        setTimeout(() => {
+          if (!editor.isDestroyed) {
+            editor.commands.focus();
+          }
+        }, 50);
+      } else {
+        console.error('[TextEditor] Table insertion failed');
+        toast.error('Failed to insert table');
+      }
     } catch (err) {
       console.error('[TextEditor] Table insertion error:', err);
       toast.error('Could not insert table: ' + err.message);
@@ -5140,13 +5166,83 @@ const TextEditorContent = ({
     setImageUrl(''); setSelectedImageAlt('');
   }, [imageUrl, selectedImageAlt, insertImage]);
 
-  const handleImageUpload = useCallback(async (event) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    const file = files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => { if (e.target?.result) insertImage(e.target.result, file.name); };
-    reader.readAsDataURL(file);
+  const handleImageUpload = useCallback(async (file) => {
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setIsImageUploading(true);
+      setUploadProgress(0);
+
+      // Simulate upload progress for better UX
+      const simulateProgress = () => {
+        return new Promise((resolve) => {
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress += Math.random() * 15 + 5; // Random progress between 5-20%
+            if (progress >= 90) {
+              progress = 90;
+              clearInterval(interval);
+              resolve();
+            } else {
+              setUploadProgress(Math.min(progress, 90));
+            }
+          }, 200); // Update every 200ms
+        });
+      };
+
+      // Start simulating progress
+      await simulateProgress();
+
+      // Read the file
+      const reader = new FileReader();
+      
+      reader.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = (event.loaded / event.total) * 100;
+          setUploadProgress(Math.min(percentComplete + 90, 95)); // Scale to 90-95% range
+        }
+      };
+
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setUploadProgress(100);
+          
+          // Small delay to show 100% completion
+          setTimeout(() => {
+            insertImage(e.target.result, file.name);
+            setIsImageUploading(false);
+            setUploadProgress(0);
+            toast.success('Image uploaded successfully! 🎉');
+          }, 300);
+        }
+      };
+
+      reader.onerror = () => {
+        toast.error('Failed to read image file');
+        setIsImageUploading(false);
+        setUploadProgress(0);
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload image');
+      setIsImageUploading(false);
+      setUploadProgress(0);
+    }
   }, [insertImage]);
 
   const handleDeleteDocument = useCallback(() => {
@@ -5475,45 +5571,164 @@ const TextEditorContent = ({
           )}
         </AnimatePresence>
 
-        {/* Image Modal */}
-        <AnimatePresence>
-          {showImageModal && (
-            <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowImageModal(false)} className="fixed inset-0 bg-black/50 z-50" />
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                  <div className="p-6 border-b flex items-center justify-between">
-                    <h2 className="text-xl font-bold">Insert Image</h2>
-                    <button onClick={() => setShowImageModal(false)} className="p-2 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+        {/* Enhanced Image Modal */}
+<AnimatePresence>
+  {showImageModal && (
+    <>
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+        onClick={() => setShowImageModal(false)} 
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]" 
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+        className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+      >
+        <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">Add Image</h2>
+              <p className="text-xs text-slate-500">Upload, link, or search for visuals</p>
+            </div>
+            <button onClick={() => setShowImageModal(false)} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors text-slate-400">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5">
+            {/* Navigation Tabs */}
+            <div className="flex p-0.5 bg-slate-100 rounded-lg mb-4 w-fit">
+              {['upload', 'url', 'stock'].map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setImageInsertMethod(method)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    imageInsertMethod === method ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {method.charAt(0).toUpperCase() + method.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Content Areas */}
+            <div className="space-y-4">
+              {imageInsertMethod === 'upload' && (
+                <div 
+                  className="border-2 border-dashed border-slate-200 rounded-xl p-6 transition-colors hover:border-blue-400 hover:bg-blue-50/30 group cursor-pointer text-center"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                      handleImageUpload(file);
+                    } else {
+                      toast.error('Please drop an image file');
+                    }
+                  }}
+                >
+                  <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <Upload className="w-5 h-5" />
                   </div>
-                  <div className="p-6 space-y-4">
-                    <div className="flex gap-2 mb-4">
-                      {['url','upload'].map(m => (
-                        <Button key={m} variant={imageInsertMethod === m ? 'default' : 'outline'} onClick={() => setImageInsertMethod(m)} size="sm">
-                          {m === 'url' ? <><Link className="w-4 h-4 mr-1" /> From URL</> : <><Upload className="w-4 h-4 mr-1" /> Upload</>}
-                        </Button>
-                      ))}
+                  <p className="text-sm font-medium text-slate-700">Click to upload or drag and drop</p>
+                  <p className="text-xs text-slate-400 mt-1">PNG, JPG or WebP (max 5MB)</p>
+                  
+                  {/* Progress Bar - Show during upload */}
+                  {isImageUploading && (
+                    <div className="mt-4 space-y-1.5">
+                      <div className="flex justify-between text-xs text-slate-500">
+                        <span>Uploading...</span>
+                        <span>{Math.round(uploadProgress)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${uploadProgress}%` }}
+                          transition={{ duration: 0.2 }}
+                        />
+                      </div>
+                      <p className="text-xs text-slate-400 animate-pulse">Please wait while we process your image...</p>
                     </div>
-                    {imageInsertMethod === 'url' ? (
-                      <div className="space-y-3">
-                        <Input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" onKeyDown={(e) => e.key === 'Enter' && handleImageUrlSubmit()} />
-                        <Input value={selectedImageAlt} onChange={(e) => setSelectedImageAlt(e.target.value)} placeholder="Alt text (optional)" />
-                        <Button onClick={handleImageUrlSubmit} className="w-full">Insert from URL</Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4 border-t flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setShowImageModal(false)}>Cancel</Button>
-                  </div>
+                  )}
+                  
+                  {!isImageUploading && (
+                    <>
+                      <input type="file" className="hidden" id="image-upload" accept="image/*" onChange={(e) => handleImageUpload(e.target.files[0])} />
+                      <Button variant="outline" className="mt-3 h-8 text-xs" onClick={() => document.getElementById('image-upload').click()}>
+                        Browse Files
+                      </Button>
+                    </>
+                  )}
                 </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+              )}
+
+              {imageInsertMethod === 'url' && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Image URL</Label>
+                    <div className="relative">
+                      <Link className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
+                      <Input 
+                        className="pl-9 h-9 text-sm" 
+                        placeholder="Paste image link here..." 
+                        value={imageUrl} 
+                        onChange={(e) => setImageUrl(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+                  {imageUrl && (
+                    <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center relative group">
+                      <img src={imageUrl} alt="Preview" className="w-full h-full object-contain" onError={(e) => e.target.src = 'fallback-url'} />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs font-medium">Image Preview</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer with Metadata & Actions */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Input 
+                  placeholder="Alt text (e.g. 'Dog running in park')" 
+                  value={selectedImageAlt} 
+                  onChange={(e) => setSelectedImageAlt(e.target.value)}
+                  className="bg-white h-9 text-sm"
+                />
+              </div>
+              <Select defaultValue="center">
+                <SelectTrigger className="w-[130px] h-9 bg-white text-sm">
+                  <SelectValue placeholder="Alignment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="center">Center</SelectItem>
+                  <SelectItem value="full">Full Width</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" className="h-9" onClick={() => setShowImageModal(false)}>Cancel</Button>
+              <Button 
+                disabled={!imageUrl && imageInsertMethod !== 'upload'} 
+                onClick={handleImageUrlSubmit}
+                className="bg-blue-600 hover:bg-blue-700 h-9 px-6 text-sm"
+              >
+                Insert Image
+              </Button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
 
         {/* AI Assistant Panel */}
         <AIAssistant

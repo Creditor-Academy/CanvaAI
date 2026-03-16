@@ -2,6 +2,7 @@
  * Text Editor AI Services
  * Centralized API calls for AI features (Claude, Pollinations)
  */
+import axios from 'axios';
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
@@ -284,8 +285,99 @@ async function chatWithAI({
   });
 }
 
+// ============================================================================
+// Backend API Configuration
+// ============================================================================
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+/**
+ * Get authentication headers from localStorage token
+ * @returns {Object} Axios config object with headers
+ */
+const getAuthConfig = () => {
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return { headers };
+};
+
+// ============================================================================
+// Document Management APIs (Backend)
+// ============================================================================
+
+/**
+ * Save a new document to the backend
+ * @param {Object} documentData - Document data
+ * @param {string} documentData.title - Document title
+ * @param {Object} documentData.data - Document content data (ProseMirror JSON)
+ * @param {string} [documentData.data.html] - HTML representation
+ * @param {Object} [documentData.data.content] - ProseMirror content JSON
+ * @returns {Promise<{id: string, title: string, message: string}>}
+ */
+async function saveDocument({ title, data }) {
+  const response = await axios.post(
+    `${API_BASE_URL}/api/text-editor/save`,
+    { title, data },
+    getAuthConfig()
+  );
+  
+  return response.data;
+}
+
+/**
+ * Get document by ID from backend
+ * @param {string} documentId - MongoDB document ID
+ * @returns {Promise<{id: string, title: string, data: Object, createdAt: string, updatedAt: string}>}
+ */
+async function getDocumentById(documentId) {
+  const response = await axios.get(
+    `${API_BASE_URL}/api/text-editor/document/${documentId}`,
+    getAuthConfig()
+  );
+  
+  return response.data;
+}
+
+/**
+ * Update existing document
+ * @param {string} documentId - Document ID
+ * @param {Object} documentData - Updated document data
+ * @returns {Promise<{id: string, message: string}>}
+ */
+async function updateDocument(documentId, documentData) {
+  const response = await axios.put(
+    `${API_BASE_URL}/api/text-editor/document/${documentId}`,
+    documentData,
+    getAuthConfig()
+  );
+  
+  return response.data;
+}
+
+/**
+ * Delete document
+ * @param {string} documentId - Document ID
+ * @returns {Promise<{message: string}>}
+ */
+async function deleteDocument(documentId) {
+  const response = await axios.delete(
+    `${API_BASE_URL}/api/text-editor/document/${documentId}`,
+    getAuthConfig()
+  );
+  
+  return response.data;
+}
+
 // Export all service functions
 export const TextEditorService = {
+  // AI Functions
   callClaude,
   callClaudeChat,
   buildPollinationsUrl,
@@ -293,4 +385,10 @@ export const TextEditorService = {
   generateImage,
   transformText,
   chatWithAI,
+  
+  // Backend Document Management
+  saveDocument,
+  getDocumentById,
+  updateDocument,
+  deleteDocument,
 };
