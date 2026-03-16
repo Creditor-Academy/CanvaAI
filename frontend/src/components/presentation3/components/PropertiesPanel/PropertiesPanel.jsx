@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import usePresentationStore from "../../store/usePresentationStore";
 import { debounce } from "lodash";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -8,56 +9,56 @@ import { toggleBlock, isBlockActive } from "../../editors/slate/slateBlocks";
 import { Link as LinkIcon, X } from "lucide-react";
 import "./properties-panel.css";
 
-const ColorPicker = ({ value, onChange, onHistorySave }) => {
-  const isInteracting = React.useRef(false);
+const ColorPicker = React.memo(({ value, onChange, onHistorySave }) => {
+  const [localValue, setLocalValue] = useState(value);
 
-  // Debounced reset to clear the interaction flag after user stops dragging
-  const resetInteraction = React.useCallback(
-    debounce(() => {
-      isInteracting.current = false;
-    }, 500),
-    []
-  );
+  // Sync with prop if it changes from outside
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   const handleChange = (e) => {
     const newValue = e.target.value;
-
-    // Only save history at the START of a continuous interaction (drag/hover)
-    if (!isInteracting.current) {
-      onHistorySave();
-      isInteracting.current = true;
-    }
-
-    // Update state without saving history (live preview)
+    setLocalValue(newValue);
+    // Live update in store without history
     onChange(newValue, false);
-
-    // Reset flag if no updates for 500ms
-    resetInteraction();
   };
 
-  return <input type="color" value={value} onChange={handleChange} />;
-};
+  const handleCommit = () => {
+    if (localValue !== value) {
+      if (onHistorySave) onHistorySave();
+      onChange(localValue, true);
+    }
+  };
 
-const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
-  const isInteracting = React.useRef(false);
-
-  const resetInteraction = React.useCallback(
-    debounce(() => {
-      isInteracting.current = false;
-    }, 500),
-    []
+  return (
+    <input
+      type="color"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleCommit}
+    />
   );
+});
+
+const RangeControl = React.memo(({ label, value, min, max, onChange, onHistorySave }) => {
+  const [localValue, setLocalValue] = useState(value);
+
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   const handleChange = (e) => {
     const val = Number(e.target.value);
-
-    if (!isInteracting.current) {
-      if (onHistorySave) onHistorySave();
-      isInteracting.current = true;
-    }
-
+    setLocalValue(val);
     onChange(val, false);
-    resetInteraction();
+  };
+
+  const handleCommit = () => {
+    if (localValue !== value) {
+      if (onHistorySave) onHistorySave();
+      onChange(localValue, true);
+    }
   };
 
   return (
@@ -68,26 +69,25 @@ const RangeControl = ({ label, value, min, max, onChange, onHistorySave }) => {
           type="range"
           min={min}
           max={max}
-          value={value}
+          value={localValue}
           onChange={handleChange}
+          onMouseUp={handleCommit}
+          onBlur={handleCommit}
           style={{ flex: 1 }}
         />
         <input
           type="number"
           min={min}
           max={max}
-          value={value}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            if (onHistorySave) onHistorySave();
-            onChange(val, false); // onChange usage in PropertiesPanel usually expects false if manual save called
-          }}
+          value={localValue}
+          onChange={handleChange}
+          onBlur={handleCommit}
           style={{ width: "50px" }}
         />
       </div>
     </div>
   );
-};
+});
 
 // Shared 2x5 palette used for slide background + text colors
 const PALETTE_COLORS = [
@@ -197,36 +197,32 @@ const PaletteColorControl = ({
 };
 
 const PropertiesPanel = () => {
-  const {
-    slides,
-    activeSlideId,
-    getSelectedLayer,
-    updateSlideBackground,
-    updateTextLayer,
-    updateShapeLayer,
-    setTextAlignment,
-    toggleBold,
-    toggleItalic,
-    toggleUnderline,
-    setSlideBackgroundImage,
-    reorderLayer,
-    updateLayerRotation,
-    alignLayer,
-    addTableRow,
-    addTableColumn,
-    removeTableRow,
-    removeTableColumn,
-    saveToHistory,
-    updateLayerStyle,
-    applyGlobalTextStyle,
-    selectedLayerId, // Add selectedLayerId
-    editingLayerId,
-    selectionMarks,
-    editingCell, // Add editingCell
-    updateTableCell, // Add updateTableCell
-    activeEditor,
-    presentationId,
-  } = usePresentationStore();
+  // 1. Individual Selectors for state
+  const activeSlideId = usePresentationStore(state => state.activeSlideId);
+  const slides = usePresentationStore(state => state.slides);
+  const selectedLayerId = usePresentationStore(state => state.selectedLayerId);
+  const editingLayerId = usePresentationStore(state => state.editingLayerId);
+  const editingCell = usePresentationStore(state => state.editingCell);
+  const selectionMarks = usePresentationStore(state => state.selectionMarks);
+  const activeEditor = usePresentationStore(state => state.activeEditor);
+  const presentationId = usePresentationStore(state => state.presentationId);
+
+  // 2. Selectors for actions
+  const updateSlideBackground = usePresentationStore(state => state.updateSlideBackground);
+  const updateTextLayer = usePresentationStore(state => state.updateTextLayer);
+  const updateShapeLayer = usePresentationStore(state => state.updateShapeLayer);
+  const setSlideBackgroundImage = usePresentationStore(state => state.setSlideBackgroundImage);
+  const reorderLayer = usePresentationStore(state => state.reorderLayer);
+  const updateLayerRotation = usePresentationStore(state => state.updateLayerRotation);
+  const alignLayer = usePresentationStore(state => state.alignLayer);
+  const addTableRow = usePresentationStore(state => state.addTableRow);
+  const addTableColumn = usePresentationStore(state => state.addTableColumn);
+  const removeTableRow = usePresentationStore(state => state.removeTableRow);
+  const removeTableColumn = usePresentationStore(state => state.removeTableColumn);
+  const saveToHistory = usePresentationStore(state => state.saveToHistory);
+  const updateLayerStyle = usePresentationStore(state => state.updateLayerStyle);
+  const applyGlobalTextStyle = usePresentationStore(state => state.applyGlobalTextStyle);
+  const updateTableCell = usePresentationStore(state => state.updateTableCell);
 
   const { user } = useAuth();
   const { uploadFile, isUploading } = useImageUpload();
@@ -262,15 +258,22 @@ const PropertiesPanel = () => {
     "Libre Baskerville",
     "Fira Sans",
     "DM Sans",
+    "Imperial Script",
+    "Luxurious Script",
+    "Allura",
+    "Burgues Script",
+    "Desirable Calligraphy",
   ];
 
-  const activeSlide = slides.find(
-    (slide) => slide.id === activeSlideId
+  const activeSlide = React.useMemo(() => 
+    slides.find(s => s.id === activeSlideId), 
+    [slides, activeSlideId]
   );
 
-  const selectedLayer = getSelectedLayer();
-
-  if (!activeSlide) return null;
+  const selectedLayer = React.useMemo(() => 
+    activeSlide?.layers?.find(l => l.id === selectedLayerId) || null,
+    [activeSlide?.layers, selectedLayerId]
+  );
 
   return (
     <div className={`properties-panel ${collapsed ? "collapsed" : ""}`}>
@@ -285,8 +288,14 @@ const PropertiesPanel = () => {
 
       {/* Scrollable Content */}
       <div className="properties-content">
-        {/* SLIDE PROPERTIES (no layer selected) */}
-        {!selectedLayer && (
+        {!activeSlide ? (
+          <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>
+            Select a slide to edit properties
+          </div>
+        ) : (
+          <>
+            {/* SLIDE PROPERTIES (no layer selected) */}
+            {!selectedLayer && (
           <>
             <h3 style={styles.heading}>Slide</h3>
 
@@ -351,7 +360,7 @@ const PropertiesPanel = () => {
                   <LinkIcon size={16} /> Insert from URL
                 </button>
 
-                {showUrlPopup && (
+                {showUrlPopup && createPortal(
                   <div className="modal-overlay" onClick={() => setShowUrlPopup(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                       <h3>Add Image from URL</h3>
@@ -384,7 +393,8 @@ const PropertiesPanel = () => {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
 
@@ -956,14 +966,14 @@ const PropertiesPanel = () => {
             </div>
           </>
         )}
+          </>
+        )}
       </div>
-
-
     </div>
   );
 };
 
-export default PropertiesPanel;
+export default React.memo(PropertiesPanel);
 
 const styles = {
   panel: {

@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { listPresentations, deletePresentation, getAdminTemplates, savePresentation, getPublicTemplateById } from '../services/presentation';
 import PresentationThumbnail from '../components/PresentationThumbnail';
 import TemplatePreviewModal from '../components/presentation3/TemplatePreviewModal';
+import SkeletonCard from '../components/SkeletonCard';
 
 const Presentation = () => {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ const Presentation = () => {
 
       .ai-btn-inner {
         border-radius: 22px;
-        background: linear-gradient(135deg, #1968df 0%, #0ea5e9 50%, #1965df 100%);
+        background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
         padding: 32px;
         display: flex;
         align-items: center;
@@ -148,6 +149,31 @@ const Presentation = () => {
       .glow-card:hover {
         box-shadow: 0 0 45px rgba(99, 102, 241, 0.2), 0 12px 40px rgba(0,0,0,0.08);
         transform: translateY(-2px);
+      }
+
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e4e4e4 37%,
+          #f0f0f0 63%
+        );
+        background-size: 400% 100%;
+        animation: shimmer 1.4s ease infinite;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: 100% 0 }
+        100% { background-position: -100% 0 }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.25s ease-in forwards;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     `;
     document.head.appendChild(style);
@@ -334,13 +360,15 @@ const Presentation = () => {
 
             <div style={styles.scrollContainer}>
               {loading ? (
-                <div style={styles.emptyState}>Loading your work...</div>
+                <div style={styles.grid}>
+                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                </div>
               ) : presentations.length === 0 ? (
                 <div style={styles.emptyCard}>
                   <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>No presentations yet. Start creating!</p>
                 </div>
               ) : (
-                <div style={styles.grid}>
+                <div style={styles.grid} className="fade-in">
                   {presentations.map((ppt) => (
                     <div
                       key={ppt._id}
@@ -416,9 +444,11 @@ const Presentation = () => {
 
             <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
               {templatesLoading ? (
-                <div style={styles.emptyState}>Loading templates...</div>
-              ) : (
                 <div style={styles.grid}>
+                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                </div>
+              ) : (
+                <div style={styles.grid} className="fade-in">
                   {templates.map((tpl) => (
                     <div
                       key={tpl._id}
@@ -489,7 +519,7 @@ const styles = {
   container: {
     minHeight: '100vh',
     background: 'transparent',
-    padding: '40px 20px',
+    padding: '100px 40px 40px 80px',
     position: 'relative',
     zIndex: 1,
   },
