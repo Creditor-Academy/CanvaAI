@@ -214,8 +214,8 @@ const ImageDash = () => {
                                     </div>
 
                                     <div className="p-5">
-                                        <div className='flex justify-between'>
-                                            <div className="flex items-start justify-between">
+                                        <div className='flex justify-between items-center'>
+                                            <div className="flex-1 min-w-0">
                                                 <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
                                             </div>
                                             <button

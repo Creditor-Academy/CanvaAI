@@ -602,85 +602,51 @@ const CanvaEditor = () => {
     return await exportCanvasAsImage(layers, canvasSize, format, quality, canvasBgColor, canvasBgImage);
   };
 
-  const handleDownloadExport = async (format) => {
+  const handleDownloadExport = async (format, fileName) => {
     if (isExporting) return;
     setIsExporting(true);
+
     try {
       const fmt = format || exportFormat;
 
-      // If project is saved (has an id), call backend export endpoint to get server-generated file
-      if (projectId) {
-        try {
-          const blob = await exportImage(projectId, fmt);
-
-          // If server returned JSON (error), blob.type will be application/json — handle gracefully
-          if (blob && blob.type && blob.type.includes('application/json')) {
-            const text = await blob.text();
-            let msg = 'Export failed';
-            try {
-              const parsed = JSON.parse(text);
-              msg = parsed.message || parsed.error || JSON.stringify(parsed);
-            } catch (e) {
-              msg = text;
-            }
-            toast.error(msg);
-          } else {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const ext = fmt === 'jpeg' ? 'jpg' : fmt;
-            link.href = url;
-            link.download = `design-${timestamp}.${ext}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }
-          return;
-        } catch (err) {
-          console.error('Backend export failed, falling back to client export:', err);
-          // fallthrough to client-side export
-        }
-      }
-
-      // Fallback: client-side export (works for unsaved/new projects)
+      // ⭐ 1. EXPORT IMAGE FROM CANVAS
       const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
       if (!dataUrl) return;
-      const link = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const ext = fmt === 'jpeg' ? 'jpg' : (fmt === 'webp' ? 'webp' : fmt === 'jpg' ? 'jpg' : fmt);
-      link.download = `design-${timestamp}.${ext}`;
+
+      // ⭐ 2. DOWNLOAD IMAGE
+      const link = document.createElement("a");
+      const safeName = fileName || `design-${Date.now()}`;
+      const ext = fmt === "jpeg" ? "jpg" : fmt;
+
+      link.download = `${safeName}.${ext}`;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      // Optionally persist and download project file (worksheet)
+
+      // ⭐ 3. SAVE IMAGE IN DATABASE
       try {
-        const layersWithCanvasMeta = layers.map(l => ({
-          ...l,
-          canvasBgColor,
-          canvasBgImage,
-          zoom: 100,
-          pan: { x: 0, y: 0 },
-          canvasSize
-        }));
-        const design = { layers: layersWithCanvasMeta, canvasSize, savedAt: Date.now() };
-        localStorage.setItem('canvaDesign', JSON.stringify(design));
-        if (includeProjectFile) {
-          const blob = new Blob([JSON.stringify(design, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const jsonLink = document.createElement('a');
-          jsonLink.href = url;
-          jsonLink.download = `design-${timestamp}.json`;
-          document.body.appendChild(jsonLink);
-          jsonLink.click();
-          document.body.removeChild(jsonLink);
-          URL.revokeObjectURL(url);
-        }
-      } catch { }
+        const payload = {
+          userId: user?._id || user?.id,
+          title: safeName,
+          isPublic: false,
+          format: fmt,
+          imageBase64: dataUrl,   // ⭐ IMPORTANT
+        };
+
+        const res = await saveImage(payload);
+
+        console.log("Image Saved:", res);
+        toast.success("Image exported & saved successfully");
+      } catch (err) {
+        console.error("Save export image error:", err);
+        toast.error("Image downloaded but failed to save");
+      }
+
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsExporting(false);
-      setIsSaveModalOpen(false);
     }
   };
 
@@ -1824,7 +1790,7 @@ const CanvaEditor = () => {
         {/* Canvas Area - scrollable container with all pages */}
         <div
           onClick={handleOutsideClick}
-          className="flex-1 flex flex-col justify-center items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
+          className="flex-1 flex flex-col justify-start items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
         >
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
@@ -1832,7 +1798,7 @@ const CanvaEditor = () => {
             const pageLayers = isActivePage ? layers : (page.layers || []);
 
             return (
-              <div key={page.id} className="w-full flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
+              <div key={page.id} className="w-full mt-8 flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
                 <div className="flex justify-center items-center mr-40">
                   <CanvasArea
                     canvasAreaRef={pageRefs.canvasAreaRef}
