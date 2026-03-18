@@ -4,7 +4,7 @@ import {
     Plus, Upload, Search, Settings, Grid, ChevronRight, FileText, Clock, Star,
     Users, MoreVertical, ArrowRight, Trash2, Edit3, Copy, Download, Pin,
     PinOff, FolderOpen, Sparkles, BookOpen, Briefcase, Mail, AlignLeft,
-    ListChecks, FileCode, ScrollText, X, Check
+    ListChecks, FileCode, ScrollText, X, Check, RefreshCw, Smile
 } from 'lucide-react';
 import { Button } from '../components/athena-editor/components/ui/button';
 import { toast } from 'sonner';
@@ -95,47 +95,42 @@ const EditorIntro = () => {
     const [renameId, setRenameId] = useState(null);
     const [renameValue, setRenameValue] = useState('');
     const fileInputRef = useRef(null);
+    
+    // AI Document Generator Modal State
+    const [showAIGenerator, setShowAIGenerator] = useState(false);
+    const [aiTopic, setAiTopic] = useState('');
+    const [aiContentType, setAiContentType] = useState('document');
+    const [aiLength, setAiLength] = useState('medium');
+    const [aiTonality, setAiTonality] = useState('professional');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     // Load documents from backend on mount
     useEffect(() => {
         const fetchDocuments = async () => {
             setIsLoading(true);
             try {
-                // Try to load from backend first
+                // Fetch ONLY from backend - no localStorage merging
                 const backendResult = await TextEditorService.getAllDocuments();
                 const backendDocs = backendResult?.documents || [];
                 
-                if (backendDocs.length > 0) {
-                    // Merge backend docs with localStorage metadata
-                    const localDocs = loadDocuments();
-                    const mergedDocs = backendDocs.map(backendDoc => {
-                        // Find matching local doc by title or mongoBackendId
-                        const matchingLocal = localDocs.find(d => 
-                            d.mongoBackendId === backendDoc.id || 
-                            (d.title === backendDoc.title && Math.abs(d.createdAt - new Date(backendDoc.createdAt).getTime()) < 60000)
-                        );
-                        
-                        return {
-                            id: backendDoc.id, // Use MongoDB ID as primary
-                            title: backendDoc.title,
-                            content: '', // Will be loaded when opening
-                            createdAt: new Date(backendDoc.createdAt).getTime(),
-                            lastOpened: matchingLocal?.lastOpened || Date.now(),
-                            template: matchingLocal?.template || 'document',
-                            pinned: matchingLocal?.pinned || false,
-                            slideCount: 0,
-                            isBackend: true // Mark as backend document
-                        };
-                    });
-                    
-                    setDocuments(mergedDocs);
-                } else {
-                    // Fallback to localStorage if backend returns empty
-                    setDocuments(loadDocuments());
-                }
+                // Transform backend docs for UI display
+                const formattedDocs = backendDocs.map(backendDoc => ({
+                    id: backendDoc.id,
+                    title: backendDoc.title || 'Untitled Document',
+                    createdAt: new Date(backendDoc.createdAt).getTime(),
+                    updatedAt: new Date(backendDoc.updatedAt).getTime(),
+                    lastOpened: new Date(backendDoc.updatedAt).getTime(),
+                    template: 'document',
+                    pinned: false,
+                    slideCount: 0,
+                    isBackend: true
+                }));
+                
+                console.log(`📊 Loaded ${formattedDocs.length} documents from backend`);
+                setDocuments(formattedDocs);
             } catch (error) {
                 console.error('Error loading documents:', error);
-                setDocuments(loadDocuments());
+                setDocuments([]); // Show empty if backend fails
             } finally {
                 setIsLoading(false);
             }
@@ -143,15 +138,36 @@ const EditorIntro = () => {
         
         fetchDocuments();
         
+        // Refresh documents when returning from editor tab
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('🔄 Refreshing documents list from backend');
+                fetchDocuments();
+            }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Listen for refresh signal from editor tabs
+        const handleStorageChange = (e) => {
+            if (e.key === 'athena_document_refresh') {
+                console.log('📡 Received refresh signal from editor, updating documents...');
+                fetchDocuments();
+            }
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        
         // Poll every 5s for updates
         const interval = setInterval(() => {
-            setDocuments(prev => {
-                const updated = loadDocuments();
-                return updated.length > prev.length ? updated : prev;
-            });
+            fetchDocuments(); // Always fetch fresh from backend
         }, 5000);
         
-        return () => clearInterval(interval);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('storage', handleStorageChange);
+            clearInterval(interval);
+        };
     }, []);
 
     const persistDocs = (docs) => {
@@ -167,36 +183,38 @@ const EditorIntro = () => {
             try {
                 let doc;
                 if (isMongoId) {
-                    // Load from backend
+                    // Load from backend directly
                     doc = await TextEditorService.getDocumentById(docId);
+                    console.log('📄 Loaded document from backend:', {
+                        id: doc.id,
+                        title: doc.title,
+                        hasHtml: !!doc.data?.html,
+                        hasContent: !!doc.data?.content,
+                        htmlLength: doc.data?.html?.length || 0
+                    });
                 } else {
-                    // Load from localStorage first
+                    // For localStorage IDs, check if it has backend reference
                     const localDoc = documents.find(d => d.id === docId);
                     if (!localDoc) {
-                        throw new Error('Document not found locally');
+                        throw new Error('Document not found');
                     }
                     
-                    // If document has mongoBackendId, use that
+                    // If document has mongoBackendId, load from backend
                     if (localDoc.mongoBackendId) {
                         doc = await TextEditorService.getDocumentById(localDoc.mongoBackendId);
                     } else {
-                        // Use localStorage content
-                        doc = {
-                            id: localDoc.id,
-                            title: localDoc.title,
-                            data: {
-                                html: localDoc.content || '',
-                                content: localDoc.content || ''
-                            }
-                        };
+                        // Document exists only in localStorage - show error
+                        toast.error('This document needs to be saved to backend first');
+                        return;
                     }
                 }
                 
-                localStorage.setItem('athena_active_doc_id', doc.id);
-                localStorage.setItem('athena_active_doc_content', doc.data?.html || doc.content || '');
-                localStorage.setItem('athena_active_doc_title', doc.title || 'Untitled');
+                // Pass document data via URL params for the editor to fetch
+                // Editor will call the API directly to get content
+                const windowUrl = `/editor/${doc.id}?docId=${doc.id}`;
+                window.open(windowUrl, '_blank');
                 
-                // Update last opened
+                // Update last opened in local state
                 const updatedDocs = documents.map(d => 
                     d.id === docId ? { ...d, lastOpened: Date.now() } : d
                 );
@@ -256,10 +274,25 @@ const EditorIntro = () => {
         setShowUploadZone(false);
     };
 
-    const deleteDoc = (id) => {
+    const deleteDoc = async (id) => {
         if (!window.confirm('Delete this document?')) return;
-        persistDocs(documents.filter(d => d.id !== id));
-        toast.success('Document deleted');
+        
+        try {
+            // Delete from backend
+            await TextEditorService.deleteDocument(id);
+            console.log('✅ Document deleted from backend:', id);
+            
+            // Trigger refresh across all tabs
+            localStorage.setItem('athena_document_refresh', Date.now().toString());
+            
+            // Update local state immediately
+            setDocuments(documents.filter(d => d.id !== id));
+            toast.success('Document deleted successfully');
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Failed to delete document: ' + (error.message || 'Unknown error'));
+        }
+        
         setContextMenu(null);
     };
 
@@ -281,6 +314,126 @@ const EditorIntro = () => {
         setRenameId(doc.id);
         setRenameValue(doc.title);
         setContextMenu(null);
+    };
+
+    // AI Document Generation
+    const handleAIGenerate = async () => {
+        if (!aiTopic.trim()) {
+            toast.error('Please enter a topic');
+            return;
+        }
+
+        setIsGenerating(true);
+
+        try {
+            // Import AI utils for document generation
+            const { generateDocument } = await import('../components/athena-editor/ai/aiUtils.js');
+
+            // Build the prompt based on user selections
+            const lengthInstructions = {
+                short: 'Keep it concise and brief (around 300 words)',
+                medium: 'Provide moderate detail (around 600 words)',
+                long: 'Be comprehensive and detailed (around 1200 words)',
+                custom: 'Adjust length as appropriate for the content'
+            };
+
+            const tonalityStyle = {
+                professional: 'Use formal, business-appropriate language',
+                casual: 'Use friendly, conversational tone',
+                academic: 'Use scholarly, research-based language with citations',
+                creative: 'Use imaginative, engaging storytelling style',
+                persuasive: 'Use compelling, argumentative language to convince readers',
+                informative: 'Use clear, educational language focused on facts'
+            };
+
+            const contentTypeTemplates = {
+                document: 'Create a well-structured document',
+                essay: 'Write an academic essay with introduction, body paragraphs, and conclusion',
+                report: 'Generate a formal business report with executive summary and recommendations',
+                article: 'Write an engaging article or blog post',
+                story: 'Create a narrative story with characters and plot',
+                poem: 'Compose a creative poem'
+            };
+
+            const fullPrompt = `${contentTypeTemplates[aiContentType]} about: ${aiTopic}. \n\nStyle instructions:\n- Length: ${lengthInstructions[aiLength]}\n- Tonality: ${tonalityStyle[aiTonality]}\n\nFormat the content with proper headings, paragraphs, and structure appropriate for a ${aiContentType}.`;
+
+            console.log('🤖 Generating AI document with:', {
+                topic: aiTopic,
+                contentType: aiContentType,
+                length: aiLength,
+                tonality: aiTonality
+            });
+
+            // Generate content using AI via backend API
+            const generatedContent = await generateDocument({
+                topic: aiTopic,
+                pages: aiLength === 'long' ? 3 : aiLength === 'medium' ? 2 : 1,
+                tone: aiTonality,
+                type: aiContentType,
+                temperature: 0.7
+            });
+
+            console.log('✅ Content generated successfully');
+
+            // Create new document with generated content
+            const response = await TextEditorService.saveDocument({
+                title: `${aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1)}: ${aiTopic.substring(0, 40)}${aiTopic.length > 40 ? '...' : ''}`,
+                data: {
+                    content: generatedContent,
+                    html: generatedContent
+                }
+            });
+
+            const documentId = response.document?.id || response.id;
+            
+            console.log('📄 Document saved with ID:', documentId);
+
+            const newDoc = {
+                id: documentId || `doc_${Date.now()}`,
+                mongoBackendId: documentId,
+                title: response.document?.title || response.title || aiTopic.substring(0, 50),
+                content: generatedContent,
+                createdAt: Date.now(),
+                lastOpened: Date.now(),
+                template: 'ai-generated',
+                pinned: false,
+                slideCount: 0
+            };
+
+            // Update local state
+            persistDocs(prev => {
+                const updated = [newDoc, ...prev];
+                saveDocuments(updated);
+                return updated;
+            });
+
+            toast.success('✨ Document generated successfully!');
+            setShowAIGenerator(false);
+
+            // Reset form
+            setAiTopic('');
+            setAiContentType('document');
+            setAiLength('medium');
+            setAiTonality('professional');
+
+            // Open the editor with the generated document
+            if (documentId) {
+                // Use the correct route format: /editor/:mongoId
+                const editorUrl = `/editor/${documentId}`;
+                console.log('🚀 Opening editor at:', editorUrl);
+                window.open(editorUrl, '_blank');
+            } else {
+                toast.error('Failed to get document ID');
+            }
+
+        } catch (error) {
+            console.error('AI Generation error:', error);
+            toast.error(error.message?.includes('API') 
+                ? 'AI service unavailable. Please check your API configuration.'
+                : 'Failed to generate content. Please try again.');
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const saveRename = () => {
@@ -338,7 +491,7 @@ const EditorIntro = () => {
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                     <motion.div
                         whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }}
-                        onClick={() => openEditor('blank')} // Keep logic to start blank, or map to an AI generator if implemented
+                        onClick={() => setShowAIGenerator(true)}
                         className="bg-amber-400 hover:bg-amber-500 rounded-3xl p-7 flex gap-5 cursor-pointer shadow-lg transition-colors items-center"
                     >
                         <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -370,6 +523,50 @@ const EditorIntro = () => {
                     <div className="flex items-center justify-between mb-8">
                         <h2 className="text-[20px] font-extrabold text-slate-950">Recent Documents</h2>
                         <div className="flex gap-2.5">
+                            {/* Refresh Button */}
+                            <button
+                                onClick={() => {
+                                    console.log('🔄 Manual refresh triggered');
+                                    const fetchDocs = async () => {
+                                        setIsLoading(true);
+                                        try {
+                                            const backendResult = await TextEditorService.getAllDocuments();
+                                            const backendDocs = backendResult?.documents || [];
+                                            const localDocs = loadDocuments();
+                                            const mergedDocs = backendDocs.map(backendDoc => {
+                                                const matchingLocal = localDocs.find(d => 
+                                                    d.mongoBackendId === backendDoc.id || 
+                                                    (d.title === backendDoc.title && Math.abs(d.createdAt - new Date(backendDoc.createdAt).getTime()) < 60000)
+                                                );
+                                                return {
+                                                    id: backendDoc.id,
+                                                    title: backendDoc.title,
+                                                    content: '',
+                                                    createdAt: new Date(backendDoc.createdAt).getTime(),
+                                                    lastOpened: matchingLocal?.lastOpened || Date.now(),
+                                                    template: matchingLocal?.template || 'document',
+                                                    pinned: matchingLocal?.pinned || false,
+                                                    slideCount: 0,
+                                                    isBackend: true
+                                                };
+                                            });
+                                            setDocuments(mergedDocs);
+                                            toast.success('Documents refreshed');
+                                        } catch (error) {
+                                            console.error('Refresh error:', error);
+                                        } finally {
+                                            setIsLoading(false);
+                                        }
+                                    };
+                                    fetchDocs();
+                                }}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-sm font-semibold transition-all"
+                                title="Refresh documents list"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Refresh
+                            </button>
+                            
                             {/* Search keeps functioning */}
                             <div className="relative">
                                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -406,7 +603,7 @@ const EditorIntro = () => {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {recentDocs.slice(0, 10).map((doc, idx) => (
+                            {recentDocs.slice(0, 8).map((doc, idx) => (
                                 <motion.div
                                     key={doc.id}
                                     initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
@@ -617,6 +814,201 @@ const EditorIntro = () => {
                             </div>
                         </motion.div>
                     </>
+                )}
+            </AnimatePresence>
+
+            {/* AI Document Generator Modal */}
+            <AnimatePresence>
+                {showAIGenerator && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        onClick={() => !isGenerating && setShowAIGenerator(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: -20 }}
+                            transition={{ type: "spring", duration: 0.5 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                            <Sparkles className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-white">Create with AI</h2>
+                                            <p className="text-white/90 text-xs">Let AI generate your document</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => !isGenerating && setShowAIGenerator(false)}
+                                        className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                                    >
+                                        <X className="w-4 h-4 text-white" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-5 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+                                {/* Topic Input */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                        <AlignLeft className="w-3.5 h-3.5 text-amber-500" />
+                                        What should your document be about?
+                                    </label>
+                                    <textarea
+                                        value={aiTopic}
+                                        onChange={(e) => setAiTopic(e.target.value)}
+                                        placeholder="e.g., The impact of artificial intelligence on modern healthcare..."
+                                        className="w-full min-h-[80px] p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none text-sm placeholder:text-slate-400"
+                                        disabled={isGenerating}
+                                    />
+                                </div>
+
+                                {/* Content Type Selection */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                        <FileText className="w-3.5 h-3.5 text-amber-500" />
+                                        Content Type
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                            { id: 'document', label: 'Document', icon: FileText },
+                                            { id: 'essay', label: 'Essay', icon: BookOpen },
+                                            { id: 'report', label: 'Report', icon: Briefcase },
+                                            { id: 'article', label: 'Article', icon: ScrollText },
+                                            { id: 'story', label: 'Story', icon: Sparkles },
+                                            { id: 'poem', label: 'Poem', icon: Sparkles }
+                                        ].map((type) => {
+                                            const Icon = type.icon;
+                                            return (
+                                                <button
+                                                    key={type.id}
+                                                    onClick={() => setAiContentType(type.id)}
+                                                    disabled={isGenerating}
+                                                    className={`p-2.5 rounded-xl border-2 transition-all flex flex-col items-center gap-1.5 ${
+                                                        aiContentType === type.id
+                                                            ? 'border-amber-400 bg-amber-50 text-amber-700'
+                                                            : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                                                    }`}
+                                                >
+                                                    <Icon className="w-5 h-5" />
+                                                    <span className="text-[11px] font-medium">{type.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Length & Tonality */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Length */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                            <ScrollText className="w-3.5 h-3.5 text-amber-500" />
+                                            Length
+                                        </label>
+                                        <div className="space-y-1.5">
+                                            {[
+                                                { id: 'short', label: 'Short', desc: '~300 words' },
+                                                { id: 'medium', label: 'Medium', desc: '~600 words' },
+                                                { id: 'long', label: 'Long', desc: '~1200 words' }
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.id}
+                                                    onClick={() => setAiLength(option.id)}
+                                                    disabled={isGenerating}
+                                                    className={`w-full p-2.5 rounded-xl border-2 transition-all text-left ${
+                                                        aiLength === option.id
+                                                            ? 'border-amber-400 bg-amber-50'
+                                                            : 'border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-medium text-slate-800">{option.label}</span>
+                                                        <span className="text-[10px] text-slate-500">{option.desc}</span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Tonality */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                            <Smile className="w-3.5 h-3.5 text-amber-500" />
+                                            Tonality
+                                        </label>
+                                        <select
+                                            value={aiTonality}
+                                            onChange={(e) => setAiTonality(e.target.value)}
+                                            disabled={isGenerating}
+                                            className="w-full p-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-400 bg-white text-sm font-medium"
+                                        >
+                                            <option value="professional">Professional</option>
+                                            <option value="casual">Casual</option>
+                                            <option value="academic">Academic</option>
+                                            <option value="creative">Creative</option>
+                                            <option value="persuasive">Persuasive</option>
+                                            <option value="informative">Informative</option>
+                                        </select>
+                                        <div className="text-[10px] text-slate-500 mt-1.5 p-2 bg-slate-50 rounded-lg">
+                                            {aiTonality === 'professional' && 'Formal, business-appropriate language'}
+                                            {aiTonality === 'casual' && 'Friendly, conversational tone'}
+                                            {aiTonality === 'academic' && 'Scholarly, research-based language'}
+                                            {aiTonality === 'creative' && 'Imaginative, engaging storytelling'}
+                                            {aiTonality === 'persuasive' && 'Compelling, argumentative language'}
+                                            {aiTonality === 'informative' && 'Clear, educational language'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="bg-slate-50 px-5 py-4 flex items-center justify-between border-t border-slate-200 flex-shrink-0">
+                                <p className="text-[10px] text-slate-500">
+                                    ✨ AI-generated content may require review and editing
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={() => setShowAIGenerator(false)}
+                                        disabled={isGenerating}
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-xl font-semibold border-2 text-sm px-4"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        onClick={handleAIGenerate}
+                                        disabled={isGenerating || !aiTopic.trim()}
+                                        size="sm"
+                                        className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed px-6 text-sm"
+                                    >
+                                        {isGenerating ? (
+                                            <span className="flex items-center gap-1.5">
+                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                                Generating...
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5">
+                                                <Sparkles className="w-4 h-4" />
+                                                Generate Document
+                                            </span>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>

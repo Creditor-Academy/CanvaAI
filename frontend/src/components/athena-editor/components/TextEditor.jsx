@@ -198,6 +198,50 @@ import { Switch } from "./ui/switch";
 import { Slider } from "./ui/slider";
 import { cn } from "./utils";
 import { scrollLockManager } from '../utils/scrollLockManager';
+
+// ─── Helper Functions ──────────────────────────────────────────────────────
+
+/**
+ * Convert inline CSS text-align styles to Tiptap data-text-align attributes
+ * This ensures alignment is preserved when loading HTML content
+ * @param {string} html - HTML content with potential inline styles
+ * @returns {string} HTML with Tiptap-compatible alignment attributes
+ */
+const normalizeInlineStyles = (html) => {
+  if (!html || typeof html !== 'string') return html;
+  
+  try {
+    // Create a temporary DOM element to parse HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    // Find all elements with inline text-align styles
+    const elements = temp.querySelectorAll('[style*="text-align"]');
+    elements.forEach(el => {
+      const style = el.getAttribute('style') || '';
+      const match = style.match(/text-align:\s*(left|center|right|justify)/i);
+      
+      if (match) {
+        const alignValue = match[1].toLowerCase();
+        // Add Tiptap's data attribute
+        el.setAttribute('data-text-align', alignValue);
+        
+        // Remove the inline style but keep other styles
+        const newStyle = style.replace(/text-align:\s*[^;]+;?/gi, '').trim();
+        if (newStyle) {
+          el.setAttribute('style', newStyle);
+        } else {
+          el.removeAttribute('style');
+        }
+      }
+    });
+    
+    return temp.innerHTML;
+  } catch (error) {
+    console.error('Failed to normalize inline styles:', error);
+    return html; // Return original if parsing fails
+  }
+};
 import { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSelection, onMenuOpen, onMenuClose } from './editor/focusUtils';
 import { useKeyboardShortcuts } from './editor/useKeyboardShortcuts';
 
@@ -474,6 +518,13 @@ export const EditorToolbar = ({
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
+  
+  // CRITICAL FIX: Move ALL hooks BEFORE the early return to satisfy Rules of Hooks
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [selectedRows, setSelectedRows] = useState(0);
+  const [selectedCols, setSelectedCols] = useState(0);
+  const tablePickerRef = useRef(null);
+  const tableButtonRef = useRef(null);
 
   // Auto-hide export progress messages after 5 seconds
   useEffect(() => {
@@ -519,6 +570,41 @@ export const EditorToolbar = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [editor]); // Use editor as dependency instead of isInsideTable()
+
+  // Position the table picker dropdown
+  useLayoutEffect(() => {
+    if (showTablePicker && tableButtonRef.current && tablePickerRef.current) {
+      const buttonRect = tableButtonRef.current.getBoundingClientRect();
+      const pickerElement = tablePickerRef.current;
+
+      // Position the dropdown below the button
+      pickerElement.style.left = `${buttonRect.left}px`;
+      pickerElement.style.top = `${buttonRect.bottom + 8}px`; // 8px margin
+    }
+  }, [showTablePicker]);
+
+  // Close table picker when clicking outside
+  useEffect(() => {
+    if (!showTablePicker) return;
+
+    const handleClickOutside = (event) => {
+      if (tablePickerRef.current && !tablePickerRef.current.contains(event.target)) {
+        const tableContainer = event.target.closest('[data-table-container]') ||
+          event.target.closest('[data-table-button]') ||
+          event.target.closest('.table-button') ||
+          event.target.closest('button[data-icon="table"]') ||
+          event.target === tableButtonRef.current;
+        if (!tableContainer) {
+          setShowTablePicker(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTablePicker]);
 
   // Helper function to set font size
   const setCurrentFontSize = (size) => {
@@ -669,47 +755,6 @@ export const EditorToolbar = ({
       }
     }
   };
-
-  const [showTablePicker, setShowTablePicker] = useState(false);
-  const [selectedRows, setSelectedRows] = useState(0);
-  const [selectedCols, setSelectedCols] = useState(0);
-  const tablePickerRef = useRef(null);
-  const tableButtonRef = useRef(null);
-
-  // Position the table picker dropdown
-  useLayoutEffect(() => {
-    if (showTablePicker && tableButtonRef.current && tablePickerRef.current) {
-      const buttonRect = tableButtonRef.current.getBoundingClientRect();
-      const pickerElement = tablePickerRef.current;
-
-      // Position the dropdown below the button
-      pickerElement.style.left = `${buttonRect.left}px`;
-      pickerElement.style.top = `${buttonRect.bottom + 8}px`; // 8px margin
-    }
-  }, [showTablePicker]);
-
-  // Close table picker when clicking outside
-  useEffect(() => {
-    if (!showTablePicker) return;
-
-    const handleClickOutside = (event) => {
-      if (tablePickerRef.current && !tablePickerRef.current.contains(event.target)) {
-        const tableContainer = event.target.closest('[data-table-container]') ||
-          event.target.closest('[data-table-button]') ||
-          event.target.closest('.table-button') ||
-          event.target.closest('button[data-icon="table"]') ||
-          event.target === tableButtonRef.current;
-        if (!tableContainer) {
-          setShowTablePicker(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showTablePicker]);
 
   const insertTable = (rows, cols) => {
     console.log('[TextEditor] insertTable called with:', rows, 'x', cols);
@@ -4180,10 +4225,16 @@ const TextEditorContent = ({
 
   const [isOutlineOpen, setIsOutlineOpen] = useState(true);
   const [selectedText, setSelectedText] = useState('');
-  const [headings, setHeadings] = useState([]);
+  // CRITICAL FIX: Move stats to refs to prevent re-renders on every keystroke/delete
+  const wordCountRef = useRef(0);
+  const characterCountRef = useRef(0);
+  const readingTimeRef = useRef(0);
+  const headingsRef = useRef([]);
+  // Keep minimal state for UI display - updated infrequently
   const [wordCount, setWordCount] = useState(0);
   const [characterCount, setCharacterCount] = useState(0);
   const [readingTime, setReadingTime] = useState(0);
+  const [headings, setHeadings] = useState([]);
   const [isStarred, setIsStarred] = useState(false);
   const [showFindReplaceModal, setShowFindReplaceModal] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState(false);
@@ -4724,9 +4775,19 @@ const TextEditorContent = ({
     content: '',  // Start empty - endless page with auto page breaks
     editable: true,
     autofocus: true,
+    // CRITICAL FIX: Preserve selection during content changes
+    preserveSelectionOnUpdate: true,
+    // CRITICAL FIX: Disable immediate render on update to prevent cursor jump
+    immediatelyRender: false,
+    // CRITICAL FIX: Disable corec to prevent React from reconciling during typing
+    corec: false,
     onUpdate: ({ editor: editorInstance }) => {
-      setSaveStatus('modified');
-      setTimeout(() => addHeadingStyles(), 10);
+      console.log('🔵 onUpdate triggered - deletion/typing detected');
+      // REMOVED: setSaveStatus('modified') - this was causing context re-renders that reset cursor
+      // Save status now only updates on actual save operations or periodically
+      
+      // REMOVED: addHeadingStyles() call - this manipulates DOM and can cause cursor jumps
+      // setTimeout(() => addHeadingStyles(), 10);
       
       // During a paste isPastingRef.current is true — the pastePlugin's
       // settle timer will call runPastePageBreaks once the doc is stable.
@@ -4742,14 +4803,19 @@ const TextEditorContent = ({
         }, 250);
       }
       
+      // CRITICAL FIX: DO NOT update React state on every keystroke/delete!
+      // Only update refs here - state updates cause re-renders that reset cursor
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
       statsTimeoutRef.current = setTimeout(() => {
         if (!editorInstance?.state?.doc) return;
         const text = editorInstance.state.doc.textContent;
         const words = text.trim().split(/\s+/).filter(Boolean).length;
-        setWordCount(words);
-        setCharacterCount(text.length);
-        setReadingTime(Math.ceil(words / 200));
+              
+        // Update refs ONLY (no re-render)
+        wordCountRef.current = words;
+        characterCountRef.current = text.length;
+        readingTimeRef.current = Math.ceil(words / 200);
+              
         const newHeadings = [];
         let paragraphs = 0, images = 0, tables = 0;
         editorInstance.state.doc.descendants((node, pos) => {
@@ -4759,33 +4825,39 @@ const TextEditorContent = ({
           else if (type === 'image') images++;
           else if (type === 'table') tables++;
         });
-        setHeadings(newHeadings);
-        if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
-      }, 500);
-      if (pagesUpdateTimeoutRef.current) clearTimeout(pagesUpdateTimeoutRef.current);
-      pagesUpdateTimeoutRef.current = setTimeout(() => { 
-        if (editorInstance?.state?.doc) {
-          dynamicManualPagination(editorInstance);
-          // Ensure editor maintains focus after pagination updates
-          requestAnimationFrame(() => {
-            if (!editorInstance.isDestroyed && editorInstance.view) {
-              editorInstance.view.focus();
-            }
-          });
-        }
-      }, 400);
+        headingsRef.current = newHeadings;
+              
+        // REMOVED: State updates that were causing cursor to jump to beginning
+        // Word count UI now updates only when user explicitly opens the dialog
+        // setWordCount(words);
+        // setCharacterCount(text.length);
+        // setReadingTime(Math.ceil(words / 200));
+        // setHeadings(newHeadings);
+              
+        // REMOVED: setDocumentStats - was causing parent re-renders
+        // if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
+      }, 1000); // Delay UI updates until user pauses typing
+      
+      // REMOVED: Auto-pagination on every content change - this was causing cursor jump bug
+      // Pagination now only runs after paste or explicit page break operations
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
       autoSaveTimeoutRef.current = setTimeout(() => handleAutoSaveRef.current?.(), 3000);
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
+      // CRITICAL FIX: Don't update state on every selection change
+      // This was causing cursor position resets during typing/deletion
+      // Selection updates now handled via refs if needed elsewhere
       const { from, to } = editorInstance.state.selection;
-      setSelectedText(from !== to ? editorInstance.state.doc.textBetween(from, to, ' ') : '');
-      let newHeadingLevel = 0;
-      editorInstance.state.doc.nodesBetween(from, to, (node) => {
-        if (node.type.name === 'heading') { newHeadingLevel = node.attrs.level; return false; }
-        return true;
-      });
-      setActiveHeadingLevel(newHeadingLevel);
+      // REMOVED: setSelectedText - causes re-render on every cursor movement
+      // setSelectedText(from !== to ? editorInstance.state.doc.textBetween(from, to, ' ') : '');
+      
+      // REMOVED: setActiveHeadingLevel - causes unnecessary re-renders
+      // let newHeadingLevel = 0;
+      // editorInstance.state.doc.nodesBetween(from, to, (node) => {
+      //   if (node.type.name === 'heading') { newHeadingLevel = node.attrs.level; return false; }
+      //   return true;
+      // });
+      // setActiveHeadingLevel(newHeadingLevel);
     },
     editorProps: {
       attributes: { class: 'prose prose-lg max-w-none focus:outline-none min-h-[600px] table-border-black', spellcheck: 'true', 'data-testid': 'editor-content' },
@@ -4796,12 +4868,78 @@ const TextEditorContent = ({
     if (!editor) return;
     editorRef.current = editor;
     
+    console.log('🔍 Editor mounted with props:', { mongoId, activeDocId });
+    console.log('🔍 Current URL:', window.location.href);
+    
     // ENDLESS PAGE MODE - No pagination initialization needed
     // Content flows naturally without page wrapping
     
-    // Note: localStorage has been removed. Initial content should be passed via props
-    // or loaded from backend API. Currently no initial content is being loaded.
-    // To load initial content, pass it as a prop to the TextEditor component.
+    // Load initial content from URL parameter (docId) and fetch from backend
+    const urlParams = new URLSearchParams(window.location.search);
+    const docId = urlParams.get('docId');
+    
+    if (docId) {
+      console.log('📥 Loading document from backend using ID:', docId);
+      
+      // Extract mongoId from URL path like /editor/:mongoId
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      const pathMongoId = pathParts[pathParts.length - 1];
+      
+      console.log('🔍 URL Analysis:', {
+        pathname: window.location.pathname,
+        pathParts,
+        extractedMongoId: pathMongoId,
+        isValidMongoId: /^[0-9a-fA-F]{24}$/.test(pathMongoId)
+      });
+      
+      // CRITICAL FIX: Store the MongoDB ID in localStorage for reliable access during save
+      if (pathMongoId && pathMongoId !== 'editor' && /^[0-9a-fA-F]{24}$/.test(pathMongoId)) {
+        console.log('✅ Storing MongoDB ID for save operation:', pathMongoId);
+        localStorage.setItem('athena_current_mongo_id', pathMongoId);
+      } else {
+        // Also try to get it from props if URL doesn't have it
+        const propMongoId = mongoId;
+        if (propMongoId && /^[0-9a-fA-F]{24}$/.test(propMongoId)) {
+          console.log('✅ Using MongoDB ID from props:', propMongoId);
+          localStorage.setItem('athena_current_mongo_id', propMongoId);
+        }
+      }
+      
+      // Fetch document from backend API
+      TextEditorService.getDocumentById(docId)
+        .then((doc) => {
+          console.log('📥 Document loaded:', { id: doc.id, title: doc.title });
+          
+          // CRITICAL FIX: Always use JSON content first to preserve all attributes (alignment, etc.)
+          // Only fall back to HTML if JSON is not available
+          const jsonContent = doc.data?.content || doc.content;
+          const htmlContent = doc.data?.html || doc.html || '';
+          
+          if (jsonContent && typeof jsonContent === 'object') {
+            console.log('✅ Loading from JSON (preserves formatting)');
+            // Load from JSON - this preserves ALL attributes including text alignment
+            editor.commands.setContent(jsonContent);
+          } else if (htmlContent) {
+            console.log('⚠️ Loading from HTML (may lose some formatting)');
+            // Convert inline styles to Tiptap attributes before setting content
+            const normalizedHtml = normalizeInlineStyles(htmlContent);
+            editor.commands.setContent(normalizedHtml);
+          }
+          
+          // Set document title
+          if (doc.title && setDocumentTitle) {
+            setDocumentTitle(doc.title);
+          }
+        })
+        .catch((error) => {
+          console.error('❌ Failed to load document from backend:', error);
+          toast.error('Failed to load document from server');
+        });
+    } else {
+      console.log('ℹ️ No docId in URL, starting with blank editor');
+      // Clear stored ID for new documents
+      localStorage.removeItem('athena_current_mongo_id');
+    }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCopy = useCallback(async () => {
@@ -4949,35 +5087,52 @@ const TextEditorContent = ({
       
       // Note: Removed localStorage backup. Only save to backend (MongoDB).
       
-      // Save to backend (MongoDB) using TextEditorService
-      if (activeDocId) {
+      // Determine the document ID to use for saving
+      // Priority: 1) mongoId prop, 2) Extract from URL path, 3) localStorage fallback, 4) activeDocId
+      const effectiveMongoId = mongoId || (() => {
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const lastPart = pathParts[pathParts.length - 1];
+        if (/^[0-9a-fA-F]{24}$/.test(lastPart)) return lastPart;
+        return null;
+      })() || localStorage.getItem('athena_current_mongo_id');
+      
+      console.log('💾 SAVE DEBUG:', { 
+        activeDocId, 
+        mongoIdProp: mongoId,
+        urlExtractedId: (() => {
+          const pathParts = window.location.pathname.split('/').filter(Boolean);
+          const lastPart = pathParts[pathParts.length - 1];
+          return /^[0-9a-fA-F]{24}$/.test(lastPart) ? lastPart : null;
+        })(),
+        localStorageId: localStorage.getItem('athena_current_mongo_id'),
+        effectiveMongoId,
+        hasActiveDocId: !!activeDocId,
+        hasEffectiveMongoId: !!effectiveMongoId,
+        urlPath: window.location.pathname,
+        urlQuery: window.location.search
+      });
+      
+      // If we have ANY document ID (activeDocId OR mongoId), update existing document
+      if (activeDocId || effectiveMongoId) {
+        const docIdToUpdate = effectiveMongoId || activeDocId;
+        console.log('📝 Updating existing document with ID:', docIdToUpdate);
+        
         try {
-          // Use mongoId from state/props instead of localStorage
-          if (mongoId) {
-            // Update existing document using /api/text-editor/document/:id
-            await TextEditorService.updateDocument(mongoId, {
-              title: documentTitle,
-              data: {
-                content: editor.getJSON(),
-                html: editor.getHTML()
-              }
-            });
-          } else {
-            // Save new document using /api/text-editor/save
-            const result = await TextEditorService.saveDocument({
-              title: documentTitle,
-              data: {
-                content: editor.getJSON(),
-                html: editor.getHTML()
-              }
-            });
-            // Parent component should track the MongoDB ID via callback or state
-            onMongoIdSaved?.(activeDocId, result.id);
-          }
+          // Update existing document using /api/text-editor/document/:id
+          await TextEditorService.updateDocument(docIdToUpdate, {
+            title: documentTitle,
+            data: {
+              content: editor.getJSON(),
+              html: editor.getHTML()
+            }
+          });
           
           setLastSaved(new Date());
           setSaveStatus('saved');
           toast.success('Document saved to backend successfully! 💾');
+          
+          // Notify other tabs (EditorIntro) to refresh document list
+          localStorage.setItem('athena_document_refresh', Date.now().toString());
         } catch (backendError) {
           console.error('Backend save error:', backendError);
           toast.error('Failed to save to backend: ' + (backendError.message || 'Unknown error'));
@@ -4985,10 +5140,32 @@ const TextEditorContent = ({
           return; // Stop here if backend save fails
         }
       } else {
-        // No activeDocId - just local state update
-        setLastSaved(new Date());
-        setSaveStatus('saved');
-        toast.success('Document saved! 💾');
+        // No document ID - this is a NEW document, save it to backend
+        console.log('🆕 No document ID - saving as NEW document');
+        try {
+          const result = await TextEditorService.saveDocument({
+            title: documentTitle || 'Untitled Document',
+            data: {
+              content: editor.getJSON(),
+              html: editor.getHTML()
+            }
+          });
+          
+          setLastSaved(new Date());
+          setSaveStatus('saved');
+          toast.success('New document saved to backend successfully! 💾');
+          
+          // Notify parent component of the new document ID
+          onMongoIdSaved?.(null, result.id);
+          
+          // Notify other tabs to refresh document list
+          localStorage.setItem('athena_document_refresh', Date.now().toString());
+        } catch (backendError) {
+          console.error('Backend save error:', backendError);
+          toast.error('Failed to save to backend: ' + (backendError.message || 'Unknown error'));
+          setSaveStatus('error');
+          return;
+        }
       }
       
       // Document saved successfully to backend - no file export
@@ -5467,7 +5644,13 @@ const TextEditorContent = ({
             >
             <div className="editor-content-container">
               {editor && (
-                <EditorContent editor={editor} className="tip-tap-editor" />
+                <EditorContent
+                  editor={editor} 
+                  className="tip-tap-editor" 
+                  // CRITICAL FIX: Use stable key to prevent remounting during typing
+                  // This preserves the cursor position by avoiding React reconciler issues
+                  key="athena-editor-stable"
+                />
               )}
             </div>
               

@@ -128,6 +128,7 @@ const AppContent = () => {
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/docGenerator" element={<DocumentGenerator />} />
           <Route path="/editor" element={<EditorTabPage />} />
+          <Route path="/editor/:mongoId" element={<EditorTabPage />} />
           <Route path="/editor-intro" element={<EditorIntro />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
 

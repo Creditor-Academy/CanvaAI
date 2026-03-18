@@ -4,7 +4,7 @@ import React, { Suspense, lazy } from 'react';
 const TextEditor = lazy(() => import('./components/TextEditor.jsx'));
 
 // Safe editor implementation with proper React Suspense
-const SafeTextEditor = () => {
+const SafeTextEditor = ({ mongoId }) => {
   // Loading component for suspense fallback
   const LoadingFallback = () => (
     <div className="h-screen w-full flex items-center justify-center bg-gray-50">
@@ -39,7 +39,7 @@ const SafeTextEditor = () => {
     <ErrorBoundary>
       <div className="h-screen w-full overflow-hidden">
         <Suspense fallback={<LoadingFallback />}>
-          <TextEditor />
+          <TextEditor mongoId={mongoId} />
         </Suspense>
       </div>
     </ErrorBoundary>
