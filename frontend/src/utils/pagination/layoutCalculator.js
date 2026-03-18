@@ -1,17 +1,20 @@
 /**
- * layoutCalculator.js — ATHENA PAGINATION ENGINE v3.0
+ * layoutCalculator.js — ATHENA PAGINATION ENGINE v4.0 (GOOGLE DOCS EDITION)
  *
- * Accurate, DOM-free height estimation for every ProseMirror block type.
+ * DOM-measurement-based pagination matching Google Docs precisely.
  *
- * Key improvements over v2:
- *  • Per-font-family character-width ratios instead of a single magic 0.52
- *  • Bold / italic inline width multipliers
- *  • Proper margin-bottom accounting for every block type
- *  • Heading line-height uses tighter 1.2 ratio (matches browser defaults)
- *  • List indentation correctly reduces charsPerLine
- *  • Table: per-cell text wrapping instead of flat row × rowHeight
- *  • estimateParagraphSplit: line-by-line simulation instead of ratio heuristic
- *  • Rich-text (marks) awareness in paragraph splitting
+ * Key improvements in v4.0:
+ * • Real DOM height measurement (scrollHeight/offsetHeight) instead of estimation
+ * • Hidden measurement layer for accurate rendering
+ * • Google Docs exact typography configuration (Arial 11pt, 1.15 spacing, 48 lines/page)
+ * • Line wrapping handled by browser rendering engine
+ * • Pixel-perfect page breaks based on actual rendered content
+ *
+ * WHY DOM MEASUREMENT?
+ * - Character-width ratios are estimates (vary by font, bold, italic)
+ * - Line wrapping depends on container width, word breaks, hyphenation
+ * - Browser rendering is the source of truth
+ * - Google Docs uses this exact approach
  */
 
 import {
@@ -23,6 +26,7 @@ import {
   ITALIC_WIDTH_MULTIPLIER,
   HEADING_FONT_SIZES,
   BLOCK_MARGIN_BOTTOM,
+  GOOGLE_DOCS_CONFIG,
 } from './constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,6 +43,160 @@ export const BLOCK_TYPES = {
   CODE_BLOCK:   'codeBlock',
   QUOTE:        'blockquote',
   DIVIDER:      'horizontalRule',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM Measurement Layer (Google Docs Approach)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Hidden measurement container for accurate DOM height calculation.
+ * This is the Google Docs approach: measure rendered DOM, don't estimate.
+ */
+class DOMMeasurementLayer {
+  constructor() {
+    this.container = null;
+    this.initialized = false;
+  }
+
+  /**
+   * Initialize hidden measurement container.
+   * Called once on first use.
+   */
+  init() {
+    if (this.initialized) return;
+
+    // Create hidden container with same dimensions as editor content area
+    this.container = document.createElement('div');
+    this.container.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      width: ${USABLE_WIDTH_PX}px;
+      font-family: ${GOOGLE_DOCS_CONFIG.FONT_FAMILY}, Arial, sans-serif;
+      font-size: ${GOOGLE_DOCS_CONFIG.FONT_SIZE_PX}px;
+      line-height: ${GOOGLE_DOCS_CONFIG.LINE_HEIGHT_PX}px;
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+      pointer-events: none;
+      z-index: -9999;
+    `;
+    
+    document.body.appendChild(this.container);
+    this.initialized = true;
+  }
+
+  /**
+   * Measure the rendered height of a content node.
+   * Uses offsetHeight (includes padding, excludes margin) for accuracy.
+   *
+   * Special handling for images: ensures they have loaded dimensions
+   * before measuring to prevent 0px height issues.
+   *
+   * @param {HTMLElement} element - DOM element to measure
+   * @returns {number} Height in pixels
+   */
+  measureElement(element) {
+    if (!element) return 0;
+    
+    // Handle images specially - wait for them to load
+    if (element.tagName === 'IMG') {
+      // If image has no dimensions yet, use naturalHeight or placeholder
+      if (element.offsetHeight === 0 && element.naturalHeight) {
+        // Image hasn't rendered yet, use natural dimensions
+        const aspectRatio = element.naturalWidth / element.naturalHeight;
+        const displayWidth = element.width || USABLE_WIDTH_PX * 0.8; // 80% of page width
+        return (displayWidth / aspectRatio) + 16; // +16 for caption/margin
+      }
+      return element.naturalHeight || element.offsetHeight || 0;
+    }
+    
+    // Standard measurement for all other elements
+    return element.offsetHeight || 0;
+  }
+
+  /**
+   * Render content temporarily and measure its height.
+   * Used for ProseMirror nodes before they're added to the editor.
+   *
+   * @param {string} html - HTML content to measure
+   * @param {object} styles - Style overrides
+   * @returns {number} Measured height in pixels
+   */
+  measureHTML(html, styles = {}) {
+    if (!this.initialized) this.init();
+
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = `
+      width: ${USABLE_WIDTH_PX}px;
+      font-family: ${styles.fontFamily || GOOGLE_DOCS_CONFIG.FONT_FAMILY}, Arial, sans-serif;
+      font-size: ${styles.fontSize || GOOGLE_DOCS_CONFIG.FONT_SIZE_PX}px;
+      line-height: ${styles.lineHeight || GOOGLE_DOCS_CONFIG.LINE_HEIGHT_PX}px;
+    `;
+    tempDiv.innerHTML = html;
+    
+    this.container.appendChild(tempDiv);
+    const height = tempDiv.offsetHeight;
+    this.container.removeChild(tempDiv);
+    
+    return height;
+  }
+
+  /**
+   * Clean up measurement container.
+   */
+  destroy() {
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+      this.container = null;
+      this.initialized = false;
+    }
+  }
+}
+
+// Singleton instance for reuse across measurements
+export const domMeasurer = new DOMMeasurementLayer();
+
+/**
+ * Measure block height using real DOM rendering.
+ * This is the Google Docs approach: offsetHeight is the source of truth.
+ *
+ * @param {HTMLElement} blockElement - Rendered DOM element
+ * @returns {number} Content height in px (offsetHeight)
+ */
+export const measureBlockHeight = (blockElement) => {
+  return domMeasurer.measureElement(blockElement);
+};
+
+/**
+ * Measure HTML string height before rendering.
+ * Useful for pre-pagination planning.
+ *
+ * @param {string} html - HTML content
+ * @param {object} styles - Style overrides
+ * @returns {number} Estimated height in px
+ */
+export const measureHTMLHeight = (html, styles = {}) => {
+  return domMeasurer.measureHTML(html, styles);
+};
+
+/**
+ * Get preferred usable height per Google Docs configuration.
+ * This is ~810px (48 lines) instead of max ~931px.
+ *
+ * @returns {number} Preferred usable height in px
+ */
+export const getPreferredUsableHeight = () => {
+  return GOOGLE_DOCS_CONFIG.PREFERRED_USABLE_HEIGHT_PX;
+};
+
+/**
+ * Get maximum usable height for overflow cases.
+ *
+ * @returns {number} Maximum usable height in px
+ */
+export const getMaxUsableHeight = () => {
+  return GOOGLE_DOCS_CONFIG.MAX_USABLE_HEIGHT_PX;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

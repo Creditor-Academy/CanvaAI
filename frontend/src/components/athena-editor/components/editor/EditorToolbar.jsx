@@ -689,28 +689,10 @@ export const EditorToolbar = ({
 
       console.log('[EditorToolbar] Building table structure...');
       
-      // Build table HTML for reliable insertion
-      const tableHTML = `
-        <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
-          <tbody>
-            ${Array.from({ length: rows }, (_, rowIndex) => `
-              <tr>
-                ${Array.from({ length: cols }, () => `
-                  <${rowIndex === 0 ? 'th' : 'td'} 
-                    style="border: 2px solid #333; padding: 8px; min-width: 60px; ${rowIndex === 0 ? 'background-color: #e0e0e0; font-weight: bold;' : ''}">
-                    <p></p>
-                  </${rowIndex === 0 ? 'th' : 'td'}>
-                `).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-
-      console.log('[EditorToolbar] Inserting table HTML...');
+      console.log('[EditorToolbar] Inserting table using Tiptap command...');
       
       // Use runWithSavedSelection to maintain cursor position
-      const result = runWithSavedSelection(editor, (chain) => chain.insertContent(tableHTML));
+      const result = runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: rows, cols: cols, withHeaderRow: true }));
       
       console.log('[EditorToolbar] Insert result:', result);
       

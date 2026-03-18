@@ -377,13 +377,15 @@ async function deleteDocument(documentId) {
 
 /**
  * Get all documents from backend (for Recent Documents list)
+ * @param {string} [userId] - User ID to filter documents (optional)
  * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string, ownerId: string}>}>}
  */
-async function getAllDocuments() {
-  const response = await axios.get(
-    `${API_BASE_URL}/api/text-editor/documents`,
-    getAuthConfig()
-  );
+async function getAllDocuments(userId) {
+  const url = userId 
+    ? `${API_BASE_URL}/api/text-editor/all/documents/${userId}`
+    : `${API_BASE_URL}/api/text-editor/documents`;
+  
+  const response = await axios.get(url, getAuthConfig());
   
   return response.data;
 }

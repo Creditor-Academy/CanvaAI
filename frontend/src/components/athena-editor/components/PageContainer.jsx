@@ -17,15 +17,23 @@ export const PageContainer = ({
   // Calculate pagination on content change
   useEffect(() => {
     if (editor) {
-      const result = DocumentExporter.calculatePagination(editor, {
-        marginTop: customMargins?.top || 96,
-        marginBottom: customMargins?.bottom || 96,
-        marginLeft: customMargins?.left || 96,
-        marginRight: customMargins?.right || 96
-      });
-      setPagination(result);
+      try {
+        const result = DocumentExporter.calculatePagination(editor, {
+          marginTop: customMargins?.top || 96,
+          marginBottom: customMargins?.bottom || 96,
+          marginLeft: customMargins?.left || 96,
+          marginRight: customMargins?.right || 96,
+          debugMode: true // Enable to see Google Docs pagination in console
+        });
+        
+        console.log('[PageContainer] Pagination updated:', result);
+        setPagination(result);
+      } catch (error) {
+        console.error('[PageContainer] Pagination error:', error);
+        setPagination({ totalPages: 1, pages: [] });
+      }
     }
-  }, [editor, editor?.state, customMargins]);
+  }, [editor, editor?.state?.doc, customMargins]); // Depend on doc content
 
   return (
     <div className="page-preview-mode">

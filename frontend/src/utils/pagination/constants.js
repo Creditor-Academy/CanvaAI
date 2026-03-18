@@ -81,15 +81,79 @@ export const DEFAULT_LINE_HEIGHT   = 1.5;   // multiplier → 24 px total line h
 export const DEFAULT_FONT_SIZE_PT  = 12;    // pt  (used in PDF renderer)
 export const DEFAULT_LINE_HEIGHT_MM = DEFAULT_FONT_SIZE_PT * 0.352778 * DEFAULT_LINE_HEIGHT; // ≈ 6.35 mm
 
+// ── Font width ratios for estimation-based calculation ────────────────────────
+// Average character width as ratio of font size (varies by font family)
+export const FONT_WIDTH_RATIO = {
+  default:   0.52,  // Average proportion for mixed content
+  serif:     0.50,  // Slightly narrower (e.g., Times New Roman)
+  sansSerif: 0.54,  // Slightly wider (e.g., Arial)
+  monospace: 0.60,  // Fixed-width (e.g., Courier)
+};
+
+// Inline style multipliers (bold/italic affect character width)
+export const BOLD_WIDTH_MULTIPLIER   = 1.15;  // Bold text ≈ +15% wider
+export const ITALIC_WIDTH_MULTIPLIER = 1.05;  // Italic text ≈ +5% wider
+
+// Heading font sizes (px) relative to base 16px
+export const HEADING_FONT_SIZES = [
+  32,  // h1: 2× base
+  24,  // h2: 1.5× base
+  20,  // h3: 1.25× base
+  18,  // h4: 1.125× base
+  16,  // h5: 1× base
+  14,  // h6: 0.875× base
+];
+
+// Block margin-bottom values (px) for spacing between elements
+export const BLOCK_MARGIN_BOTTOM = {
+  paragraph:    16,    // Standard paragraph spacing
+  heading1:     24,    // H1 has more bottom space
+  heading2:     20,    // H2 slightly less
+  heading3:     18,    // H3 standard
+  heading4:     16,    // H4 same as paragraph
+  heading5:     16,    // H5 same as paragraph
+  heading6:     16,    // H6 same as paragraph
+  listItem:     8,     // List items tighter
+  bulletList:   16,    // List container
+  orderedList:  16,    // Ordered list container
+  blockquote:   16,    // Quote spacing
+  codeBlock:    16,    // Code block spacing
+  table:        16,    // Table spacing
+  image:        16,    // Image spacing
+  horizontalRule: 20,  // Divider spacing
+  default:      16,    // Fallback
+};
+
+// ── Google Docs exact configuration ───────────────────────────────────────────
+// Production-grade pagination matching Google Docs precisely
+// Based on real typographic calculations AND实测 measurements
+
+export const GOOGLE_DOCS_CONFIG = {
+  FONT_SIZE_PT: 11,                    // Arial 11pt
+  FONT_SIZE_PX: 11 * 1.333,           // 14.663 px ≈ 14.67 px (1 pt = 1.333 px at 96 DPI)
+  LINE_SPACING: 1.15,                  // Line spacing multiplier
+  LINE_HEIGHT_PX: 14.67 * 1.15,       // 16.87 px (font-size × line-spacing)
+  LINES_PER_PAGE: 48,                  // Exact lines per page
+  CONTENT_HEIGHT_BY_LINES: 16.87 * 48, // 809.76 px ≈ 810 px (line-height × lines)
+  PREFERRED_USABLE_HEIGHT_PX: 810,     // Preferred usable height (48 lines)
+  MAX_USABLE_HEIGHT_PX: 931,           // Maximum usable height (for overflow)
+  FONT_FAMILY: 'Arial',                // Default font
+};
+
 // ── Layout engine constants ───────────────────────────────────────────────────
 
 export const PAGE_GAP_PX             = 20;   // Visual gap between page canvases in the editor
-export const MIN_WIDOW_ORPHAN_HEIGHT = 48;   // 2 lines minimum before a page break (px)
+export const MIN_WIDOW_ORPHAN_HEIGHT = 52;   // 3 lines minimum before a page break (px) - increased from 48 to prevent stragglers
 
 // ── Performance caps ──────────────────────────────────────────────────────────
 
 export const MAX_PAGES        = 500;
 export const CACHE_SIZE_LIMIT = 2000;
+
+// Content limits per page (safeguards for edge cases)
+// Used as secondary checks alongside DOM-based height measurement
+export const MAX_WORDS_PER_PAGE = 400;  // Approximate word limit per page
+export const MAX_CHARS_PER_PAGE = 2500; // Approximate character limit per page
 
 // ── Unit conversion helpers ────────────────────────────────────────────────────
 

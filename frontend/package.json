@@ -68,6 +68,7 @@
     "@react-pdf/renderer": "^4.3.2",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-query": "^5.90.21",
     "@tiptap/core": "^3.17.1",
     "@tiptap/extension-bubble-menu": "^3.17.1",
     "@tiptap/extension-character-count": "^3.17.1",

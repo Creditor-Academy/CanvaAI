@@ -10,6 +10,10 @@ import { toast } from 'sonner';
 import JSZip from 'jszip';
 import DOMPurify from 'dompurify';
 
+// Import Google Docs pagination engine
+import { PaginationEngine, flattenDocument } from './pagination/paginationEngine';
+import { GOOGLE_DOCS_CONFIG } from './pagination/constants';
+
 // ─── Unit constants ────────────────────────────────────────────────────────────
 const PT_TO_MM   = 0.352778;   // 1 pt  → mm
 const PX_TO_MM   = 0.264583;   // 1 px  → mm (96 dpi)
@@ -20,6 +24,74 @@ const A4_H_MM    = 297;
 const MARGIN_MM  = 25.4;       // 1 inch
 
 export class DocumentExporter {
+
+  // ============================================================
+  // GOOGLE DOCS PAGINATION (v4.0)
+  // ============================================================
+
+  /**
+   * Calculate pagination using Google Docs exact algorithm (DOM-based measurement).
+   * This uses the new PaginationEngine v4.0 with preferred usable height of ~810px (48 lines).
+   *
+   * @param {object} editor - TipTap editor instance
+   * @param {object} options - Pagination options
+   * @param {object} options.margins - Custom margins { top, right, bottom, left } in px
+   * @param {boolean} options.debugMode - Enable debug logging
+   * @returns {{ totalPages: number, pages: Array<{ index: number, blocks: number }> }}
+   */
+  static calculatePagination(editor, options = {}) {
+    if (!editor || !editor.state?.doc) {
+      return { totalPages: 1, pages: [] };
+    }
+
+    try {
+      const { margins = {}, debugMode = false } = options;
+      
+      // Flatten document into block nodes
+      const blocks = flattenDocument(editor.state.doc);
+      
+      if (blocks.length === 0) {
+        return { totalPages: 1, pages: [{ index: 0, blocks: 0 }] };
+      }
+
+      // Create pagination engine with Google Docs config (uses ~810px preferred height)
+      const engine = new PaginationEngine({
+        useGoogleDocsConfig: true, // Enable Google Docs mode (~810px)
+        debugMode,
+        perfLogEnabled: debugMode,
+      });
+
+      // Paginate blocks into pages
+      const pages = engine.paginate(blocks);
+
+      if (debugMode) {
+        console.log('[DocumentExporter] Pagination complete:', {
+          totalBlocks: blocks.length,
+          totalPages: pages.length,
+          googleDocsMode: engine.useGoogleDocsConfig,
+          usableHeight: engine.usableHeight,
+        });
+      }
+
+      // Convert to format expected by PageContainer
+      const formattedPages = pages.map((page, index) => ({
+        index,
+        blocks: page.blocks.length,
+        height: page.height,
+        startIndex: page.startIndex,
+        endIndex: page.endIndex,
+      }));
+
+      return {
+        totalPages: pages.length,
+        pages: formattedPages,
+      };
+    } catch (error) {
+      console.error('[DocumentExporter] Pagination error:', error);
+      // Fallback: single page
+      return { totalPages: 1, pages: [{ index: 0, blocks: 1 }] };
+    }
+  }
 
   // ============================================================
   // PDF EXPORT

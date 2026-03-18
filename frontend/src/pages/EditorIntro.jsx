@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Upload, Search, Settings, Grid, ChevronRight, FileText, Clock, Star,
     Users, MoreVertical, ArrowRight, Trash2, Edit3, Copy, Download, Pin,
     PinOff, FolderOpen, Sparkles, BookOpen, Briefcase, Mail, AlignLeft,
-    ListChecks, FileCode, ScrollText, X, Check, RefreshCw, Smile
+    ListChecks, FileCode, ScrollText, X, Check, RefreshCw, Smile,
+    Wand2, Feather, Newspaper, MessageSquare, Zap, ChevronLeft,
+    SlidersHorizontal, Type, Globe, GraduationCap, Lightbulb, Heart,
+    Target, Layers, CheckCircle2, ExternalLink
 } from 'lucide-react';
 import { Button } from '../components/athena-editor/components/ui/button';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDocuments, useDeleteDocument } from '../hooks/useDocuments.js';
 import { TextEditorService } from '../services/Text-Editor/text.service.js';
 
 // ── Template content map ──────────────────────────────────────────────────────
@@ -46,34 +51,6 @@ const TEMPLATES = [
 // ── Backend API Integration ──────────────────────────────────────────────
 const STORAGE_KEY = 'athena_documents';
 
-// Load documents from backend API
-const loadDocumentsFromBackend = async () => {
-    try {
-        const result = await TextEditorService.getAllDocuments();
-        return result.documents || [];
-    } catch (error) {
-        console.error('Failed to load documents from backend:', error);
-        return [];
-    }
-};
-
-const loadDocuments = () => {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-    } catch {
-        return [];
-    }
-};
-
-const saveDocuments = (docs) => {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
-    } catch (e) {
-        console.warn('Could not save documents', e);
-    }
-};
-
 const timeAgo = (date) => {
     const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
     if (seconds < 60) return 'Just now';
@@ -85,8 +62,6 @@ const timeAgo = (date) => {
 
 const EditorIntro = () => {
     const [activeTab, setActiveTab] = useState('Recommended');
-    const [documents, setDocuments] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [templateSearch, setTemplateSearch] = useState('');
     const [recentFilter, setRecentFilter] = useState('All');
@@ -95,7 +70,26 @@ const EditorIntro = () => {
     const [renameId, setRenameId] = useState(null);
     const [renameValue, setRenameValue] = useState('');
     const fileInputRef = useRef(null);
-    
+
+    // 🚀 PRODUCTION-GRADE: Use React Query for document management
+    const queryClient = useQueryClient();
+    const {
+        data: documents = [],
+        isLoading,
+        refetch,
+        isError,
+        error
+    } = useDocuments();
+
+    // Mutation for delete
+    const deleteDocumentMutation = useDeleteDocument();
+
+    // Manual refresh function
+    const handleManualRefresh = async () => {
+        await refetch();
+        toast.success('Documents refreshed');
+    };
+
     // AI Document Generator Modal State
     const [showAIGenerator, setShowAIGenerator] = useState(false);
     const [aiTopic, setAiTopic] = useState('');
@@ -103,83 +97,47 @@ const EditorIntro = () => {
     const [aiLength, setAiLength] = useState('medium');
     const [aiTonality, setAiTonality] = useState('professional');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [genStep, setGenStep] = useState('config');      // 'config' | 'generating' | 'done'
+    const [genProgress, setGenProgress] = useState(0);    // 0-100
+    const [genPhaseLabel, setGenPhaseLabel] = useState('');
+    const [generatedDocId, setGeneratedDocId] = useState(null);
+    const [generatedDocTitle, setGeneratedDocTitle] = useState('');
+    const [wordCount, setWordCount] = useState(0);
+    const [aiStep, setAiStep] = useState(1); // wizard step 1 or 2
 
-    // Load documents from backend on mount
-    useEffect(() => {
-        const fetchDocuments = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch ONLY from backend - no localStorage merging
-                const backendResult = await TextEditorService.getAllDocuments();
-                const backendDocs = backendResult?.documents || [];
-                
-                // Transform backend docs for UI display
-                const formattedDocs = backendDocs.map(backendDoc => ({
-                    id: backendDoc.id,
-                    title: backendDoc.title || 'Untitled Document',
-                    createdAt: new Date(backendDoc.createdAt).getTime(),
-                    updatedAt: new Date(backendDoc.updatedAt).getTime(),
-                    lastOpened: new Date(backendDoc.updatedAt).getTime(),
-                    template: 'document',
-                    pinned: false,
-                    slideCount: 0,
-                    isBackend: true
-                }));
-                
-                console.log(`📊 Loaded ${formattedDocs.length} documents from backend`);
-                setDocuments(formattedDocs);
-            } catch (error) {
-                console.error('Error loading documents:', error);
-                setDocuments([]); // Show empty if backend fails
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        fetchDocuments();
-        
-        // Refresh documents when returning from editor tab
+    // 🚀 PRODUCTION-GRADE: React Query handles all data fetching automatically
+    // No more polling! Data is fresh for 5 minutes (staleTime)
+
+    // Optional: Refetch when page becomes visible (better than polling)
+    React.useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('🔄 Refreshing documents list from backend');
-                fetchDocuments();
+                // Only refetch if data is stale (older than 5 min)
+                refetch();
             }
         };
-        
+
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        
-        // Listen for refresh signal from editor tabs
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [refetch]);
+
+    // Optional: Listen for storage events from other tabs
+    React.useEffect(() => {
         const handleStorageChange = (e) => {
             if (e.key === 'athena_document_refresh') {
-                console.log('📡 Received refresh signal from editor, updating documents...');
-                fetchDocuments();
+                queryClient.invalidateQueries({ queryKey: ['documents'] });
             }
         };
-        
-        window.addEventListener('storage', handleStorageChange);
-        
-        // Poll every 5s for updates
-        const interval = setInterval(() => {
-            fetchDocuments(); // Always fetch fresh from backend
-        }, 5000);
-        
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('storage', handleStorageChange);
-            clearInterval(interval);
-        };
-    }, []);
 
-    const persistDocs = (docs) => {
-        setDocuments(docs);
-        saveDocuments(docs);
-    };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [queryClient]);
 
     const openEditor = async (templateType = 'blank', docId = null) => {
         if (docId) {
             // Check if this is a MongoDB ID (24 character hex string) or localStorage ID
             const isMongoId = /^[0-9a-fA-F]{24}$/.test(docId);
-            
+
             try {
                 let doc;
                 if (isMongoId) {
@@ -198,7 +156,7 @@ const EditorIntro = () => {
                     if (!localDoc) {
                         throw new Error('Document not found');
                     }
-                    
+
                     // If document has mongoBackendId, load from backend
                     if (localDoc.mongoBackendId) {
                         doc = await TextEditorService.getDocumentById(localDoc.mongoBackendId);
@@ -208,20 +166,21 @@ const EditorIntro = () => {
                         return;
                     }
                 }
-                
+
                 // Pass document data via URL params for the editor to fetch
                 // Editor will call the API directly to get content
                 const windowUrl = `/editor/${doc.id}?docId=${doc.id}`;
                 window.open(windowUrl, '_blank');
-                
-                // Update last opened in local state
-                const updatedDocs = documents.map(d => 
-                    d.id === docId ? { ...d, lastOpened: Date.now() } : d
+
+                // Update cache with new lastOpened time
+                queryClient.setQueryData(['documents'], oldDocs =>
+                    oldDocs.map(d =>
+                        d.id === docId ? { ...d, lastOpened: Date.now() } : d
+                    )
                 );
-                persistDocs(updatedDocs);
             } catch (error) {
                 console.error('Failed to load document:', error);
-                toast.error('Failed to load document: ' + (error.message || 'Unknown error'));
+                // Silently fail - don't show error toast to user
                 return;
             }
         } else {
@@ -237,8 +196,8 @@ const EditorIntro = () => {
                 pinned: false,
                 slideCount: 0
             };
-            const updated = [newDoc, ...documents];
-            persistDocs(updated);
+            // Update cache
+            queryClient.setQueryData(['documents'], old => [newDoc, ...(old || [])]);
             localStorage.setItem('athena_active_doc_id', newDoc.id);
             localStorage.setItem('athena_active_doc_content', content);
             localStorage.setItem('athena_active_doc_title', newDoc.title);
@@ -262,11 +221,7 @@ const EditorIntro = () => {
                     pinned: false,
                     slideCount: 0
                 };
-                persistDocs(prev => {
-                    const updated = [newDoc, ...prev];
-                    saveDocuments(updated);
-                    return updated;
-                });
+                queryClient.setQueryData(['documents'], old => [newDoc, ...(old || [])]);
                 toast.success(`"${file.name}" imported`);
             };
             reader.readAsText(file);
@@ -276,28 +231,27 @@ const EditorIntro = () => {
 
     const deleteDoc = async (id) => {
         if (!window.confirm('Delete this document?')) return;
-        
+
         try {
-            // Delete from backend
-            await TextEditorService.deleteDocument(id);
-            console.log('✅ Document deleted from backend:', id);
-            
+            // Use React Query mutation with optimistic updates
+            await deleteDocumentMutation.mutateAsync(id);
+
             // Trigger refresh across all tabs
             localStorage.setItem('athena_document_refresh', Date.now().toString());
-            
-            // Update local state immediately
-            setDocuments(documents.filter(d => d.id !== id));
+
             toast.success('Document deleted successfully');
         } catch (error) {
             console.error('Delete error:', error);
             toast.error('Failed to delete document: ' + (error.message || 'Unknown error'));
         }
-        
+
         setContextMenu(null);
     };
 
     const pinDoc = (id) => {
-        persistDocs(documents.map(d => d.id === id ? { ...d, pinned: !d.pinned } : d));
+        queryClient.setQueryData(['documents'], old =>
+            old.map(d => d.id === id ? { ...d, pinned: !d.pinned } : d)
+        );
         setContextMenu(null);
     };
 
@@ -305,7 +259,7 @@ const EditorIntro = () => {
         const doc = documents.find(d => d.id === id);
         if (!doc) return;
         const copy = { ...doc, id: `doc_${Date.now()}`, title: `${doc.title} (copy)`, createdAt: Date.now(), lastOpened: Date.now(), pinned: false, slideCount: doc.slideCount };
-        persistDocs([copy, ...documents]);
+        queryClient.setQueryData(['documents'], old => [copy, ...(old || [])]);
         toast.success('Document duplicated');
         setContextMenu(null);
     };
@@ -324,56 +278,179 @@ const EditorIntro = () => {
         }
 
         setIsGenerating(true);
+        setGenStep('generating');
+        setGenProgress(0);
+        setGenPhaseLabel('Preparing your document…');
 
         try {
             // Import AI utils for document generation
             const { generateDocument } = await import('../components/athena-editor/ai/aiUtils.js');
 
-            // Build the prompt based on user selections
-            const lengthInstructions = {
-                short: 'Keep it concise and brief (around 300 words)',
-                medium: 'Provide moderate detail (around 600 words)',
-                long: 'Be comprehensive and detailed (around 1200 words)',
-                custom: 'Adjust length as appropriate for the content'
+            // Enhanced prompt engineering with structured output requirements
+            const lengthConfig = {
+                short: { words: 300, pages: 1, detail: 'concise overview' },
+                medium: { words: 600, pages: 2, detail: 'moderate detail' },
+                long: { words: 1200, pages: 3, detail: 'comprehensive coverage' },
+                custom: { words: 800, pages: 2, detail: 'appropriate depth' }
             };
 
-            const tonalityStyle = {
-                professional: 'Use formal, business-appropriate language',
-                casual: 'Use friendly, conversational tone',
-                academic: 'Use scholarly, research-based language with citations',
-                creative: 'Use imaginative, engaging storytelling style',
-                persuasive: 'Use compelling, argumentative language to convince readers',
-                informative: 'Use clear, educational language focused on facts'
+            const contentTypeEnhancements = {
+                document: {
+                    structure: '# Title\n\n## Executive Summary\n\n## Main Content\n\n## Key Takeaways\n\n## Conclusion',
+                    elements: ['Clear headings', 'Bullet points for key information', 'Numbered lists for sequences', 'Bold text for emphasis'],
+                    formatting: 'Use H1 for title, H2 for main sections, H3 for subsections'
+                },
+                essay: {
+                    structure: '# Essay Title\n\n## Introduction\n- Hook\n- Background\n- Thesis Statement\n\n## Body Paragraph 1\n\n## Body Paragraph 2\n\n## Body Paragraph 3\n\n## Counterargument & Rebuttal\n\n## Conclusion',
+                    elements: ['Strong thesis statement', 'Topic sentences', 'Supporting evidence', 'Smooth transitions', 'Proper citations if needed'],
+                    formatting: 'Academic tone, formal language, third-person perspective'
+                },
+                report: {
+                    structure: '# Report Title\n\n## Executive Summary\n\n## Introduction\n\n## Methodology / Approach\n\n## Findings / Analysis\n\n## Recommendations\n\n## Implementation Plan\n\n## Conclusion',
+                    elements: ['Executive summary', 'Data-driven insights', 'Actionable recommendations', 'Timeline/milestones', 'Risk assessment'],
+                    formatting: 'Professional business format, use tables where applicable'
+                },
+                article: {
+                    structure: '# Catchy Title\n\n## Introduction (Hook + Context)\n\n## Main Point 1\n\n## Main Point 2\n\n## Main Point 3\n\n## Practical Tips / Examples\n\n## Conclusion + Call to Action',
+                    elements: ['Engaging headline', 'Compelling intro', 'Subheadings every 2-3 paragraphs', 'Examples/case studies', 'Actionable takeaways'],
+                    formatting: 'Conversational yet informative, use pull quotes'
+                },
+                story: {
+                    structure: '# Story Title\n\n## Chapter/Scene 1: Setup\n\n## Chapter/Scene 2: Conflict\n\n## Chapter/Scene 3: Resolution\n\n## Epilogue (optional)',
+                    elements: ['Character development', 'Setting description', 'Dialogue where appropriate', 'Plot progression', 'Emotional arc'],
+                    formatting: 'Narrative style, show don\'t tell, sensory details'
+                },
+                poem: {
+                    structure: '# Poem Title\n\n[Stanza 1]\n\n[Stanza 2]\n\n[Stanza 3]',
+                    elements: ['Imagery', 'Metaphors/similes', 'Rhythm/rhyme scheme', 'Emotional resonance'],
+                    formatting: 'Poetic structure with intentional line breaks'
+                }
             };
 
-            const contentTypeTemplates = {
-                document: 'Create a well-structured document',
-                essay: 'Write an academic essay with introduction, body paragraphs, and conclusion',
-                report: 'Generate a formal business report with executive summary and recommendations',
-                article: 'Write an engaging article or blog post',
-                story: 'Create a narrative story with characters and plot',
-                poem: 'Compose a creative poem'
+            const tonalityEnhancements = {
+                professional: {
+                    voice: 'Formal and authoritative',
+                    vocabulary: 'Industry-standard terminology',
+                    sentenceStructure: 'Complete sentences, varied length',
+                    avoid: 'Slang, contractions, overly casual language'
+                },
+                casual: {
+                    voice: 'Friendly and approachable',
+                    vocabulary: 'Everyday language',
+                    sentenceStructure: 'Mix of short and medium sentences',
+                    allow: 'Contractions, rhetorical questions, personal pronouns'
+                },
+                academic: {
+                    voice: 'Scholarly and objective',
+                    vocabulary: 'Technical terms with definitions',
+                    sentenceStructure: 'Complex sentences with subordinate clauses',
+                    require: 'Citations, evidence-based claims, hedging language'
+                },
+                creative: {
+                    voice: 'Expressive and imaginative',
+                    vocabulary: 'Vivid, descriptive words',
+                    sentenceStructure: 'Varied for rhythm and flow',
+                    techniques: 'Metaphors, similes, personification, alliteration'
+                },
+                persuasive: {
+                    voice: 'Confident and compelling',
+                    vocabulary: 'Power words, emotional triggers',
+                    sentenceStructure: 'Short, punchy sentences mixed with longer explanations',
+                    techniques: 'Rule of three, rhetorical questions, calls to action'
+                },
+                informative: {
+                    voice: 'Clear and educational',
+                    vocabulary: 'Accessible but accurate',
+                    sentenceStructure: 'Straightforward, logical progression',
+                    focus: 'Facts, data, step-by-step explanations'
+                }
             };
 
-            const fullPrompt = `${contentTypeTemplates[aiContentType]} about: ${aiTopic}. \n\nStyle instructions:\n- Length: ${lengthInstructions[aiLength]}\n- Tonality: ${tonalityStyle[aiTonality]}\n\nFormat the content with proper headings, paragraphs, and structure appropriate for a ${aiContentType}.`;
+            const config = lengthConfig[aiLength];
+            const contentType = contentTypeEnhancements[aiContentType];
+            const tonality = tonalityEnhancements[aiTonality];
 
-            console.log('🤖 Generating AI document with:', {
+            // Build enhanced prompt with structured output requirements
+            const enhancedPrompt = `You are an expert ${aiContentType} writer known for producing high-quality, well-structured content.
+
+## TASK
+${contentType.structure.split('\n')[0].replace('# ', '')} about: "${aiTopic}"
+
+## REQUIRED STRUCTURE
+Follow this exact structure:
+${contentType.structure}
+
+## CONTENT REQUIREMENTS
+- **Length**: Approximately ${config.words} words (${config.pages} page${config.pages > 1 ? 's' : ''})
+- **Detail Level**: ${config.detail}
+- **Voice**: ${tonality.voice}
+- **Vocabulary**: ${tonality.vocabulary}
+- **Sentence Structure**: ${tonality.sentenceStructure}
+${tonality.avoid ? `- **Avoid**: ${tonality.avoid}` : ''}
+${tonality.allow ? `- **You May Use**: ${tonality.allow}` : ''}
+${tonality.require ? `- **Required**: ${tonality.require}` : ''}
+${tonality.techniques ? `- **Literary Techniques**: ${tonality.techniques}` : ''}
+
+## FORMATTING RULES
+✅ Use proper Markdown formatting throughout
+✅ ${contentType.formatting}
+✅ Include these elements: ${contentType.elements.join(', ')}
+✅ Use bold (**text**) for key terms and important points
+✅ Use bullet points (- item) for lists
+✅ Use numbered lists (1. item) for sequences
+✅ Use horizontal rules (---) to separate major sections
+✅ Use blockquotes (> text) for important quotes or highlights
+✅ Use code blocks (\`\`\`) only for actual code examples
+✅ Use tables for comparisons when appropriate
+
+## QUALITY STANDARDS
+- Start with a compelling title (H1)
+- Write an engaging introduction that hooks the reader
+- Use clear topic sentences for each paragraph
+- Include smooth transitions between sections
+- Provide concrete examples where relevant
+- End with a strong conclusion
+- Ensure logical flow and coherence
+- Maintain consistent tone throughout
+- Fact-check any claims or data
+- Proofread for grammar and spelling
+
+## OUTPUT FORMAT
+Output ONLY the formatted content. No preamble, no "Here is your document", no explanations about what you're writing. Just the beautifully formatted ${aiContentType} itself.`;
+
+            console.log('🤖 Generating AI document with enhanced prompt engineering:', {
                 topic: aiTopic,
                 contentType: aiContentType,
-                length: aiLength,
-                tonality: aiTonality
+                length: `${config.words} words (${config.detail})`,
+                tonality: tonality.voice,
+                structure: contentType.structure.split('\n').filter(s => s.trim()).length + ' sections'
             });
 
-            // Generate content using AI via backend API
+            // Animate through generation phases
+            setGenProgress(15); setGenPhaseLabel('Analysing your topic…');
+            await new Promise(r => setTimeout(r, 400));
+            setGenProgress(35); setGenPhaseLabel('Structuring content…');
+            await new Promise(r => setTimeout(r, 300));
+            setGenProgress(55); setGenPhaseLabel('Writing your document…');
+
+            // Generate content using AI via backend API with enhanced prompt
             const generatedContent = await generateDocument({
-                topic: aiTopic,
-                pages: aiLength === 'long' ? 3 : aiLength === 'medium' ? 2 : 1,
+                topic: enhancedPrompt,
+                pages: config.pages,
                 tone: aiTonality,
                 type: aiContentType,
-                temperature: 0.7
+                temperature: aiTonality === 'creative' ? 0.8 : aiTonality === 'academic' ? 0.5 : 0.7,
+                audience: aiTonality === 'professional' ? 'Business professionals and executives' :
+                    aiTonality === 'academic' ? 'Researchers and academics' :
+                        aiTonality === 'casual' ? 'General audience' : 'Educated readers',
+                keyPoints: contentType.elements
             });
 
-            console.log('✅ Content generated successfully');
+            // Count words for the done screen
+            const wc = generatedContent.replace(/[#*`>\-]/g, '').split(/\s+/).filter(Boolean).length;
+            setWordCount(wc);
+            setGenProgress(80); setGenPhaseLabel('Saving to your workspace…');
+            await new Promise(r => setTimeout(r, 300));
 
             // Create new document with generated content
             const response = await TextEditorService.saveDocument({
@@ -384,14 +461,21 @@ const EditorIntro = () => {
                 }
             });
 
-            const documentId = response.document?.id || response.id;
-            
+            const documentId = response.id;
+
             console.log('📄 Document saved with ID:', documentId);
+            console.log('📊 Full response:', response);
+
+            if (!documentId) {
+                toast.error('Failed to get document ID from backend');
+                setIsGenerating(false);
+                return;
+            }
 
             const newDoc = {
-                id: documentId || `doc_${Date.now()}`,
+                id: documentId,
                 mongoBackendId: documentId,
-                title: response.document?.title || response.title || aiTopic.substring(0, 50),
+                title: response.title || aiTopic.substring(0, 50),
                 content: generatedContent,
                 createdAt: Date.now(),
                 lastOpened: Date.now(),
@@ -400,35 +484,22 @@ const EditorIntro = () => {
                 slideCount: 0
             };
 
-            // Update local state
-            persistDocs(prev => {
-                const updated = [newDoc, ...prev];
-                saveDocuments(updated);
-                return updated;
-            });
+            // Update cache manually to show new doc immediately
+            queryClient.setQueryData(['documents'], old => [newDoc, ...(old || [])]);
 
-            toast.success('✨ Document generated successfully!');
-            setShowAIGenerator(false);
+            setGenProgress(100); setGenPhaseLabel('Done!');
+            setGeneratedDocId(documentId);
+            setGeneratedDocTitle(newDoc.title);
+            setGenStep('done');
+            toast.success('✨ Document ready!');
+            // Don't close modal — show the done state so user can click Open
 
-            // Reset form
-            setAiTopic('');
-            setAiContentType('document');
-            setAiLength('medium');
-            setAiTonality('professional');
-
-            // Open the editor with the generated document
-            if (documentId) {
-                // Use the correct route format: /editor/:mongoId
-                const editorUrl = `/editor/${documentId}`;
-                console.log('🚀 Opening editor at:', editorUrl);
-                window.open(editorUrl, '_blank');
-            } else {
-                toast.error('Failed to get document ID');
-            }
+            // Editor will be opened from the done state UI
 
         } catch (error) {
             console.error('AI Generation error:', error);
-            toast.error(error.message?.includes('API') 
+            setGenStep('config');
+            toast.error(error.message?.includes('API')
                 ? 'AI service unavailable. Please check your API configuration.'
                 : 'Failed to generate content. Please try again.');
         } finally {
@@ -437,7 +508,9 @@ const EditorIntro = () => {
     };
 
     const saveRename = () => {
-        persistDocs(documents.map(d => d.id === renameId ? { ...d, title: renameValue || d.title } : d));
+        queryClient.setQueryData(['documents'], old =>
+            old.map(d => d.id === renameId ? { ...d, title: renameValue || d.title } : d)
+        );
         setRenameId(null);
     };
 
@@ -525,48 +598,15 @@ const EditorIntro = () => {
                         <div className="flex gap-2.5">
                             {/* Refresh Button */}
                             <button
-                                onClick={() => {
-                                    console.log('🔄 Manual refresh triggered');
-                                    const fetchDocs = async () => {
-                                        setIsLoading(true);
-                                        try {
-                                            const backendResult = await TextEditorService.getAllDocuments();
-                                            const backendDocs = backendResult?.documents || [];
-                                            const localDocs = loadDocuments();
-                                            const mergedDocs = backendDocs.map(backendDoc => {
-                                                const matchingLocal = localDocs.find(d => 
-                                                    d.mongoBackendId === backendDoc.id || 
-                                                    (d.title === backendDoc.title && Math.abs(d.createdAt - new Date(backendDoc.createdAt).getTime()) < 60000)
-                                                );
-                                                return {
-                                                    id: backendDoc.id,
-                                                    title: backendDoc.title,
-                                                    content: '',
-                                                    createdAt: new Date(backendDoc.createdAt).getTime(),
-                                                    lastOpened: matchingLocal?.lastOpened || Date.now(),
-                                                    template: matchingLocal?.template || 'document',
-                                                    pinned: matchingLocal?.pinned || false,
-                                                    slideCount: 0,
-                                                    isBackend: true
-                                                };
-                                            });
-                                            setDocuments(mergedDocs);
-                                            toast.success('Documents refreshed');
-                                        } catch (error) {
-                                            console.error('Refresh error:', error);
-                                        } finally {
-                                            setIsLoading(false);
-                                        }
-                                    };
-                                    fetchDocs();
-                                }}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-sm font-semibold transition-all"
+                                onClick={handleManualRefresh}
+                                disabled={isLoading}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-sm font-semibold transition-all disabled:opacity-50"
                                 title="Refresh documents list"
                             >
-                                <RefreshCw className="w-4 h-4" />
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                                 Refresh
                             </button>
-                            
+
                             {/* Search keeps functioning */}
                             <div className="relative">
                                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -773,14 +813,7 @@ const EditorIntro = () => {
             </AnimatePresence>
 
             {/* ── FAB & Modals (Keep as-is for functionality) ── */}
-            <motion.button
-                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-                onClick={() => openEditor('blank')}
-                className="fixed bottom-8 right-8 w-15 h-15 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center z-[100] group hover:bg-blue-700 transition-colors"
-                title="New Document"
-            >
-                <Plus className="w-7 h-7 transition-transform group-hover:rotate-90 duration-200" />
-            </motion.button>
+
 
             {/* ── Upload Dropzone Modal ── */}
             <AnimatePresence>
@@ -817,202 +850,455 @@ const EditorIntro = () => {
                 )}
             </AnimatePresence>
 
-            {/* AI Document Generator Modal */}
+            {/* ══ AI Document Generator Modal ══════════════════════════════ */}
             <AnimatePresence>
                 {showAIGenerator && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        transition={{ duration: 0.2 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        style={{ background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(10px)' }}
                         onClick={() => !isGenerating && setShowAIGenerator(false)}
                     >
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            initial={{ scale: 0.94, opacity: 0, y: 24 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: -20 }}
-                            transition={{ type: "spring", duration: 0.5 }}
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
+                            exit={{ scale: 0.94, opacity: 0, y: 16 }}
+                            transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                            className="w-full max-w-md max-h-[90vh] flex flex-col rounded-[24px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-200"
+                            style={{ background: '#ffffff' }}
+                            onClick={e => e.stopPropagation()}
                         >
-                            {/* Header */}
-                            <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <Sparkles className="w-6 h-6 text-white" />
+                            {/* ── Generating State ─────────────────────────── */}
+                            {genStep === 'generating' && (
+                                <div className="flex flex-col items-center justify-center py-6 px-8 gap-5 text-center flex-1 overflow-y-auto custom-scrollbar">
+                                    {/* Animated orb */}
+                                    <div className="relative w-28 h-28 shrink-0">
+                                        <motion.div
+                                            animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+                                            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                                            className="absolute inset-0 rounded-full"
+                                            style={{ background: 'radial-gradient(circle, #f59e0b 0%, #f97316 50%, #ec4899 100%)', filter: 'blur(18px)' }}
+                                        />
+                                        <div className="relative w-28 h-28 rounded-full flex items-center justify-center"
+                                            style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316,#ec4899)' }}>
+                                            <Wand2 className="w-12 h-12 text-white" />
                                         </div>
-                                        <div>
-                                            <h2 className="text-xl font-bold text-white">Create with AI</h2>
-                                            <p className="text-white/90 text-xs">Let AI generate your document</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => !isGenerating && setShowAIGenerator(false)}
-                                        className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
-                                    >
-                                        <X className="w-4 h-4 text-white" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Content */}
-                            <div className="p-5 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
-                                {/* Topic Input */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                        <AlignLeft className="w-3.5 h-3.5 text-amber-500" />
-                                        What should your document be about?
-                                    </label>
-                                    <textarea
-                                        value={aiTopic}
-                                        onChange={(e) => setAiTopic(e.target.value)}
-                                        placeholder="e.g., The impact of artificial intelligence on modern healthcare..."
-                                        className="w-full min-h-[80px] p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none text-sm placeholder:text-slate-400"
-                                        disabled={isGenerating}
-                                    />
-                                </div>
-
-                                {/* Content Type Selection */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                        <FileText className="w-3.5 h-3.5 text-amber-500" />
-                                        Content Type
-                                    </label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {[
-                                            { id: 'document', label: 'Document', icon: FileText },
-                                            { id: 'essay', label: 'Essay', icon: BookOpen },
-                                            { id: 'report', label: 'Report', icon: Briefcase },
-                                            { id: 'article', label: 'Article', icon: ScrollText },
-                                            { id: 'story', label: 'Story', icon: Sparkles },
-                                            { id: 'poem', label: 'Poem', icon: Sparkles }
-                                        ].map((type) => {
-                                            const Icon = type.icon;
-                                            return (
-                                                <button
-                                                    key={type.id}
-                                                    onClick={() => setAiContentType(type.id)}
-                                                    disabled={isGenerating}
-                                                    className={`p-2.5 rounded-xl border-2 transition-all flex flex-col items-center gap-1.5 ${
-                                                        aiContentType === type.id
-                                                            ? 'border-amber-400 bg-amber-50 text-amber-700'
-                                                            : 'border-slate-200 hover:border-slate-300 text-slate-600'
-                                                    }`}
-                                                >
-                                                    <Icon className="w-5 h-5" />
-                                                    <span className="text-[11px] font-medium">{type.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Length & Tonality */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    {/* Length */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                            <ScrollText className="w-3.5 h-3.5 text-amber-500" />
-                                            Length
-                                        </label>
-                                        <div className="space-y-1.5">
-                                            {[
-                                                { id: 'short', label: 'Short', desc: '~300 words' },
-                                                { id: 'medium', label: 'Medium', desc: '~600 words' },
-                                                { id: 'long', label: 'Long', desc: '~1200 words' }
-                                            ].map((option) => (
-                                                <button
-                                                    key={option.id}
-                                                    onClick={() => setAiLength(option.id)}
-                                                    disabled={isGenerating}
-                                                    className={`w-full p-2.5 rounded-xl border-2 transition-all text-left ${
-                                                        aiLength === option.id
-                                                            ? 'border-amber-400 bg-amber-50'
-                                                            : 'border-slate-200 hover:border-slate-300'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium text-slate-800">{option.label}</span>
-                                                        <span className="text-[10px] text-slate-500">{option.desc}</span>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {/* Orbit ring */}
+                                        <motion.div
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                                            className="absolute -inset-3 rounded-full"
+                                            style={{ border: '2px dashed rgba(245,158,11,0.4)' }}
+                                        />
                                     </div>
 
-                                    {/* Tonality */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                            <Smile className="w-3.5 h-3.5 text-amber-500" />
-                                            Tonality
-                                        </label>
-                                        <select
-                                            value={aiTonality}
-                                            onChange={(e) => setAiTonality(e.target.value)}
-                                            disabled={isGenerating}
-                                            className="w-full p-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-400 bg-white text-sm font-medium"
+                                    <div className="space-y-2.5 w-full max-w-[280px]">
+                                        <h3 className="text-[17px] font-bold text-slate-900">Creating your document</h3>
+                                        <p className="text-sm font-medium" style={{ color: '#f59e0b' }}>{genPhaseLabel}</p>
+                                    </div>
+
+                                    {/* Progress bar */}
+                                    <div className="w-full max-w-sm space-y-2 shrink-0">
+                                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.05)' }}>
+                                            <motion.div
+                                                className="h-full rounded-full"
+                                                style={{ background: 'linear-gradient(90deg,#f59e0b,#f97316,#ec4899)' }}
+                                                animate={{ width: `${genProgress}%` }}
+                                                transition={{ duration: 0.6, ease: 'easeOut' }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-right" style={{ color: 'rgba(0,0,0,0.3)' }}>{genProgress}%</p>
+                                    </div>
+
+                                    {/* Animated dots */}
+                                    <div className="flex gap-2 shrink-0">
+                                        {[0, 1, 2].map(i => (
+                                            <motion.div key={i}
+                                                animate={{ y: [0, -6, 0], opacity: [0.3, 1, 0.3] }}
+                                                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                                                className="w-2 h-2 rounded-full"
+                                                style={{ background: '#f59e0b' }}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    {/* Topic preview */}
+                                    <div className="max-w-sm px-5 py-3 rounded-2xl text-center shrink-0"
+                                        style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                                        <p className="text-xs" style={{ color: 'rgba(0,0,0,0.4)' }}>Writing about</p>
+                                        <p className="text-sm font-semibold text-slate-900 mt-0.5 line-clamp-2">{aiTopic}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Done State ───────────────────────────────── */}
+                            {genStep === 'done' && (
+                                <div className="flex flex-col items-center justify-center py-6 px-8 text-center flex-1 overflow-y-auto custom-scrollbar">
+                                    {/* Success burst */}
+                                    <div className="relative shrink-0">
+                                        <motion.div
+                                            initial={{ scale: 0, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                                            className="w-24 h-24 rounded-full flex items-center justify-center"
+                                            style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}
                                         >
-                                            <option value="professional">Professional</option>
-                                            <option value="casual">Casual</option>
-                                            <option value="academic">Academic</option>
-                                            <option value="creative">Creative</option>
-                                            <option value="persuasive">Persuasive</option>
-                                            <option value="informative">Informative</option>
-                                        </select>
-                                        <div className="text-[10px] text-slate-500 mt-1.5 p-2 bg-slate-50 rounded-lg">
-                                            {aiTonality === 'professional' && 'Formal, business-appropriate language'}
-                                            {aiTonality === 'casual' && 'Friendly, conversational tone'}
-                                            {aiTonality === 'academic' && 'Scholarly, research-based language'}
-                                            {aiTonality === 'creative' && 'Imaginative, engaging storytelling'}
-                                            {aiTonality === 'persuasive' && 'Compelling, argumentative language'}
-                                            {aiTonality === 'informative' && 'Clear, educational language'}
+                                            <CheckCircle2 className="w-12 h-12 text-white" />
+                                        </motion.div>
+                                        {/* Sparkle bursts */}
+                                        {[0, 1, 2, 3, 4, 5].map(i => (
+                                            <motion.div key={i}
+                                                initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+                                                animate={{ scale: 1, x: Math.cos((i / 6) * Math.PI * 2) * 52, y: Math.sin((i / 6) * Math.PI * 2) * 52, opacity: 0 }}
+                                                transition={{ duration: 0.7, delay: 0.1 }}
+                                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
+                                                style={{ background: i % 2 === 0 ? '#f59e0b' : '#22c55e' }}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <div className="space-y-2 shrink-0">
+                                        <motion.h3
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.2 }}
+                                            className="text-2xl font-bold text-slate-900">
+                                            Document Ready! ✨
+                                        </motion.h3>
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.3 }}
+                                            className="text-sm"
+                                            style={{ color: 'rgba(0,0,0,0.5)' }}>
+                                            Your document has been saved to your workspace
+                                        </motion.p>
+                                    </div>
+
+                                    {/* Stats row */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.35 }}
+                                        className="flex flex-wrap justify-center items-center gap-4 shrink-0">
+                                        {[
+                                            { icon: Type, label: `~${wordCount.toLocaleString()} words` },
+                                            { icon: Layers, label: aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1) },
+                                            { icon: Target, label: aiTonality.charAt(0).toUpperCase() + aiTonality.slice(1) },
+                                        ].map(({ icon: Icon, label }) => (
+                                            <div key={label} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
+                                                style={{ background: 'rgba(0,0,0,0.03)', color: 'rgba(0,0,0,0.6)' }}>
+                                                <Icon className="w-4 h-4" style={{ color: '#f59e0b' }} />
+                                                {label}
+                                            </div>
+                                        ))}
+                                    </motion.div>
+
+                                    {/* Document title */}
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.4 }}
+                                        className="w-full max-w-sm px-5 py-3.5 rounded-2xl flex items-center gap-3 shrink-0"
+                                        style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                                        <FileText className="w-5 h-5 shrink-0" style={{ color: '#f59e0b' }} />
+                                        <p className="text-sm font-semibold text-slate-900 truncate text-left">{generatedDocTitle}</p>
+                                    </motion.div>
+
+                                    {/* Action buttons */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.45 }}
+                                        className="flex gap-3 w-full max-w-sm shrink-0">
+                                        <button
+                                            onClick={() => {
+                                                setShowAIGenerator(false);
+                                                setGenStep('config');
+                                                setAiTopic(''); setAiContentType('document');
+                                                setAiLength('medium'); setAiTonality('professional');
+                                                setAiStep(1);
+                                            }}
+                                            className="flex-1 h-11 rounded-2xl font-semibold text-sm transition-all"
+                                            style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.6)' }}
+                                        >
+                                            Create Another
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const url = `/editor/${generatedDocId}`;
+                                                const win = window.open(url, '_blank', 'noopener,noreferrer');
+                                                if (!win) toast.info('Allow popups to open the editor');
+                                                setShowAIGenerator(false);
+                                                setGenStep('config');
+                                            }}
+                                            className="flex-1 h-11 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                                            style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', boxShadow: '0 4px 20px rgba(245,158,11,0.4)' }}
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                            Open in Editor
+                                        </button>
+                                    </motion.div>
+                                </div>
+                            )}
+
+                            {/* ── Config State (wizard) ─────────────────────── */}
+                            {genStep === 'config' && (
+                                <>
+                                    {/* Header gradient bar */}
+                                    <div className="relative px-6 pt-5 pb-3.5 shrink-0"
+                                        style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(249,115,22,0.08) 50%, rgba(236,72,153,0.06) 100%)' }}>
+                                        <div className="absolute inset-0 opacity-5"
+                                            style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, #f59e0b 0%, transparent 60%), radial-gradient(circle at 80% 20%, #ec4899 0%, transparent 50%)' }} />
+                                        <div className="relative flex items-center justify-between">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                                    style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)' }}>
+                                                    <Sparkles className="w-5 h-5 text-white" />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-[17px] font-bold text-slate-900 tracking-tight">Create with AI</h2>
+                                                    <p className="text-xs mt-0.5" style={{ color: 'rgba(0,0,0,0.45)' }}>
+                                                        Step {aiStep} of 2 — {aiStep === 1 ? 'Your topic & type' : 'Style & length'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {/* Step indicators */}
+                                                <div className="flex gap-1.5">
+                                                    {[1, 2].map(s => (
+                                                        <div key={s} className="w-8 h-1 rounded-full transition-all"
+                                                            style={{ background: aiStep >= s ? 'linear-gradient(90deg,#f59e0b,#f97316)' : 'rgba(0,0,0,0.1)' }} />
+                                                    ))}
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowAIGenerator(false)}
+                                                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                                                    style={{ background: 'rgba(0,0,0,0.04)' }}
+                                                >
+                                                    <X className="w-4 h-4 text-slate-600" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            {/* Footer */}
-                            <div className="bg-slate-50 px-5 py-4 flex items-center justify-between border-t border-slate-200 flex-shrink-0">
-                                <p className="text-[10px] text-slate-500">
-                                    ✨ AI-generated content may require review and editing
-                                </p>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={() => setShowAIGenerator(false)}
-                                        disabled={isGenerating}
-                                        variant="outline"
-                                        size="sm"
-                                        className="rounded-xl font-semibold border-2 text-sm px-4"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        onClick={handleAIGenerate}
-                                        disabled={isGenerating || !aiTopic.trim()}
-                                        size="sm"
-                                        className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed px-6 text-sm"
-                                    >
-                                        {isGenerating ? (
-                                            <span className="flex items-center gap-1.5">
-                                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                                Generating...
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1.5">
-                                                <Sparkles className="w-4 h-4" />
-                                                Generate Document
-                                            </span>
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+                                        {/* Step 1 — Topic + Type */}
+                                        <AnimatePresence mode="wait">
+                                            {aiStep === 1 && (
+                                                <motion.div key="step1"
+                                                    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                                    className="px-6 py-4 space-y-4">
+
+                                                    {/* Topic textarea */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(0,0,0,0.4)' }}>
+                                                            What's your document about?
+                                                        </label>
+                                                        <div className="relative">
+                                                            <textarea
+                                                                value={aiTopic}
+                                                                onChange={(e) => setAiTopic(e.target.value.slice(0, 500))}
+                                                                placeholder="e.g. A business proposal for a new renewable energy project in Southeast Asia..."
+                                                                className="w-full h-22 p-4 rounded-xl text-sm transition-all focus:ring-2 focus:ring-orange-500/20 resize-none custom-scrollbar"
+                                                                style={{
+                                                                    background: 'rgba(0,0,0,0.02)',
+                                                                    border: aiTopic.trim() ? '1.5px solid rgba(245,158,11,0.5)' : '1.5px solid rgba(0,0,0,0.06)',
+                                                                    color: '#0f172a',
+                                                                    caretColor: '#f59e0b',
+                                                                }}
+                                                                onFocus={e => e.target.style.border = '1.5px solid rgba(245,158,11,0.6)'}
+                                                                onBlur={e => e.target.style.border = aiTopic.trim() ? '1.5px solid rgba(245,158,11,0.5)' : '1.5px solid rgba(0,0,0,0.06)'}
+                                                            />
+                                                            <div className="absolute bottom-3 right-3 text-[10px] font-medium"
+                                                                style={{ color: aiTopic.length > 200 ? '#f97316' : 'rgba(0,0,0,0.2)' }}>
+                                                                {aiTopic.length}/500
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Content type grid */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(0,0,0,0.4)' }}>
+                                                            Document type
+                                                        </label>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {[
+                                                                { id: 'document', label: 'Document', icon: FileText, desc: 'Standard professional doc' },
+                                                                { id: 'resume', label: 'Resume', icon: Briefcase, desc: 'Career & professional bio' },
+                                                                { id: 'report', label: 'Summary', icon: ScrollText, desc: 'Condensed key insights' },
+                                                                { id: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Update & announcement' },
+                                                            ].map(({ id, label, icon: Icon, desc }) => {
+                                                                const active = aiContentType === id;
+                                                                return (
+                                                                    <button 
+                                                                        key={id} 
+                                                                        onClick={() => setAiContentType(id)}
+                                                                        className={`relative p-4 rounded-2xl border-2 transition-all ${active ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                                                                    >
+                                                                        <div className="absolute inset-0 rounded-2xl opacity-20"
+                                                                            style={{ background: 'radial-gradient(circle at 50% 0%, #f59e0b, transparent 70%)' }} />
+                                                                        <Icon className="w-5 h-5 relative z-10 transition-colors"
+                                                                            style={{ color: active ? '#f59e0b' : 'rgba(0,0,0,0.4)' }} />
+                                                                        <div className="relative z-10">
+                                                                            <p className="text-[12px] font-bold"
+                                                                                style={{ color: active ? '#d97706' : 'rgba(0,0,0,0.7)' }}>
+                                                                                {label}
+                                                                            </p>
+                                                                            <p className="text-[10px] mt-0.5"
+                                                                                style={{ color: 'rgba(0,0,0,0.35)' }}>
+                                                                                {desc}
+                                                                            </p>
+                                                                        </div>
+                                                                        { active && (
+                                                                            <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
+                                                                                style={{ background: '#f59e0b' }}>
+                                                                                <Check className="w-2.5 h-2.5 text-white" />
+                                                                            </div>
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                    </motion.div>
+                                )}
+
+                                        {/* Step 2 — Length + Tonality */}
+                                        {aiStep === 2 && (
+                                            <motion.div key="step2"
+                                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                                className="px-6 py-4 space-y-4">
+
+                                                {/* Topic recap */}
+                                                <div className="flex items-start gap-3 px-4 py-3 rounded-2xl"
+                                                    style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                                                    <Sparkles className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#f59e0b' }} />
+                                                    <p className="text-sm line-clamp-2" style={{ color: 'rgba(0,0,0,0.6)' }}>{aiTopic}</p>
+                                                </div>
+
+                                                {/* Length */}
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(0,0,0,0.4)' }}>
+                                                        Length
+                                                    </label>
+                                                    <div className="grid grid-cols-3 gap-2.5">
+                                                        {[
+                                                            { id: 'short', label: 'Short', words: '~300', pages: '1 page', bar: 'w-1/3' },
+                                                            { id: 'medium', label: 'Medium', words: '~600', pages: '2 pages', bar: 'w-2/3' },
+                                                            { id: 'long', label: 'Long', words: '~1200', pages: '3+ pages', bar: 'w-full' },
+                                                        ].map(({ id, label, words, pages, bar }) => {
+                                                            const active = aiLength === id;
+                                                            return (
+                                                                <button key={id} onClick={() => setAiLength(id)}
+                                                                    className="relative flex flex-col gap-2 px-3.5 py-3 rounded-2xl text-left transition-all"
+                                                                    style={{
+                                                                        background: active ? 'rgba(245,158,11,0.08)' : 'rgba(0,0,0,0.02)',
+                                                                        border: active ? '1.5px solid rgba(245,158,11,0.4)' : '1.5px solid rgba(0,0,0,0.05)',
+                                                                    }}
+                                                                >
+                                                                    <p className="text-sm font-bold" style={{ color: active ? '#d97706' : 'rgba(0,0,0,0.7)' }}>
+                                                                        {label}
+                                                                    </p>
+                                                                    {/* Mini bar visualisation */}
+                                                                    <div className="h-1 w-full rounded-full" style={{ background: 'rgba(0,0,0,0.05)' }}>
+                                                                        <div className={`h-full rounded-full ${bar}`}
+                                                                            style={{ background: active ? 'linear-gradient(90deg,#f59e0b,#f97316)' : 'rgba(0,0,0,0.15)' }} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] font-semibold" style={{ color: active ? '#f59e0b' : 'rgba(0,0,0,0.45)' }}>{words} words</p>
+                                                                        <p className="text-[10px]" style={{ color: 'rgba(0,0,0,0.3)' }}>{pages}</p>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Tonality */}
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(0,0,0,0.4)' }}>
+                                                        Tonality
+                                                    </label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {[
+                                                            { id: 'professional', label: 'Professional', icon: Briefcase, color: '#60a5fa' },
+                                                            { id: 'casual', label: 'Casual', icon: MessageSquare, color: '#34d399' },
+                                                            { id: 'academic', label: 'Academic', icon: GraduationCap, color: '#a78bfa' },
+                                                            { id: 'creative', label: 'Creative', icon: Feather, color: '#f472b6' },
+                                                            { id: 'persuasive', label: 'Persuasive', icon: Zap, color: '#fb923c' },
+                                                            { id: 'informative', label: 'Informative', icon: Lightbulb, color: '#facc15' },
+                                                        ].map(({ id, label, icon: Icon, color }) => {
+                                                            const active = aiTonality === id;
+                                                            return (
+                                                                <button key={id} onClick={() => setAiTonality(id)}
+                                                                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all"
+                                                                    style={{
+                                                                        background: active ? `${color}10` : 'rgba(0,0,0,0.02)',
+                                                                        border: active ? `1.5px solid ${color}40` : '1.5px solid rgba(0,0,0,0.05)',
+                                                                    }}
+                                                                >
+                                                                    <Icon className="w-4 h-4 shrink-0" style={{ color: active ? color : 'rgba(0,0,0,0.3)' }} />
+                                                                    <span className="text-[12px] font-semibold" style={{ color: active ? color : 'rgba(0,0,0,0.5)' }}>
+                                                                        {label}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
                                         )}
-                                    </Button>
+                                    </AnimatePresence>
                                 </div>
-                            </div>
-                        </motion.div>
+
+                                {/* Footer nav */}
+                                <div className="px-6 pb-5 pt-1.5 flex items-center justify-between gap-3 shrink-0"
+                                    style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                                    <div className="flex items-center gap-2">
+                                        {aiStep === 2 && (
+                                            <button onClick={() => setAiStep(1)}
+                                                className="flex items-center gap-1.5 px-4 h-10 rounded-2xl text-sm font-semibold transition-all"
+                                                style={{ background: 'rgba(0,0,0,0.04)', color: 'rgba(0,0,0,0.6)' }}>
+                                                <ChevronLeft className="w-4 h-4" /> Back
+                                            </button>
+                                        )}
+                                        <p className="text-[11px]" style={{ color: 'rgba(0,0,0,0.3)' }}>
+                                            ✨ AI-generated content may require review
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2.5">
+                                        {aiStep === 1 ? (
+                                            <button
+                                                onClick={() => { if (aiTopic.trim()) setAiStep(2); else toast.error('Please enter a topic first'); }}
+                                                className="flex items-center gap-2 px-6 h-10 rounded-2xl font-bold text-sm transition-all hover:opacity-90"
+                                                style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', boxShadow: '0 4px 16px rgba(245,158,11,0.35)' }}>
+                                                Continue <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleAIGenerate}
+                                                disabled={isGenerating || !aiTopic.trim()}
+                                                className="flex items-center gap-2 px-6 h-10 rounded-2xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-40"
+                                                style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', boxShadow: '0 4px 16px rgba(245,158,11,0.35)' }}>
+                                                <Wand2 className="w-4 h-4" />
+                                                Generate
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </div>
+);
 };
+
 
 export default EditorIntro;

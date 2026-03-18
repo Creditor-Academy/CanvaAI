@@ -59,6 +59,8 @@ import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import HeaderMenuBar from './editor/HeaderMenuBar';
 import { FindReplaceModal } from './editor/FindReplaceModal';
 import { AIAssistant } from './editor/AIAssistant.jsx';
+import { PaginationEngine, flattenDocument } from '../../../utils/pagination/paginationEngine.js';
+import { runCalibration, checkCalibrationHealth, debugBlock } from '../../../utils/pagination/calibration.js';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
@@ -209,23 +211,23 @@ import { scrollLockManager } from '../utils/scrollLockManager';
  */
 const normalizeInlineStyles = (html) => {
   if (!html || typeof html !== 'string') return html;
-  
+
   try {
     // Create a temporary DOM element to parse HTML
     const temp = document.createElement('div');
     temp.innerHTML = html;
-    
+
     // Find all elements with inline text-align styles
     const elements = temp.querySelectorAll('[style*="text-align"]');
     elements.forEach(el => {
       const style = el.getAttribute('style') || '';
       const match = style.match(/text-align:\s*(left|center|right|justify)/i);
-      
+
       if (match) {
         const alignValue = match[1].toLowerCase();
         // Add Tiptap's data attribute
         el.setAttribute('data-text-align', alignValue);
-        
+
         // Remove the inline style but keep other styles
         const newStyle = style.replace(/text-align:\s*[^;]+;?/gi, '').trim();
         if (newStyle) {
@@ -235,7 +237,7 @@ const normalizeInlineStyles = (html) => {
         }
       }
     });
-    
+
     return temp.innerHTML;
   } catch (error) {
     console.error('Failed to normalize inline styles:', error);
@@ -483,7 +485,7 @@ export const EditorToolbar = ({
   const navigate = useNavigate();
 
   // AI States
-    const [showCodeBlockMenu, setShowCodeBlockMenu] = useState(false);
+  const [showCodeBlockMenu, setShowCodeBlockMenu] = useState(false);
   const [showCodeBlockConfigDialog, setShowCodeBlockConfigDialog] = useState(false);
   const [selectedCodeLanguage, setSelectedCodeLanguage] = useState('javascript');
   const [codeExecutionEnabled, setCodeExecutionEnabled] = useState(false);
@@ -518,7 +520,7 @@ export const EditorToolbar = ({
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
-  
+
   // CRITICAL FIX: Move ALL hooks BEFORE the early return to satisfy Rules of Hooks
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [selectedRows, setSelectedRows] = useState(0);
@@ -758,7 +760,7 @@ export const EditorToolbar = ({
 
   const insertTable = (rows, cols) => {
     console.log('[TextEditor] insertTable called with:', rows, 'x', cols);
-    
+
     if (!editor || editor.isDestroyed) {
       console.error('[TextEditor] Editor not available or destroyed');
       toast.error('Editor not available');
@@ -774,37 +776,19 @@ export const EditorToolbar = ({
       }
 
       console.log('[TextEditor] Building table structure...');
-      
-      // Build table HTML for reliable insertion
-      const tableHTML = `
-        <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
-          <tbody>
-            ${Array.from({ length: rows }, (_, rowIndex) => `
-              <tr>
-                ${Array.from({ length: cols }, () => `
-                  <${rowIndex === 0 ? 'th' : 'td'} 
-                    style="border: 2px solid #333; padding: 8px; min-width: 60px; ${rowIndex === 0 ? 'background-color: #e0e0e0; font-weight: bold;' : ''}">
-                    <p></p>
-                  </${rowIndex === 0 ? 'th' : 'td'}>
-                `).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
 
-      console.log('[TextEditor] Inserting table HTML...');
-      
+      console.log('[TextEditor] Inserting table using Tiptap command...');
+
       // Use runWithSavedSelection to maintain cursor position and prevent blur
-      const result = runWithSavedSelection(editor, (chain) => chain.insertContent(tableHTML));
-      
+      const result = runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: rows, cols: cols, withHeaderRow: true }));
+
       console.log('[TextEditor] Insert result:', result);
-      
+
       // Close picker and reset state
       setShowTablePicker(false);
       setSelectedRows(0);
       setSelectedCols(0);
-      
+
       if (result) {
         toast.success(`${rows}×${cols} table inserted`);
         // Focus the editor after a short delay
@@ -841,11 +825,10 @@ export const EditorToolbar = ({
         cells.push(
           <div
             key={`${row}-${col}`}
-            className={`w-5 h-5 border border-gray-300 rounded-sm ${
-              isSelected 
-                ? 'bg-blue-500 border-blue-600 shadow-sm' 
+            className={`w-5 h-5 border border-gray-300 rounded-sm ${isSelected
+                ? 'bg-blue-500 border-blue-600 shadow-sm'
                 : 'bg-white hover:bg-blue-100'
-            } cursor-pointer transition-all duration-150 transform hover:scale-110`}
+              } cursor-pointer transition-all duration-150 transform hover:scale-110`}
             onMouseEnter={() => handleTablePickerHover(row, col)}
             onMouseDown={(e) => {
               preventEditorBlur(e);
@@ -862,7 +845,7 @@ export const EditorToolbar = ({
 
     return (
       <div className="p-2">
-        <div 
+        <div
           className="grid gap-0.5 bg-white p-1"
           style={{
             gridTemplateColumns: `repeat(${gridSize}, min-content)`,
@@ -872,8 +855,8 @@ export const EditorToolbar = ({
           {cells}
         </div>
         <div className="text-center mt-3 text-sm text-gray-700 font-semibold min-w-[120px]">
-          {selectedRows > 0 && selectedCols > 0 
-            ? `${selectedCols} × ${selectedRows} Table` 
+          {selectedRows > 0 && selectedCols > 0
+            ? `${selectedCols} × ${selectedRows} Table`
             : 'Select table size'}
         </div>
       </div>
@@ -1441,8 +1424,8 @@ export const EditorToolbar = ({
         case 'page_break': {
           const { state: pbState } = editor;
           const { $from: pbFrom } = pbState.selection;
-          const pbDepth   = pbFrom.depth;
-          const pbTopEnd  = pbDepth > 0 ? pbFrom.end(1) + 1 : pbFrom.pos;
+          const pbDepth = pbFrom.depth;
+          const pbTopEnd = pbDepth > 0 ? pbFrom.end(1) + 1 : pbFrom.pos;
           const pbInsertPos = Math.min(pbTopEnd, pbState.doc.content.size);
           editor.chain().insertContentAt(pbInsertPos, { type: 'pageBreak' }).run();
           toast.success('Page break inserted');
@@ -1575,33 +1558,33 @@ export const EditorToolbar = ({
         const options = { temperature: 0.7, signal: controller.signal };
 
         switch (actionOrMode) {
-          case 'rewrite': 
-            result = await rewriteText(textOrResult, options); 
+          case 'rewrite':
+            result = await rewriteText(textOrResult, options);
             break;
-          case 'expand': 
-            result = await expandText(textOrResult, options); 
+          case 'expand':
+            result = await expandText(textOrResult, options);
             break;
-          case 'summarize': 
-            result = await summarizeText(textOrResult, options); 
+          case 'summarize':
+            result = await summarizeText(textOrResult, options);
             break;
-          case 'change_tone': 
-            result = await changeTone(textOrResult, 'professional', options); 
+          case 'change_tone':
+            result = await changeTone(textOrResult, 'professional', options);
             break;
-          case 'bullets_to_paragraph': 
-            result = await bulletToParagraph(textOrResult, options); 
+          case 'bullets_to_paragraph':
+            result = await bulletToParagraph(textOrResult, options);
             break;
-          case 'paraphrase': 
-            result = await paraphraseText(textOrResult, options); 
+          case 'paraphrase':
+            result = await paraphraseText(textOrResult, options);
             break;
-          case 'improve_readability': 
-            result = await improveReadability(textOrResult, options); 
+          case 'improve_readability':
+            result = await improveReadability(textOrResult, options);
             break;
-          case 'custom': 
+          case 'custom':
             // For custom actions, use a generic enhancement prompt
             const customPrompt = `Improve and enhance the following text: ${textOrResult}`;
             result = await callAIStreamAPI('generate', { prompt: customPrompt, temperature: 0.7 }, null, options.signal);
             break;
-          default: 
+          default:
             toast.error(`Unknown AI action: ${actionOrMode}`);
             return;
         }
@@ -2646,7 +2629,7 @@ export const EditorToolbar = ({
               </h3>
               <p className="text-xs text-blue-100 mt-0.5">Choose the perfect color for your text</p>
             </div>
-            
+
             {/* Color Grid */}
             <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar">
               {/* Quick Access - Recent Colors */}
@@ -2661,8 +2644,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
-                        currentTextColor === color 
-                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                        currentTextColor === color
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2689,8 +2672,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
-                        currentTextColor === color 
-                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                        currentTextColor === color
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2713,8 +2696,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
-                        currentTextColor === color 
-                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                        currentTextColor === color
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2737,8 +2720,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
-                        currentTextColor === color 
-                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                        currentTextColor === color
+                          ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2762,8 +2745,8 @@ export const EditorToolbar = ({
                         key={color}
                         className={cn(
                           "w-7 h-7 rounded-lg border-2 transition-all duration-200 hover:scale-125 hover:shadow-lg hover:-translate-y-0.5",
-                          currentTextColor === color 
-                            ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md" 
+                          currentTextColor === color
+                            ? "ring-2 ring-blue-500 ring-offset-2 border-blue-500 scale-110 shadow-md"
                             : "border-gray-200 hover:border-gray-300"
                         )}
                         style={{ backgroundColor: color }}
@@ -2781,8 +2764,8 @@ export const EditorToolbar = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600 font-medium">Current:</span>
-                  <div 
-                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm" 
+                  <div
+                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm"
                     style={{ backgroundColor: currentTextColor }}
                   />
                   <span className="text-xs font-mono text-gray-700 uppercase">{currentTextColor}</span>
@@ -2838,7 +2821,7 @@ export const EditorToolbar = ({
               </h3>
               <p className="text-xs text-yellow-100 mt-0.5">Make your text stand out</p>
             </div>
-            
+
             {/* Color Grid */}
             <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar">
               {/* Bright Highlights */}
@@ -2853,8 +2836,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
-                        currentHighlight === color 
-                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                        currentHighlight === color
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2881,8 +2864,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
-                        currentHighlight === color 
-                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                        currentHighlight === color
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2905,8 +2888,8 @@ export const EditorToolbar = ({
                       key={color}
                       className={cn(
                         "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
-                        currentHighlight === color 
-                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                        currentHighlight === color
+                          ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                       style={{ backgroundColor: color }}
@@ -2930,8 +2913,8 @@ export const EditorToolbar = ({
                         key={color}
                         className={cn(
                           "w-8 h-8 rounded-xl border-2 transition-all duration-200 hover:scale-125 hover:shadow-xl hover:-translate-y-0.5",
-                          currentHighlight === color 
-                            ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg" 
+                          currentHighlight === color
+                            ? "ring-2 ring-orange-500 ring-offset-2 border-orange-500 scale-110 shadow-lg"
                             : "border-gray-200 hover:border-gray-300"
                         )}
                         style={{ backgroundColor: color }}
@@ -2949,8 +2932,8 @@ export const EditorToolbar = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600 font-medium">Current:</span>
-                  <div 
-                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm" 
+                  <div
+                    className="w-6 h-6 rounded-md border-2 border-white shadow-sm"
                     style={{ backgroundColor: currentHighlight || 'transparent' }}
                   />
                   <span className="text-xs font-mono text-gray-700 uppercase">{currentHighlight || 'None'}</span>
@@ -3394,9 +3377,9 @@ export const EditorToolbar = ({
         >
           <Quote className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
-      
+
         <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
-      
+
         {/* AI Assistant Button - Rectangular with Sparkle Icon */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
@@ -3414,8 +3397,8 @@ export const EditorToolbar = ({
               <span className="text-xs font-semibold">AI Assist</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            onCloseAutoFocus={(e) => e.preventDefault()} 
+          <DropdownMenuContent
+            onCloseAutoFocus={(e) => e.preventDefault()}
             className="w-96 p-0 rounded-2xl shadow-2xl border border-purple-200 bg-white overflow-hidden"
             align="end"
             side="bottom"
@@ -3428,7 +3411,7 @@ export const EditorToolbar = ({
               </h3>
               <p className="text-xs text-purple-100 mt-1">Generate, transform, and enhance content with AI</p>
             </div>
-                  
+
             {/* Content */}
             <div className="p-4 max-h-[600px] overflow-y-auto custom-scrollbar">
               {/* Quick Actions - Always Available */}
@@ -3454,7 +3437,7 @@ export const EditorToolbar = ({
                   </button>
                 </div>
               </div>
-      
+
               {/* Transform & Enhance Section - Always Visible */}
               <div className="mb-4">
                 <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
@@ -3473,11 +3456,10 @@ export const EditorToolbar = ({
                         toast.error('Please select text first');
                       }
                     }}
-                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${
-                      !editor || editor.state.selection.from === editor.state.selection.to
+                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${!editor || editor.state.selection.from === editor.state.selection.to
                         ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                         : 'bg-linear-to-br from-orange-50 to-orange-100 text-orange-800 hover:from-orange-100 hover:to-orange-200 border-orange-200 hover:border-orange-300'
-                    }`}
+                      }`}
                   >
                     <Minus className="w-4 h-4 inline mr-2" />
                     Summarize
@@ -3493,11 +3475,10 @@ export const EditorToolbar = ({
                         toast.error('Please select text first');
                       }
                     }}
-                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${
-                      !editor || editor.state.selection.from === editor.state.selection.to
+                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${!editor || editor.state.selection.from === editor.state.selection.to
                         ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                         : 'bg-linear-to-br from-green-50 to-green-100 text-green-800 hover:from-green-100 hover:to-green-200 border-green-200 hover:border-green-300'
-                    }`}
+                      }`}
                   >
                     <Plus className="w-4 h-4 inline mr-2" />
                     Expand Content
@@ -3513,11 +3494,10 @@ export const EditorToolbar = ({
                         toast.error('Please select text first');
                       }
                     }}
-                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium col-span-2 ${
-                      !editor || editor.state.selection.from === editor.state.selection.to
+                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium col-span-2 ${!editor || editor.state.selection.from === editor.state.selection.to
                         ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                         : 'bg-linear-to-br from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200 border-blue-200 hover:border-blue-300'
-                    }`}
+                      }`}
                   >
                     <Wand2 className="w-4 h-4 inline mr-2" />
                     Enhance Content
@@ -3580,7 +3560,7 @@ export const EditorToolbar = ({
                 </div>
               </div>
             </div>
-      
+
             {/* Footer */}
             <div className="border-t border-purple-200 px-5 py-3 bg-purple-50">
               <p className="text-xs text-purple-700 text-center font-medium">
@@ -3590,7 +3570,7 @@ export const EditorToolbar = ({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-      
+
         <Separator orientation="vertical" className="mx-2 h-5" />
       </div >
 
@@ -4102,8 +4082,8 @@ export const EditorToolbar = ({
       )}
 
       {/* AI Assistant Dialog */}
-      <AIAssistant 
-        open={showAIAssistant} 
+      <AIAssistant
+        open={showAIAssistant}
         onOpenChange={setShowAIAssistant}
         onGenerateDocument={(data) => {
           console.log('Generate document:', data);
@@ -4122,13 +4102,13 @@ export const EditorToolbar = ({
         onImageInsert={(imageUrl, altText) => {
           if (!editor) return;
           try {
-            editor.chain().focus().setResizableImage({ 
-              src: imageUrl, 
-              alt: altText, 
-              title: altText || 'AI Generated Image', 
-              width: 400, 
-              height: 300, 
-              align: 'left' 
+            editor.chain().focus().setResizableImage({
+              src: imageUrl,
+              alt: altText,
+              title: altText || 'AI Generated Image',
+              width: 400,
+              height: 300,
+              align: 'left'
             }).run();
             toast.success('AI image inserted successfully');
           } catch (error) {
@@ -4168,13 +4148,22 @@ const PageBreak = Node.create({
   draggable: false,
   atom: true,
   parseHTML() { return [{ tag: 'div[data-type="page-break"]' }]; },
-  renderHTML() { return ['div', { 'data-type': 'page-break' }]; },
+  renderHTML() {
+    return [
+      'div',
+      {
+        'data-type': 'page-break',
+        // CSS will handle the visual styling with gradient background
+        // Inline styles here are overridden by index.css !important rules
+      }
+    ];
+  },
 });
 
 // ─── Wrapper component with providers ────────────────────────────────────────
-const TextEditorWithProviders = ({ 
-  initialContent = null, 
-  activeDocId = null, 
+const TextEditorWithProviders = ({
+  initialContent = null,
+  activeDocId = null,
   mongoId = null,
   onMongoIdSaved = null,
   onDeleteDocument = null
@@ -4182,7 +4171,7 @@ const TextEditorWithProviders = ({
   return (
     <EditorProvider>
       <ImageProvider>
-        <TextEditorContent 
+        <TextEditorContent
           initialContent={initialContent}
           activeDocId={activeDocId}
           mongoId={mongoId}
@@ -4195,9 +4184,9 @@ const TextEditorWithProviders = ({
 };
 
 // ─── Main TextEditorContent component ─────────────────────────────────────────
-const TextEditorContent = ({ 
-  initialContent = null, 
-  activeDocId = null, 
+const TextEditorContent = ({
+  initialContent = null,
+  activeDocId = null,
   mongoId = null,
   onMongoIdSaved = null,
   onDeleteDocument = null
@@ -4218,9 +4207,9 @@ const TextEditorContent = ({
   } = editorState;
 
   const {
-    setSaveStatus = () => {}, setLastSaved = () => {}, setDocumentStats = () => {},
-    setDocumentTitle = () => {}, updateEditorFeatures = () => {}, updateExportOptions = () => {},
-    updateUIState = () => {}, updateDocumentStats: updateDocumentStatsAction = () => {}
+    setSaveStatus = () => { }, setLastSaved = () => { }, setDocumentStats = () => { },
+    setDocumentTitle = () => { }, updateEditorFeatures = () => { }, updateExportOptions = () => { },
+    updateUIState = () => { }, updateDocumentStats: updateDocumentStatsAction = () => { }
   } = editorActions;
 
   const [isOutlineOpen, setIsOutlineOpen] = useState(true);
@@ -4239,6 +4228,7 @@ const TextEditorContent = ({
   const [showFindReplaceModal, setShowFindReplaceModal] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [isAiGeneratedDoc, setIsAiGeneratedDoc] = useState(false);
   const [documentVersions, setDocumentVersions] = useState([{ id: Date.now(), timestamp: new Date(), title: 'Initial Version', content: '', author: 'Current User' }]);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [activeHeadingLevel, setActiveHeadingLevel] = useState(0);
@@ -4250,11 +4240,11 @@ const TextEditorContent = ({
   // Keep --page-margin-* CSS variables in sync with state (runs on mount too)
   useEffect(() => {
     const r = document.documentElement;
-    r.style.setProperty('--page-margin-top',    `${pageMargins.top}px`);
-    r.style.setProperty('--page-margin-right',  `${pageMargins.right}px`);
+    r.style.setProperty('--page-margin-top', `${pageMargins.top}px`);
+    r.style.setProperty('--page-margin-right', `${pageMargins.right}px`);
     r.style.setProperty('--page-margin-bottom', `${pageMargins.bottom}px`);
-    r.style.setProperty('--page-margin-left',   `${pageMargins.left}px`);
-    r.style.setProperty('--page-break-gap',     '40px');
+    r.style.setProperty('--page-margin-left', `${pageMargins.left}px`);
+    r.style.setProperty('--page-break-gap', '40px');
   }, [pageMargins]);
 
   const [pageColor, setPageColor] = useState('#ffffff');
@@ -4308,9 +4298,9 @@ const TextEditorContent = ({
   //                  Always reset in a finally block so it can never stay locked.
   // lastFingerprintRef : content fingerprint of the last successfully-scanned doc.
   //                  Prevents re-scanning identical content on every keystroke.
-  const isPastingRef       = useRef(false);
-  const pasteTimerRef      = useRef(null);
-  const isInsertingRef     = useRef(false);
+  const isPastingRef = useRef(false);
+  const pasteTimerRef = useRef(null);
+  const isInsertingRef = useRef(false);
   const lastFingerprintRef = useRef('');
 
   // Page-limit config — single source of truth passed to all scanner functions
@@ -4319,7 +4309,7 @@ const TextEditorContent = ({
     MAX_CHARS_PER_PAGE,
     MAX_LINES_PER_PAGE,
     AVG_CHARS_PER_LINE: 65,   // 12pt font, 1-inch margins, A4 width
-    PASTE_SETTLE_MS:    300,   // ms after paste before scanning
+    PASTE_SETTLE_MS: 300,   // ms after paste before scanning
     MAX_BREAKS_PER_RUN: 2000, // hard cap — prevents runaway on huge pastes
   };
 
@@ -4349,6 +4339,34 @@ const TextEditorContent = ({
       });
     }
   }, [setDocumentStats]); // removed pages.length — functional setState avoids stale closure
+
+  // ── Sync word/character count from refs to state for footer display ───────
+  //
+  // The onUpdate callback stores counts in refs to avoid re-renders on every keystroke.
+  // This effect periodically syncs those values to React state for UI display.
+  // Uses debounce to update only when user pauses typing (every 1 second).
+  useEffect(() => {
+    const syncStats = () => {
+      const newWordCount = wordCountRef.current;
+      const newCharCount = characterCountRef.current;
+      const newReadingTime = readingTimeRef.current;
+      const newHeadings = headingsRef.current;
+
+      // Only update state if values have changed
+      setWordCount((prev) => prev !== newWordCount ? newWordCount : prev);
+      setCharacterCount((prev) => prev !== newCharCount ? newCharCount : prev);
+      setReadingTime((prev) => prev !== newReadingTime ? newReadingTime : prev);
+      setHeadings((prev) => prev !== newHeadings ? newHeadings : prev);
+    };
+
+    // Initial sync
+    syncStats();
+
+    // Set up interval to sync every second (user will see updates after they pause typing)
+    const intervalId = setInterval(syncStats, 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   // ── runPastePageBreaks ────────────────────────────────────────────────────
   //
@@ -4388,130 +4406,176 @@ const TextEditorContent = ({
   //   5. Per-block line estimation accounts for heading size multipliers and
   //      minimum 1-line floor so empty paragraphs are counted.
   //
+  /**
+   * Production-grade page break insertion with PDF paste handling
+   * 
+   * Special handling for PDF pastes:
+   * - Detects single giant blocks from PDF copy-paste
+   * Normalizes line breaks within PDF content
+   * Forces paragraph splits for oversized blocks
+   * 
+   * @param {Editor} editorInstance - TipTap editor instance
+   * @returns {number} Number of page breaks inserted
+   */
   const runPastePageBreaks = useCallback((editorInstance) => {
-    if (isInsertingRef.current) return 0;
-    if (!editorInstance?.state?.doc) return 0;
+    if (isInsertingRef.current || !editorInstance?.state?.doc) return 0;
 
     isInsertingRef.current = true;
-    let inserted = 0;
+    const { state, view } = editorInstance;
+    const { doc } = state;
+    const totalChars = doc.textContent.length;
 
     try {
-      const doc        = editorInstance.state.doc;
-      const totalChars = doc.textContent.length;
+      // ── Step 1: Prepare Pagination Engine ────────────────────────────────
+      let blocks = flattenDocument(doc);
 
-      if (totalChars > 5000) {
-        toast.info(
-          `Processing document (${Math.round(totalChars / 100) / 10}K chars)…`,
-          { id: 'paste-processing', duration: 2000 }
-        );
+      // 🔍 PDF Paste Detection: Check for single giant block
+      if (blocks.length === 1 && blocks[0].textContent.length > 1000) {
+        console.warn('⚠️ PDF Paste Detected: Single giant block found. Attempting to normalize...');
+
+        // Try to split the giant block by double newlines before pagination
+        const giantBlock = blocks[0];
+        const textContent = giantBlock.textContent;
+
+        // If text contains paragraph breaks, split it
+        const hasParagraphBreaks = textContent.includes('\n\n') || textContent.includes('\r\n\r\n');
+
+        if (hasParagraphBreaks) {
+          console.log('[TextEditor] Splitting PDF content into paragraphs...');
+
+          // Use String.split() instead of regex to avoid line break issues
+          const splitPattern = textContent.includes('\r\n\r\n') ? '\r\n\r\n' : '\n\n';
+          const paragraphs = textContent.split(splitPattern).filter(p => p.trim().length > 0);
+
+          if (paragraphs.length > 1) {
+            // Replace the giant block with multiple paragraphs
+            try {
+              const pos = doc.content.indexOf(giantBlock);
+              if (pos >= 0) {
+                let chain = editorInstance.chain();
+                chain = chain.deleteRange({ from: pos, to: pos + giantBlock.nodeSize });
+
+                // Insert normalized paragraphs
+                paragraphs.forEach((para, index) => {
+                  if (index > 0) {
+                    chain = chain.insertContent({ type: 'paragraph', content: [{ type: 'text', text: para }] });
+                  } else {
+                    chain = chain.insertContentAt(pos, { type: 'paragraph', content: [{ type: 'text', text: para }] });
+                  }
+                });
+
+                chain.run();
+
+                // Re-fetch blocks after normalization
+                const newDoc = editorInstance.state.doc;
+                blocks = flattenDocument(newDoc);
+                console.log(`[TextEditor] ✅ Normalized into ${blocks.length} paragraphs`);
+              }
+            } catch (splitErr) {
+              console.error('[TextEditor] Failed to split PDF content:', splitErr);
+              // Continue with original blocks if split fails
+            }
+          }
+        }
       }
 
-      // ── Pass 1: collect insertion positions ───────────────────────────
-      const insertAt  = [];
-      let pageWords   = 0;
-      let pageChars   = 0;
-      let pageLines   = 0;
-      let blockCount  = 0;
-
-      doc.forEach((blockNode, topOffset) => {
-        blockCount++;
-
-        // Existing break → start a fresh page
-        if (blockNode.type.name === 'pageBreak') {
-          pageWords = 0;
-          pageChars = 0;
-          pageLines = 0;
-          return;
-        }
-
-        const text       = blockNode.textContent || '';
-        const blockWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
-        const blockChars = text.length;
-
-        // Heading nodes are taller — heading level 1 ≈ 3 normal lines,
-        // level 2 ≈ 2, levels 3-6 ≈ 1.5.  Paragraph/list → 1× multiplier.
-        // Minimum 1 line so blank paragraphs are not ignored (they still
-        // consume vertical space via paragraph spacing).
-        let lineMultiplier = 1;
-        if (blockNode.type.name === 'heading') {
-          const lvl = blockNode.attrs?.level ?? 3;
-          lineMultiplier = lvl === 1 ? 3 : lvl === 2 ? 2 : 1.5;
-        }
-        const rawLines   = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 1;
-        const blockLines = Math.max(1, Math.ceil(rawLines * lineMultiplier));
-
-        pageWords += blockWords;
-        pageChars += blockChars;
-        pageLines += blockLines;
-
-        const overflow =
-          pageWords > pageCfg.MAX_WORDS_PER_PAGE ||
-          pageChars > pageCfg.MAX_CHARS_PER_PAGE ||
-          pageLines > pageCfg.MAX_LINES_PER_PAGE;
-
-        if (overflow && insertAt.length < pageCfg.MAX_BREAKS_PER_RUN) {
-          // Insert BEFORE this block → it becomes the first block of the new page
-          insertAt.push(topOffset);
-          // New page starts carrying this block's contribution
-          pageWords = blockWords;
-          pageChars = blockChars;
-          pageLines = blockLines;
-        }
-      });
-
-      // Stamp fingerprint regardless of whether we found breaks.
-      // Without this, every keystroke after a full scan (that found nothing)
-      // re-runs the full scan because the fingerprint never advanced.
-      const txt = doc.textContent;
-      lastFingerprintRef.current = `${txt.length}:${txt.substring(0, 80)}`;
-
-      if (insertAt.length === 0) {
-        if (totalChars > 5000) {
-          toast.success('Document processed — no additional breaks needed.', {
-            id: 'paste-processing', duration: 2000,
-          });
-        }
+      if (blocks.length === 0) {
+        lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
         return 0;
       }
 
-      // ── Pass 2: single chained transaction ────────────────────────────
+      const engine = new PaginationEngine({
+        useGoogleDocsConfig: true,  // 810px preferred height
+        debugMode: false,
+        perfLogEnabled: false,
+        editorView: view,
+      });
 
-      let offset = 0;
-      let chain  = editorInstance.chain();
+      const pages = engine.paginate(blocks);
 
-      for (const rawPos of insertAt) {
-        // rawPos is a content-relative offset from doc.forEach (0-based from doc.content start).
-        // ProseMirror absolute position = rawPos + 1 (the doc node's own opening token is pos 0).
-        // offset accumulates +1 for every pageBreak already inserted in this batch.
-        chain  = chain.insertContentAt(rawPos + 1 + offset, { type: 'pageBreak' });
-        offset += 1;
+      // 🔬 Run calibration in development mode
+      if (process.env.NODE_ENV === 'development' || blocks.length < 10) {
+        runCalibration(engine, blocks).then(results => {
+          console.log('[Calibration] Complete - See detailed table above');
+        });
       }
 
-      chain.run(); // exactly one onUpdate
-      inserted = insertAt.length;
+      console.log('[TextEditor] Google Docs pagination:', {
+        totalBlocks: blocks.length,
+        totalPages: pages.length,
+        usableHeight: engine.usableHeight,
+        googleDocsMode: engine.useGoogleDocsConfig,
+      });
+
+      // ── Step 2: Map Page Boundaries to Document Positions ───────────────
+      // O(n) single pass using descendants() instead of O(n²) nested loops
+      const insertPositions = [];
+      let blockCounter = 0;
+
+      doc.descendants((node, pos) => {
+        if (node.isBlock) {
+          // If this block index marks the end of a page (excluding last page)
+          if (pages.some((p, i) => i < pages.length - 1 && p.endIndex === blockCounter)) {
+            insertPositions.push(pos + node.nodeSize);
+          }
+          blockCounter++;
+          return false; // Don't descend into inline children
+        }
+        return true;
+      });
+
+      console.log('[TextEditor] Page break positions to insert:', insertPositions);
+
+      if (insertPositions.length === 0) {
+        lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
+        isInsertingRef.current = false;
+        return 0;
+      }
+
+      // ── Step 3: Execution - Reverse-Order Insertion ─────────────────────
+      // Sort descending - inserting at bottom doesn't shift top positions
+      const sortedPositions = [...new Set(insertPositions)].sort((a, b) => b - a);
+
+      let chain = editorInstance.chain();
+
+      for (const pos of sortedPositions) {
+        // Safety check: don't insert duplicate page breaks
+        const nodeAfter = doc.nodeAt(pos);
+        if (nodeAfter?.type.name !== 'pageBreak') {
+          chain = chain.insertContentAt(pos, { type: 'pageBreak' });
+        } else {
+          console.log('[TextEditor] Skipping duplicate page break at pos', pos);
+        }
+      }
+
+      console.log(`[TextEditor] Executing reverse-order insertion with ${sortedPositions.length} breaks`);
+      chain.run();
+
+      // ── Step 4: Cleanup & Feedback ──────────────────────────────────────
+      lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
 
       if (totalChars > 5000) {
-        const pages = insertAt.length + 1;
-        setTimeout(() => {
-          toast.success(
-            `✓ Document paginated — ${inserted} break${inserted !== 1 ? 's' : ''} inserted, ${pages} pages`,
-            { id: 'paste-processing', duration: 3000 }
-          );
-        }, 100);
+        toast.success(`Document paginated: ${pages.length} page${pages.length > 1 ? 's' : ''}`, {
+          id: 'paste-processing',
+          duration: 2000,
+        });
       }
+
+      console.log('[TextEditor] ✅ Page breaks inserted:', sortedPositions.length);
+      isInsertingRef.current = false;
+      return sortedPositions.length;
 
     } catch (err) {
       console.error('[PastePageBreaks] error:', err);
       toast.error('Failed to paginate document', {
-        id: 'paste-processing', duration: 4000,
+        id: 'paste-processing',
+        duration: 4000,
       });
-    } finally {
-      isInsertingRef.current = false; // always released
+      isInsertingRef.current = false;
+      return 0;
     }
-
-    return inserted;
   }, []); // pageCfg is a stable plain-object literal — no closure deps
-  
+
   // ── runProgressivePageBreaks ─────────────────────────────────────────────
   //
   // For documents > 20 K characters we break the work into chunks to keep
@@ -4545,10 +4609,10 @@ const TextEditorContent = ({
       );
 
       // ── Pass 1: full scan (same logic as runPastePageBreaks) ──────────
-      const insertAt  = [];
-      let pageWords   = 0;
-      let pageChars   = 0;
-      let pageLines   = 0;
+      const insertAt = [];
+      let pageWords = 0;
+      let pageChars = 0;
+      let pageLines = 0;
 
       doc.forEach((blockNode, topOffset) => {
         if (blockNode.type.name === 'pageBreak') {
@@ -4556,7 +4620,7 @@ const TextEditorContent = ({
           return;
         }
 
-        const text       = blockNode.textContent || '';
+        const text = blockNode.textContent || '';
         const blockWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
         const blockChars = text.length;
         let lineMultiplier = 1;
@@ -4564,7 +4628,7 @@ const TextEditorContent = ({
           const lvl = blockNode.attrs?.level ?? 3;
           lineMultiplier = lvl === 1 ? 3 : lvl === 2 ? 2 : 1.5;
         }
-        const rawLines   = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 1;
+        const rawLines = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 1;
         const blockLines = Math.max(1, Math.ceil(rawLines * lineMultiplier));
 
         pageWords += blockWords;
@@ -4598,8 +4662,8 @@ const TextEditorContent = ({
 
       // ── Pass 2: insert in CHUNK_SIZE batches, yielding between each ───
       const totalBreaks = insertAt.length;
-      let offset        = 0;
-      let batchStart    = 0;
+      let offset = 0;
+      let batchStart = 0;
 
       while (batchStart < totalBreaks) {
         if (editorInstance.isDestroyed) break;
@@ -4614,7 +4678,7 @@ const TextEditorContent = ({
         const batchEnd = Math.min(batchStart + CHUNK_SIZE, totalBreaks);
         let chain = editorInstance.chain();
         for (let i = batchStart; i < batchEnd; i++) {
-          chain  = chain.insertContentAt(insertAt[i] + 1 + offset, { type: 'pageBreak' });
+          chain = chain.insertContentAt(insertAt[i] + 1 + offset, { type: 'pageBreak' });
           offset += 1;
         }
         chain.run();
@@ -4656,11 +4720,11 @@ const TextEditorContent = ({
   //      This avoids the full forEach on every keystroke for short documents.
   //
   const checkAndInsertAutoPageBreaks = useCallback((editorInstance) => {
-    if (isPastingRef.current)   return; // paste system handles it
+    if (isPastingRef.current) return; // paste system handles it
     if (isInsertingRef.current) return; // re-entrancy guard
     if (!editorInstance?.state?.doc) return;
 
-    const doc  = editorInstance.state.doc;
+    const doc = editorInstance.state.doc;
     const text = doc.textContent;
 
     // Fingerprint guard — no change since last scan
@@ -4671,7 +4735,7 @@ const TextEditorContent = ({
     // there is nothing to paginate yet → update fingerprint and bail.
     const totalWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
     const totalChars = text.length;
-    const threshold  = 0.8;
+    const threshold = 0.8;
     if (
       totalWords < pageCfg.MAX_WORDS_PER_PAGE * threshold &&
       totalChars < pageCfg.MAX_CHARS_PER_PAGE * threshold
@@ -4710,7 +4774,7 @@ const TextEditorContent = ({
           if (pasteTimerRef.current) clearTimeout(pasteTimerRef.current);
 
           pasteTimerRef.current = setTimeout(() => {
-            isPastingRef.current       = false;
+            isPastingRef.current = false;
             lastFingerprintRef.current = ''; // force full re-scan
             // editorRef.current is the stable Tiptap editor reference
             const ed = editorRef.current;
@@ -4738,13 +4802,13 @@ const TextEditorContent = ({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ 
+      StarterKit.configure({
         document: false,
-        heading: { levels: [1,2,3,4,5,6] }, 
-        blockquote: false, 
-        underline: false, 
-        link: false, 
-        listItem: false, 
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
+        blockquote: false,
+        underline: false,
+        link: false,
+        listItem: false,
         codeBlock: false,
         bulletList: false,
         orderedList: false
@@ -4785,10 +4849,10 @@ const TextEditorContent = ({
       console.log('🔵 onUpdate triggered - deletion/typing detected');
       // REMOVED: setSaveStatus('modified') - this was causing context re-renders that reset cursor
       // Save status now only updates on actual save operations or periodically
-      
+
       // REMOVED: addHeadingStyles() call - this manipulates DOM and can cause cursor jumps
       // setTimeout(() => addHeadingStyles(), 10);
-      
+
       // During a paste isPastingRef.current is true — the pastePlugin's
       // settle timer will call runPastePageBreaks once the doc is stable.
       // For normal typing: debounce the check so rapid keystrokes don't
@@ -4802,7 +4866,7 @@ const TextEditorContent = ({
           }
         }, 250);
       }
-      
+
       // CRITICAL FIX: DO NOT update React state on every keystroke/delete!
       // Only update refs here - state updates cause re-renders that reset cursor
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
@@ -4810,12 +4874,12 @@ const TextEditorContent = ({
         if (!editorInstance?.state?.doc) return;
         const text = editorInstance.state.doc.textContent;
         const words = text.trim().split(/\s+/).filter(Boolean).length;
-              
+
         // Update refs ONLY (no re-render)
         wordCountRef.current = words;
         characterCountRef.current = text.length;
         readingTimeRef.current = Math.ceil(words / 200);
-              
+
         const newHeadings = [];
         let paragraphs = 0, images = 0, tables = 0;
         editorInstance.state.doc.descendants((node, pos) => {
@@ -4826,18 +4890,18 @@ const TextEditorContent = ({
           else if (type === 'table') tables++;
         });
         headingsRef.current = newHeadings;
-              
+
         // REMOVED: State updates that were causing cursor to jump to beginning
         // Word count UI now updates only when user explicitly opens the dialog
         // setWordCount(words);
         // setCharacterCount(text.length);
         // setReadingTime(Math.ceil(words / 200));
         // setHeadings(newHeadings);
-              
+
         // REMOVED: setDocumentStats - was causing parent re-renders
         // if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
       }, 1000); // Delay UI updates until user pauses typing
-      
+
       // REMOVED: Auto-pagination on every content change - this was causing cursor jump bug
       // Pagination now only runs after paste or explicit page break operations
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
@@ -4850,7 +4914,7 @@ const TextEditorContent = ({
       const { from, to } = editorInstance.state.selection;
       // REMOVED: setSelectedText - causes re-render on every cursor movement
       // setSelectedText(from !== to ? editorInstance.state.doc.textBetween(from, to, ' ') : '');
-      
+
       // REMOVED: setActiveHeadingLevel - causes unnecessary re-renders
       // let newHeadingLevel = 0;
       // editorInstance.state.doc.nodesBetween(from, to, (node) => {
@@ -4867,31 +4931,31 @@ const TextEditorContent = ({
   useEffect(() => {
     if (!editor) return;
     editorRef.current = editor;
-    
+
     console.log('🔍 Editor mounted with props:', { mongoId, activeDocId });
     console.log('🔍 Current URL:', window.location.href);
-    
+
     // ENDLESS PAGE MODE - No pagination initialization needed
     // Content flows naturally without page wrapping
-    
+
     // Load initial content from URL parameter (docId) and fetch from backend
     const urlParams = new URLSearchParams(window.location.search);
     const docId = urlParams.get('docId');
-    
+
     if (docId) {
       console.log('📥 Loading document from backend using ID:', docId);
-      
+
       // Extract mongoId from URL path like /editor/:mongoId
       const pathParts = window.location.pathname.split('/').filter(Boolean);
       const pathMongoId = pathParts[pathParts.length - 1];
-      
+
       console.log('🔍 URL Analysis:', {
         pathname: window.location.pathname,
         pathParts,
         extractedMongoId: pathMongoId,
         isValidMongoId: /^[0-9a-fA-F]{24}$/.test(pathMongoId)
       });
-      
+
       // CRITICAL FIX: Store the MongoDB ID in localStorage for reliable access during save
       if (pathMongoId && pathMongoId !== 'editor' && /^[0-9a-fA-F]{24}$/.test(pathMongoId)) {
         console.log('✅ Storing MongoDB ID for save operation:', pathMongoId);
@@ -4904,17 +4968,17 @@ const TextEditorContent = ({
           localStorage.setItem('athena_current_mongo_id', propMongoId);
         }
       }
-      
+
       // Fetch document from backend API
       TextEditorService.getDocumentById(docId)
         .then((doc) => {
           console.log('📥 Document loaded:', { id: doc.id, title: doc.title });
-          
+
           // CRITICAL FIX: Always use JSON content first to preserve all attributes (alignment, etc.)
           // Only fall back to HTML if JSON is not available
           const jsonContent = doc.data?.content || doc.content;
           const htmlContent = doc.data?.html || doc.html || '';
-          
+
           if (jsonContent && typeof jsonContent === 'object') {
             console.log('✅ Loading from JSON (preserves formatting)');
             // Load from JSON - this preserves ALL attributes including text alignment
@@ -4926,6 +4990,10 @@ const TextEditorContent = ({
             editor.commands.setContent(normalizedHtml);
           }
           
+          if (doc.data?.isAiGenerated) {
+            setIsAiGeneratedDoc(true);
+          }
+
           // Set document title
           if (doc.title && setDocumentTitle) {
             setDocumentTitle(doc.title);
@@ -4953,7 +5021,7 @@ const TextEditorContent = ({
     } catch (error) { toast.error('Failed to copy content'); }
   }, [editor]);
 
-  const handlePaste = useCallback(() => {}, []);
+  const handlePaste = useCallback(() => { }, []);
 
   const handleAutoSave = useCallback(async () => {
     if (!editor) return;
@@ -4961,16 +5029,16 @@ const TextEditorContent = ({
       const html = editor.getHTML();
       // Note: Auto-save to backend (MongoDB) has been disabled.
       // Backend save should be handled through parent component callbacks.
-      
+
       // Just update local state
       setLastSaved(new Date());
       setSaveStatus('saved');
-    } catch (error) { 
+    } catch (error) {
       console.error('Auto-save error:', error);
       setSaveStatus('error');
     }
   }, [editor, documentTitle, setLastSaved, setSaveStatus]);
-  
+
   // Wire handleAutoSave to ref to avoid TDZ and stale closures
   handleAutoSaveRef.current = handleAutoSave;
 
@@ -4988,14 +5056,14 @@ const TextEditorContent = ({
           application: 'Athena Editor',
           applicationVersion: '1.0.0'
         },
-        
+
         // Document Content
         content: {
           html: editor.getHTML(),
           text: editor.getText(),
           json: editor.getJSON()
         },
-        
+
         // Document Statistics
         statistics: {
           characterCount: editor.getText().length,
@@ -5008,7 +5076,7 @@ const TextEditorContent = ({
             head: editor.state.selection.head
           }
         },
-        
+
         // Document Styles and Formatting
         styles: {
           marks: editor.getAttributes('textStyle'),
@@ -5021,7 +5089,7 @@ const TextEditorContent = ({
             link: editor.isActive('link')
           }
         },
-        
+
         // Document Structure
         structure: {
           headings: [],
@@ -5031,7 +5099,7 @@ const TextEditorContent = ({
           images: [],
           links: []
         },
-        
+
         // Editor State
         editorState: {
           zoom: zoom,
@@ -5039,7 +5107,7 @@ const TextEditorContent = ({
           isFocused: editor.isFocused
         }
       };
-      
+
       // Extract document structure by traversing the document
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading') {
@@ -5072,7 +5140,7 @@ const TextEditorContent = ({
             position: pos
           });
         }
-        
+
         // Extract links from marks
         node.marks.forEach(mark => {
           if (mark.type.name === 'link') {
@@ -5084,9 +5152,9 @@ const TextEditorContent = ({
           }
         });
       });
-      
+
       // Note: Removed localStorage backup. Only save to backend (MongoDB).
-      
+
       // Determine the document ID to use for saving
       // Priority: 1) mongoId prop, 2) Extract from URL path, 3) localStorage fallback, 4) activeDocId
       const effectiveMongoId = mongoId || (() => {
@@ -5095,9 +5163,9 @@ const TextEditorContent = ({
         if (/^[0-9a-fA-F]{24}$/.test(lastPart)) return lastPart;
         return null;
       })() || localStorage.getItem('athena_current_mongo_id');
-      
-      console.log('💾 SAVE DEBUG:', { 
-        activeDocId, 
+
+      console.log('💾 SAVE DEBUG:', {
+        activeDocId,
         mongoIdProp: mongoId,
         urlExtractedId: (() => {
           const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -5111,12 +5179,12 @@ const TextEditorContent = ({
         urlPath: window.location.pathname,
         urlQuery: window.location.search
       });
-      
+
       // If we have ANY document ID (activeDocId OR mongoId), update existing document
       if (activeDocId || effectiveMongoId) {
         const docIdToUpdate = effectiveMongoId || activeDocId;
         console.log('📝 Updating existing document with ID:', docIdToUpdate);
-        
+
         try {
           // Update existing document using /api/text-editor/document/:id
           await TextEditorService.updateDocument(docIdToUpdate, {
@@ -5126,11 +5194,11 @@ const TextEditorContent = ({
               html: editor.getHTML()
             }
           });
-          
+
           setLastSaved(new Date());
           setSaveStatus('saved');
           toast.success('Document saved to backend successfully! 💾');
-          
+
           // Notify other tabs (EditorIntro) to refresh document list
           localStorage.setItem('athena_document_refresh', Date.now().toString());
         } catch (backendError) {
@@ -5150,14 +5218,14 @@ const TextEditorContent = ({
               html: editor.getHTML()
             }
           });
-          
+
           setLastSaved(new Date());
           setSaveStatus('saved');
           toast.success('New document saved to backend successfully! 💾');
-          
+
           // Notify parent component of the new document ID
           onMongoIdSaved?.(null, result.id);
-          
+
           // Notify other tabs to refresh document list
           localStorage.setItem('athena_document_refresh', Date.now().toString());
         } catch (backendError) {
@@ -5167,7 +5235,7 @@ const TextEditorContent = ({
           return;
         }
       }
-      
+
       // Document saved successfully to backend - no file export
     } catch (error) {
       console.error('❌ Save error:', error);
@@ -5279,11 +5347,11 @@ const TextEditorContent = ({
     // Using setHorizontalRule() was wrong — it inserts <hr>, which is never
     // counted by dynamicManualPagination and has no visual page-break effect.
     const { state } = editor;
-    const { $from }  = state.selection;
+    const { $from } = state.selection;
     // Walk up to the top-level block and insert after it
-    const depth      = $from.depth;
-    const topEnd     = depth > 0 ? $from.end(1) + 1 : $from.pos;
-    const insertPos  = Math.min(topEnd, state.doc.content.size);
+    const depth = $from.depth;
+    const topEnd = depth > 0 ? $from.end(1) + 1 : $from.pos;
+    const insertPos = Math.min(topEnd, state.doc.content.size);
     editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
     toast.success('New page added');
   }, [editor]);
@@ -5291,10 +5359,10 @@ const TextEditorContent = ({
   const addPageBreak = useCallback(() => {
     if (!editor) return;
     const { state } = editor;
-    const { $from }  = state.selection;
-    const depth      = $from.depth;
-    const topEnd     = depth > 0 ? $from.end(1) + 1 : $from.pos;
-    const insertPos  = Math.min(topEnd, state.doc.content.size);
+    const { $from } = state.selection;
+    const depth = $from.depth;
+    const topEnd = depth > 0 ? $from.end(1) + 1 : $from.pos;
+    const insertPos = Math.min(topEnd, state.doc.content.size);
     editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
     toast.success('Page break inserted');
   }, [editor]);
@@ -5334,13 +5402,13 @@ const TextEditorContent = ({
 
   const handleImageUpload = useCallback(async (file) => {
     if (!file) return;
-    
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file');
       return;
     }
-    
+
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -5374,7 +5442,7 @@ const TextEditorContent = ({
 
       // Read the file
       const reader = new FileReader();
-      
+
       reader.onprogress = (event) => {
         if (event.lengthComputable) {
           const percentComplete = (event.loaded / event.total) * 100;
@@ -5385,7 +5453,7 @@ const TextEditorContent = ({
       reader.onload = (e) => {
         if (e.target?.result) {
           setUploadProgress(100);
-          
+
           // Small delay to show 100% completion
           setTimeout(() => {
             insertImage(e.target.result, file.name);
@@ -5480,46 +5548,49 @@ const TextEditorContent = ({
               onShowSettings={() => toast.info('Settings would open here')}
               documentTitle={documentTitle}
               onRenameDocument={(newTitle) => setDocumentTitle(newTitle)}
-              
+
               // Direct editor commands with focus management and selection restoration
-              onToggleBold={() => { 
-                console.log('🎯 [TextEditor] onToggleBold called, editor:', !!editor); 
-                runWithSavedSelection(editor, (chain) => chain.toggleBold()); 
+              onToggleBold={() => {
+                console.log('🎯 [TextEditor] onToggleBold called, editor:', !!editor);
+                runWithSavedSelection(editor, (chain) => chain.toggleBold());
               }}
-              onToggleItalic={() => { 
-                console.log('🎯 [TextEditor] onToggleItalic called, editor:', !!editor); 
-                runWithSavedSelection(editor, (chain) => chain.toggleItalic()); 
+              onToggleItalic={() => {
+                console.log('🎯 [TextEditor] onToggleItalic called, editor:', !!editor);
+                runWithSavedSelection(editor, (chain) => chain.toggleItalic());
               }}
-              onToggleUnderline={() => { 
-                console.log('🎯 [TextEditor] onToggleUnderline called, editor:', !!editor); 
-                runWithSavedSelection(editor, (chain) => chain.toggleUnderline()); 
+              onToggleUnderline={() => {
+                console.log('🎯 [TextEditor] onToggleUnderline called, editor:', !!editor);
+                runWithSavedSelection(editor, (chain) => chain.toggleUnderline());
               }}
-              onToggleStrikethrough={() => { 
-                console.log('🎯 [TextEditor] onToggleStrikethrough called, editor:', !!editor); 
-                runWithSavedSelection(editor, (chain) => chain.toggleStrike()); 
+              onToggleStrikethrough={() => {
+                console.log('🎯 [TextEditor] onToggleStrikethrough called, editor:', !!editor);
+                runWithSavedSelection(editor, (chain) => chain.toggleStrike());
               }}
-              onToggleSuperscript={() => { 
-                console.log('🎯 [TextEditor] onToggleSuperscript called'); 
-                runWithSavedSelection(editor, (chain) => chain.toggleSuperscript()); 
+              onToggleSuperscript={() => {
+                console.log('🎯 [TextEditor] onToggleSuperscript called');
+                runWithSavedSelection(editor, (chain) => chain.toggleSuperscript());
               }}
-              onToggleSubscript={() => { 
-                console.log('🎯 [TextEditor] onToggleSubscript called'); 
-                runWithSavedSelection(editor, (chain) => chain.toggleSubscript()); 
+              onToggleSubscript={() => {
+                console.log('🎯 [TextEditor] onToggleSubscript called');
+                runWithSavedSelection(editor, (chain) => chain.toggleSubscript());
               }}
-              onToggleCode={() => { 
-                console.log('🎯 [TextEditor] onToggleCode called'); 
-                runWithSavedSelection(editor, (chain) => chain.toggleCode()); 
+              onToggleCode={() => {
+                console.log('🎯 [TextEditor] onToggleCode called');
+                runWithSavedSelection(editor, (chain) => chain.toggleCode());
               }}
-              onClearFormatting={() => { 
-                console.log('🎯 [TextEditor] onClearFormatting called'); 
-                runWithSavedSelection(editor, (chain) => chain.unsetAllMarks().clearNodes()); 
+              onClearFormatting={() => {
+                console.log('🎯 [TextEditor] onClearFormatting called');
+                runWithSavedSelection(editor, (chain) => chain.unsetAllMarks().clearNodes());
               }}
-              onSetTextAlign={(align) => { 
-                console.log('🎯 [TextEditor] onSetTextAlign called', align); 
-                runWithSavedSelection(editor, (chain) => chain.setTextAlign(align)); 
+              onSetTextAlign={(align) => {
+                console.log('🎯 [TextEditor] onSetTextAlign called', align);
+                runWithSavedSelection(editor, (chain) => chain.setTextAlign(align));
               }}
               onInsertImage={() => setShowImageModal(true)}
-              onInsertTable={() => setShowTablePicker(!showTablePicker)}
+              onInsertTable={() => {
+                console.log('🎯 [TextEditor] onInsertTable called');
+                runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }));
+              }}
               onInsertLink={() => {
                 const url = window.prompt('Enter URL:');
                 if (url && editor) {
@@ -5639,22 +5710,23 @@ const TextEditorContent = ({
             onCopy={handleCopy}
           >
             <div
-              className="athena-workspace"
+              className={`athena-workspace ${isAiGeneratedDoc ? 'ai-document-enhanced' : ''}`}
+              data-ai-generated={isAiGeneratedDoc}
               style={zoom !== 100 ? { transform: `scale(${zoom / 100})`, transformOrigin: 'top center' } : undefined}
             >
-            <div className="editor-content-container">
-              {editor && (
-                <EditorContent
-                  editor={editor} 
-                  className="tip-tap-editor" 
-                  // CRITICAL FIX: Use stable key to prevent remounting during typing
-                  // This preserves the cursor position by avoiding React reconciler issues
-                  key="athena-editor-stable"
-                />
-              )}
-            </div>
-              
-              
+              <div className="editor-content-container">
+                {editor && (
+                  <EditorContent
+                    editor={editor}
+                    className="tip-tap-editor"
+                    // CRITICAL FIX: Use stable key to prevent remounting during typing
+                    // This preserves the cursor position by avoiding React reconciler issues
+                    key="athena-editor-stable"
+                  />
+                )}
+              </div>
+
+
             </div>
           </div>
 
@@ -5699,7 +5771,7 @@ const TextEditorContent = ({
                 <Select value={exportFormat} onValueChange={(value) => updateEditorFeatures({ exportFormat: value })}>
                   <SelectTrigger><SelectValue placeholder="Select format" /></SelectTrigger>
                   <SelectContent className="bg-white">
-                    {[['pdf','PDF'],['docx','DOCX'],['md','Markdown'],['txt','Plain Text'],['html','HTML'],['json','JSON']].map(([v,l]) => (
+                    {[['pdf', 'PDF'], ['docx', 'DOCX'], ['md', 'Markdown'], ['txt', 'Plain Text'], ['html', 'HTML'], ['json', 'JSON']].map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
                   </SelectContent>
@@ -5744,163 +5816,162 @@ const TextEditorContent = ({
         </AnimatePresence>
 
         {/* Enhanced Image Modal */}
-<AnimatePresence>
-  {showImageModal && (
-    <>
-      <motion.div 
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-        onClick={() => setShowImageModal(false)} 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]" 
-      />
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-        className="fixed inset-0 z-[101] flex items-center justify-center p-4"
-      >
-        <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
-          {/* Header */}
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">Add Image</h2>
-              <p className="text-xs text-slate-500">Upload, link, or search for visuals</p>
-            </div>
-            <button onClick={() => setShowImageModal(false)} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors text-slate-400">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Navigation Tabs */}
-            <div className="flex p-0.5 bg-slate-100 rounded-lg mb-4 w-fit">
-              {['upload', 'url', 'stock'].map((method) => (
-                <button
-                  key={method}
-                  onClick={() => setImageInsertMethod(method)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                    imageInsertMethod === method ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {method.charAt(0).toUpperCase() + method.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            {/* Content Areas */}
-            <div className="space-y-4">
-              {imageInsertMethod === 'upload' && (
-                <div 
-                  className="border-2 border-dashed border-slate-200 rounded-xl p-6 transition-colors hover:border-blue-400 hover:bg-blue-50/30 group cursor-pointer text-center"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const file = e.dataTransfer.files[0];
-                    if (file && file.type.startsWith('image/')) {
-                      handleImageUpload(file);
-                    } else {
-                      toast.error('Please drop an image file');
-                    }
-                  }}
-                >
-                  <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <Upload className="w-5 h-5" />
+        <AnimatePresence>
+          {showImageModal && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setShowImageModal(false)}
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+              >
+                <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+                  {/* Header */}
+                  <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div>
+                      <h2 className="text-base font-semibold text-slate-800">Add Image</h2>
+                      <p className="text-xs text-slate-500">Upload, link, or search for visuals</p>
+                    </div>
+                    <button onClick={() => setShowImageModal(false)} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors text-slate-400">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <p className="text-sm font-medium text-slate-700">Click to upload or drag and drop</p>
-                  <p className="text-xs text-slate-400 mt-1">PNG, JPG or WebP (max 5MB)</p>
-                  
-                  {/* Progress Bar - Show during upload */}
-                  {isImageUploading && (
-                    <div className="mt-4 space-y-1.5">
-                      <div className="flex justify-between text-xs text-slate-500">
-                        <span>Uploading...</span>
-                        <span>{Math.round(uploadProgress)}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <motion.div
-                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${uploadProgress}%` }}
-                          transition={{ duration: 0.2 }}
+
+                  <div className="flex-1 overflow-y-auto p-5">
+                    {/* Navigation Tabs */}
+                    <div className="flex p-0.5 bg-slate-100 rounded-lg mb-4 w-fit">
+                      {['upload', 'url', 'stock'].map((method) => (
+                        <button
+                          key={method}
+                          onClick={() => setImageInsertMethod(method)}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${imageInsertMethod === method ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                          {method.charAt(0).toUpperCase() + method.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Content Areas */}
+                    <div className="space-y-4">
+                      {imageInsertMethod === 'upload' && (
+                        <div
+                          className="border-2 border-dashed border-slate-200 rounded-xl p-6 transition-colors hover:border-blue-400 hover:bg-blue-50/30 group cursor-pointer text-center"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files[0];
+                            if (file && file.type.startsWith('image/')) {
+                              handleImageUpload(file);
+                            } else {
+                              toast.error('Please drop an image file');
+                            }
+                          }}
+                        >
+                          <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <p className="text-sm font-medium text-slate-700">Click to upload or drag and drop</p>
+                          <p className="text-xs text-slate-400 mt-1">PNG, JPG or WebP (max 5MB)</p>
+
+                          {/* Progress Bar - Show during upload */}
+                          {isImageUploading && (
+                            <div className="mt-4 space-y-1.5">
+                              <div className="flex justify-between text-xs text-slate-500">
+                                <span>Uploading...</span>
+                                <span>{Math.round(uploadProgress)}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <motion.div
+                                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${uploadProgress}%` }}
+                                  transition={{ duration: 0.2 }}
+                                />
+                              </div>
+                              <p className="text-xs text-slate-400 animate-pulse">Please wait while we process your image...</p>
+                            </div>
+                          )}
+
+                          {!isImageUploading && (
+                            <>
+                              <input type="file" className="hidden" id="image-upload" accept="image/*" onChange={(e) => handleImageUpload(e.target.files[0])} />
+                              <Button variant="outline" className="mt-3 h-8 text-xs" onClick={() => document.getElementById('image-upload').click()}>
+                                Browse Files
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {imageInsertMethod === 'url' && (
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Image URL</Label>
+                            <div className="relative">
+                              <Link className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
+                              <Input
+                                className="pl-9 h-9 text-sm"
+                                placeholder="Paste image link here..."
+                                value={imageUrl}
+                                onChange={(e) => setImageUrl(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          {imageUrl && (
+                            <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center relative group">
+                              <img src={imageUrl} alt="Preview" className="w-full h-full object-contain" onError={(e) => e.target.src = 'fallback-url'} />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-white text-xs font-medium">Image Preview</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer with Metadata & Actions */}
+                  <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Alt text (e.g. 'Dog running in park')"
+                          value={selectedImageAlt}
+                          onChange={(e) => setSelectedImageAlt(e.target.value)}
+                          className="bg-white h-9 text-sm"
                         />
                       </div>
-                      <p className="text-xs text-slate-400 animate-pulse">Please wait while we process your image...</p>
+                      <Select defaultValue="center">
+                        <SelectTrigger className="w-[130px] h-9 bg-white text-sm">
+                          <SelectValue placeholder="Alignment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Left</SelectItem>
+                          <SelectItem value="center">Center</SelectItem>
+                          <SelectItem value="full">Full Width</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                  
-                  {!isImageUploading && (
-                    <>
-                      <input type="file" className="hidden" id="image-upload" accept="image/*" onChange={(e) => handleImageUpload(e.target.files[0])} />
-                      <Button variant="outline" className="mt-3 h-8 text-xs" onClick={() => document.getElementById('image-upload').click()}>
-                        Browse Files
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" className="h-9" onClick={() => setShowImageModal(false)}>Cancel</Button>
+                      <Button
+                        disabled={!imageUrl && imageInsertMethod !== 'upload'}
+                        onClick={handleImageUrlSubmit}
+                        className="bg-blue-600 hover:bg-blue-700 h-9 px-6 text-sm"
+                      >
+                        Insert Image
                       </Button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {imageInsertMethod === 'url' && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Image URL</Label>
-                    <div className="relative">
-                      <Link className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
-                      <Input 
-                        className="pl-9 h-9 text-sm" 
-                        placeholder="Paste image link here..." 
-                        value={imageUrl} 
-                        onChange={(e) => setImageUrl(e.target.value)} 
-                      />
                     </div>
                   </div>
-                  {imageUrl && (
-                    <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center relative group">
-                      <img src={imageUrl} alt="Preview" className="w-full h-full object-contain" onError={(e) => e.target.src = 'fallback-url'} />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white text-xs font-medium">Image Preview</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Footer with Metadata & Actions */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Input 
-                  placeholder="Alt text (e.g. 'Dog running in park')" 
-                  value={selectedImageAlt} 
-                  onChange={(e) => setSelectedImageAlt(e.target.value)}
-                  className="bg-white h-9 text-sm"
-                />
-              </div>
-              <Select defaultValue="center">
-                <SelectTrigger className="w-[130px] h-9 bg-white text-sm">
-                  <SelectValue placeholder="Alignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="center">Center</SelectItem>
-                  <SelectItem value="full">Full Width</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" className="h-9" onClick={() => setShowImageModal(false)}>Cancel</Button>
-              <Button 
-                disabled={!imageUrl && imageInsertMethod !== 'upload'} 
-                onClick={handleImageUrlSubmit}
-                className="bg-blue-600 hover:bg-blue-700 h-9 px-6 text-sm"
-              >
-                Insert Image
-              </Button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </>
-  )}
-</AnimatePresence>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* AI Assistant Panel */}
         <AIAssistant
@@ -5922,13 +5993,13 @@ const TextEditorContent = ({
           onImageInsert={(imageUrl, altText) => {
             if (!editor) return;
             try {
-              editor.chain().focus().setResizableImage({ 
-                src: imageUrl, 
-                alt: altText, 
-                title: altText || 'AI Generated Image', 
-                width: 400, 
-                height: 300, 
-                align: 'left' 
+              editor.chain().focus().setResizableImage({
+                src: imageUrl,
+                alt: altText,
+                title: altText || 'AI Generated Image',
+                width: 400,
+                height: 300,
+                align: 'left'
               }).run();
               toast.success('AI image inserted successfully');
             } catch (error) {
