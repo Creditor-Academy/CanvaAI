@@ -17,6 +17,8 @@ export default function CreditsAnalytics() {
     remainingTokens: 0
   });
   const [loading, setLoading] = useState(true);
+  const remainingBalance =
+  Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0);
 
 
   const [userName, setUserName] = useState("");
@@ -33,6 +35,7 @@ export default function CreditsAnalytics() {
       }
     };
 
+
     const fetchDashboard = async () => {
       try {
 
@@ -41,7 +44,7 @@ export default function CreditsAnalytics() {
         const data = res.data;
         console.log(data)
 
-        setTotalCredits(res.totalTokens);
+        setTotalCredits(res.data.totalTokens);
 
         setUsage({
           ppt: {
@@ -77,6 +80,28 @@ export default function CreditsAnalytics() {
     fetchDashboard();
 
   }, []);
+  const handleRenewPlan = async () => {
+  try {
+
+     const amount = Number(500); 
+
+    await userService.creditWallet(amount);
+
+    // renew hone ke baad dashboard dobara fetch
+    const res = await userService.getWalletDashboard();
+    const data = res.data;
+
+    setWallet({
+      totalBalance: data.totalBalance,
+      usedBalance: data.usedBalance,
+      remainingTokens: data.remainingTokens,
+      totalTokens: data.totalTokens
+    });
+
+  } catch (error) {
+    console.error("Renew plan failed:", error.message);
+  }
+};
 
 
   const percent =
@@ -132,7 +157,7 @@ export default function CreditsAnalytics() {
   );
 
   return (
-    <div className="min-h-screen pt-22 bg-[#f8fafc]">
+    <div className="min-h-screen pt-22 bg-[#e9f4ff]">
       {/* HEADER */}
       <div
         className="max-w-6xl mx-auto mb-10 grid md:grid-cols-4 gap-4"
@@ -218,14 +243,16 @@ export default function CreditsAnalytics() {
           <div className="relative z-10">
             <div className="text-sm opacity-90">Remaining</div>
             <div className="text-4xl font-bold tracking-tight">
-              ${Number(wallet.usedBalance || 0).toFixed(3)}
+             ${remainingBalance.toFixed(3)}
             </div>
             <div className="text-xs opacity-80">
               of  ${wallet.totalBalance}
             </div>
 
-            <button className="mt-5 w-full bg-white text-[#1e293b] font-semibold py-2.5 rounded-xl
-                   hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 shadow-md">
+            <button
+              onClick={handleRenewPlan}
+              className="mt-5 w-full bg-white text-[#1e293b] font-semibold py-2.5 rounded-xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 shadow-md"
+            >
               RENEW PLAN
             </button>
           </div>

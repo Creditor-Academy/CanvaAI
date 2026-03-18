@@ -63,7 +63,7 @@ const toolImages = [
   "https://i.pinimg.com/736x/96/52/26/965226daa2d2a6aab40d6458646f34f4.jpg",
   "https://i.pinimg.com/1200x/7e/d5/4e/7ed54e337f028c3cd32335c62ee95e0f.jpg",
   "https://i.pinimg.com/1200x/ee/df/40/eedf409776e505b5c1db7141dfff5317.jpg",
-  "https://images.pexels.com/photos/6476783/pexels-photo-6476783.jpeg",
+  "https://i.pinimg.com/736x/86/31/10/863110a064ad0313637ef77ec4004606.jpg",
   "https://i.pinimg.com/736x/70/d3/de/70d3dea50a707732f92d493961ad29b9.jpg",
   "https://i.pinimg.com/1200x/f2/5d/cd/f25dcd144cc08c007d3e64cdc91349f0.jpg"
 ];
@@ -111,7 +111,7 @@ export default function Dashboard() {
 
         const data = walletRes.data;
 
-       if (mounted) setTokens(data.usedBalance);
+        if (mounted) setTokens(data.totalBalance - data.usedBalance);
 
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -213,7 +213,7 @@ export default function Dashboard() {
 .ai-tool-inner{
   border-radius: 22px;
   background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-  padding: 24px;
+ 
   display: flex;
   align-items: center;
   gap: 24px;
@@ -229,61 +229,87 @@ export default function Dashboard() {
 
   return (
 
-    <div className="bg-[#eef4ff] min-h-screen">
+    <div className="min-h-screen bg-[#e9f4ff]">
 
-      <div className="ml-[60px] pt-24 px-14">
+      <div className="relative ml-[60px] pt-24 px-14">
+
 
         {/* HERO */}
 
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-[#0f3c68] to-[#1e5aa5] rounded-3xl p-12 shadow-xl flex justify-between items-center"
+          className="relative mt-2 mb-3 py-8 px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-[28px] overflow-hidden"
         >
 
-          <div className="flex items-center ">
+          {/* BLUE GLASS PANEL (dark-blue tint, content stays normal) */}
+          
 
-            <img src={logo} className="h-26" />
+          {/* SHINY BORDER */}
+          <div className="absolute inset-0 rounded-[28px] pointer-events-none bg-gradient-to-r from-white via-sky-200 to-white opacity-70" />
+          <div className="absolute inset-0 rounded-[28px] border border-sky-200 pointer-events-none" />
+
+          {/* LIGHT REFLECTION */}
+          <div className="absolute top-0 left-0 w-full h-[150px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none rounded-t-[28px]" />
+
+
+          {/* LEFT SIDE */}
+          <div className="flex items-center gap-4 relative z-10">
+
+            <img src={logo} className="h-14 object-contain drop-shadow-lg" />
 
             <div>
 
-              <h1 className="text-3xl font-bold text-white">
-                Welcome, {fullName} 👋
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Ready to create
+              </div>
+
+              <h1 className="mt-2 text-3xl lg:text-[34px] font-extrabold text-slate-900">
+                Welcome,
+                <span className="ml-2 bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">
+                  {fullName}
+                </span>
               </h1>
 
-              <p className="text-blue-200">
-                Create presentations, images and documents using AI
+              <p className="text-sm text-slate-600 mt-1 max-w-xl">
+                Create <span className="font-semibold text-slate-700">presentations</span>,{" "}
+                <span className="font-semibold text-slate-700">images</span> and{" "}
+                <span className="font-semibold text-slate-700">documents</span> with AI-powered templates in minutes.
               </p>
 
             </div>
 
           </div>
 
-          <div className="bg-white px-6 py-4 rounded-xl shadow flex items-center gap-6">
+
+          {/* RIGHT SIDE */}
+          <div className="flex items-center gap-6 relative z-10">
 
             <div>
-
-              <p className="text-xs text-gray-500">
-                Available Tokens
+              <p className="text-xs text-slate-500">
+                Available Balance
               </p>
 
-              <p className="text-2xl font-bold text-blue-800">
-                 ${Number(tokens || 0).toFixed(3)}
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                ${Number(tokens || 0).toFixed(3)}
               </p>
 
+              <p className="text-xs text-slate-500 mt-1">
+                Renew anytime to keep generating.
+              </p>
             </div>
 
-            <button className="bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2 rounded-lg font-semibold">
+            <button className="px-5 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl font-semibold shadow-lg transition">
               Renew
             </button>
 
           </div>
 
         </motion.div>
-
         {/* EXPLORE */}
 
-        <div className="flex justify-between items-center mt-16">
+        <div className="flex justify-between items-center mt-10">
 
           <h2 className="text-2xl font-bold text-blue-900">
             Explore Tools
@@ -300,75 +326,76 @@ export default function Dashboard() {
         </div>
 
         {/* TOOLS */}
-        <div className="mt-10 relative">
+
+        <div className="mt-2 relative">
 
           {/* LEFT ARROW */}
-
           <button
             onClick={scrollLeft}
-            className="absolute left-[-20px] top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center"
+            className="absolute left-[-18px] top-1/2 -translate-y-1/2 z-10 bg-white rounded-full w-10 h-10 flex items-center justify-center"
           >
             <FiChevronLeft />
           </button>
 
           {/* CAROUSEL */}
 
-          <div className="overflow-hidden">
+          <div
+            ref={scrollRef}
+            className="flex gap-7 overflow-x-auto overflow-y-hidden scroll-smooth hide-scrollbar py-4"
+          >
 
-            <div
-              ref={scrollRef}
-              className="flex gap-6 overflow-x-auto scroll-smooth hide-scrollbar"
-              style={{ scrollBehavior: "smooth" }}
-            >
+            {TOOLS.map((tool, i) => {
 
-              {TOOLS.map((tool, i) => {
+              const colors = [
+                "bg-blue-100",
+                "bg-cyan-100",
+                "bg-blue-200",
+                "bg-yellow-100",
+                "bg-blue-300",
+                "bg-yellow-200"
+              ];
 
-                const colors = [
-                  "bg-blue-100",
-                  "bg-cyan-100",
-                  "bg-blue-200",
-                  "bg-yellow-100",
-                  "bg-blue-300",
-                  "bg-yellow-200"
-                ]
+              return (
 
-                return (
+                <motion.div
+                  key={i}
+                  onClick={() => navigate(tool.route)}
+                  transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                  className={`group w-[210px] h-[100px] flex-shrink-0 rounded-2xl px-5 py-4 cursor-pointer relative ${colors[i]}`}
+                >
 
-                  <motion.div
-                    key={i}
-                    whileHover={{ scale: 1.04 }}
-                    onClick={() => navigate(tool.route)}
-                    className={`min-w-[210px] h-[90px] flex-shrink-0 rounded-2xl px-5 py-4 cursor-pointer relative overflow-hidden ${colors[i]} shadow-sm hover:shadow-md`}
-                  >
+                  {/* TEXT */}
+                  <p className="text-sm font-semibold text-gray-900">
+                    {tool.name}
+                  </p>
 
-                    {/* TEXT */}
+                  {/* IMAGE */}
+                  <img
+                    src={toolImages[i]}
+                    className={`
+    absolute right-2
+    ${i === 4 ? "bottom-[-8px]" : "bottom-[2px]"}
+    ${i === 4 ? "w-[120px] h-[95px]" : "w-[125px] h-[90px]"}
+    object-contain object-right
+    drop-shadow-[10px_8px_2px_rgba(0,0,0,0.35)]
+    transition-all duration-300
+    -rotate-3
+    group-hover:-translate-y-2 group-hover:-rotate-1
+  `}
+                  />
 
-                    <p className="text-sm font-semibold text-gray-800">
-                      {tool.name}
-                    </p>
+                </motion.div>
 
-                    {/* IMAGE */}
+              )
 
-                    <img
-                      src={`${toolImages[i]}?q=80&w=400&sig=${i}`}
-                      className="absolute right-2 bottom-[-15px] w-24 rotate-[12deg] object-cover rounded-lg"
-                    />
-
-                  </motion.div>
-
-                )
-
-              })}
-
-            </div>
+            })}
 
           </div>
 
           {/* RIGHT ARROW */}
-
           <button
             onClick={scrollRight}
-            className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center"
+            className="absolute right-[-18px] top-1/2 -translate-y-1/2 z-10 bg-white rounded-full w-10 h-10 flex items-center justify-center"
           >
             <FiChevronRight />
           </button>
@@ -377,34 +404,45 @@ export default function Dashboard() {
 
         {/* TEMPLATES */}
 
-        <div className="mt-20 pb-20">
+        <div className="mt-10 pb-24">
 
-          <h2 className="text-2xl font-bold text-blue-900 mb-8">
-            Ready Templates
-          </h2>
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900">
+                Ready Templates
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Pick a layout and start editing instantly.
+              </p>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
             {visibleTemplates.map((i) => (
 
               <motion.div
                 key={i}
-                whileHover={{ scale: 1.05 }}
-                className="bg-white rounded-xl shadow border border-blue-100 overflow-hidden"
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-white/70 shadow-[0_16px_40px_rgba(15,23,42,0.10)] overflow-hidden"
               >
 
-                <img
-                  src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&sig=${i}`}
-                  className="h-36 w-full object-cover"
-                />
+                <div className="relative">
+                  <img
+                    src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&sig=${i}`}
+                    className="h-40 w-full object-cover"
+                  />
+                  <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-900/10 via-transparent to-white/10 opacity-80" />
+                </div>
 
                 <div className="p-4">
 
-                  <h3 className="font-semibold text-blue-900 text-sm">
+                  <h3 className="font-semibold text-slate-900 text-sm">
                     Template {i}
                   </h3>
 
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500 mt-1">
                     Editable layout
                   </p>
 
@@ -416,12 +454,12 @@ export default function Dashboard() {
 
           </div>
 
-          <div className="flex justify-center gap-4 mt-8">
+          <div className="flex justify-center gap-3 mt-10">
 
             <button
               disabled={page === 0}
               onClick={() => setPage(page - 1)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-1 disabled:opacity-40"
+              className="px-4 py-2 rounded-xl flex items-center gap-2 bg-white/80 backdrop-blur-xl border border-white/70 text-slate-800 shadow-sm hover:shadow-md disabled:opacity-40 disabled:hover:shadow-sm"
             >
               <FiChevronLeft />
               Prev
@@ -430,7 +468,7 @@ export default function Dashboard() {
             <button
               disabled={(page + 1) * perPage >= templates.length}
               onClick={() => setPage(page + 1)}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg flex items-center gap-1"
+              className="px-4 py-2 rounded-xl flex items-center gap-2 bg-gradient-to-r from-amber-300 to-amber-400 hover:from-amber-400 hover:to-amber-500 text-slate-900 shadow-sm"
             >
               Next
               <FiChevronRight />
@@ -452,19 +490,19 @@ export default function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50"
           >
 
             <motion.div
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-[700px] p-10 relative"
+              className="bg-white/85 backdrop-blur-xl rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-[760px] max-w-[92vw] p-10 relative border border-white/70"
             >
 
               <button
                 onClick={() => setShowCreate(false)}
-                className="absolute top-6 right-6 text-gray-500"
+                className="absolute top-6 right-6 text-slate-600 hover:text-slate-900 w-10 h-10 rounded-full bg-white/70 hover:bg-white flex items-center justify-center border border-white/60 shadow-sm"
               >
                 <FiX size={22} />
               </button>
@@ -473,14 +511,14 @@ export default function Dashboard() {
                 Quick Start
               </h2>
 
-              <div className="flex bg-gray-100 rounded-full p-1 w-fit mb-8">
+              <div className="inline-flex bg-white/70 backdrop-blur-xl rounded-full p-1 w-fit mb-8 border border-white/70 shadow-sm">
 
                 <button
                   onClick={() => setTab("manual")}
                   className={`px-5 py-2 rounded-full text-sm font-semibold transition
             ${tab === "manual"
-                      ? "bg-blue-600 text-white shadow"
-                      : "text-gray-600"
+                      ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow"
+                      : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   Manual
@@ -491,7 +529,7 @@ export default function Dashboard() {
                   className={`px-5 py-2 rounded-full text-sm font-semibold transition
             ${tab === "ai"
                       ? "bg-yellow-400 text-black shadow"
-                      : "text-gray-600"
+                      : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   AI
@@ -501,54 +539,73 @@ export default function Dashboard() {
 
               {/* IMPROVED CARDS */}
 
-              <motion.div
-                key={tab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="grid grid-cols-3 gap-6"
-              >
-
-                {(tab === "manual" ? manualTools : aiTools).map((tool, i) => {
-
-                  const Icon = tool.icon;
-
-                  return (
-
-                    <div className={tab === "ai" ? "ai-tool-wrapper" : ""}>
-                      <motion.div
-                        key={i}
-
-                        onClick={() => navigate(tool.route)}
-                        className={`cursor-pointer rounded-2xl border border-blue-100 
-    shadow-sm  transition flex flex-col items-center justify-center gap-3 h-[130px] relative
-    ${tab === "ai" ? "ai-tool-inner" : "p-6 bg-gradient-to-br from-white to-yellow-50"}`}
-                      >
-
-                        <div className={`w-12 h-12 flex items-center justify-center rounded-xl
-                ${tab === "ai" ? "bg-yellow-100 text-yellow-600" : "bg-blue-100 text-amber-600"}`}>
-
-                          <Icon size={22} />
-
-                        </div>
-
-                        <p className="font-semibold text-blue-900 text-sm">
-                          {tool.title}
-                        </p>
-
-                        {tab === "ai" && (
+              {tab === "ai" ? (
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="grid grid-cols-3 gap-6"
+                >
+                  {aiTools.map((tool, i) => {
+                    const Icon = tool.icon;
+                    return (
+                      <div className="ai-tool-wrapper" key={i}>
+                        <motion.div
+                          onClick={() => navigate(tool.route)}
+                          className="cursor-pointer rounded-2xl border border-blue-100 shadow-sm transition flex flex-col items-center justify-center gap-3 h-[130px] relative ai-tool-inner"
+                        >
+                          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
+                            <Icon size={22} />
+                          </div>
+                          <p className="font-semibold text-blue-900 text-sm">
+                            {tool.title}
+                          </p>
                           <span className="absolute top-3 right-3 text-yellow-500">
                             <FiZap size={16} />
                           </span>
-                        )}
+                        </motion.div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {manualTools.map((tool, i) => {
+                    const Icon = tool.icon;
+
+                    return (
+                      <motion.div
+                        key={i}
+                        whileHover={{ y: -5, scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                        onClick={() => navigate(tool.route)}
+                        className="cursor-pointer rounded-2xl border border-blue-200 
+      bg-gradient-to-br from-white to-blue-50 
+      shadow-[0_6px_18px_rgba(37,99,235,0.15)] 
+      hover:shadow-[0_12px_28px_rgba(37,99,235,0.25)]
+      transition flex flex-col items-center justify-center gap-3 h-[130px]"
+                      >
+                        {/* ICON */}
+                        <div className="w-12 h-12 flex items-center justify-center rounded-xl 
+      bg-blue-100 text-blue-700 ring-2 ring-blue-200">
+                          <Icon size={22} />
+                        </div>
+
+                        {/* TITLE */}
+                        <p className="font-semibold text-blue-900 text-sm tracking-wide">
+                          {tool.title}
+                        </p>
 
                       </motion.div>
-                    </div>
-
-                  )
-
-                })}
-
-              </motion.div>
+                    );
+                  })}
+                </motion.div>
+              )}
 
             </motion.div>
 

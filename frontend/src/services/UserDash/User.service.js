@@ -22,6 +22,7 @@ class UserService {
           headers: getAuthHeaders(),
         }
       );
+
       console.log("API URL:", `${API_BASE_URL}/api/wallet/dashboard`);
 
       if (!response.ok) {
@@ -29,13 +30,31 @@ class UserService {
       }
 
       const data = await response.json();
-
       return data;
+
     } catch (error) {
       console.error("Wallet Dashboard API Error:", error);
       throw error;
     }
   }
+
+
+  // ================= ADD WALLET CREDIT =================
+  async creditWallet(amount) {
+  const response = await fetch(`${API_BASE_URL}/api/wallet/credit`, {
+    method: "POST",
+   headers: getAuthHeaders(),
+    body: JSON.stringify({ amount: Number(amount) })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to credit wallet");
+  }
+
+  return data;
+}
 
 }
 
