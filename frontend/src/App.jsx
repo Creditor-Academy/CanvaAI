@@ -1,11 +1,9 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
-
 import SideBar from "./components/SideBar";
 import Navbar from "./components/Navbar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
-
 import { Home } from './pages/Home';
 import { Create } from './pages/Create';
 import AISuggestTemp from './components/homepage/AISuggestTemp';
@@ -34,7 +32,6 @@ import CanvaClone from './pages/CanvaClone';
 import Brandkit from './pages/Brandkit';
 import BrandKitDetail from './pages/BrandKitDetail';
 import Presentation from './pages/Presentation';
-
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
@@ -80,8 +77,6 @@ const AppContent = () => {
           flex: 1,
           width: "100%",
           minheight: "100vh",
-
-
         }}
       >
 
@@ -95,7 +90,6 @@ const AppContent = () => {
           <Route path="/create/code-generator" element={<CodeGenerator />} />
           <Route path="/create/video-producer" element={<VideoProducer />} />
           <Route path="/create/brand-builder" element={<BrandBuilder />} />
-
           <Route path="/projects/:folder?" element={<Project />} />
           <Route path="/projects" element={<Project />} />
           <Route path="/projects/all" element={<AllProjects />} />

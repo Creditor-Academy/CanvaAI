@@ -11,4 +11,4 @@ const ImageLayout = () => {
   )
 }
 
-export default ImageLayout
+export default ImageLayout;
