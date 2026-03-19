@@ -1,12 +1,9 @@
 .admin-dash {
   min-height: 100vh;
-  background: linear-gradient(135deg, #e0f2ff 0%, #eff6ff 40%, #ffffff 100%);
-  padding-top: 50px;
+  padding-top: 70px;
   padding-left: 58px;
-  /* display: flex;
-  justify-content: center;
-  align-items: center;
- */
+ transform: scale(0.9);
+  transform-origin: top center;
 }
 
 .admin-dash__shell {

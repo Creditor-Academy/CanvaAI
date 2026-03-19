@@ -277,6 +277,7 @@ const Presentation = () => {
 
   return (
     <>
+    <div style={{ background: "#e9f4ff", minHeight: "100vh" }}>
       {/* Wave Animation Background */}
       <div className="wave-bg">
         <div className="wave"></div>
@@ -511,18 +512,21 @@ const Presentation = () => {
 
         </div>
       </div>
+      </div>
     </>
   );
 };
 
 const styles = {
   container: {
-    minHeight: '100vh',
-    background: 'transparent',
-    padding: '100px 40px 40px 80px',
-    position: 'relative',
-    zIndex: 1,
-  },
+  minHeight: '100vh',
+  background: 'transparent',
+  padding: '120px 20px 40px',
+  position: 'relative',
+  zIndex: 1,
+  transform: 'scale(0.9)',
+  transformOrigin: 'top center',
+},
   content: {
     maxWidth: '1200px',
     margin: '0 auto',

@@ -142,7 +142,7 @@ const SlideSelector = ({ length, setLength }) => {
 };
 
 const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
-  const options = ['AI Images', 'No Media'];
+  const options = ['Ai-Images', 'No Media'];
   return (
     <div style={{ marginBottom: '24px' }}>
       <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
@@ -326,7 +326,7 @@ const PromptSection = ({
     tone &&
     length &&
     mediaStyle &&
-    (mediaStyle !== "AI Images" || imageStyle) &&
+    (mediaStyle !== "Ai-Images" || imageStyle) &&
     selectedTheme;
 
   const handleGenerateClick = () => {
@@ -339,8 +339,10 @@ const PromptSection = ({
       meta: {
         tone: tone ? tone.toLowerCase() : "professional",
         slideCount: length ? Number(length) : 5,
-        mediaStyle: mediaStyle === "AI Images" ? "ai-image" : "no-media",
-        imageStyle: mediaStyle === "AI Images" ? imageStyle : undefined,
+        media: {
+          mediaType: mediaStyle,
+          mediaStyle: mediaStyle === "Ai-Images" ? imageStyle : undefined,
+        },
         theme: {
           name: selectedTheme.name,
           slideBackground: selectedTheme.slideBackground,
@@ -422,7 +424,7 @@ const PromptSection = ({
               setMediaStyle={setMediaStyle}
             />
 
-            {mediaStyle === "AI Images" && (
+            {mediaStyle === "Ai-Images" && (
               <ImageStyleSelector
                 imageStyle={imageStyle}
                 setImageStyle={setImageStyle}

@@ -1,6 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 import SideBar from "./components/SideBar";
 import Navbar from "./components/Navbar";
@@ -153,33 +155,35 @@ const AppContent = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <SidebarProvider>
-        <Router>
-          <Toaster position="top-right" richColors />
+    <DndProvider backend={HTML5Backend}>
+      <AuthProvider>
+        <SidebarProvider>
+          <Router>
+            <Toaster position="top-right" richColors />
 
-          <Routes>
+            <Routes>
 
-            {/* PUBLIC */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/signup" element={<AuthPage />} />
-            <Route path="/verify" element={<VerifyUserPage />} />
-            <Route path="/forget-password" element={<ForgetPassword />} />
+              {/* PUBLIC */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/signup" element={<AuthPage />} />
+              <Route path="/verify" element={<VerifyUserPage />} />
+              <Route path="/forget-password" element={<ForgetPassword />} />
 
-            {/* FULLSCREEN EDITORS */}
-            <Route path="/presentation-editor" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
-            <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
-            <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
-            <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
+              {/* FULLSCREEN EDITORS */}
+              <Route path="/presentation-editor" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+              <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+              <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
+              <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
 
-            {/* MAIN APP */}
-            <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
+              {/* MAIN APP */}
+              <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
 
-          </Routes>
-        </Router>
-      </SidebarProvider>
-    </AuthProvider>
+            </Routes>
+          </Router>
+        </SidebarProvider>
+      </AuthProvider>
+    </DndProvider>
   );
 }
 

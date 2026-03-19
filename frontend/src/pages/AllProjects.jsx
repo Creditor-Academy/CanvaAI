@@ -88,9 +88,9 @@ setSelectedProject(null);
 
 return(
 
-<div className="max-w-7xl mx-auto p-20 pt-25 ">
+<div className="w-full mx-auto my-auto p-26 pt-25 pl-34 bg-[#e9f4ff]">
 
-<div className=" bg-[#f9fafb]  rounded-3xl p-12 shadow-sm">
+<div className=" bg-[#f9fafb]  rounded-3xl p-16 shadow-sm">
 
 {/* HEADER */}
 

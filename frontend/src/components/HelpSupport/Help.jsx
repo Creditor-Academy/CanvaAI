@@ -311,6 +311,7 @@ const Help = () => {
 
     /*-------------------HEADER----------------------- */
     <div className="help-container ">
+      <div className="help-inner">
       <div className="help-hero">
         <div className="hero-left">
 
@@ -518,6 +519,7 @@ const Help = () => {
           </div>
         </div>
       )} */}
+      </div>
     </div>
   );
 };
