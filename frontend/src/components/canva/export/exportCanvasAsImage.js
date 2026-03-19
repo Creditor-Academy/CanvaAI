@@ -4,6 +4,7 @@ import { drawRoundedRect, drawShapePath, drawTextLayer } from './exportHelpers';
 /**
  * Helper to parse linear-gradient string
  */
+
 const parseGradient = (gradientStr, width, height, ctx) => {
   if (!gradientStr || !gradientStr.includes('linear-gradient')) return null;
 
@@ -55,6 +56,57 @@ const parseGradient = (gradientStr, width, height, ctx) => {
     console.error('Error parsing gradient:', err);
     return null;
   }
+};
+
+/**
+ * Helper function to draw a heart shape on canvas
+ */
+const drawHeartPath = (ctx, x, y, w, h) => {
+  // Scale the heart path to fit the dimensions
+  const scaleX = w / 24;
+  const scaleY = h / 24;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scaleX, scaleY);
+
+  // Heart path data (from SVG)
+  ctx.beginPath();
+  ctx.moveTo(12, 21.35);
+  ctx.bezierCurveTo(5.4, 15.36, 2, 12.28, 2, 8.5);
+  ctx.bezierCurveTo(2, 5.42, 4.42, 3, 7.5, 3);
+  ctx.bezierCurveTo(9.24, 3, 10.91, 3.81, 12, 5.09);
+  ctx.bezierCurveTo(13.09, 3.81, 14.76, 3, 16.5, 3);
+  ctx.bezierCurveTo(19.58, 3, 22, 5.42, 22, 8.5);
+  ctx.bezierCurveTo(22, 12.28, 18.6, 15.36, 13.45, 20.03);
+  ctx.lineTo(12, 21.35);
+  ctx.closePath();
+
+  ctx.restore();
+};
+
+/**
+ * Helper function to draw cloud path on canvas
+ */
+const drawCloudPath = (ctx, x, y, w, h) => {
+  const scaleX = w / 100;
+  const scaleY = h / 100;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scaleX, scaleY);
+
+  ctx.beginPath();
+  ctx.moveTo(20, 60);
+  ctx.bezierCurveTo(20, 40, 40, 40, 45, 50);
+  ctx.bezierCurveTo(50, 35, 70, 35, 75, 50);
+  ctx.bezierCurveTo(90, 50, 95, 60, 90, 70);
+  ctx.bezierCurveTo(85, 80, 70, 85, 60, 80);
+  ctx.bezierCurveTo(50, 90, 35, 90, 30, 80);
+  ctx.bezierCurveTo(15, 80, 10, 70, 20, 60);
+  ctx.closePath();
+
+  ctx.restore();
 };
 
 /**
@@ -124,12 +176,23 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
       ctx.shadowBlur = layer.shadows.blur ?? 0;
       ctx.shadowOffsetX = layer.shadows.x ?? 0;
       ctx.shadowOffsetY = layer.shadows.y ?? 0;
-      ctx.fillStyle = fill;
-      drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
-      if (s === 'star' || s === 'star6') {
-        ctx.fill('evenodd');
-      } else {
+
+      // For path-based shapes
+      if (s === 'heart') {
+        ctx.fillStyle = fill;
+        drawHeartPath(ctx, x, y, w, h);
         ctx.fill();
+      } else if (s === 'cloud') {
+        ctx.fillStyle = fill;
+        drawCloudPath(ctx, x, y, w, h);
+        ctx.fill();
+      } else {
+        drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
+        if (s === 'star' || s === 'star6') {
+          ctx.fill('evenodd');
+        } else {
+          ctx.fill();
+        }
       }
       ctx.restore();
     }
@@ -164,16 +227,27 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         path.lineTo(x + w / 2, y + h);
         path.lineTo(x, y + h / 2);
         path.closePath();
+      } else if (s === 'heart') {
+        // For heart shape with image fill, we'll handle in drawShapeLayerWithImage
       }
       ctx.clip(path);
       ctx.fillStyle = '#ddd';
       ctx.fill();
     } else {
-      drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
-      if (s === 'star' || s === 'star6') {
-        ctx.fill('evenodd');
-      } else {
+      // Handle path-based shapes
+      if (s === 'heart') {
+        drawHeartPath(ctx, x, y, w, h);
         ctx.fill();
+      } else if (s === 'cloud') {
+        drawCloudPath(ctx, x, y, w, h);
+        ctx.fill();
+      } else {
+        drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
+        if (s === 'star' || s === 'star6') {
+          ctx.fill('evenodd');
+        } else {
+          ctx.fill();
+        }
       }
     }
 
@@ -181,10 +255,17 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     if (strokeWidth > 0) {
       ctx.strokeStyle = stroke;
       ctx.lineWidth = strokeWidth;
-      if (s === 'star' || s === 'star6') {
+
+      if (s === 'heart') {
+        drawHeartPath(ctx, x, y, w, h);
+        ctx.stroke();
+      } else if (s === 'cloud') {
+        drawCloudPath(ctx, x, y, w, h);
+        ctx.stroke();
+      } else {
         drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
+        ctx.stroke();
       }
-      ctx.stroke();
     }
 
     ctx.restore();
@@ -222,19 +303,18 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
           ctx.shadowOffsetY = 0;
         }
 
-        ctx.fillStyle = layer.fillColor || '#3182ce';
-        drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
-        if (s === 'star' || s === 'star6') {
-          ctx.fill('evenodd');
+        // Create clip path based on shape
+        if (s === 'heart') {
+          drawHeartPath(ctx, x, y, w, h);
+        } else if (s === 'cloud') {
+          drawCloudPath(ctx, x, y, w, h);
         } else {
-          ctx.fill();
+          drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
         }
 
-        // Clip and draw image
-        ctx.save();
-        drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
         ctx.clip();
 
+        // Draw image within clip path
         const ir = img.width / img.height;
         const r = w / h;
         let dw = w, dh = h, dx = x, dy = y;
@@ -244,18 +324,27 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
           dw = h * ir; dx = x + (w - dw) / 2;
         }
         ctx.drawImage(img, dx, dy, dw, dh);
+
+        // Reset clip
         ctx.restore();
 
-        // Stroke
+        // Draw stroke after clip (so stroke appears on top)
+        ctx.save();
         const sw = Number.isFinite(layer.strokeWidth) ? layer.strokeWidth : 0;
         if (sw > 0) {
           ctx.lineWidth = sw;
           ctx.strokeStyle = layer.strokeColor || '#000000';
-          drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
+          if (s === 'heart') {
+            drawHeartPath(ctx, x, y, w, h);
+          } else if (s === 'cloud') {
+            drawCloudPath(ctx, x, y, w, h);
+          } else {
+            drawShapePath(ctx, s, x, y, w, h, drawRoundedRect);
+          }
           ctx.stroke();
         }
-
         ctx.restore();
+
         resolve();
       };
       img.onerror = () => resolve();
@@ -389,6 +478,15 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
   // Draw all layers in order
   for (const layer of layers) {
     if (!layer || layer.visible === false) continue;
+
+    // Apply rotation if present
+    if (layer.rotation) {
+      ctx.save();
+      ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+      ctx.rotate(layer.rotation * Math.PI / 180);
+      ctx.translate(-layer.x - layer.width / 2, -layer.y - layer.height / 2);
+    }
+
     if (layer.type === 'shape') {
       if (layer.fillType === 'image' && layer.fillImageSrc) {
         await drawShapeLayerWithImage(layer);
@@ -402,9 +500,16 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     } else if (layer.type === 'drawing') {
       drawDrawingLayer(layer);
     }
+
+    if (layer.rotation) {
+      ctx.restore();
+    }
   }
 
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
   const dataUrl = canvas.toDataURL(mime, format === 'jpeg' ? quality : undefined);
   return dataUrl;
 };
+
+
+

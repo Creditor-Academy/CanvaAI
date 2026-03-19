@@ -38,7 +38,7 @@ class ApiService {
         return text;
       }
 
-       if (!response.ok && !data?.unverified)  {
+      if (!response.ok && !data?.unverified) {
         console.error('Response error:', data);
         throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
       }
@@ -558,6 +558,18 @@ class ApiService {
       },
       body: JSON.stringify({ userId, serviceId, base64Image }),
     });
+  }
+
+  // ============= Logo generation =============
+  async generateLogo(prompt, style = "realistic") {
+    return this.request(
+      `/api/generate-logo?style=${encodeURIComponent(style)}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ prompt }),
+      }
+    );
   }
 }
 

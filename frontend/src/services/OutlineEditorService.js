@@ -153,7 +153,7 @@ export const finalizePresentation = async (outlineData) => {
     body: JSON.stringify(requestBody)
   });
 
-  if (!response.ok) {
+  if (!response.ok) { 
     let errorData;
     try {
       errorData = await response.json();

@@ -79,28 +79,32 @@ const RightSidebar = ({
   const shapeImgInputRef = useRef(null)
 
   const handleShapeImageUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (event) => {
+      // This will trigger the handleShapeSettingsChange in the parent
+      // Make sure to pass both fillImageSrc and set fillType to 'image'
       handleShapeSettingsChange({
         fillImageSrc: event.target.result,
-        fillType: 'image'
-      })
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
+        fillType: 'image',
+        fillColor: null // Clear fill color when using image
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleFillColorChange = (color) => {
     handleShapeSettingsChange({
       fillColor: color,
       fillType: 'color',
       fillImageSrc: null
-    })
-  }
+    });
+  };
 
+  
   const handleStrokeColorChange = (color) => {
     handleShapeSettingsChange({
       strokeColor: color

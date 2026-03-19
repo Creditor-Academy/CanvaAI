@@ -13,7 +13,7 @@
 
   /* Backgrounds */
   --athena-bg-light: #f9fafb;
-  --athena-dark-slate: #54565a;
+  --athena-dark-slate: rgba(246, 221, 59, 0.15);
 
   /* Text */
   --athena-text-primary2: #0c4a6e;

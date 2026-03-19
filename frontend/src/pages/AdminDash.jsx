@@ -130,10 +130,11 @@ const AdminDash = () => {
   });
 
   return (
+    <div className="min-h-screen bg-[#e9f4ff]">
     <div className="admin-dash">
       <div className="admin-dash__shell">
         <div className="admin-dash__container">
-          <section className="admin-hero">
+          {/* <section className="admin-hero">
             <div className="admin-hero__text">
               <p className="admin-hero__eyebrow">Welcome back, {user?.firstName || 'Admin'}</p>
               <h1>Create or manage templates from one place</h1>
@@ -154,7 +155,7 @@ const AdminDash = () => {
                 Manage Templates
               </button>
             </div>
-          </section>
+          </section> */}
 
           {/* ===== Recent Templates Section ===== */}
           <section className="admin-recents">
@@ -316,6 +317,7 @@ const AdminDash = () => {
         </div>
       )}
       <ImageDash />
+    </div>
     </div>
   );
 };

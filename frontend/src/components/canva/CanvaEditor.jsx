@@ -624,27 +624,11 @@ const CanvaEditor = () => {
       link.click();
       document.body.removeChild(link);
 
-      // ⭐ 3. SAVE IMAGE IN DATABASE
-      try {
-        const payload = {
-          userId: user?._id || user?.id,
-          title: safeName,
-          isPublic: false,
-          format: fmt,
-          imageBase64: dataUrl,   // ⭐ IMPORTANT
-        };
-
-        const res = await saveImage(payload);
-
-        console.log("Image Saved:", res);
-        toast.success("Image exported & saved successfully");
-      } catch (err) {
-        console.error("Save export image error:", err);
-        toast.error("Image downloaded but failed to save");
-      }
+      toast.success("Image downloaded successfully");
 
     } catch (error) {
       console.error(error);
+      toast.error("Failed to export image");
     } finally {
       setIsExporting(false);
     }
@@ -1137,12 +1121,24 @@ const CanvaEditor = () => {
       updates = { [propertyOrUpdates]: value };
     }
 
+    // If setting image fill, ensure fillType is set to 'image'
+    if (updates.fillImageSrc) {
+      updates.fillType = 'image';
+    }
+
+    // If setting fill color, ensure fillType is set to 'color' and clear image
+    if (updates.fillColor && !updates.fillType) {
+      updates.fillType = 'color';
+      updates.fillImageSrc = null;
+    }
+
     const newLayers = layers.map(l =>
       l.id === selectedLayer ? { ...l, ...updates } : l
     );
 
     setLayers(newLayers);
 
+    // Update shapeSettings state
     setShapeSettings(prev => ({
       ...prev,
       ...updates
@@ -1150,6 +1146,8 @@ const CanvaEditor = () => {
 
     saveToHistory(newLayers);
   }, [selectedLayer, layers, setLayers, saveToHistory, setShapeSettings]);
+
+
   // Image upload handler
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
