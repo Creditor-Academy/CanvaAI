@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import api from "../../../services/api";
 
 export const AIDesign = () => {
   const navigate = useNavigate();
@@ -29,12 +30,12 @@ export const AIDesign = () => {
     "Cartoon astronaut mascot",
   ];
 
-  const mockImages = [
-    "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=600",
-    "https://images.unsplash.com/photo-1611521448635-a3a774ee7c7d?w=600",
-    "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=600",
-    "https://images.unsplash.com/photo-1690037704521-f614da226dac?w=600",
-  ];
+  // const mockImages = [
+  //   "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=600",
+  //   "https://images.unsplash.com/photo-1611521448635-a3a774ee7c7d?w=600",
+  //   "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=600",
+  //   "https://images.unsplash.com/photo-1690037704521-f614da226dac?w=600",
+  // ];
 
   useEffect(() => {
     if (!isLoading) return;
@@ -48,20 +49,78 @@ export const AIDesign = () => {
     return () => clearInterval(timer);
   }, [isLoading]);
 
-  const handleGenerate = () => {
+  // const handleGenerate = () => {
+  //   if (!prompt.trim() || !selectedStyle) return;
+
+  //   setIsLoading(true);
+  //   setGeneratedImages([]);
+  //   setSelectedImages([]);
+
+  //   setTimeout(() => {
+  //     setProgress(100);
+  //     setGeneratedImages(mockImages);
+  //     setTimeout(() => setIsLoading(false), 400);
+  //   }, 2300);
+  // };
+  const handleGenerate = async () => {
     if (!prompt.trim() || !selectedStyle) return;
 
-    setIsLoading(true);
-    setGeneratedImages([]);
-    setSelectedImages([]);
+    try {
+      setIsLoading(true);
+      setGeneratedImages([]);
+      setSelectedImages([]);
+      setProgress(10);
 
-    setTimeout(() => {
+      const style = selectedStyle.toLowerCase();
+
+      // const res = await api.generateLogo(prompt, style);
+      const res = {
+    "msg": "Logo generated successfully",
+    "data": [
+        {
+            "url1": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
+            },
+            "url2": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
+            },
+            "url3": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
+            },
+            "url4": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
+            }
+        }
+    ]
+}
+      console.log(res);
+
+      const images = res?.data?.[0];
+
+      const imageList = [
+        images?.url1?.url,
+        images?.url2?.url,
+        images?.url3?.url,
+        images?.url4?.url,
+      ].filter(Boolean);
+
       setProgress(100);
-      setGeneratedImages(mockImages);
-      setTimeout(() => setIsLoading(false), 400);
-    }, 2300);
-  };
+      setGeneratedImages(imageList);
 
+    } catch (error) {
+      console.error("Logo generation failed:", error);
+      alert("Image generation failed");
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+        setProgress(0);
+      }, 500);
+    }
+  };
   const toggleImageSelection = (img) => {
     setSelectedImages((prev) =>
       prev.includes(img)
@@ -79,12 +138,12 @@ export const AIDesign = () => {
   };
 
   return (
-    <div className="h-screen bg-[#e9f4ff] relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col">
 
-     
+
 
       {/* HERO */}
-      <div className="text-center pt-30 z-10 pl-10">
+      <div className="text-center pt-24 md:pt-30 z-10 px-4">
         <h1 className="text-4xl font-bold text-blue-900">
           AI IMAGE GENERATOR
         </h1>
@@ -94,9 +153,9 @@ export const AIDesign = () => {
       </div>
 
       {/* MAIN */}
-      <div className="flex-1 flex items-center justify-center pl-10 z-10">
+      <div className="flex-1 flex items-center justify-center px-4 md:px-10 z-10">
 
-        <div className="w-full max-w-6xl grid md:grid-cols-2 gap-6">
+        <div className="w-full max-w-sm sm:max-w-xl md:max-w-4xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-6">
 
           {/* LEFT PANEL */}
           <div className="bg-white border border-blue-700 rounded-xl shadow-md p-5">
@@ -181,7 +240,7 @@ export const AIDesign = () => {
           </div>
 
           {/* RIGHT PANEL */}
-          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center">
+          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center min-h-[320px] md:min-h-[420px]">
 
             {!generatedImages.length && !isLoading && (
               <>
@@ -216,10 +275,10 @@ export const AIDesign = () => {
               </div>
             )}
 
-            {generatedImages.length > 0 && !isLoading && (
+            {generatedImages.length > 0 && (
 
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
 
                   {generatedImages.map((img, idx) => {
 
@@ -274,17 +333,6 @@ export const AIDesign = () => {
 
               </>
             )}
-
-            <button
-              onClick={handleImport}
-              disabled={selectedImages.length === 0}
-              className={`mt-4 px-10 py-4 rounded-3xl font-bold text-lg transition-all shadow-xl ${selectedImages.length === 0
-                  ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                  : "bg-[#0c4a6e] text-white hover:scale-105 hover:bg-[#072a42] border border-[#0c4a6e]"
-                }`}
-            >
-              Import Selected ({selectedImages.length})
-            </button>
           </div>
 
         </div>
