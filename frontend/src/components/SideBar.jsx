@@ -28,7 +28,6 @@ const PPTIcon = ({ size = 20, active }) => (
   </svg>
 );
 
-
 const EditorIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
     <path d="M4 20h4l10-10a2.5 2.5 0 10-4-4L4 16v4z"></path>
@@ -78,8 +77,11 @@ const BASE_ITEMS = [
 
 /* ---------------- RAIL ITEM ---------------- */
 
-const RailItem = ({ active, label, icon, onClick }) => {
+const RailItem = ({ active, label, icon, onClick, compact = false, mobile = false }) => {
   const [hovered, setHovered] = React.useState(false);
+
+  const boxSize = mobile ? 24 : compact ? 24 : 25;
+  const iconSize = mobile ? 18 : compact ? 18 : 20;
 
   return (
     <button
@@ -87,15 +89,16 @@ const RailItem = ({ active, label, icon, onClick }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width: 56,
+        width: mobile ? "auto" : compact ? 52 : 56,
+        minWidth: mobile ? 42 : compact ? 52 : 56,
         border: "none",
         background: hovered ? "rgba(59,130,246,0.08)" : "transparent",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 6,
-        padding: "10px 0",
+        gap: mobile ? 4 : 6,
+        padding: mobile ? "8px 4px" : compact ? "8px 0" : "10px 0",
         cursor: "pointer",
         color: active ? "#1d4ed8" : "#4b5563",
         borderRadius: 16,
@@ -104,8 +107,8 @@ const RailItem = ({ active, label, icon, onClick }) => {
     >
       <div
         style={{
-          width: 25,
-          height: 25,
+          width: boxSize,
+          height: boxSize,
           borderRadius: 12,
           display: "flex",
           alignItems: "center",
@@ -122,21 +125,22 @@ const RailItem = ({ active, label, icon, onClick }) => {
             : hovered
             ? "0 10px 22px rgba(15,23,42,0.10)"
             : "none",
-          transition:
-            "background 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+          transition: "background 160ms ease, box-shadow 160ms ease, transform 160ms ease",
           transform: hovered ? "translateY(-1px)" : "translateY(0)"
         }}
       >
-        {React.cloneElement(icon, { active })}
+        {React.cloneElement(icon, { active, size: iconSize })}
       </div>
 
       <span
         style={{
-          fontSize: 10,
+          fontSize: mobile ? 9 : compact ? 9 : 10,
           textAlign: "center",
           fontWeight: active ? 700 : 600,
           letterSpacing: 0.2,
-          opacity: active ? 1 : 0.9
+          opacity: active ? 1 : 0.9,
+          lineHeight: 1.1,
+          whiteSpace: "nowrap"
         }}
       >
         {label}
@@ -152,22 +156,35 @@ const SideBar = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
 
-  const [isMobile, setIsMobile] = React.useState(false);
-  const [isTablet, setIsTablet] = React.useState(false);
+  const [screen, setScreen] = React.useState({
+    isMobile: false,
+    isTablet: false,
+    isCompactDesktop: false,
+    isShortHeight: false
+  });
 
   React.useEffect(() => {
     const checkScreen = () => {
       const width = window.innerWidth;
+      const height = window.innerHeight;
 
-      setIsMobile(width <= 768);
-      setIsTablet(width > 768 && width <= 1024);
+      setScreen({
+        isMobile: width <= 768,
+        isTablet: width > 768 && width <= 1024,
+        isCompactDesktop: width > 1024 && width <= 1280,
+        isShortHeight: height <= 700
+      });
     };
 
-    checkScreen(); // run on load
+    checkScreen();
     window.addEventListener("resize", checkScreen);
 
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
+
+  const { isMobile, isTablet, isCompactDesktop, isShortHeight } = screen;
+
+  const isCompactRail = (isTablet || isCompactDesktop) && isShortHeight;
 
   const ITEMS = React.useMemo(() => {
     if (!isAdmin) return BASE_ITEMS;
@@ -190,29 +207,33 @@ const SideBar = () => {
     <aside
       style={{
         position: "fixed",
-        left: isMobile ? "50%" : 18,
-        top: isMobile ? "auto" : "55%",
+        left: isMobile ? "50%" : isTablet ? 14 : 18,
+        top: isMobile ? "auto" : "54%",
         bottom: isMobile ? 14 : "auto",
         transform: isMobile ? "translateX(-50%)" : "translateY(-50%)",
-        width: isMobile ? "92%" : 64,
-        height: isTablet ? "55vh" : "auto",
+        width: isMobile ? "92%" : isCompactRail ? 58 : 64,
+        minWidth: isMobile ? "92%" : isCompactRail ? 58 : 64,
+        height: isMobile ? "auto" : "auto",
+        maxHeight: !isMobile ? "calc(100vh - 40px)" : "none",
         background: "rgba(255,255,255,0.35)",
         backdropFilter: "blur(16px)",
         border: "1px solid rgba(59,130,246,0.28)",
         borderRadius: 22,
-        padding: isMobile ? "10px 12px" : isTablet ? "18px 0" : "10px 0",
+        padding: isMobile
+          ? "8px 10px"
+          : isCompactRail
+          ? "12px 0"
+          : isTablet
+          ? "16px 0"
+          : "10px 0",
         display: "flex",
         flexDirection: isMobile ? "row" : "column",
         alignItems: "center",
-        justifyContent: isMobile
-          ? "space-around"
-          : isTablet
-          ? "space-between"
-          : "center",
-        gap: isTablet ? 14 : 10,
-        boxShadow:
-          "0 18px 45px rgba(15,23,42,0.10), 0 0 0 1px rgba(255,255,255,0.45) inset",
-        zIndex: 9999
+        justifyContent: isMobile ? "space-around" : "center",
+        gap: isMobile ? 4 : isCompactRail ? 8 : 10,
+        boxShadow: "0 18px 45px rgba(15,23,42,0.10), 0 0 0 1px rgba(255,255,255,0.45) inset",
+        zIndex: 9999,
+        overflow: "hidden"
       }}
     >
       {ITEMS.map((item) => (
@@ -222,6 +243,8 @@ const SideBar = () => {
           icon={item.icon}
           active={location.pathname === item.path}
           onClick={() => go(item.path)}
+          compact={isCompactRail}
+          mobile={isMobile}
         />
       ))}
     </aside>

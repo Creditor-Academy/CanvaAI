@@ -13,6 +13,8 @@ export const AIDesign = () => {
   const [activePreview, setActivePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
 
   const styles = [
     { name: "Realistic", img: "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=200" },
@@ -73,30 +75,30 @@ export const AIDesign = () => {
 
       const style = selectedStyle.toLowerCase();
 
-      // const res = await api.generateLogo(prompt, style);
-      const res = {
-    "msg": "Logo generated successfully",
-    "data": [
-        {
-            "url1": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
-            },
-            "url2": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
-            },
-            "url3": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
-            },
-            "url4": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
-            }
-        }
-    ]
-}
+       const res = await api.generateLogo(prompt, style);
+      // const res = {
+      //   "msg": "Logo generated successfully",
+      //   "data": [
+      //     {
+      //       "url1": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
+      //       },
+      //       "url2": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
+      //       },
+      //       "url3": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
+      //       },
+      //       "url4": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
+      //       }
+      //     }
+      //   ]
+      // }
       console.log(res);
 
       const images = res?.data?.[0];
@@ -113,12 +115,20 @@ export const AIDesign = () => {
 
     } catch (error) {
       console.error("Logo generation failed:", error);
-      alert("Image generation failed");
+
+      const message = error?.message || "Image generation failed";
+
+      if (message === "Not enough Balance for generate Image") {
+        setGeneratedImages([]);
+        setSelectedImages([]);
+        setPopupMessage(message);
+        setShowBalancePopup(true);
+      } else {
+        alert(message);
+      }
     } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-        setProgress(0);
-      }, 500);
+      setIsLoading(false);
+      setProgress(0);
     }
   };
   const toggleImageSelection = (img) => {
@@ -138,27 +148,27 @@ export const AIDesign = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col">
+    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col px-4 sm:px-5 md:px-6 lg:px-8 xl:pl-[96px] pb-[96px] md:pb-8">
 
 
 
       {/* HERO */}
-      <div className="text-center pt-24 md:pt-30 z-10 px-4">
-        <h1 className="text-4xl font-bold text-blue-900">
+      <div className="text-center pt-24 md:pt-24 xl:pt-20 z-10 px-2 sm:px-4">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900">
           AI IMAGE GENERATOR
         </h1>
-        <p className="text-blue-700 text-sm mt-1">
+        <p className="text-blue-700 text-xs sm:text-sm mt-1">
           Generate original images with AI
         </p>
       </div>
 
       {/* MAIN */}
-      <div className="flex-1 flex items-center justify-center px-4 md:px-10 z-10">
+      <div className="flex-1 flex items-start justify-center w-full z-10 pt-6 sm:pt-8">
 
-        <div className="w-full max-w-sm sm:max-w-xl md:max-w-4xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="w-full max-w-sm sm:max-w-2xl lg:max-w-5xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-5 lg:gap-6">
 
           {/* LEFT PANEL */}
-          <div className="bg-white border border-blue-700 rounded-xl shadow-md p-5">
+          <div className="bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5">
 
             <label className="text-sm font-semibold text-blue-900">
               Prompt
@@ -168,17 +178,17 @@ export const AIDesign = () => {
               placeholder="for example: Medusa"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="mt-2 w-full border border-blue-700 rounded-lg p-2 h-[80px] resize-none outline-none text-blue-900"
+              className="mt-2 w-full border border-blue-700 rounded-lg p-2.5 h-[84px] resize-none outline-none text-sm text-blue-900"
             />
 
             {/* EXAMPLE PROMPTS */}
-            <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar">
+            <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
 
               {examplePrompts.map((ex, i) => (
                 <button
                   key={i}
                   onClick={() => setPrompt(ex)}
-                  className="bg-yellow-300 hover:bg-yellow-400 text-blue-900 text-xs px-3 py-1 rounded-full whitespace-nowrap"
+                  className="bg-yellow-300 hover:bg-yellow-400 text-blue-900 text-[11px] sm:text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0"
                 >
                   {ex}
                 </button>
@@ -193,7 +203,7 @@ export const AIDesign = () => {
                 Styles
               </p>
 
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
 
                 {styles.map((style) => {
 
@@ -203,7 +213,7 @@ export const AIDesign = () => {
                     <button
                       key={style.name}
                       onClick={() => setSelectedStyle(style.name)}
-                      className={`relative group min-w-[60px] rounded-lg overflow-hidden border
+                      className={`relative group min-w-[64px] sm:min-w-[68px] rounded-lg overflow-hidden border shrink-0
                         ${active
                           ? "border-yellow-400 ring-2 ring-yellow-400"
                           : "border-blue-700"
@@ -212,7 +222,7 @@ export const AIDesign = () => {
 
                       <img
                         src={style.img}
-                        className="w-full h-[55px] object-cover"
+                        className="w-full h-[52px] sm:h-[55px] object-cover"
                         alt=""
                       />
 
@@ -232,7 +242,7 @@ export const AIDesign = () => {
             <button
               onClick={handleGenerate}
               disabled={!prompt || !selectedStyle}
-              className="w-full mt-4 bg-blue-800 hover:bg-blue-900 text-white py-2.5 rounded-full font-semibold disabled:opacity-40"
+              className="w-full mt-4 bg-blue-800 hover:bg-blue-900 text-white py-2.5 rounded-full font-semibold disabled:opacity-40 text-sm sm:text-base"
             >
               Generate
             </button>
@@ -240,7 +250,7 @@ export const AIDesign = () => {
           </div>
 
           {/* RIGHT PANEL */}
-          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center min-h-[320px] md:min-h-[420px]">
+          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5 flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] md:min-h-[420px]">
 
             {!generatedImages.length && !isLoading && (
               <>
@@ -257,7 +267,7 @@ export const AIDesign = () => {
             )}
 
             {isLoading && (
-              <div className="w-[360px] max-w-full text-center">
+              <div className="w-full max-w-[360px] text-center">
 
                 <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
 
@@ -278,7 +288,7 @@ export const AIDesign = () => {
             {generatedImages.length > 0 && (
 
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                <div className="grid w-full grid-cols-2 gap-2 sm:gap-3">
 
                   {generatedImages.map((img, idx) => {
 
@@ -286,38 +296,48 @@ export const AIDesign = () => {
 
                     return (
                       <div
-                        key={idx}
-                        onClick={() => toggleImageSelection(img)}
-                        className={`relative rounded-lg overflow-hidden cursor-pointer
-                          ${selected
-                            ? "ring-4 ring-yellow-400"
-                            : "ring-1 ring-blue-700"
-                          }`}
-                      >
+  key={idx}
+  onClick={() => toggleImageSelection(img)}
+  className={`relative group rounded-lg overflow-hidden cursor-pointer
+    ${selected
+      ? "ring-4 ring-yellow-400"
+      : "ring-1 ring-blue-700"
+    }`}
+>
+  <img
+    src={img}
+    className="w-full h-[110px] sm:h-[130px] object-cover"
+    alt=""
+  />
 
-                        <img
-                          src={img}
-                          className="w-full h-[130px] object-cover"
-                          alt=""
-                        />
+  {!selected && (
+    <>
+      {/* Desktop hover overlay */}
+      <div className="absolute inset-0 hidden sm:flex bg-black/35 items-center justify-center opacity-0 group-hover:opacity-100 transition">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePreview(img);
+          }}
+          className="bg-white px-3 py-1 rounded-full text-xs font-medium text-slate-800 shadow-sm"
+        >
+          Preview
+        </button>
+      </div>
 
-                        {!selected && (
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition">
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePreview(img);
-                              }}
-                              className="bg-white px-3 py-1 rounded-full text-xs"
-                            >
-                              Preview
-                            </button>
-
-                          </div>
-                        )}
-
-                      </div>
+      {/* Mobile bottom chip */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setActivePreview(img);
+        }}
+        className="absolute bottom-2 right-2 sm:hidden bg-white/95 backdrop-blur px-3 py-1 rounded-full text-[11px] font-medium text-slate-800 shadow-md border border-slate-200"
+      >
+        Preview
+      </button>
+    </>
+  )}
+</div>
                     );
                   })}
 
@@ -326,7 +346,7 @@ export const AIDesign = () => {
                 <button
                   onClick={handleImport}
                   disabled={!selectedImages.length}
-                  className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-6 py-2 rounded-full text-sm disabled:opacity-40"
+                  className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-5 sm:px-6 py-2 rounded-full text-sm disabled:opacity-40"
                 >
                   Import Selected ({selectedImages.length})
                 </button>
@@ -346,7 +366,7 @@ export const AIDesign = () => {
 
             <button
               onClick={() => setActivePreview(null)}
-              className="absolute top-6 right-8 text-white text-3xl"
+              className="absolute top-4 right-4 sm:top-6 sm:right-8 text-white text-2xl sm:text-3xl"
             >
               ✕
             </button>
@@ -355,7 +375,7 @@ export const AIDesign = () => {
 
               <img
                 src={activePreview}
-                className="max-h-[85vh] rounded-xl"
+                className="max-h-[75vh] sm:max-h-[85vh] max-w-[92vw] rounded-xl"
                 alt=""
               />
 
@@ -372,6 +392,34 @@ export const AIDesign = () => {
 
             </div>
 
+          </div>,
+          document.body
+        )}
+      {showBalancePopup &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[1000] px-4">
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-5 sm:p-6 text-center border border-red-200">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-2xl">
+                !
+              </div>
+
+              <h2 className="text-lg sm:text-xl font-bold text-red-600">
+                Insufficient Balance
+              </h2>
+
+              <p className="text-gray-700 mt-2 text-sm leading-6">
+                {popupMessage || "Not enough Balance for generate Image"}
+              </p>
+
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => setShowBalancePopup(false)}
+                  className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2 rounded-full"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
           </div>,
           document.body
         )}
