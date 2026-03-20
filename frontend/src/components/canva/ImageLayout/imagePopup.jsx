@@ -1,13 +1,150 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { X, Download, Image as ImageIcon, ZoomIn } from "lucide-react";
 import { useAuth } from '../../../contexts/AuthContext'
 import { cloneImage } from '../../../services/imageEditor/imageApi'
 import { toast } from 'sonner'
 
+// Helper function - check if color is transparent
+const isTransparent = (color) => {
+    if (!color) return true;
+    const c = color.replace(/\s/g, '').toLowerCase();
+    return (
+        c === 'transparent' ||
+        c === 'rgba(0,0,0,0)' ||
+        c === 'rgba(0,0,0,0.0)'
+    );
+};
+
+// Render image preview from data
+const renderImagePreview = (image) => {
+    if (!image?.data) return null;
+
+    const layers = Array.isArray(image.data)
+        ? image.data
+        : (image.data?.layer || image.data?.layers || []);
+
+    const canvasSize = image.data?.canvasSize || layers?.[0]?.canvasSize || { width: 800, height: 600 };
+    const bgColor = image.data?.canvasBgColor || layers?.[0]?.canvasBgColor || '#ffffff';
+    const bgImage = image.data?.canvasBgImage || layers?.[0]?.canvasBgImage || null;
+
+    const isGradient = bgColor && bgColor.includes('gradient');
+
+    return (
+        <svg
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ maxHeight: '400px', width: 'auto' }}
+        >
+            {/* Background */}
+            <defs>
+                {bgImage && (
+                    <pattern id="bgPattern" patternUnits="objectBoundingBox" width="1" height="1">
+                        <image href={bgImage} width={canvasSize.width} height={canvasSize.height} preserveAspectRatio="xMidYMid slice" />
+                    </pattern>
+                )}
+            </defs>
+
+            {/* Background rect */}
+            <rect
+                width={canvasSize.width}
+                height={canvasSize.height}
+                fill={isGradient ? 'white' : (isTransparent(bgColor) ? '#f8fafc' : bgColor)}
+                style={isGradient ? { background: bgColor } : {}}
+            />
+            {bgImage && (
+                <rect
+                    width={canvasSize.width}
+                    height={canvasSize.height}
+                    fill="url(#bgPattern)"
+                />
+            )}
+
+            {/* Render layers */}
+            {layers?.map((layer) => {
+                if (!layer || layer.visible === false) return null;
+
+                const commonStyle = {
+                    x: layer.x || 0,
+                    y: layer.y || 0,
+                    width: layer.width || 0,
+                    height: layer.height || 0,
+                    opacity: (layer.opacity ?? 100) / 100,
+                };
+
+                if (layer.type === 'text') {
+                    return (
+                        <text
+                            key={layer.id}
+                            x={commonStyle.x + (layer.width || 0) / 2}
+                            y={commonStyle.y + (layer.height || 0) / 2}
+                            fontSize={layer.fontSize || 16}
+                            fontFamily={layer.fontFamily || 'Arial'}
+                            fontWeight={layer.fontWeight || 400}
+                            fill={layer.color || '#111827'}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            opacity={commonStyle.opacity}
+                        >
+                            {layer.text}
+                        </text>
+                    );
+                }
+
+                if (layer.type === 'image') {
+                    const src = layer.imageUrl || layer.url || layer.src;
+                    if (!src) return null;
+                    return (
+                        <image
+                            key={layer.id}
+                            href={src}
+                            x={commonStyle.x}
+                            y={commonStyle.y}
+                            width={commonStyle.width}
+                            height={commonStyle.height}
+                            opacity={commonStyle.opacity}
+                            preserveAspectRatio="xMidYMid slice"
+                        />
+                    );
+                }
+
+                if (layer.type === 'shape') {
+                    const fill = isTransparent(layer.fillColor) ? 'none' : layer.fillColor;
+                    const stroke = layer.strokeColor || '#000000';
+                    const sw = layer.strokeWidth || 1;
+
+                    // Simple rect for shape preview
+                    return (
+                        <rect
+                            key={layer.id}
+                            x={commonStyle.x}
+                            y={commonStyle.y}
+                            width={commonStyle.width}
+                            height={commonStyle.height}
+                            fill={fill}
+                            stroke={stroke}
+                            strokeWidth={sw}
+                            opacity={commonStyle.opacity}
+                            rx={layer.shape === 'roundedRectangle' ? '8' : '0'}
+                        />
+                    );
+                }
+
+                return null;
+            })}
+        </svg>
+    );
+};
+
 const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
     const { isAdmin } = useAuth()
     const [importing, setImporting] = useState(false)
     if (!image) return null;
+
+    // Generate preview from image data
+    const preview = useMemo(() => renderImagePreview(image), [image]);
 
     return (
         <div
@@ -45,7 +182,7 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                 </div>
 
                 {/* Image container with enhanced styling */}
-                <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4 ">
+                <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8 min-h-[350px]">
                     {thumbnail ? (
                         <div className="relative group">
                             <img
@@ -61,6 +198,10 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                                     <span>Preview</span>
                                 </div>
                             </div>
+                        </div>
+                    ) : preview ? (
+                        <div className="w-full flex items-center justify-center">
+                            {preview}
                         </div>
                     ) : (
                         <div className="text-center">

@@ -556,7 +556,6 @@ const CanvaEditor = () => {
         }
       };
 
-      console.log("Saving design JSON:", JSON.stringify(updatePayload, null, 2));
 
       if (projectId) {
         await updateImage(projectId, updatePayload);

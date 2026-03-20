@@ -202,8 +202,3 @@ export const cloneImage = async (pptId) => {
     }
 };
 
-
-
-
-
-

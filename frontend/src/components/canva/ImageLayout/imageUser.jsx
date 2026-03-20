@@ -14,6 +14,92 @@ const isTransparent = (color) => {
     );
 };
 
+// SVG Shape generators for thumbnail preview - supports all shape types
+const getShapeSVG = (shape, width, height, fillColor, strokeColor, strokeWidth) => {
+    const w = width, h = height;
+    const fill = isTransparent(fillColor) ? 'none' : fillColor;
+    const stroke = strokeColor || '#000000';
+    const sw = strokeWidth || 1;
+
+    // Generate polygon points for regular shapes
+    const generatePolygonPoints = (sides, radius, offsetAngle = 0) => {
+        const points = [];
+        const cx = w / 2, cy = h / 2;
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides) + offsetAngle;
+            points.push(
+                cx + radius * Math.cos(angle),
+                cy + radius * Math.sin(angle)
+            );
+        }
+        return points.join(',');
+    };
+
+    const svgPath = {
+        // Basic shapes
+        line: `M0,${h / 2} L${w},${h / 2}`,
+        rectangle: `M0,0 L${w},0 L${w},${h} L0,${h} Z`,
+        circle: `M${w / 2},0 A${w / 2},${h / 2} 0 1,1 ${w / 2},${h} A${w / 2},${h / 2} 0 1,1 ${w / 2},0 Z`,
+        ellipse: `M${w / 2},0 A${w / 2},${h / 2} 0 1,1 ${w / 2},${h} A${w / 2},${h / 2} 0 1,1 ${w / 2},0 Z`,
+
+        // Triangles
+        triangle: `M${w / 2},0 L${w},${h} L0,${h} Z`,
+        rightTriangle: `M0,0 L${w},0 L0,${h} Z`,
+
+        // Stars
+        star: `M${w / 2},${h * 0.1} L${w * 0.37},${h * 0.35} L${w * 0.1},${h * 0.35} L${w * 0.35},${h * 0.57} L${w * 0.2},${h * 0.9} L${w / 2},${h * 0.68} L${w * 0.8},${h * 0.9} L${w * 0.65},${h * 0.57} L${w * 0.9},${h * 0.35} L${w * 0.63},${h * 0.35} Z`,
+        star6: (() => {
+            const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+            let points = [];
+            for (let i = 0; i < 12; i++) {
+                const angle = (i * Math.PI) / 6;
+                const radius = i % 2 === 0 ? r : r * 0.5;
+                points.push(
+                    cx + radius * Math.cos(angle - Math.PI / 2),
+                    cy + radius * Math.sin(angle - Math.PI / 2)
+                );
+            }
+            return `M${points.join(' L')} Z`;
+        })(),
+
+        // Heart
+        heart: `M${w / 2},${h * 0.9} C${w * 0.2},${h * 0.7} ${w * 0.1},${h * 0.5} ${w * 0.1},${h * 0.35} C${w * 0.1},${h * 0.15} ${w * 0.25},${h * 0.05} ${w * 0.35},${h * 0.05} C${w * 0.45},${h * 0.05} ${w / 2},${h * 0.2} L${w / 2},${h * 0.2} C${w / 2},${h * 0.2} ${w * 0.55},${h * 0.05} ${w * 0.65},${h * 0.05} C${w * 0.75},${h * 0.05} ${w * 0.9},${h * 0.15} ${w * 0.9},${h * 0.35} C${w * 0.9},${h * 0.5} ${w * 0.8},${h * 0.7} ${w / 2},${h * 0.9} Z`,
+
+        // Diamond
+        diamond: `M${w / 2},0 L${w},${h / 2} L${w / 2},${h} L0,${h / 2} Z`,
+
+        // Pentagon
+        pentagon: (() => {
+            const points = generatePolygonPoints(5, Math.min(w, h) / 2, -Math.PI / 2);
+            return `M${points} Z`;
+        })(),
+
+        // Hexagon
+        hexagon: (() => {
+            const points = generatePolygonPoints(6, Math.min(w, h) / 2);
+            return `M${points} Z`;
+        })(),
+
+        // Arrows
+        arrow: `M${w / 2},${h * 0.1} L${w * 0.7},${h * 0.6} L${w * 0.55},${h * 0.6} L${w * 0.55},${h * 0.9} L${w * 0.45},${h * 0.9} L${w * 0.45},${h * 0.6} L${w * 0.3},${h * 0.6} Z`,
+        arrowLeft: `M${w * 0.1},${h / 2} L${w * 0.4},${h * 0.3} L${w * 0.4},${h * 0.45} L${w * 0.9},${h * 0.45} L${w * 0.9},${h * 0.55} L${w * 0.4},${h * 0.55} L${w * 0.4},${h * 0.7} Z`,
+        arrowUp: `M${w / 2},${h * 0.1} L${w * 0.7},${h * 0.4} L${w * 0.55},${h * 0.4} L${w * 0.55},${h * 0.9} L${w * 0.45},${h * 0.9} L${w * 0.45},${h * 0.4} L${w * 0.3},${h * 0.4} Z`,
+        arrowDown: `M${w / 2},${h * 0.9} L${w * 0.7},${h * 0.6} L${w * 0.55},${h * 0.6} L${w * 0.55},${h * 0.1} L${w * 0.45},${h * 0.1} L${w * 0.45},${h * 0.6} L${w * 0.3},${h * 0.6} Z`,
+
+        // Cloud
+        cloud: `M${w * 0.3},${h * 0.6} C${w * 0.3},${h * 0.4} ${w * 0.45},${h * 0.2} ${w * 0.65},${h * 0.2} C${w * 0.8},${h * 0.2} ${w * 0.9},${h * 0.3} ${w * 0.9},${h * 0.45} L${w * 0.9},${h * 0.6} C${w * 0.95},${h * 0.6} ${w},${h * 0.65} ${w},${h * 0.75} L${w},${h * 0.85} C${w},${h * 0.92} ${w * 0.93},${h} ${w * 0.85},${h} L${w * 0.15},${h} C${w * 0.07},${h} ${w * 0},${h * 0.92} ${w * 0},${h * 0.85} L${w * 0},${h * 0.75} C${w * 0},${h * 0.65} ${w * 0.05},${h * 0.6} ${w * 0.1},${h * 0.6} C${w * 0.1},${h * 0.35} ${w * 0.2},${h * 0.2} ${w * 0.3},${h * 0.2} C${w * 0.15},${h * 0.2} ${w * 0.1},${h * 0.3} ${w * 0.1},${h * 0.4}`,
+
+        // Rounded Rectangle (default fallback)
+        roundedRectangle: `M${w * 0.1},0 L${w * 0.9},0 Q${w},0 ${w},${h * 0.1} L${w},${h * 0.9} Q${w},${h} ${w * 0.9},${h} L${w * 0.1},${h} Q0,${h} 0,${h * 0.9} L0,${h * 0.1} Q0,0 ${w * 0.1},0`
+    };
+
+    const pathData = svgPath[shape] || svgPath.roundedRectangle;
+
+    return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible;">
+        <path d="${pathData}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="miter"/>
+    </svg>`;
+};
+
 const ImageThumbPreview = ({ image }) => {
     const layers = Array.isArray(image?.data)
         ? image.data
@@ -23,12 +109,18 @@ const ImageThumbPreview = ({ image }) => {
     const bgColor = image?.data?.canvasBgColor || layers?.[0]?.canvasBgColor || '#ffffff'
     const bgImage = image?.data?.canvasBgImage || layers?.[0]?.canvasBgImage || null
 
+    // Check if bgColor is a gradient
+    const isGradient = bgColor && bgColor.includes('gradient');
+
     return (
         <div
             className="absolute inset-0 overflow-hidden"
             style={{
-                backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor,
-                backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+                ...(isGradient
+                    ? { backgroundImage: bgColor }
+                    : { backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor }
+                ),
+                backgroundImage: isGradient ? bgColor : (bgImage ? `url(${bgImage})` : 'none'),
                 backgroundSize: '100% 100%',
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center',
@@ -99,6 +191,7 @@ const ImageThumbPreview = ({ image }) => {
                         )
                     }
 
+                    // Render image
                     if (layer.type === 'image') {
                         const src = layer.imageUrl || layer.url || layer.src
                         if (!src) return null
@@ -119,7 +212,56 @@ const ImageThumbPreview = ({ image }) => {
                         )
                     }
 
-                    // Keep thumbnails simple: ignore shapes/drawings if not needed
+                    // Render shapes (with proper SVG for specific shapes)
+                    if (layer.type === 'shape') {
+                        // If shape has image fill, render as div with background image
+                        if (layer.fillImageSrc && layer.fillType === 'image') {
+                            return (
+                                <div
+                                    key={layer.id}
+                                    style={{
+                                        ...commonStyle,
+                                        backgroundImage: `url(${layer.fillImageSrc})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        border: `${layer.strokeWidth || 1}px solid ${layer.strokeColor || '#000000'}`,
+                                        opacity: ((layer.opacity ?? 100) / 100),
+                                        borderRadius: layer.borderRadius || 0,
+                                    }}
+                                />
+                            )
+                        }
+
+                        // Render SVG shape
+                        const shapeType = layer.shape || 'roundedRectangle';
+                        const svgMarkup = getShapeSVG(
+                            shapeType,
+                            layer.width || 100,
+                            layer.height || 100,
+                            layer.fillColor,
+                            layer.strokeColor,
+                            layer.strokeWidth
+                        );
+
+                        return (
+                            <div
+                                key={layer.id}
+                                style={{
+                                    position: 'absolute',
+                                    left: layer.x || 0,
+                                    top: layer.y || 0,
+                                    width: layer.width || 0,
+                                    height: layer.height || 0,
+                                    transform: `rotate(${layer.rotation || 0}deg)`,
+                                    transformOrigin: 'center center',
+                                    opacity: ((layer.opacity ?? 100) / 100),
+                                }}
+                                dangerouslySetInnerHTML={{ __html: svgMarkup }}
+                            />
+                        )
+                    }
+
+                    // Return null for other types
                     return null
                 })}
             </div>
@@ -207,30 +349,45 @@ const ImageUser = () => {
 
                 </div>
 
-                <div className='flex gap-4 py-4 w-full'>
+                {/* --- Button Container --- */}
+                <div className='flex flex-col  md:flex-row gap-6 py-8 w-full'>
+                    {/* Create with AI Button */}
                     <Link
                         to="/create/ai-design"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
+                        className="flex-1 max-w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white p-6 rounded-2xl shadow-xl shadow-orange-200 transition-all flex items-center gap-4 active:scale-[0.98] group"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Create With AI
+                        <div className="bg-white/20 p-3 rounded-xl group-hover:scale-110 transition-transform">
+                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2L14.85 8.65L21.5 11.5L14.85 14.35L12 21L9.15 14.35L2.5 11.5L9.15 8.65L12 2ZM12 5.37L10.38 9.12L6.63 10.75L10.38 12.38L12 16.13L13.62 12.38L17.37 10.75L13.62 9.12L12 5.37Z" />
+                            </svg>
+                        </div>
+                        <div className="text-left">
+                            <h2 className="text-xl font-bold">Create with AI</h2>
+                            <p className="text-orange-50 text-xs opacity-90">Let AI generate a complete presentation from your topic.</p>
+                        </div>
                     </Link>
 
+                    {/* Create Fresh Button */}
                     <a
                         href="/canva-clone"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
+                        className="flex-1 max-w-full  bg-white border-2 border-blue-500/10 hover:border-blue-500 text-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex items-center gap-4 active:scale-[0.98] group relative overflow-hidden"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Create New Design
+                        {/* Blue accent bar at bottom */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-blue-500 opacity-80" />
+
+                        <div className="bg-blue-600 p-3 rounded-xl shadow-lg shadow-blue-200 group-hover:rotate-90 transition-transform">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v12m6-6H6" />
+                            </svg>
+                        </div>
+                        <div className="text-left">
+                            <h2 className="text-xl font-bold">Create Fresh</h2>
+                            <p className="text-slate-500 text-xs">Open our advanced editor and start your story from scratch.</p>
+                        </div>
                     </a>
                 </div>
-
 
                 {loading && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

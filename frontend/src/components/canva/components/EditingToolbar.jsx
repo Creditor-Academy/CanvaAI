@@ -459,6 +459,7 @@ const EditingToolbar = ({
                                     className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100 animate-in fade-in zoom-in-95 duration-200 mr-4"
                                     onMouseDown={(e) => e.stopPropagation()}
                                 >
+
                                     {/* Header */}
                                     <div className="px-4 py-2 border-b border-gray-100">
                                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Export as</p>
@@ -469,26 +470,14 @@ const EditingToolbar = ({
                                         {
                                             format: 'png',
                                             label: 'PNG',
-                                            badge: 'Recommended',
-                                            color: 'blue'
                                         },
                                         {
                                             format: 'jpg',
                                             label: 'JPG',
-                                            badge: 'Web optimized',
-                                            color: 'green'
-                                        },
-                                        {
-                                            format: 'pdf',
-                                            label: 'PDF',
-                                            badge: 'Print ready',
-                                            color: 'purple'
                                         },
                                         {
                                             format: 'webp',
                                             label: 'WEBP',
-                                            badge: 'Print ready',
-                                            color: 'lightgreen'
                                         },
                                     ].map((item, index) => (
                                         <button
@@ -508,27 +497,8 @@ const EditingToolbar = ({
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-semibold text-gray-700">.{item.format}</span>
-                                                    {index === 0 && (
-                                                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-bold rounded-full">
-                                                            {item.badge}
-                                                        </span>
-                                                    )}
                                                 </div>
 
-                                            </div>
-
-                                            {/* Size indicator */}
-                                            <div className="text-right">
-                                                <span className={`
-                        text-xs font-medium
-                        ${item.format === 'png' ? 'text-blue-600' : ''}
-                        ${item.format === 'jpg' ? 'text-green-600' : ''}
-                        ${item.format === 'pdf' ? 'text-purple-600' : ''}
-                    `}>
-                                                    {item.format === 'png' && '~2.5 MB'}
-                                                    {item.format === 'jpg' && '~500 KB'}
-                                                    {item.format === 'pdf' && '~1.2 MB'}
-                                                </span>
                                             </div>
                                         </button>
                                     ))}
@@ -607,4 +577,3 @@ const EditingToolbar = ({
 };
 
 export default EditingToolbar;
-

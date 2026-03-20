@@ -172,6 +172,42 @@ const LayerComponent = memo(({
           // Check if this is a path-based shape (like heart or cloud)
           const isPathShape = displayProps?.isPathShape;
           const pathData = displayProps?.pathData;
+          const isLineShape = displayProps?.isLineShape;
+
+          // Handle line shapes
+          if (isLineShape) {
+            const lineColor = layer.fillColor || layer.strokeColor || '#000000';
+            const lineWidth = (layer.strokeWidth == null) ? 2 : Math.max(1, layer.strokeWidth);
+
+            return (
+              <div className="w-full h-full relative" style={{ ...commonStyle }}>
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${layer.width} ${layer.height}`}
+                  preserveAspectRatio="none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible'
+                  }}
+                >
+                  <line
+                    x1="0"
+                    y1={layer.height / 2}
+                    x2={layer.width}
+                    y2={layer.height / 2}
+                    stroke={lineColor}
+                    strokeWidth={lineWidth}
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            );
+          }
 
           // Handle path-based shapes (heart, cloud)
           if (isPathShape && pathData) {
