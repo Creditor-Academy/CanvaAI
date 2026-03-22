@@ -28,12 +28,21 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowDown,
-  Sparkles
+  Sparkles,
+  Loader
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
 
-const TopBar = ({ onPresent, onAgentClick }) => {
+const formatTimeAgo = (date) => {
+  if (!date) return "";
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return `${seconds} sec ago`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ago`;
+};
+
+const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const {
@@ -70,8 +79,26 @@ const TopBar = ({ onPresent, onAgentClick }) => {
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  const {
+    isSaving,
+    hasUnsavedChanges,
+    lastSavedAt,
+    saveError,
+    markUnsaved,
+    manualSave
+  } = autoSaveState || { hasUnsavedChanges: false };
+
+  const [lastSavedText, setLastSavedText] = useState("");
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const interval = setInterval(() => {
+      setLastSavedText(`Last saved ${formatTimeAgo(lastSavedAt)}`);
+    }, 10000); // update every 10s
+    setLastSavedText(`Last saved ${formatTimeAgo(lastSavedAt)}`);
+    return () => clearInterval(interval);
+  }, [lastSavedAt]);
 
   const shapesRef = useRef(null);
   const themeRef = useRef(null);
@@ -145,7 +172,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             value={title || ""}
             onChange={(e) => {
               setTitle(e.target.value);
-              setHasUnsavedChanges(true);
+              if (markUnsaved) markUnsaved();
             }}
             placeholder="Untitled Project"
             className="project-input"
@@ -158,65 +185,36 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             {/* Save Button */}
             <button
               className="nav-btn"
-              disabled={pastCount === 0 && !hasUnsavedChanges}
+              disabled={isSaving || (!hasUnsavedChanges && !saveError)}
               style={{
-                opacity: (pastCount === 0 && !hasUnsavedChanges) ? 0.5 : 1,
-                cursor: (pastCount === 0 && !hasUnsavedChanges) ? 'not-allowed' : 'pointer'
+                opacity: (isSaving || (!hasUnsavedChanges && !saveError)) ? 0.8 : 1,
+                cursor: (isSaving || (!hasUnsavedChanges && !saveError)) ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
-              onClick={async () => {
-                const { addNotification } = useUIStore.getState();
-
-                try {
-                  await withHybridLoader(
-                    async () => {
-                      const state = usePresentationStore.getState();
-                      const { presentationId, slides, title, setPresentationId } = state;
-
-                      // Prepare payload
-                      const payload = {
-                        userId: user?._id,
-                        title: title || "Untitled Presentation",
-                        data: {
-                          slides,
-                        }
-                      };
-
-                      const service = await import("../../../../services/presentation");
-
-                      if (presentationId) {
-                        // Update existing
-                        await service.updatePresentation(presentationId, payload);
-                        addNotification("Changes saved successfully!", "success");
-                      } else {
-                        // Create new
-                        const res = await service.savePresentation(payload);
-
-                        const newId = res.presentationId || res._id || res.id || (res.data && (res.data._id || res.data.id));
-
-                        if (newId) {
-                          setPresentationId(newId);
-                          // Update URL via navigate
-                          navigate(`/presentation-editor-v3/${newId}`, { replace: true });
-                          addNotification("Presentation saved successfully!", "success");
-                        } else {
-                          addNotification("Presentation saved, but could not retrieve ID. Please refresh.", "warning");
-                        }
-                      }
-
-                      setHasUnsavedChanges(false);
-                      return { success: true };
-                    },
-                    "top",
-                    presentationId ? "Saving changes..." : "Saving presentation..."
-                  );
-                } catch (error) {
-                  console.error("Save failed:", error);
-                  addNotification("Failed to save presentation.", "error");
-                }
+              onClick={() => {
+                if (manualSave) manualSave();
               }}
               data-tooltip={presentationId ? "Save Changes" : "Save"}
             >
-              <Save size={18} /> {presentationId ? "Save Changes" : "Save"}
+              {(isSaving || hasUnsavedChanges) ? (
+                <>
+                  <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                  Saving...
+                  <style>
+                    {`@keyframes spin { 100% { transform: rotate(360deg); } }`}
+                  </style>
+                </>
+              ) : saveError ? (
+                <>
+                  <Save size={18} color="red" /> Save failed
+                </>
+              ) : (
+                <>
+                  <Save size={18} /> {lastSavedAt ? lastSavedText : "All changes saved"}
+                </>
+              )}
             </button>
 
             {/* Download Button */}
