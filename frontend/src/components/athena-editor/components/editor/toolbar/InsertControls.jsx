@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM, { createPortal } from 'react-dom';
+import Portal from '../../ui/Portal';
 import {
   Link,
   Image as ImageIcon,
@@ -288,19 +289,20 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
         </Button>
 
         {/* Table Picker Dropdown - Rendered in Portal to escape overflowing containers */}
-        {showTablePicker && ReactDOM.createPortal(
-          <div
-            className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200"
-            ref={tablePickerRef}
-            style={{
-              position: 'fixed',
-              zIndex: 9999,
-              backgroundColor: 'white',
-            }}
-          >
-            {renderTablePickerGrid()}
-          </div>,
-          document.body
+        {showTablePicker && (
+          <Portal>
+            <div
+              className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200"
+              ref={tablePickerRef}
+              style={{
+                position: 'fixed',
+                zIndex: 9999,
+                backgroundColor: 'white',
+              }}
+            >
+              {renderTablePickerGrid()}
+            </div>
+          </Portal>
         )}
       </div>
 

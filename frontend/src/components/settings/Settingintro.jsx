@@ -97,18 +97,13 @@ import { useNavigate } from 'react-router-dom';
 
 
 const Settingintro = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
-  // const [selectedAvatar, setSelectedAvatar] = useState('AT');
   const [loading, setLoading] = useState(true);
-  // const [avatarFilter, setAvatarFilter] = useState('all');
-  // const [avatarSearch, setAvatarSearch] = useState('');
-  // const [customAvatarUrl, setCustomAvatarUrl] = useState('');
 
   const [profileData, setProfileData] = useState({
     firstName: '',
@@ -149,27 +144,18 @@ const Settingintro = () => {
     }));
   };
 
-  // Fetch user profile on mount
+  // Sync profile data from AuthContext instead of API call
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const data = await api.getProfile();
-        console.log('Profile data received:', data);
-        setProfileData({
-          firstName: data.firstName || '',
-          lastName: data.lastName || '',
-          email: data.email || ''
-        });
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        // Show user-friendly error message
-        alert('Failed to load profile. Please refresh the page.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
+    if (user) {
+      console.log('Profile data received from AuthContext:', user);
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || ''
+      });
+      setLoading(false);
+    }
+  }, [user]);
 
   const handleSaveProfile = async () => {
     try {

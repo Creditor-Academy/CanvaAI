@@ -98,25 +98,6 @@ export const addHeadingStyles = () => {
   const style = document.createElement('style');
   style.id = styleId;
   style.textContent = `
-    .athena-page {
-      background: white !important;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08), 0 2px 5px rgba(0,0,0,0.05) !important;
-      margin: 32px auto !important;
-      position: relative !important;
-      box-sizing: border-box !important;
-      transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-      border: none !important;  /* Removed grey border */
-      border-radius: 2px !important;
-      height: 1123px !important; /* A4 height at 96 DPI */
-      display: flex !important;
-      flex-direction: column !important;
-    }
-    .athena-page:hover {
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12) !important;
-    }
-    .athena-page.is-blank {
-      opacity: 0.7 !important;
-    }
     .content-area {
       flex: 1 !important;
       display: flex !important;
@@ -145,8 +126,8 @@ export const addHeadingStyles = () => {
     .ProseMirror h4, .prose .ProseMirror h4, .prose-lg .ProseMirror h4 { font-size: 1.5rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
     .ProseMirror h5, .prose .ProseMirror h5, .prose-lg .ProseMirror h5 { font-size: 1.25rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
     .ProseMirror h6, .prose .ProseMirror h6, .prose-lg .ProseMirror h6 { font-size: 1.1rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror p, .prose .ProseMirror p, .prose-lg .ProseMirror p { font-size: 1rem; line-height: 1.2 !important; margin-top: 0 !important; margin-bottom: 0 !important; color: #374151 !important; display: block !important; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; page-break-inside: auto !important; }
-    .ProseMirror [data-type="heading"] { font-family: Georgia, serif !important; page-break-after: avoid !important; page-break-inside: avoid !important; }
+    .ProseMirror p, .prose .ProseMirror p, .prose-lg .ProseMirror p { font-size: 1rem; line-height: 1.2 !important; margin-top: 0 !important; margin-bottom: 0 !important; color: #374151 !important; display: block !important; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
+    .ProseMirror [data-type="heading"] { font-family: Georgia, serif !important; }
   `;
   document.head.appendChild(style);
 };

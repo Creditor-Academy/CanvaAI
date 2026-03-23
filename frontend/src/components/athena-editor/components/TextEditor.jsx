@@ -1,7 +1,9 @@
 // src/components/athena-editor/components/TextEditor.jsx
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM, { createPortal } from 'react-dom';
+import Portal from './ui/Portal';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Fragment, Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { StarterKit } from '@tiptap/starter-kit';
 import Document from '@tiptap/extension-document';
@@ -22,7 +24,11 @@ import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../extensions/Indent.js';
+import { Page, initializePagination } from '../extensions/Page.js';
 import { addHeadingStyles } from '../extensions/Page.js';  // Only need heading styles function
+import { paginateDocument, debouncePaginate, setupPasteDetection } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import '../AthenaEditor.css'; // 🔥 CRITICAL: Page NodeView styling
+import '../../../styles/real-pagination.css';
 import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
 import TableExtension from '../extensions/TableExtension.js';
@@ -59,12 +65,11 @@ import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import HeaderMenuBar from './editor/HeaderMenuBar';
 import { FindReplaceModal } from './editor/FindReplaceModal';
 import { AIAssistant } from './editor/AIAssistant.jsx';
-import { PaginationEngine, flattenDocument } from '../../../utils/pagination/paginationEngine.js';
-import { runCalibration, checkCalibrationHealth, debugBlock } from '../../../utils/pagination/calibration.js';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
 import { TextEditorService } from '../../../services/Text-Editor/text.service.js';
+import { useDocument, useUpdateDocument } from '../../../hooks/useDocuments.js';
 import {
   Bold,
   Italic,
@@ -516,7 +521,7 @@ export const EditorToolbar = ({
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [lineSpacingMenuOpen, setLineSpacingMenuOpen] = useState(false);
-  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 96, right: 96 });
+  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
@@ -542,6 +547,15 @@ export const EditorToolbar = ({
   // Keyboard shortcuts for table manipulation
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Global shortcut: Ctrl+Alt+T to open table picker (anywhere in editor)
+      if (e.ctrlKey && e.altKey && e.key === 't') {
+        e.preventDefault();
+        onMenuOpen(editor);
+        setShowTablePicker(true);
+        toast.info('Select table size');
+        return;
+      }
+
       if (!isInsideTable()) return;
 
       // Ctrl+Shift+Enter to add row
@@ -1412,7 +1426,8 @@ export const EditorToolbar = ({
           }
           break;
         case 'table':
-          setShowTablePicker(!showTablePicker);
+          // Direct insert default 3x3 table (matches toolbar button behavior)
+          insertTable(3, 3);
           break;
         case 'link':
           const linkUrl = prompt('Enter URL:');
@@ -1686,20 +1701,20 @@ export const EditorToolbar = ({
     // Update state
     setPageMargins(validMargins);
 
-    // Update CSS variables for page margins
-    document.documentElement.style.setProperty('--page-margin-top', `${validMargins.top}px`);
-    document.documentElement.style.setProperty('--page-margin-right', `${validMargins.right}px`);
-    document.documentElement.style.setProperty('--page-margin-bottom', `${validMargins.bottom}px`);
-    document.documentElement.style.setProperty('--page-margin-left', `${validMargins.left}px`);
+    // CRITICAL FIX: Update CSS VARIABLES instead of inline styles
+    // This ensures all components (CSS, JS, pagination) use the same source of truth
+    const root = document.documentElement;
+    root.style.setProperty('--doc-margin-top', `${validMargins.top}px`);
+    root.style.setProperty('--doc-margin-bottom', `${validMargins.bottom}px`);
+    root.style.setProperty('--doc-margin-left', `${validMargins.left}px`);
+    root.style.setProperty('--doc-margin-right', `${validMargins.right}px`);
 
-    // Also update editor container styling
-    const editorContainer = document.querySelector('.tiptap.ProseMirror');
-    if (editorContainer) {
-      editorContainer.style.paddingTop = `${validMargins.top}px`;
-      editorContainer.style.paddingRight = `${validMargins.right}px`;
-      editorContainer.style.paddingBottom = `${validMargins.bottom}px`;
-      editorContainer.style.paddingLeft = `${validMargins.left}px`;
-    }
+    // REMOVED: Direct inline style application that was overriding CSS
+    // const editorContainer = document.querySelector('.tiptap.ProseMirror');
+    // if (editorContainer) {
+    //   editorContainer.style.paddingTop = `${validMargins.top}px`;
+    //   ... this was causing the bug by overriding CSS with inline styles
+    // }
 
     toast.success(`Page margins set to ${validMargins.top}px (top), ${validMargins.right}px (right), ${validMargins.bottom}px (bottom), ${validMargins.left}px (left)`);
   };
@@ -1821,7 +1836,9 @@ export const EditorToolbar = ({
 
   const restoreVersion = (version) => {
     if (editor && version.content) {
-      editor.commands.setContent(version.content);
+      requestAnimationFrame(() => {
+        editor.commands.setContent(version.content);
+      });
       toast.success(`Restored to "${version.title}"`);
     }
   };
@@ -3221,17 +3238,16 @@ export const EditorToolbar = ({
           <ToolbarButton
             editor={editor}
             onClick={() => {
-              if (showTablePicker) {
-                setShowTablePicker(false);
-                setSelectedRows(0);
-                setSelectedCols(0);
-                onMenuClose(editor);
-              } else {
-                onMenuOpen(editor);
-                setShowTablePicker(true);
-              }
+              // Direct insert default 3x3 table on click (like header menu)
+              insertTable(3, 3);
             }}
-            tooltip={isInsideTable() ? "Table Tools (Click for options)" : "Insert Table"}
+            onContextMenu={(e) => {
+              // Right-click opens table picker for custom size selection
+              e.preventDefault();
+              onMenuOpen(editor);
+              setShowTablePicker(true);
+            }}
+            tooltip={isInsideTable() ? "Table Tools (Click for options)" : "Insert Table (3x3) • Right-click for custom size"}
             isActive={isInsideTable()}
             className={`rounded-lg transition-all duration-300 ${isInsideTable()
               ? "bg-linear-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
@@ -3242,22 +3258,23 @@ export const EditorToolbar = ({
             <Table className={`w-4 h-4 ${isInsideTable() ? "text-white" : "text-blue-600"}`} />
           </ToolbarButton>
 
-          {/* Table Picker Dropdown - Rendered in Portal to escape overflowing containers */}
-          {showTablePicker && ReactDOM.createPortal(
-            <div
-              className="rounded-lg shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-200"
-              ref={tablePickerRef}
-              style={{
-                position: 'fixed',
-                zIndex: 9999,
-                backgroundColor: 'white',
-                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
-                padding: '8px'
-              }}
-            >
-              {renderTablePickerGrid()}
-            </div>,
-            document.body
+          {/* Table Picker Dropdown - Shows on right-click or keyboard shortcut */}
+          {showTablePicker && (
+            <Portal>
+              <div
+                className="rounded-lg shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-200"
+                ref={tablePickerRef}
+                style={{
+                  position: 'fixed',
+                  zIndex: 9999,
+                  backgroundColor: 'white',
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                  padding: '8px'
+                }}
+              >
+                {renderTablePickerGrid()}
+              </div>
+            </Portal>
           )}
         </div>
 
@@ -4141,25 +4158,6 @@ const FontSize = Extension.create({
   },
 });
 
-const PageBreak = Node.create({
-  name: 'pageBreak',
-  group: 'block',
-  selectable: false,
-  draggable: false,
-  atom: true,
-  parseHTML() { return [{ tag: 'div[data-type="page-break"]' }]; },
-  renderHTML() {
-    return [
-      'div',
-      {
-        'data-type': 'page-break',
-        // CSS will handle the visual styling with gradient background
-        // Inline styles here are overridden by index.css !important rules
-      }
-    ];
-  },
-});
-
 // ─── Wrapper component with providers ────────────────────────────────────────
 const TextEditorWithProviders = ({
   initialContent = null,
@@ -4235,16 +4233,17 @@ const TextEditorContent = ({
   const [showHeadingStyles, setShowHeadingStyles] = useState(false);
   const [pageSize, setPageSize] = useState('A4');
   const [pageOrientation, setPageOrientation] = useState('portrait');
-  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 96, right: 96 });
+  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
 
   // Keep --page-margin-* CSS variables in sync with state (runs on mount too)
+  // CRITICAL: Initialize CSS variables from React state on mount
   useEffect(() => {
     const r = document.documentElement;
-    r.style.setProperty('--page-margin-top', `${pageMargins.top}px`);
-    r.style.setProperty('--page-margin-right', `${pageMargins.right}px`);
-    r.style.setProperty('--page-margin-bottom', `${pageMargins.bottom}px`);
-    r.style.setProperty('--page-margin-left', `${pageMargins.left}px`);
-    r.style.setProperty('--page-break-gap', '40px');
+    // Use correct variable names that match athena-variables.css
+    r.style.setProperty('--doc-margin-top', `${pageMargins.top}px`);
+    r.style.setProperty('--doc-margin-right', `${pageMargins.right}px`);
+    r.style.setProperty('--doc-margin-bottom', `${pageMargins.bottom}px`);
+    r.style.setProperty('--doc-margin-left', `${pageMargins.left}px`);
   }, [pageMargins]);
 
   const [pageColor, setPageColor] = useState('#ffffff');
@@ -4258,8 +4257,7 @@ const TextEditorContent = ({
   const [imagePreview, setImagePreview] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [lineSpacing, setLineSpacing] = useState(1.5);
-  const [pages, setPages] = useState([{ id: 1, content: '', height: 0 }]);
-  const [currentPage, setCurrentPage] = useState(1);
+  // Page states removed - will be re-implemented in new pagination system
   const [customHeadingStyles, setCustomHeadingStyles] = useState({});
   const [columnLayout, setColumnLayout] = useState({ count: 1, spacing: 36, equalWidth: true });
   const [collapsedSections, setCollapsedSections] = useState(new Set());
@@ -4278,6 +4276,7 @@ const TextEditorContent = ({
   const MAX_WORDS_PER_PAGE = 380;        // 12 pt / 1.15 spacing, ~32 lines/page
   const MAX_CHARS_PER_PAGE = 2100;       // 32 lines × 65 chars/line
   const MAX_LINES_PER_PAGE = 32;         // 12 pt / 1.15 spacing on A4
+  const STATS_DELAY = 500;               // ms delay before updating stats to prevent cursor jump
 
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
@@ -4290,56 +4289,22 @@ const TextEditorContent = ({
   const lastPaginationContentRef = useRef('');
   const paragraphHeightCacheRef = useRef(new Map());
 
-  // ── Paste page-break system refs ──────────────────────────────────────────
-  // isPastingRef   : true from handlePaste until PASTE_SETTLE_MS after paste lands.
-  //                  Prevents onUpdate from running the scanner mid-paste.
-  // pasteTimerRef  : the settle-delay timer; cleared on each new paste.
-  // isInsertingRef : re-entrancy guard — true only while insertions are running.
-  //                  Always reset in a finally block so it can never stay locked.
-  // lastFingerprintRef : content fingerprint of the last successfully-scanned doc.
-  //                  Prevents re-scanning identical content on every keystroke.
   const isPastingRef = useRef(false);
   const pasteTimerRef = useRef(null);
-  const isInsertingRef = useRef(false);
-  const lastFingerprintRef = useRef('');
-
-  // Page-limit config — single source of truth passed to all scanner functions
-  const pageCfg = {
-    MAX_WORDS_PER_PAGE,
-    MAX_CHARS_PER_PAGE,
-    MAX_LINES_PER_PAGE,
-    AVG_CHARS_PER_LINE: 65,   // 12pt font, 1-inch margins, A4 width
-    PASTE_SETTLE_MS: 300,   // ms after paste before scanning
-    MAX_BREAKS_PER_RUN: 2000, // hard cap — prevents runaway on huge pastes
-  };
-
-  const dynamicManualPagination = useCallback((editorInstance) => {
-    // Count pageBreak nodes to derive total page count.
-    // Uses doc.descendants (not doc.forEach) because we only need to COUNT,
-    // not insert — descendants is fine for read-only traversal.
-    if (!editorInstance?.state?.doc) return;
-    let pageBreakCount = 0;
-    editorInstance.state.doc.descendants((node) => {
-      if (node.type.name === 'pageBreak') pageBreakCount++;
-    });
-    const totalPages = Math.max(1, pageBreakCount + 1);
-    // Avoid setState thrash: only update when the count actually changes
-    setPages((prev) => {
-      if (prev.length === totalPages) return prev;
-      return Array.from({ length: totalPages }, (_, i) => ({
-        id: i + 1,
-        content: '',
-        height: 1122.5,
-      }));
-    });
-    if (setDocumentStats) {
-      setDocumentStats((prev) => {
-        if (prev?.pages === totalPages) return prev;
-        return { ...prev, pages: totalPages };
-      });
-    }
-  }, [setDocumentStats]); // removed pages.length — functional setState avoids stale closure
-
+  
+  // 🚀 OPTIMIZATION: Extract docId and use React Query for document fetching
+  const urlParams = new URL(window.location.href).searchParams;
+  const docId = urlParams.get('docId');
+  
+  const { 
+    data: backendResponse, 
+    isLoading: isDocLoading,
+    isSuccess: isDocLoaded
+  } = useDocument(docId);
+  
+  // Unwrap the document from the response
+  const fetchedDoc = backendResponse?.document || backendResponse;
+  
   // ── Sync word/character count from refs to state for footer display ───────
   //
   // The onUpdate callback stores counts in refs to avoid re-renders on every keystroke.
@@ -4368,32 +4333,8 @@ const TextEditorContent = ({
     return () => clearInterval(intervalId);
   }, []);
 
-  // ── runPastePageBreaks ────────────────────────────────────────────────────
-  //
-  // Single-pass scanner + single-transaction inserter.
-  //
-  // WHY doc.forEach instead of descendants():
-  //   descendants() yields Text leaf nodes whose positions are INSIDE inline
-  //   content. Inserting a block node (pageBreak) at an inline position
-  //   violates the schema — ProseMirror silently rejects it. doc.forEach walks
-  //   only the top-level blocks, whose offsets are always valid block-insertion
-  //   positions.
-  //
-  // WHY one chain.run() for all inserts:
-  //   Inserting breaks one-at-a-time fires onUpdate after each insert, which
-  //   re-runs this scanner, which queues more breaks → infinite loop.
-  //   One transaction = one onUpdate = no feedback loop.
-  //
-  // WHY offset accumulator:
-  //   Each inserted pageBreak (nodeSize=1) shifts every subsequent position by
-  //   +1. We apply a running offset so positions stay accurate without
-  //   re-scanning the doc.
-  //
-  // ── runPastePageBreaks ────────────────────────────────────────────────────
-  //
-  // Single-pass scanner + single-transaction inserter.
-  //
-  // Design constraints:
+  // ── ProseMirror paste-interception plugin ────────────────────────────────
+  // Simplified paste handling without auto-pagination
   //   1. doc.forEach (top-level blocks only) — descendants() visits inline
   //      text nodes whose positions are inside inline content; inserting a
   //      block node there violates the schema.
@@ -4405,6 +4346,8 @@ const TextEditorContent = ({
   //      finally so it can never stay locked.
   //   5. Per-block line estimation accounts for heading size multipliers and
   //      minimum 1-line floor so empty paragraphs are counted.
+  //   6. TABLE HANDLING: Tables are treated as atomic units - we don't insert
+  //      page breaks inside tables. Table height is calculated including all rows.
   //
   /**
    * Production-grade page break insertion with PDF paste handling
@@ -4418,6 +4361,14 @@ const TextEditorContent = ({
    * @returns {number} Number of page breaks inserted
    */
   const runPastePageBreaks = useCallback((editorInstance) => {
+    // DOM-BASED PAGINATION: This function is deprecated
+    // Pagination is now handled automatically by the DOM layout
+    // No manual page break insertion needed
+    console.log('[TextEditor] DOM-based pagination active - skipping manual pagination');
+    return 0;
+    
+    // Legacy pagination code removed - see version control history if needed
+    /*
     if (isInsertingRef.current || !editorInstance?.state?.doc) return 0;
 
     isInsertingRef.current = true;
@@ -4509,14 +4460,50 @@ const TextEditorContent = ({
 
       // ── Step 2: Map Page Boundaries to Document Positions ───────────────
       // O(n) single pass using descendants() instead of O(n²) nested loops
+      // CRITICAL FIX FOR TABLES: Skip page break insertion if position is inside a table
       const insertPositions = [];
       let blockCounter = 0;
+
+      // Helper function to check if a position is inside a table
+      const isPositionInsideTable = (position) => {
+        try {
+          const resolvedPos = doc.resolve(position);
+          for (let depth = resolvedPos.depth; depth > 0; depth--) {
+            const node = resolvedPos.node(depth);
+            if (node && (node.type.name === 'table' || node.type.name === 'tableRow' || 
+                node.type.name === 'tableCell' || node.type.name === 'customTable')) {
+              return true;
+            }
+          }
+          return false;
+        } catch (err) {
+          console.error('[isPositionInsideTable] error:', err);
+          return false;
+        }
+      };
 
       doc.descendants((node, pos) => {
         if (node.isBlock) {
           // If this block index marks the end of a page (excluding last page)
           if (pages.some((p, i) => i < pages.length - 1 && p.endIndex === blockCounter)) {
-            insertPositions.push(pos + node.nodeSize);
+            const potentialPos = pos + node.nodeSize;
+            
+            // CRITICAL: Don't insert page breaks inside tables
+            // Instead, insert after the table ends
+            if (isPositionInsideTable(potentialPos)) {
+              console.log('[TextEditor] Skipping page break inside table at pos', potentialPos);
+              // Find the end of the table and insert after it
+              let tableEndPos = potentialPos;
+              if (node.type.name === 'table' || node.type.name === 'customTable') {
+                tableEndPos = pos + node.nodeSize;
+              }
+              // Only add if not already in the list
+              if (!insertPositions.includes(tableEndPos)) {
+                insertPositions.push(tableEndPos);
+              }
+            } else {
+              insertPositions.push(potentialPos);
+            }
           }
           blockCounter++;
           return false; // Don't descend into inline children
@@ -4534,22 +4521,82 @@ const TextEditorContent = ({
 
       // ── Step 3: Execution - Reverse-Order Insertion ─────────────────────
       // Sort descending - inserting at bottom doesn't shift top positions
+      // CRITICAL: Remove duplicates more aggressively to prevent multiple breaks
       const sortedPositions = [...new Set(insertPositions)].sort((a, b) => b - a);
+      
+      // Additional deduplication: filter out positions that are too close (< 5 chars)
+      const filteredPositions = sortedPositions.filter((pos, idx, arr) => {
+        if (idx === 0) return true;
+        return Math.abs(pos - arr[idx - 1]) >= 5;
+      });
 
-      let chain = editorInstance.chain();
-
-      for (const pos of sortedPositions) {
-        // Safety check: don't insert duplicate page breaks
+      // CRITICAL PRODUCTION FIX: Check existing page breaks before insertion
+      // This prevents duplicate page breaks on re-runs
+      const positionsToInsert = [];
+      for (const pos of filteredPositions) {
         const nodeAfter = doc.nodeAt(pos);
         if (nodeAfter?.type.name !== 'pageBreak') {
-          chain = chain.insertContentAt(pos, { type: 'pageBreak' });
+          // Also check adjacent positions to avoid clustering
+          const nodeBefore = pos > 0 ? doc.nodeAt(pos - 1) : null;
+          const nodeTwoBefore = pos > 1 ? doc.nodeAt(pos - 2) : null;
+          
+          // Only insert if no page break exists at or near this position
+          if (nodeBefore?.type.name !== 'pageBreak' && nodeTwoBefore?.type.name !== 'pageBreak') {
+            positionsToInsert.push(pos);
+          } else {
+            console.log('[TextEditor] Skipping - page break already exists near pos', pos);
+          }
         } else {
           console.log('[TextEditor] Skipping duplicate page break at pos', pos);
         }
       }
 
-      console.log(`[TextEditor] Executing reverse-order insertion with ${sortedPositions.length} breaks`);
+      // CRITICAL: Save cursor position before inserting page breaks
+      // This prevents cursor from jumping to first page after pagination
+      const savedSelection = editorInstance.state.selection;
+      const savedFrom = savedSelection.from;
+      const savedTo = savedSelection.to;
+      
+      let chain = editorInstance.chain();
+
+      for (const pos of positionsToInsert) {
+        chain = chain.insertContentAt(pos, { type: 'pageBreak' });
+      }
+
+      console.log(`[TextEditor] Executing reverse-order insertion with ${positionsToInsert.length} breaks (filtered from ${filteredPositions.length})`);
+      
+      // Execute the chain and preserve cursor position
       chain.run();
+      
+      // CRITICAL: Restore cursor position after pagination
+      // Use requestAnimationFrame to ensure DOM is settled
+      requestAnimationFrame(() => {
+        if (!editorInstance.isDestroyed && savedFrom >= 0) {
+          try {
+            // Adjust position if it shifted due to page break insertions
+            // Count how many page breaks were inserted before the cursor
+            const breaksBeforeCursor = positionsToInsert.filter(pos => pos <= savedFrom).length;
+            const adjustedFrom = savedFrom + breaksBeforeCursor;
+            const adjustedTo = savedTo + breaksBeforeCursor;
+            
+            editorInstance.commands.setTextSelection({
+              from: Math.min(adjustedFrom, editorInstance.state.doc.content.size),
+              to: Math.min(adjustedTo, editorInstance.state.doc.content.size)
+            });
+            
+            // Focus without scrolling to prevent viewport jump
+            editorInstance.view.focus({ preventScroll: true });
+            
+            console.log('[TextEditor] Cursor position restored after pagination');
+          } catch (err) {
+            console.error('[TextEditor] Failed to restore cursor position:', err);
+            // Fallback: just focus the editor
+            if (!editorInstance.isDestroyed) {
+              editorInstance.view.focus({ preventScroll: true });
+            }
+          }
+        }
+      });
 
       // ── Step 4: Cleanup & Feedback ──────────────────────────────────────
       lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
@@ -4574,6 +4621,7 @@ const TextEditorContent = ({
       isInsertingRef.current = false;
       return 0;
     }
+    */
   }, []); // pageCfg is a stable plain-object literal — no closure deps
 
   // ── runProgressivePageBreaks ─────────────────────────────────────────────
@@ -4664,6 +4712,11 @@ const TextEditorContent = ({
       const totalBreaks = insertAt.length;
       let offset = 0;
       let batchStart = 0;
+      
+      // CRITICAL: Save cursor position before progressive pagination
+      const savedSelection = editorInstance.state.selection;
+      const savedFrom = savedSelection.from;
+      const savedTo = savedSelection.to;
 
       while (batchStart < totalBreaks) {
         if (editorInstance.isDestroyed) break;
@@ -4690,6 +4743,31 @@ const TextEditorContent = ({
 
         batchStart = batchEnd;
       }
+      
+      // CRITICAL: Restore cursor position after progressive pagination
+      requestAnimationFrame(() => {
+        if (!editorInstance.isDestroyed && savedFrom >= 0) {
+          try {
+            // Adjust position based on total breaks inserted before cursor
+            const breaksBeforeCursor = insertAt.filter(pos => pos <= savedFrom).length;
+            const adjustedFrom = savedFrom + breaksBeforeCursor;
+            const adjustedTo = savedTo + breaksBeforeCursor;
+            
+            editorInstance.commands.setTextSelection({
+              from: Math.min(adjustedFrom, editorInstance.state.doc.content.size),
+              to: Math.min(adjustedTo, editorInstance.state.doc.content.size)
+            });
+            
+            editorInstance.view.focus({ preventScroll: true });
+            console.log('[TextEditor] Cursor restored after progressive pagination');
+          } catch (err) {
+            console.error('[TextEditor] Failed to restore cursor:', err);
+            if (!editorInstance.isDestroyed) {
+              editorInstance.view.focus({ preventScroll: true });
+            }
+          }
+        }
+      });
 
       const pages = totalBreaks + 1;
       toast.success(
@@ -4718,11 +4796,57 @@ const TextEditorContent = ({
   //   4. Quick capacity check — count words/chars in the WHOLE doc first;
   //      if still well under capacity (< 80 % of one page) skip the full scan.
   //      This avoids the full forEach on every keystroke for short documents.
+  //   5. TABLE GUARD — skip pagination when cursor is inside a table to prevent
+  //      cursor focus loss and multiple page break insertions during table editing.
+  //   6. POST-PASTE COOLDOWN — wait 3 seconds after paste before allowing
+  //      pagination to prevent cursor jump when user clicks to edit pasted content.
+  //   7. EDITING DETECTION — skip pagination if user is actively editing (typing/cursor moving).
   //
   const checkAndInsertAutoPageBreaks = useCallback((editorInstance) => {
     if (isPastingRef.current) return; // paste system handles it
     if (isInsertingRef.current) return; // re-entrancy guard
     if (!editorInstance?.state?.doc) return;
+
+    // CRITICAL FIX #1: Don't run pagination when editing inside tables
+    // This prevents cursor focus loss and multiple page breaks during table edits
+    try {
+      const { selection } = editorInstance.state;
+      const { $from } = selection;
+      for (let depth = $from.depth; depth > 0; depth--) {
+        const node = $from.node(depth);
+        if (node && (node.type.name === 'table' || node.type.name === 'tableRow' || 
+            node.type.name === 'tableCell' || node.type.name === 'customTable')) {
+          console.log('[TextEditor] Skipping pagination - cursor inside table');
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('[checkAndInsertAutoPageBreaks] table check error:', err);
+      // Continue with normal flow if table check fails
+    }
+
+    // CRITICAL FIX #2: Extended post-paste cooldown - prevent pagination immediately after paste
+    // Users need to click/edit pasted content without cursor jumping away
+    // Extended from 2s to 3s for more robust handling
+    const timeSinceLastPaste = Date.now() - (lastPasteTimeRef.current || 0);
+    if (timeSinceLastPaste < 3000) {
+      console.log('[TextEditor] checkAndInsertAutoPageBreaks BLOCKED - post-paste cooldown active', {
+        timeSinceLastPaste: Math.round(timeSinceLastPaste),
+        selectionPos: editorInstance.state.selection.from
+      });
+      return;
+    }
+
+    // CRITICAL FIX #3: Detect if user is actively editing (typing or moving cursor)
+    // If the selection position changed very recently, user is likely still editing
+    // Skip pagination to avoid interrupting the editing flow
+    const currentTime = Date.now();
+    const timeSinceLastSelection = currentTime - (editorInstance.storage.lastSelectionChange || 0);
+    if (timeSinceLastSelection < 500) {
+      // User just moved cursor or started typing - wait before paginating
+      console.log('[TextEditor] Skipping pagination - user actively editing');
+      return;
+    }
 
     const doc = editorInstance.state.doc;
     const text = doc.textContent;
@@ -4769,29 +4893,132 @@ const TextEditorContent = ({
     pastePluginRef.current = new Plugin({
       key: new PluginKey('athena-paste-page-break'),
       props: {
-        handlePaste: (_view, _event, _slice) => {
+        handlePaste: (_view, event, slice) => {
           isPastingRef.current = true;
           if (pasteTimerRef.current) clearTimeout(pasteTimerRef.current);
 
           pasteTimerRef.current = setTimeout(() => {
             isPastingRef.current = false;
-            lastFingerprintRef.current = ''; // force full re-scan
-            // editorRef.current is the stable Tiptap editor reference
-            const ed = editorRef.current;
-            if (ed && !ed.isDestroyed) {
-              // Check document size and choose processing mode
-              const totalChars = ed.state.doc?.textContent?.length || 0;
-              if (totalChars > 20000) {
-                // Use progressive batched mode for very large documents (>20K chars)
-                runProgressivePageBreaks(ed);
-              } else {
-                // Use single-pass mode for normal-sized documents
-                runPastePageBreaks(ed);
-              }
-            }
-          }, 300); // 300 ms — enough for ProseMirror + React to settle
+            // Pagination is handled by setupPasteDetection in paginationEngine.js
+          }, 500);
 
-          return false; // let ProseMirror handle the actual paste insertion
+          // 🔥 SMART PDF PASTE HANDLING
+          const clipboardData = event.clipboardData;
+          if (!clipboardData) return false;
+          
+          const text = clipboardData.getData('text/plain');
+          const html = clipboardData.getData('text/html');
+          const rtf = clipboardData.getData('application/rtf');
+          
+          console.log('[handlePaste] Paste detected:', { 
+            textLength: text.length, 
+            hasHtml: !!html,
+            hasRtf: !!rtf,
+            paragraphs: text.split(/\n\n+/).length 
+          });
+          
+          // 🔥 DETECT PDF CONTENT
+          const isFromPDF = !html && text.includes('\n') && text.length > 100;
+          
+          if (isFromPDF) {
+            console.log('[handlePaste] 📄 PDF content detected - applying smart parsing');
+            
+            // Prevent default paste for PDFs
+            event.preventDefault();
+            
+            // Smart PDF parser
+            const { state, view } = _view;
+            const { tr } = state;
+            
+            // 🔥 CRITICAL FIX: Find current page to insert into
+            const currentPos = state.selection.from;
+            let targetPagePos = 0;
+            let targetPageNode = null;
+            let targetPageIndex = 0;
+            
+            state.doc.descendants((node, pos) => {
+              if (node.type.name === 'page') {
+                const start = pos;
+                const end = pos + node.nodeSize;
+                if (currentPos >= start && currentPos <= end) {
+                  targetPagePos = start;
+                  targetPageNode = node;
+                  return false;
+                }
+                targetPageIndex++;
+              }
+            });
+            
+            // If no page found, create one
+            if (!targetPageNode) {
+              console.log('[handlePaste] No page found at cursor - creating first page');
+              const blankPage = state.schema.nodes.page.create(
+                { pageNumber: 1, isBlank: false },
+                []
+              );
+              tr.insert(0, blankPage);
+              targetPagePos = 0;
+              targetPageNode = blankPage;
+            }
+            
+            // Split by double newlines (paragraphs)
+            const paragraphs = text.split(/\n\n+/);
+            
+            // Build structured content
+            const fragment = paragraphs.map(para => {
+              const trimmed = para.trim();
+              if (!trimmed) return null;
+              
+              // 🔥 Detect headings (short lines, no ending punctuation)
+              const isHeading = trimmed.length < 100 && !trimmed.match(/[.!?]$/);
+              
+              // 🔥 Detect numbered lists
+              const isNumberedList = /^\d+[.)\s]/.test(trimmed);
+              
+              // 🔥 Detect bullet points
+              const isBulletList = /^[•●○■□▪▫-]\s/.test(trimmed);
+              
+              if (isHeading && trimmed.length > 10) {
+                // Check if it looks like a heading (title case, short)
+                const hasTitleCase = /[A-Z][a-z]+/.test(trimmed) && trimmed.length < 80;
+                if (hasTitleCase) {
+                  return state.schema.node('heading', { level: 2 }, state.schema.text(trimmed));
+                }
+              }
+              
+              if (isNumberedList) {
+                // Create ordered list item
+                const textContent = trimmed.replace(/^\d+[.)\s]/, '').trim();
+                return state.schema.node('listItem', null, [
+                  state.schema.node('paragraph', null, state.schema.text(textContent))
+                ]);
+              }
+              
+              if (isBulletList) {
+                // Create bullet list item
+                const textContent = trimmed.replace(/^[•●○■□▪▫-]\s/, '').trim();
+                return state.schema.node('listItem', null, [
+                  state.schema.node('paragraph', null, state.schema.text(textContent))
+                ]);
+              }
+              
+              // Default: paragraph with formatting
+              return parseParagraphWithFormatting(trimmed, state.schema);
+            }).filter(Boolean);
+            
+            // 🔥 CRITICAL FIX: Insert at END of target page (not at cursor)
+            if (fragment.length > 0) {
+              const insertPos = targetPagePos + targetPageNode.nodeSize - 1;
+              tr.insert(insertPos, Fragment.from(fragment));
+              view.dispatch(tr);
+              console.log(`[handlePaste] ✅ Inserted ${fragment.length} blocks into page ${targetPageIndex + 1}`);
+            }
+            
+            return true; // Handled
+          }
+          
+          // For non-PDF content, let ProseMirror handle it normally
+          return false;
         },
       },
     });
@@ -4811,9 +5038,12 @@ const TextEditorContent = ({
         listItem: false,
         codeBlock: false,
         bulletList: false,
-        orderedList: false
+        orderedList: false,
+        // 🔥 CRITICAL: Disable HardBreak - Shift+Enter should create new paragraphs
+        hardBreak: false
       }),
-      Document.extend({ content: 'block+' }),  // Accept blocks directly (ENDLESS PAGE)
+      Document.extend({ content: 'page+' }),  // Allow page nodes in document
+      Page,  // Register page node extension
       TextStyle, Color, FontFamily, FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TiptapUnderline,
@@ -4831,12 +5061,12 @@ const TextEditorContent = ({
       TaskItem.configure({ HTMLAttributes: { class: 'task-item' }, nested: true }),
       TiptapTable.configure({ resizable: true, HTMLAttributes: { class: 'table-border-black' } }),
       TableRow, TableCell, TableHeader, TableExtension,
-      TiptapSubscript, TiptapSuperscript, Indent, PageBreak, TextDirection,  // PageBreak for visual section breaks
+      TiptapSubscript, TiptapSuperscript, Indent, TextDirection,
       BulletList.configure({ HTMLAttributes: { class: 'bullet-list' } }),
       OrderedList.configure({ HTMLAttributes: { class: 'ordered-list' } }),
       pastePlugin,
     ],
-    content: '',  // Start empty - endless page with auto page breaks
+    content: '',  // Start empty - will auto-create page on first edit
     editable: true,
     autofocus: true,
     // CRITICAL FIX: Preserve selection during content changes
@@ -4845,30 +5075,57 @@ const TextEditorContent = ({
     immediatelyRender: false,
     // CRITICAL FIX: Disable corec to prevent React from reconciling during typing
     corec: false,
+    // 🔥 CRITICAL: Custom Shift+Enter handler - create new paragraph instead of hard break
+    editorProps: {
+      handleKeyDown: (view, event) => {
+        if (event.shiftKey && event.key === 'Enter') {
+          event.preventDefault();
+          // Split current paragraph and create new one
+          const { state, dispatch } = view;
+          const tr = state.tr;
+          
+          // Insert paragraph break at cursor
+          tr.replaceSelectionWith(state.schema.nodes.paragraph.create());
+          
+          dispatch(tr);
+          return true; // Handled
+        }
+        return false; // Let TipTap handle other keys
+      },
+      attributes: { class: 'focus:outline-none table-border-black', spellcheck: 'true', 'data-testid': 'editor-content' },
+    },
+    onCreate: ({ editor }) => {
+      // 🔥 Initialize with 2 pages minimum on fresh load
+      console.log('[TextEditor.onCreate] Editor created, initializing pages...');
+      
+      // Try immediately first
+      const result1 = initializePagination(editor);
+      console.log('[TextEditor.onCreate] Immediate init result:', result1);
+      
+      // Try again after 50ms delay
+      setTimeout(() => {
+        const result2 = initializePagination(editor);
+        console.log('[TextEditor.onCreate] Delayed init result:', result2);
+      }, 50);
+      
+      // 🔥 CRITICAL: Setup paste detection to prevent 250-page explosion
+      setupPasteDetection(editor);
+    },
     onUpdate: ({ editor: editorInstance }) => {
-      console.log('🔵 onUpdate triggered - deletion/typing detected');
-      // REMOVED: setSaveStatus('modified') - this was causing context re-renders that reset cursor
-      // Save status now only updates on actual save operations or periodically
-
-      // REMOVED: addHeadingStyles() call - this manipulates DOM and can cause cursor jumps
-      // setTimeout(() => addHeadingStyles(), 10);
-
-      // During a paste isPastingRef.current is true — the pastePlugin's
-      // settle timer will call runPastePageBreaks once the doc is stable.
-      // For normal typing: debounce the check so rapid keystrokes don't
-      // queue many scans. 250 ms is fast enough to feel responsive but
-      // slow enough for the user to finish a word before we scan.
-      if (!isPastingRef.current) {
-        if (paginationTimeoutRef.current) clearTimeout(paginationTimeoutRef.current);
-        paginationTimeoutRef.current = setTimeout(() => {
-          if (!isPastingRef.current && editorRef.current && !editorRef.current.isDestroyed) {
-            checkAndInsertAutoPageBreaks(editorRef.current);
-          }
-        }, 250);
+      // ── INFINITE LOOP GUARD ──────────────────────────────────────────────
+      // paginateDocument tags its own transactions with this flag so we don't
+      // re-enter pagination in response to our own dispatch.
+      if (editorInstance.storage.athena_is_paginating) {
+        console.log('[onUpdate] Skipping - pagination in flight');
+        return;
       }
 
-      // CRITICAL FIX: DO NOT update React state on every keystroke/delete!
-      // Only update refs here - state updates cause re-renders that reset cursor
+      // ── DEBOUNCED RE-PAGINATION (only after DOM settles) ─────────────────
+      // CRITICAL: This runs on EVERY content change, but the debounce prevents
+      // rapid-fire pagination. The 300ms delay lets the DOM render completely.
+      debouncePaginate(editorInstance, 300);
+
+      // ── Stats + autosave (unchanged) ─────────────────────────────────────
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
       statsTimeoutRef.current = setTimeout(() => {
         if (!editorInstance?.state?.doc) return;
@@ -4900,7 +5157,7 @@ const TextEditorContent = ({
 
         // REMOVED: setDocumentStats - was causing parent re-renders
         // if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
-      }, 1000); // Delay UI updates until user pauses typing
+      }, STATS_DELAY); // Extended delay to prevent cursor interruption
 
       // REMOVED: Auto-pagination on every content change - this was causing cursor jump bug
       // Pagination now only runs after paste or explicit page break operations
@@ -4912,6 +5169,11 @@ const TextEditorContent = ({
       // This was causing cursor position resets during typing/deletion
       // Selection updates now handled via refs if needed elsewhere
       const { from, to } = editorInstance.state.selection;
+      
+      // CRITICAL ADDITION: Track last selection change time for editing detection
+      // This allows checkAndInsertAutoPageBreaks to detect active editing
+      editorInstance.storage.lastSelectionChange = Date.now();
+      
       // REMOVED: setSelectedText - causes re-render on every cursor movement
       // setSelectedText(from !== to ? editorInstance.state.doc.textBetween(from, to, ' ') : '');
 
@@ -4923,9 +5185,6 @@ const TextEditorContent = ({
       // });
       // setActiveHeadingLevel(newHeadingLevel);
     },
-    editorProps: {
-      attributes: { class: 'prose prose-lg max-w-none focus:outline-none min-h-[600px] table-border-black', spellcheck: 'true', 'data-testid': 'editor-content' },
-    },
   });
 
   useEffect(() => {
@@ -4934,81 +5193,58 @@ const TextEditorContent = ({
 
     console.log('🔍 Editor mounted with props:', { mongoId, activeDocId });
     console.log('🔍 Current URL:', window.location.href);
+  }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ENDLESS PAGE MODE - No pagination initialization needed
-    // Content flows naturally without page wrapping
+  // 🚀 OPTIMIZATION: Synchronize editor content when document data arrives from cache/backend
+  useEffect(() => {
+    if (!editor || !isDocLoaded || !fetchedDoc) return;
+    
+    // Check if we've already loaded this document to avoid re-setting and losing focus
+    if (editor.storage.athena_loaded_id === (fetchedDoc.id || fetchedDoc._id)) return;
 
-    // Load initial content from URL parameter (docId) and fetch from backend
-    const urlParams = new URLSearchParams(window.location.search);
-    const docId = urlParams.get('docId');
+    console.log('✅ Synchronizing content from React Query cache:', { 
+      id: fetchedDoc.id || fetchedDoc._id, 
+      title: fetchedDoc.title 
+    });
 
-    if (docId) {
-      console.log('📥 Loading document from backend using ID:', docId);
+    const jsonContent = fetchedDoc.data?.content || fetchedDoc.content;
+    const htmlContent = fetchedDoc.data?.html || fetchedDoc.html || '';
 
-      // Extract mongoId from URL path like /editor/:mongoId
-      const pathParts = window.location.pathname.split('/').filter(Boolean);
-      const pathMongoId = pathParts[pathParts.length - 1];
-
-      console.log('🔍 URL Analysis:', {
-        pathname: window.location.pathname,
-        pathParts,
-        extractedMongoId: pathMongoId,
-        isValidMongoId: /^[0-9a-fA-F]{24}$/.test(pathMongoId)
-      });
-
-      // CRITICAL FIX: Store the MongoDB ID in localStorage for reliable access during save
-      if (pathMongoId && pathMongoId !== 'editor' && /^[0-9a-fA-F]{24}$/.test(pathMongoId)) {
-        console.log('✅ Storing MongoDB ID for save operation:', pathMongoId);
-        localStorage.setItem('athena_current_mongo_id', pathMongoId);
-      } else {
-        // Also try to get it from props if URL doesn't have it
-        const propMongoId = mongoId;
-        if (propMongoId && /^[0-9a-fA-F]{24}$/.test(propMongoId)) {
-          console.log('✅ Using MongoDB ID from props:', propMongoId);
-          localStorage.setItem('athena_current_mongo_id', propMongoId);
-        }
+    // Defer setContent to avoid flushSync warning in React 19
+    requestAnimationFrame(() => {
+      if (jsonContent && typeof jsonContent === 'object') {
+        editor.commands.setContent(jsonContent);
+      } else if (htmlContent) {
+        editor.commands.setContent(normalizeInlineStyles(htmlContent));
+      }
+      
+      if (fetchedDoc.data?.isAiGenerated) {
+        setIsAiGeneratedDoc(true);
       }
 
-      // Fetch document from backend API
-      TextEditorService.getDocumentById(docId)
-        .then((doc) => {
-          console.log('📥 Document loaded:', { id: doc.id, title: doc.title });
+      if (fetchedDoc.title && setDocumentTitle) {
+        setDocumentTitle(fetchedDoc.title);
+      }
+      
+      // Mark as loaded in editor storage to prevent re-runs
+      editor.storage.athena_loaded_id = fetchedDoc.id || fetchedDoc._id;
+    });
+  }, [editor, isDocLoaded, fetchedDoc, setDocumentTitle, setIsAiGeneratedDoc]);
 
-          // CRITICAL FIX: Always use JSON content first to preserve all attributes (alignment, etc.)
-          // Only fall back to HTML if JSON is not available
-          const jsonContent = doc.data?.content || doc.content;
-          const htmlContent = doc.data?.html || doc.html || '';
+  // Handle document ID setup for save operations
+  useEffect(() => {
+    if (!docId || docId === 'undefined') return;
+    
+    // Extract mongoId from URL path like /editor/:mongoId
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const pathMongoId = pathParts[pathParts.length - 1];
 
-          if (jsonContent && typeof jsonContent === 'object') {
-            console.log('✅ Loading from JSON (preserves formatting)');
-            // Load from JSON - this preserves ALL attributes including text alignment
-            editor.commands.setContent(jsonContent);
-          } else if (htmlContent) {
-            console.log('⚠️ Loading from HTML (may lose some formatting)');
-            // Convert inline styles to Tiptap attributes before setting content
-            const normalizedHtml = normalizeInlineStyles(htmlContent);
-            editor.commands.setContent(normalizedHtml);
-          }
-          
-          if (doc.data?.isAiGenerated) {
-            setIsAiGeneratedDoc(true);
-          }
-
-          // Set document title
-          if (doc.title && setDocumentTitle) {
-            setDocumentTitle(doc.title);
-          }
-        })
-        .catch((error) => {
-          console.error('❌ Failed to load document from backend:', error);
-          toast.error('Failed to load document from server');
-        });
-    } else {
-      console.log('ℹ️ No docId in URL, starting with blank editor');
-      // Clear stored ID for new documents
-      localStorage.removeItem('athena_current_mongo_id');
+    if (pathMongoId && pathMongoId !== 'editor' && /^[0-9a-fA-F]{24}$/.test(pathMongoId)) {
+      localStorage.setItem('athena_current_mongo_id', pathMongoId);
+    } else if (docId && /^[0-9a-fA-F]{24}$/.test(docId)) {
+      localStorage.setItem('athena_current_mongo_id', docId);
     }
-  }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [docId]);
 
   const handleCopy = useCallback(async () => {
     if (!editor) return;
@@ -5022,6 +5258,78 @@ const TextEditorContent = ({
   }, [editor]);
 
   const handlePaste = useCallback(() => { }, []);
+  
+  // 🔥 HELPER: Parse PDF paragraph text with inline formatting
+  const parseParagraphWithFormatting = (text, schema) => {
+    // Simple implementation - creates paragraph with plain text
+    // Advanced: Could parse bold/italic/underline markers
+    
+    // Detect basic formatting patterns
+    const content = [];
+    
+    // Split by common formatting markers
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|_.*?_|`.*?`)/g);
+    
+    parts.forEach(part => {
+      if (!part) return;
+      
+      // Bold: **text** or __text__
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const marks = [schema.marks.strong.create()];
+        content.push(schema.text(part.slice(2, -2), marks));
+      }
+      // Italic: *text* or _text_
+      else if ((part.startsWith('*') && part.endsWith('*')) || 
+               (part.startsWith('_') && part.endsWith('_'))) {
+        const marks = [schema.marks.em.create()];
+        content.push(schema.text(part.slice(1, -1), marks));
+      }
+      // Code: `text`
+      else if (part.startsWith('`') && part.endsWith('`')) {
+        const marks = [schema.marks.code.create()];
+        content.push(schema.text(part.slice(1, -1), marks));
+      }
+      // Plain text
+      else {
+        content.push(schema.text(part));
+      }
+    });
+    
+    return schema.node('paragraph', null, Fragment.from(content));
+  };
+  
+  // 🔥 DEBUG: Expose pagination check to window for testing
+  useEffect(() => {
+    if (editor) {
+      window.checkPagination = () => {
+        const doc = editor.state.doc.toJSON();
+        console.log('📄 DOCUMENT STRUCTURE:', doc);
+        
+        const pages = doc.content?.filter(n => n.type === 'page') || [];
+        console.log(`✅ Total pages: ${pages.length}`);
+        
+        pages.forEach((page, i) => {
+          console.log(`Page ${i + 1}:`, {
+            blocks: page.content?.length || 0,
+            chars: page.content?.reduce((sum, b) => sum + (b.content?.reduce((s, t) => s + (t.text || '').length, 0) || 0), 0) || 0
+          });
+        });
+        
+        // Check if all content is in page 1
+        const page1Blocks = pages[0]?.content?.length || 0;
+        const totalBlocks = pages.reduce((sum, p) => sum + (p.content?.length || 0), 0);
+        
+        if (page1Blocks === totalBlocks && totalBlocks > 5) {
+          console.warn('⚠️ WARNING: All content is in page 1!');
+          console.warn('🔥 Run: paginateDocument(editor)');
+        } else {
+          console.log('✅ Content is distributed across pages');
+        }
+      };
+      
+      console.log('💡 TIP: Run window.checkPagination() in console to debug');
+    }
+  }, [editor]);
 
   const handleAutoSave = useCallback(async () => {
     if (!editor) return;
@@ -5305,7 +5613,13 @@ const TextEditorContent = ({
   }, [updateUIState]);
 
   const handleTemplateSelect = useCallback((template) => {
-    if (editor) { editor.commands.setContent(template.content); setDocumentTitle(template.name); toast.success(`Template "${template.name}" applied!`); }
+    if (editor) {
+      requestAnimationFrame(() => {
+        editor.commands.setContent(template.content);
+      });
+      setDocumentTitle(template.name);
+      toast.success(`Template "${template.name}" applied!`);
+    }
   }, [editor, setDocumentTitle]);
 
   const handleHeadingChange = useCallback((level) => {
@@ -5343,40 +5657,24 @@ const TextEditorContent = ({
 
   const addNewPage = useCallback(() => {
     if (!editor) return;
-    // Insert a real pageBreak node at the end of the current top-level block.
-    // Using setHorizontalRule() was wrong — it inserts <hr>, which is never
-    // counted by dynamicManualPagination and has no visual page-break effect.
-    const { state } = editor;
-    const { $from } = state.selection;
-    // Walk up to the top-level block and insert after it
-    const depth = $from.depth;
-    const topEnd = depth > 0 ? $from.end(1) + 1 : $from.pos;
-    const insertPos = Math.min(topEnd, state.doc.content.size);
-    editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
-    toast.success('New page added');
+    // Page break functionality removed - just notify user
+    toast.info('Page break functionality has been removed. Document now uses endless page mode.');
   }, [editor]);
 
   const addPageBreak = useCallback(() => {
-    if (!editor) return;
-    const { state } = editor;
-    const { $from } = state.selection;
-    const depth = $from.depth;
-    const topEnd = depth > 0 ? $from.end(1) + 1 : $from.pos;
-    const insertPos = Math.min(topEnd, state.doc.content.size);
-    editor.chain().insertContentAt(insertPos, { type: 'pageBreak' }).run();
-    toast.success('Page break inserted');
-  }, [editor]);
+    // Page break functionality removed
+    toast.info('Page break functionality has been removed');
+  }, []);
 
   const insertPageNumber = useCallback(() => {
-    if (editor) { editor.chain().focus().insertContent(`<span style="color:#666;font-size:12px;">${currentPage}</span>`).run(); }
-  }, [editor, currentPage]);
+    // Page functionality removed - will be re-implemented
+    toast.info('Page numbering will be available in the new pagination system');
+  }, []);
 
   const goToPage = useCallback((pageNumber) => {
-    if (pageNumber < 1 || pageNumber > pages.length) { toast.error(`Invalid page number`); return; }
-    setCurrentPage(pageNumber);
-    const pageElement = document.getElementById(`page-${pageNumber}`);
-    if (pageElement) pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [pages]);
+    // Page functionality removed - will be re-implemented
+    toast.info('Page navigation will be available in the new pagination system');
+  }, []);
 
   const handleInsertImage = useCallback(() => {
     setShowImageModal(true); setImageInsertMethod('url'); setImageUrl(''); setSelectedImageAlt('');
@@ -5491,7 +5789,13 @@ const TextEditorContent = ({
 
   const handleRestoreVersion = useCallback((versionId) => {
     const version = documentVersions.find(v => v.id === versionId);
-    if (version && editor) { editor.commands.setContent(version.content); setDocumentTitle(version.title); setShowVersionHistory(false); }
+    if (version && editor) {
+      requestAnimationFrame(() => {
+        editor.commands.setContent(version.content);
+      });
+      setDocumentTitle(version.title);
+      setShowVersionHistory(false);
+    }
   }, [editor, documentVersions, setDocumentTitle]);
 
   const applyHeadingStyle = useCallback((level) => {
@@ -5693,7 +5997,7 @@ const TextEditorContent = ({
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0, height: '100%' }}>
           <DocumentOutline
             isOpen={isOutlineOpen}
             onClose={() => setIsOutlineOpen(false)}
@@ -5706,28 +6010,16 @@ const TextEditorContent = ({
 
           <div
             ref={contentContainerRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-100/50 p-4"
+            className="flex-1 overflow-y-auto bg-slate-100/50 p-4"
             onCopy={handleCopy}
+            style={{ position: 'relative', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}
           >
-            <div
-              className={`athena-workspace ${isAiGeneratedDoc ? 'ai-document-enhanced' : ''}`}
-              data-ai-generated={isAiGeneratedDoc}
-              style={zoom !== 100 ? { transform: `scale(${zoom / 100})`, transformOrigin: 'top center' } : undefined}
-            >
-              <div className="editor-content-container">
-                {editor && (
-                  <EditorContent
-                    editor={editor}
-                    className="tip-tap-editor"
-                    // CRITICAL FIX: Use stable key to prevent remounting during typing
-                    // This preserves the cursor position by avoiding React reconciler issues
-                    key="athena-editor-stable"
-                  />
-                )}
+            {/* Real Pagination - Pages Container */}
+            {editor && (
+              <div className="editor-pages-container">
+                <EditorContent editor={editor} />
               </div>
-
-
-            </div>
+            )}
           </div>
 
 

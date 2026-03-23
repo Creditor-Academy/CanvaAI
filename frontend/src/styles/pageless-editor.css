@@ -25,7 +25,7 @@
   /* Background - Light grey like modern editors */
   background-color: #f3f4f6; /* Softer than Google Docs gray */
   
-  /* Layout - Single column, centered */
+  /* Layout - Simple block for endless flow */
   display: block;  /* Simple block for endless flow */
   
   /* Spacing - Creates the "desk" padding around the paper */
@@ -51,30 +51,21 @@
   width: 794px;             /* 8.27" × 96 = 794px */
   max-width: 100%;          /* Responsive on small screens */
   
-  /* Visual Styling - The "Paper" Look */
-  background-color: white;
-  box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.05),    /* Soft drop shadow */
-    0 0 0 1px rgba(0, 0, 0, 0.05);     /* Subtle border definition */
+  /* Background and shadow */
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
   position: relative;
   
-  /* Standard A4 Margins (Google Docs - MUST match constants.js exactly) */
-  padding: 96px 72px;       /* Top/Bottom: 1" (96px), Sides: 0.75" (72px) */
-  box-sizing: border-box;   /* Padding INSIDE width - critical for layout accuracy */
-  
-  /* ENDLESS PAGE BEHAVIOR - Minimum A4 height, then grows with content */
-  min-height: 1123px;       /* Minimum A4 height (11.69" × 96) - ensures full page on fresh open */
-  height: auto !important;  /* Expands naturally with content beyond minimum */
-  max-height: none !important;  /* No maximum - truly endless */
-  
-  /* Centering */
-  margin: 40px auto;        /* Centered horizontally with vertical spacing */
-  
   /* Layout */
-  display: block;           /* Simple block flow for natural expansion */
+  display: block;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
   
-  /* Performance & Interaction */
-  contain: none;            /* Remove layout containment for natural flow */
+  height: auto !important;
+  max-height: none !important;
+  contain: none;
   cursor: text;
 }
 
@@ -198,4 +189,14 @@
 
 .tip-tap-editor.ProseMirror > *:last-child {
   margin-bottom: 0;
+}
+
+/* ============================================================
+   Ghost Pagination override — prevents pageless rules from leaking into
+   the paginated editor which uses .editor-foreground-layer as context
+   ============================================================ */
+.editor-foreground-layer .tip-tap-editor,
+.editor-foreground-layer .tip-tap-editor .ProseMirror {
+  padding: 0 !important;  /* Ghost-pagination.css re-applies correct padding */
+  white-space: normal !important;
 }

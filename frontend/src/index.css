@@ -6,6 +6,18 @@
   box-sizing: border-box;
 }
 
+/* CRITICAL: Synchronize CSS "Truth" between measurement layer and editor */
+/* Prevents padding/box-sizing mismatches that cause 1px errors */
+.athena-page-container,
+.measurement-layer,
+.ProseMirror,
+.editor-content-container {
+  box-sizing: border-box !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 /* Allow text selection in editors */
 .ProseMirror,
 .editor-content,
@@ -160,7 +172,7 @@ body {
   -webkit-user-drag: none;
 }
 
-/* ProseMirror Editor Core Styles - ENDLESS PAGE (MINIMUM A4 HEIGHT) */
+/* ProseMirror Editor Core Styles */
 .ProseMirror {
   outline: none;
   white-space: pre-wrap;
@@ -170,14 +182,9 @@ body {
   font-size: 11pt;
   line-height: 1.15;
   color: #1a1a1a;
-  min-height: calc(1123px - 192px) !important;  /* Minimum A4 minus vertical padding (96+96) */
   width: 100%;
   box-sizing: border-box;
-  padding: 0;
-  height: auto !important;      /* Grows with content beyond minimum */
-  max-height: none !important;  /* Truly endless */
-  overflow-y: visible !important; /* Show all content */
-  display: block !important;    /* Block flow */
+  height: auto; /* Changed from 100% to auto for proper growth */
 }
 
 /* Base block spacing */
@@ -398,20 +405,21 @@ body {
   margin: 0 auto;    /* Centered */
 }
 
-/* Endless workspace - ONE page that grows with content (MINIMUM A4 HEIGHT) */
+/* Endless workspace - ONE page that grows with content */
 .editor-workspace-scaled,
 .athena-workspace {
-  width: 793.7px;
-  min-height: 1123px !important;     /* Minimum A4 height for fresh open */
-  height: auto !important;           /* Grows naturally beyond minimum */
-  max-height: none !important;       /* No limit - truly endless */
-  margin: 40px auto;
-  background: white;
-  box-shadow: 0 0 0 1px #e5e7eb, 0 8px 30px rgba(0, 0, 0, 0.08);
-  padding: 96px 72px;                /* Standard margins */
-  box-sizing: border-box;
-  display: block;
-  contain: none;
+  /* Old styles kept for backward compatibility but not used */
+  /* width: 793.7px; */
+  /* min-height: 1123px !important; */
+  /* height: auto !important; */
+  /* max-height: none !important; */
+  /* margin: 40px auto; */
+  /* background: white; */
+  /* box-shadow: 0 0 0 1px #e5e7eb, 0 8px 30px rgba(0, 0, 0, 0.08); */
+  /* padding: 96px 72px; */
+  /* box-sizing: border-box; */
+  /* display: block; */
+  /* contain: none; */
 }
 
 /* Deprecated: Page-based editor styles (NOT USED in endless mode) */
@@ -440,35 +448,15 @@ body {
 
 /* TipTap editor - ENDLESS PAGE MODE (no height restrictions) */
 .athena-workspace .tip-tap-editor {
-  height: auto !important;
-  width: 100%;
-  padding: 0 !important;
-  max-height: none !important;
-  overflow-y: visible !important;
-  min-height: 0 !important;
-  display: block !important;
 }
 
 /* ProseMirror inside page-based editor (pagination mode only) */
 .editor-page .ProseMirror {
-  height: calc(100% - 192px) !important;
-  min-height: calc(100% - 192px) !important;
-  width: 100%;
-  padding: 0;
-  margin: 0;
 }
 
 /* ProseMirror in ENDLESS PAGE mode - Shows ALL content */
 .athena-workspace .ProseMirror,
 .editor-content-container .ProseMirror {
-  height: auto !important;
-  min-height: 0 !important;     /* Start from content size */
-  max-height: none !important;   /* No limit - endless */
-  overflow-y: visible !important; /* Show everything */
-  display: block !important;
-  width: 100%;
-  padding: 0;
-  margin: 0;
 }
 
 /* Page Break in Endless Page Mode */
@@ -482,8 +470,9 @@ body {
     linear-gradient(to bottom,
       transparent 0,
       transparent var(--page-margin-bottom, 96px),
-      #f1f5f9 calc(var(--page-margin-bottom, 96px)),
-      #f1f5f9 calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
+      #e2e8f0 calc(var(--page-margin-bottom, 96px)),  /* Changed from #f1f5f9 for better visibility */
+      #cbd5e1 calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px) / 2),  /* Darker center for visibility */
+      #e2e8f0 calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
       transparent calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
       transparent 100%);
   border: none;
@@ -492,6 +481,9 @@ body {
   pointer-events: none;
   position: relative;
   cursor: default;
+  /* Ensure visibility for debugging */
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* Page number indicator */
@@ -971,7 +963,7 @@ body {
   right: 0;
   top: 0;
   bottom: 0;
-  background: rgba(200, 200, 255, 0.4);
+  background: rgba(254, 254, 255, 0.854);
   pointer-events: none;
 }
 

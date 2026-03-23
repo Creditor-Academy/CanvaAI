@@ -27,7 +27,9 @@ const VersionHistory = ({ isOpen, onClose, editor, versions, onSaveVersion, onRe
             if (onRestoreVersion) {
                 onRestoreVersion(version);
             } else if (editor) {
-                editor.commands.setContent(version.content || '');
+                requestAnimationFrame(() => {
+                    editor.commands.setContent(version.content || '');
+                });
                 toast.success(`Restored to "${version.title}"`);
                 onClose();
             }

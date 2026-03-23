@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FiImage,
   FiFileText,
@@ -64,10 +66,42 @@ const Recents = ({
   searchQuery = ""
 }) => {
   const [projects, setProjects] = useState([]);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setProjects(DEMO_PROJECTS);
   }, []);
+
+  // Prefetch document data on hover for instant loading (when you have real IDs)
+  const handleCardHover = (projectId) => {
+    // Only prefetch if it looks like a MongoDB ID
+    if (typeof projectId === 'string' && projectId.length === 24) {
+      queryClient.prefetchQuery({
+        queryKey: ['document', projectId],
+        queryFn: async () => {
+          const { TextEditorService } = await import('../../../services/Text-Editor/text.service.js');
+          return await TextEditorService.getDocumentById(projectId);
+        },
+        staleTime: 30 * 60 * 1000, // Keep cached for 30 minutes
+      });
+    }
+  };
+
+  const handleClick = (projectId, type) => {
+    // For demo purposes, only navigate if it's a string ID
+    if (typeof projectId === 'string') {
+      if (type === 'document') {
+        navigate(`/editor/${projectId}`);
+      } else if (type === 'presentation') {
+        navigate(`/presentation/${projectId}`);
+      } else {
+        navigate(`/image-editor/${projectId}`);
+      }
+    } else {
+      alert('Demo mode: This is a demo project. Real documents will open when you have backend data.');
+    }
+  };
 
   /* ===== DATE FILTER FUNCTION ===== */
   const filterByDate = (itemDate) => {
@@ -135,7 +169,13 @@ const Recents = ({
             No matching results found.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+          <div 
+            className="relative max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-gray-100 hover:scrollbar-thumb-blue-400"
+            role="region"
+            aria-label="Recent documents list"
+            tabIndex={0}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 p-2">
 
             {filteredProjects.map((project) => (
               <div
@@ -147,10 +187,12 @@ const Recents = ({
                   boxShadow: "0 4px 18px rgba(0,0,0,0.05)",
                 }}
                 onMouseEnter={(e) => {
+                  handleCardHover(project.id);
                   e.currentTarget.style.transform = "translateY(-6px)";
                   e.currentTarget.style.boxShadow =
                     "0 10px 30px rgba(0,0,0,0.08)";
                 }}
+                onClick={() => handleClick(project.id, project.type)}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.boxShadow =
@@ -192,6 +234,10 @@ const Recents = ({
               </div>
             ))}
 
+            </div>
+            
+            {/* Scroll indicator for better UX */}
+            <div className="sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-100 to-transparent pointer-events-none opacity-50" />
           </div>
         )}
       </div>

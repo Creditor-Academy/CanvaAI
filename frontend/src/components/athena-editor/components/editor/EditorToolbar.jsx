@@ -1,6 +1,7 @@
 // src/components/athena-editor/components/editor/EditorToolbar.jsx
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM, { createPortal } from 'react-dom';
+import Portal from '../ui/Portal';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentExporter } from '../../../../utils/documentExporter.js';
@@ -419,7 +420,7 @@ export const EditorToolbar = ({
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [lineSpacingMenuOpen, setLineSpacingMenuOpen] = useState(false);
-  const [pageMargins, setPageMargins] = useState({ top: 72, bottom: 72, left: 72, right: 72 });
+  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
@@ -1331,10 +1332,11 @@ export const EditorToolbar = ({
             toast.success('Link inserted');
           }
           break;
-        case 'page_break':
-          runWithSavedSelection(editor, (chain) => chain.setHorizontalRule());
-          toast.success('Page break inserted');
-          break;
+        // Page break functionality removed - will be re-implemented
+        // case 'page_break':
+        //   runWithSavedSelection(editor, (chain) => chain.setHorizontalRule());
+        //   toast.success('Page break inserted');
+        //   break;
         case 'date':
           const date = new Date().toLocaleDateString();
           runWithSavedSelection(editor, (chain) => chain.insertContent(date));
@@ -1558,29 +1560,29 @@ export const EditorToolbar = ({
 
     // Validate margin values
     const validMargins = {
-      top: Math.max(0, Math.min(200, margins.top || 72)),
+      top: Math.max(0, Math.min(200, margins.top || 96)), // Default to 96px (Google Docs standard)
       right: Math.max(0, Math.min(200, margins.right || 72)),
-      bottom: Math.max(0, Math.min(200, margins.bottom || 72)),
+      bottom: Math.max(0, Math.min(200, margins.bottom || 96)), // Default to 96px (Google Docs standard)
       left: Math.max(0, Math.min(200, margins.left || 72))
     };
 
     // Update state
     setPageMargins(validMargins);
 
-    // Update CSS variables for page margins
-    document.documentElement.style.setProperty('--page-margin-top', `${validMargins.top}px`);
-    document.documentElement.style.setProperty('--page-margin-right', `${validMargins.right}px`);
-    document.documentElement.style.setProperty('--page-margin-bottom', `${validMargins.bottom}px`);
-    document.documentElement.style.setProperty('--page-margin-left', `${validMargins.left}px`);
+    // CRITICAL FIX: Update CSS VARIABLES instead of inline styles
+    // This ensures all components (CSS, JS, pagination) use the same source of truth
+    const root = document.documentElement;
+    root.style.setProperty('--doc-margin-top', `${validMargins.top}px`);
+    root.style.setProperty('--doc-margin-bottom', `${validMargins.bottom}px`);
+    root.style.setProperty('--doc-margin-left', `${validMargins.left}px`);
+    root.style.setProperty('--doc-margin-right', `${validMargins.right}px`);
 
-    // Also update editor container styling
-    const editorContainer = document.querySelector('.tiptap.ProseMirror');
-    if (editorContainer) {
-      editorContainer.style.paddingTop = `${validMargins.top}px`;
-      editorContainer.style.paddingRight = `${validMargins.right}px`;
-      editorContainer.style.paddingBottom = `${validMargins.bottom}px`;
-      editorContainer.style.paddingLeft = `${validMargins.left}px`;
-    }
+    // REMOVED: Direct inline style application that was overriding CSS
+    // const editorContainer = document.querySelector('.tiptap.ProseMirror');
+    // if (editorContainer) {
+    //   editorContainer.style.paddingTop = `${validMargins.top}px`;
+    //   ... this was causing the bug by overriding CSS with inline styles
+    // }
 
     toast.success(`Page margins set to ${validMargins.top}px (top), ${validMargins.right}px (right), ${validMargins.bottom}px (bottom), ${validMargins.left}px (left)`);
   };
@@ -1702,7 +1704,9 @@ export const EditorToolbar = ({
 
   const restoreVersion = (version) => {
     if (editor && version.content) {
-      editor.commands.setContent(version.content);
+      requestAnimationFrame(() => {
+        editor.commands.setContent(version.content);
+      });
       toast.success(`Restored to "${version.title}"`);
     }
   };
@@ -1917,9 +1921,10 @@ export const EditorToolbar = ({
     {
       label: 'Insert',
       items: [
-        { label: 'Page Break', icon: Minus, action: () => handleInsertAction('page_break') },
+        // Page break functionality removed - will be re-implemented
+        // { label: 'Page Break', icon: Minus, action: () => handleInsertAction('page_break') },
         { label: 'Section Break', icon: Split, action: insertSectionBreak },
-        { label: 'Page Number', icon: Hash, action: () => insertPageNumber() },
+        // { label: 'Page Number', icon: Hash, action: () => insertPageNumber() },
         { type: 'separator' },
         { label: 'Image', icon: ImageIcon, action: () => handleInsertAction('image') },
         { label: 'Crop Image', icon: Crop, action: openImageCropper },
@@ -3189,19 +3194,20 @@ export const EditorToolbar = ({
           </ToolbarButton>
 
           {/* Table Picker Dropdown - Rendered in Portal to escape overflowing containers */}
-          {showTablePicker && ReactDOM.createPortal(
-            <div
-              className="fixed z-9999 bg-white rounded-lg shadow-xl border border-gray-200"
-              ref={tablePickerRef}
-              style={{
-                position: 'fixed',
-                zIndex: 9999,
-                backgroundColor: 'white',
-              }}
-            >
-              {renderTablePickerGrid()}
-            </div>,
-            document.body
+          {showTablePicker && (
+            <Portal>
+              <div
+                className="fixed z-9999 bg-white rounded-lg shadow-xl border border-gray-200"
+                ref={tablePickerRef}
+                style={{
+                  position: 'fixed',
+                  zIndex: 9999,
+                  backgroundColor: 'white',
+                }}
+              >
+                {renderTablePickerGrid()}
+              </div>
+            </Portal>
           )}
         </div>
 

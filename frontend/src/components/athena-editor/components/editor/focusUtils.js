@@ -149,14 +149,24 @@ export function guardToolbarMouseDown(e, editor) {
 
 /**
  * The recommended way to run a Tiptap chain command from a toolbar element.
+ * 
+ * @param {Editor} editor - TipTap editor instance
+ * @param {Function} commandFn - Function that takes a chain and returns a chain
+ * @param {Object} options - Additional options
+ * @param {boolean} options.skipRestore - Skip selection restoration (useful for copy/paste)
+ * @param {boolean} options.preserveFocus - Preserve current focus state
+ * @param {boolean} options.forceRestore - Force restore even if no saved selection exists
  */
-export function runWithSavedSelection(editor, commandFn) {
+export function runWithSavedSelection(editor, commandFn, options = {}) {
   if (!editor || editor.isDestroyed) return false;
+
+  const { skipRestore = false, preserveFocus = false, forceRestore = false } = options;
 
   try {
     let chain = editor.chain();
 
-    if (_savedSelection) {
+    // Only restore selection if it was previously saved and we're not skipping restore
+    if (_savedSelection && !skipRestore) {
       const { state } = editor;
       const maxPos = state.doc.content.size;
       const anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
@@ -167,9 +177,17 @@ export function runWithSavedSelection(editor, commandFn) {
       } else {
         chain = chain.setTextSelection(anchor);
       }
+    } else if (forceRestore && !skipRestore) {
+      // If no saved selection but forceRestore is true, use current selection
+      const { selection } = editor.state;
+      chain = chain.setTextSelection(selection);
     }
 
-    chain = chain.focus();
+    // Only focus if not preserving focus
+    if (!preserveFocus) {
+      chain = chain.focus();
+    }
+    
     const resultChain = commandFn(chain);
 
     let result = false;
@@ -179,14 +197,17 @@ export function runWithSavedSelection(editor, commandFn) {
       result = true;
     }
 
-    const view = editor.view;
-    requestAnimationFrame(() => {
+    // Focus restoration with scroll prevention
+    if (!preserveFocus && !skipRestore) {
+      const view = editor.view;
       requestAnimationFrame(() => {
-        if (!editor.isDestroyed && view && view.dom) {
-          view.dom.focus({ preventScroll: true });
-        }
+        requestAnimationFrame(() => {
+          if (!editor.isDestroyed && view && view.dom) {
+            view.dom.focus({ preventScroll: true });
+          }
+        });
       });
-    });
+    }
 
     return result;
   } catch (err) {

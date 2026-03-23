@@ -9,8 +9,13 @@ import { toast } from 'sonner';
 const API_BASE_URL = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_AI_API_URL) ||
   (typeof process   !== 'undefined' && process.env?.REACT_APP_AI_API_URL)  ||
-  'http://localhost:5000/api/ai'
+  'http://localhost:5000/api/text-editor/ai'
 ).replace(/\/$/, '');
+
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
@@ -27,9 +32,9 @@ async function _parseResponse(response, endpoint) {
     const preview = (await response.text()).slice(0, 200);
     console.error(`[aiUtils] Non-JSON response from /${endpoint}:`, preview);
     const label =
-      response.status === 404 ? `API endpoint not found: /api/ai/${endpoint}` :
-      response.status === 401 ? 'Unauthorized — check your API key'           :
-      response.status === 403 ? 'Forbidden — insufficient permissions'         :
+      response.status === 404 ? `API endpoint not found: /api/text-editor/ai/${endpoint}` :
+      response.status === 401 ? 'Unauthorized — check your API key'                   :
+      response.status === 403 ? 'Forbidden — insufficient permissions'                 :
       `Unexpected response format (HTTP ${response.status})`;
     throw new AiApiError(label, response.status, false);
   }
@@ -74,7 +79,10 @@ async function _request(endpoint, body, opts = {}) {
     try {
       const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
         body:    JSON.stringify(body),
         signal,
       });
@@ -92,7 +100,8 @@ async function _request(endpoint, body, opts = {}) {
       }
 
       const data = await _parseResponse(response, endpoint);
-      return data.result;
+      // Support both data.result and data.text (legacy/new formats)
+      return data.result || data.text || data;
     } catch (err) {
       clearTimeout(timeoutId);
       if (_isAbort(err)) throw err;
@@ -117,7 +126,10 @@ async function _stream(endpoint, body, onChunk, signal) {
   try {
     const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
       body:    JSON.stringify({ ...body, stream: true }),
       signal:  merged,
     });

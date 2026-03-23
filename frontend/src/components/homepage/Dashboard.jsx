@@ -22,7 +22,7 @@ const FEATURES = [
   {
     name: "Document Workspace",
     icon: IoDocument,
-    route: "/editor",
+    route: "/editor-intro",
     desc: "Write professional documents faster with our Document Workspace."
   }
 ];

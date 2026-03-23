@@ -12,33 +12,37 @@ export function useDocuments(userId = null) {
       const result = await TextEditorService.getAllDocuments(userId);
       return result.documents || [];
     },
+    enabled: !!userId,
+    
+    // 🚀 OPTIMIZED: Aggressive caching for instant loading
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes (increased from 5)
+    gcTime: 30 * 60 * 1000,    // Keep in memory for 30 minutes (increased from 10)
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     
     // Transform backend docs for UI display
     select: (backendDocs) => {
+      if (!Array.isArray(backendDocs)) return [];
       return backendDocs.map(backendDoc => ({
-        id: backendDoc.id,
+        id: backendDoc._id || backendDoc.id,
         title: backendDoc.title || 'Untitled Document',
-        createdAt: new Date(backendDoc.createdAt).getTime(),
-        updatedAt: new Date(backendDoc.updatedAt).getTime(),
-        lastOpened: new Date(backendDoc.updatedAt).getTime(),
+        createdAt: new Date(backendDoc.createdAt || Date.now()).getTime(),
+        updatedAt: new Date(backendDoc.updatedAt || Date.now()).getTime(),
+        lastOpened: new Date(backendDoc.updatedAt || Date.now()).getTime(),
         template: 'document',
         pinned: false,
         slideCount: 0,
         isBackend: true
       }));
     },
-    
-    // 🎯 Key settings for production
-    staleTime: 5 * 60 * 1000, // 5 min - no refetch if data is fresh
-    gcTime: 10 * 60 * 1000,   // 10 min - keep in cache
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    retry: 1,
   });
 }
 
 /**
  * Custom hook for fetching a single document by ID
+ * Optimized for fast loading with aggressive caching
  */
 export function useDocument(documentId) {
   return useQuery({
@@ -48,11 +52,12 @@ export function useDocument(documentId) {
       return await TextEditorService.getDocumentById(documentId);
     },
     
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    // 🚀 OPTIMIZED: Instant loading from cache
+    staleTime: 30 * 60 * 1000,  // 30 minutes - keep data fresh longer
+    gcTime: 60 * 60 * 1000,     // 1 hour - keep in memory
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    retry: 1,
+    retry: 2,
     
     // Don't fetch if no ID
     enabled: !!documentId,

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDocuments, useDeleteDocument } from '../hooks/useDocuments.js';
 import { TextEditorService } from '../services/Text-Editor/text.service.js';
+import { useAuth } from '../contexts/AuthContext';
 
 // ── Template content map ──────────────────────────────────────────────────────
 const TEMPLATE_CONTENT = {
@@ -73,14 +74,22 @@ const EditorIntro = () => {
 
     // 🚀 PRODUCTION-GRADE: Use React Query for document management
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    
+    // Get proper user ID from auth context
+    const currentUserId = React.useMemo(() => {
+        return user?._id || user?.id || user?.user?._id || user?.user?.id;
+    }, [user]);
+
     const {
         data: documents = [],
         isLoading,
         refetch,
         isError,
         error
-    } = useDocuments();
+    } = useDocuments(currentUserId);
 
+    
     // Mutation for delete
     const deleteDocumentMutation = useDeleteDocument();
 
@@ -109,6 +118,7 @@ const EditorIntro = () => {
     // No more polling! Data is fresh for 5 minutes (staleTime)
 
     // Optional: Refetch when page becomes visible (better than polling)
+    /*
     React.useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
@@ -132,6 +142,7 @@ const EditorIntro = () => {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [queryClient]);
+    */
 
     const openEditor = async (templateType = 'blank', docId = null) => {
         if (docId) {
@@ -142,13 +153,14 @@ const EditorIntro = () => {
                 let doc;
                 if (isMongoId) {
                     // Load from backend directly
-                    doc = await TextEditorService.getDocumentById(docId);
+                    const response = await TextEditorService.getDocumentById(docId);
+                    doc = response.document || response;
+                    
                     console.log('📄 Loaded document from backend:', {
-                        id: doc.id,
+                        id: doc.id || doc._id || docId,
                         title: doc.title,
                         hasHtml: !!doc.data?.html,
-                        hasContent: !!doc.data?.content,
-                        htmlLength: doc.data?.html?.length || 0
+                        hasContent: !!doc.data?.content
                     });
                 } else {
                     // For localStorage IDs, check if it has backend reference
@@ -169,8 +181,10 @@ const EditorIntro = () => {
 
                 // Pass document data via URL params for the editor to fetch
                 // Editor will call the API directly to get content
-                const windowUrl = `/editor/${doc.id}?docId=${doc.id}`;
+                const finalId = doc.id || doc._id || docId;
+                const windowUrl = `/editor/${finalId}?docId=${finalId}`;
                 window.open(windowUrl, '_blank');
+                return; // 🚀 CRITICAL: DO NOT execute the default blank editor open below
 
                 // Update cache with new lastOpened time
                 queryClient.setQueryData(['documents'], oldDocs =>
@@ -461,7 +475,9 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                 }
             });
 
-            const documentId = response.id;
+            // Backend /save returns: { message, documentId }
+            // Fall back to .id or ._id for robustness
+            const documentId = String(response.documentId || response.id || response._id || '');
 
             console.log('📄 Document saved with ID:', documentId);
             console.log('📊 Full response:', response);
@@ -472,10 +488,12 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                 return;
             }
 
+            const docTitle = `${aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1)}: ${aiTopic.substring(0, 40)}${aiTopic.length > 40 ? '...' : ''}`;
+
             const newDoc = {
                 id: documentId,
                 mongoBackendId: documentId,
-                title: response.title || aiTopic.substring(0, 50),
+                title: docTitle,
                 content: generatedContent,
                 createdAt: Date.now(),
                 lastOpened: Date.now(),
@@ -683,10 +701,18 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            {/* Slide Count Label (matches image) */}
-                                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-1.5 rounded-full border border-blue-100">
-                                                <Grid className="w-3.5 h-3.5" />
-                                                {doc.slideCount ? `${doc.slideCount} Slides` : 'Blank'}
+                                            {/* Document type badge */}
+                                            <div className={`flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full border ${
+                                                doc.template === 'ai-generated'
+                                                    ? 'bg-amber-50 text-amber-700 border-amber-100'
+                                                    : 'bg-blue-50 text-blue-700 border-blue-100'
+                                            }`}>
+                                                {doc.template === 'ai-generated'
+                                                    ? <><Sparkles className="w-3.5 h-3.5" /> AI</>
+                                                    : doc.slideCount
+                                                        ? <><Grid className="w-3.5 h-3.5" /> {doc.slideCount} Slides</>
+                                                        : <><Grid className="w-3.5 h-3.5" /> {(doc.template && doc.template !== 'blank') ? doc.template : 'Document'}</>
+                                                }
                                             </div>
 
                                             {/* Three-dot menu button */}
@@ -1029,7 +1055,7 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                         </button>
                                         <button
                                             onClick={() => {
-                                                const url = `/editor/${generatedDocId}`;
+                                                const url = `/editor/${generatedDocId}?docId=${generatedDocId}`;
                                                 const win = window.open(url, '_blank', 'noopener,noreferrer');
                                                 if (!win) toast.info('Allow popups to open the editor');
                                                 setShowAIGenerator(false);

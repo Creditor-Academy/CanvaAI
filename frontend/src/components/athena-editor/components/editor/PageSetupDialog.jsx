@@ -29,7 +29,7 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
     const [orientation, setOrientation] = useState('portrait');
     const [customWidth, setCustomWidth] = useState(794);
     const [customHeight, setCustomHeight] = useState(1123);
-    const [margins, setMargins] = useState({ top: 72, bottom: 72, left: 72, right: 72 });
+    const [margins, setMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
     const [columns, setColumns] = useState(1);
     const [columnGap, setColumnGap] = useState(36);
     const [pageColor, setPageColor] = useState('#ffffff');
@@ -50,33 +50,32 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
             pagelessMode,
         };
         if (onApply) onApply(cfg);
-        // Apply as CSS vars
-        document.documentElement.style.setProperty('--page-bg-color', pageColor);
-        document.documentElement.style.setProperty('--page-margin-top', `${margins.top}px`);
-        document.documentElement.style.setProperty('--page-margin-bottom', `${margins.bottom}px`);
-        document.documentElement.style.setProperty('--page-margin-left', `${margins.left}px`);
-        document.documentElement.style.setProperty('--page-margin-right', `${margins.right}px`);
-        const editorEl = document.querySelector('.tiptap.ProseMirror');
-        if (editorEl) {
-            editorEl.style.padding = `${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px`;
-            editorEl.style.backgroundColor = pageColor;
-            if (columns > 1) {
-                editorEl.style.columnCount = columns.toString();
-                editorEl.style.columnGap = `${columnGap}px`;
-            } else {
-                editorEl.style.columnCount = '';
-                editorEl.style.columnGap = '';
-            }
-        }
-        toast.success('Page setup applied');
+        
+        // CRITICAL FIX: Update CSS VARIABLES instead of inline styles
+        // This ensures all components use the same source of truth from athena-variables.css
+        const root = document.documentElement;
+        root.style.setProperty('--doc-margin-top', `${margins.top}px`);
+        root.style.setProperty('--doc-margin-bottom', `${margins.bottom}px`);
+        root.style.setProperty('--doc-margin-left', `${margins.left}px`);
+        root.style.setProperty('--doc-margin-right', `${margins.right}px`);
+        root.style.setProperty('--page-bg-color', pageColor);
+        
+        // REMOVED: Direct inline style application that was overriding CSS
+        // const editorEl = document.querySelector('.tiptap.ProseMirror');
+        // if (editorEl) {
+        //   editorEl.style.padding = `${margins.top}px ${margins.right}px ...`; // THIS WAS THE BUG
+        //   editorEl.style.backgroundColor = pageColor;
+        // }
+        
+        toast.success('Page setup applied - margins and colors updated');
         onOpenChange(false);
     };
 
     const marginPresets = [
-        { label: 'Normal', values: { top: 72, bottom: 72, left: 72, right: 72 } },
+        { label: 'Normal', values: { top: 96, bottom: 96, left: 72, right: 72 } }, // Google Docs standard
         { label: 'Narrow', values: { top: 36, bottom: 36, left: 36, right: 36 } },
-        { label: 'Wide', values: { top: 72, bottom: 72, left: 108, right: 108 } },
-        { label: 'Mirrored', values: { top: 72, bottom: 72, left: 90, right: 54 } },
+        { label: 'Wide', values: { top: 96, bottom: 96, left: 108, right: 108 } },
+        { label: 'Mirrored', values: { top: 96, bottom: 96, left: 90, right: 54 } },
     ];
 
     return (

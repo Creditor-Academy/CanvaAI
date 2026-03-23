@@ -167,79 +167,7 @@ const ACTION_TEMPERATURE = {
 
 // ─── Streaming API call ───────────────────────────────────────────────────────
 
-async function callClaude({ systemPrompt, userPrompt, temperature = 0.7, maxTokens = 4096, onChunk, signal }) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    signal,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      temperature,
-      stream: true,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    for (const line of decoder.decode(value).split('\n')) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') continue;
-      try {
-        const text = JSON.parse(data)?.delta?.text ?? '';
-        if (text) { full += text; onChunk?.(full); }
-      } catch { /* skip */ }
-    }
-  }
-  return full;
-}
-
-async function callClaudeChat({ messages, systemPrompt, temperature = 0.7, onChunk, signal }) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    signal,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      temperature,
-      stream: true,
-      system: systemPrompt,
-      messages,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    for (const line of decoder.decode(value).split('\n')) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') continue;
-      try {
-        const text = JSON.parse(data)?.delta?.text ?? '';
-        if (text) { full += text; onChunk?.(full); }
-      } catch { /* skip */ }
-    }
-  }
-  return full;
-}
+// Local Claude implementations removed. Now using TextEditorService.
 
 // ─── Image generation via Pollinations (free, no key needed) ─────────────────
 function buildPollinationsUrl(prompt, size) {
@@ -556,11 +484,10 @@ export const AIAssistant = ({
     setActionError('');
     abortRef.current = new AbortController();
     try {
-      await TextEditorService.transformText({
-        text: selectedText,
-        action: actionId,
-        language: lang,
-        creativity: ACTION_TEMPERATURE[actionId] ?? 0.6,
+      await TextEditorService.callAI({
+        systemPrompt,
+        userPrompt: selectedText,
+        temperature: ACTION_TEMPERATURE[actionId] ?? 0.6,
         signal: abortRef.current.signal,
       }).then(setActionResult);
     } catch (err) {

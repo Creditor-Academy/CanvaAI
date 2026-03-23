@@ -1,4 +1,4 @@
-export const createEditorCommands = ({ toast, runWithSavedSelection, initializePagination }) => {
+export const createEditorCommands = ({ toast, runWithSavedSelection }) => {
   const handleFileAction = (action, editor) => {
     switch (action) {
       case 'new':
@@ -132,9 +132,6 @@ export const createEditorCommands = ({ toast, runWithSavedSelection, initializeP
         } else {
           runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }));
         }
-        setTimeout(() => {
-          if (editor) initializePagination(editor);
-        }, 100);
         break;
       }
       case 'link': {

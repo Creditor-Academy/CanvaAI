@@ -1,0 +1,382 @@
+/**
+ * Athena Editor Styles
+ * Centralized styling for the editor component
+ */
+
+/* ============================================================================
+   Toolbar Base Styles
+   ============================================================================ */
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.toolbar-btn {
+  height: 2rem;
+  width: 2rem;
+  padding: 0;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.toolbar-btn-icon {
+  color: #3b82f6;
+}
+
+.toolbar-btn-icon:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: #bfdbfe;
+}
+
+.toolbar-btn-icon.active {
+  background-color: #dcfce7;
+  border-color: #86efac;
+  color: #16a34a;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-btn-icon.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-btn-text {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  background-color: transparent;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.toolbar-btn-text:hover {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+/* ============================================================================
+   Menu & Dropdown Styles
+   ============================================================================ */
+
+.dropdown-menu-content {
+  width: 14rem;
+  background-color: white;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-radius: 0.25rem;
+  padding: 0.25rem;
+}
+
+.dropdown-menu-item {
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+.dropdown-menu-item:hover {
+  background-color: #eff6ff;
+  color: #1e40af;
+}
+
+.dropdown-menu-separator {
+  background-color: #eff6ff;
+}
+
+/* ============================================================================
+   Table Picker Styles
+   ============================================================================ */
+
+.table-picker-grid {
+  display: grid;
+  gap: 0.25rem;
+  background-color: white;
+  padding: 0.25rem;
+}
+
+.table-picker-cell {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+  transform: scale(1);
+}
+
+.table-picker-cell:hover {
+  transform: scale(1.1);
+}
+
+.table-picker-cell.selected {
+  background-color: #3b82f6;
+  border-color: #2563eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.table-picker-cell.hover {
+  background-color: #dbeafe;
+}
+
+.table-picker-label {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+/* ============================================================================
+   Color Picker Styles
+   ============================================================================ */
+
+.color-picker-swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.color-picker-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-picker-swatch.active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+/* ============================================================================
+   Font Selector Styles
+   ============================================================================ */
+
+.font-selector-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+/* ============================================================================
+   Editor Content Styles
+   ============================================================================ */
+
+.editor-content {
+  outline: none;
+  contain: layout style;
+}
+
+.editor-page {
+  background-color: white;
+  margin-left: auto;
+  margin-right: auto;
+  contain: layout;
+}
+
+/* ============================================================================
+   Page NodeView Styles (CRITICAL FOR PAGINATION)
+   ============================================================================ */
+
+.page {
+  width: 794px; /* A4 width at 96 DPI */
+  min-height: 1123px; /* Minimum A4 height */
+  height: auto; /* Allow content to expand naturally */
+  margin: 20px auto;
+  background: white;
+  padding: 96px 72px; /* Top/Bottom: 96px, Left/Right: 72px */
+  box-sizing: border-box;
+  display: block !important; /* CRITICAL: Force visible */
+  position: relative;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  visibility: visible !important; /* CRITICAL: Ensure visible */
+  opacity: 1; /* CRITICAL: Full opacity */
+  overflow: visible; /* Allow content to be fully visible */
+}
+
+.page-content {
+  height: 100%;
+  min-height: inherit;
+  display: block !important; /* CRITICAL: Force visible */
+  visibility: visible !important;
+}
+
+.page-content > * {
+  margin: 0;
+  padding: 0;
+}
+
+/* Prevent content from overflowing page boundaries */
+.page > .page-number-indicator {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ============================================================================
+   Zoom Controls Styles
+   ============================================================================ */
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.zoom-display {
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 48px;
+  text-align: center;
+}
+
+/* ============================================================================
+   Format Panel Styles
+   ============================================================================ */
+
+.format-panel {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: white;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+.format-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.format-option:hover {
+  background-color: #f9fafb;
+}
+
+/* ============================================================================
+   Loading & Skeleton Styles
+   ============================================================================ */
+
+.editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.skeleton-loader {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ============================================================================
+   Responsive Styles
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .editor-toolbar {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .toolbar-btn {
+    height: 1.75rem;
+    width: 1.75rem;
+  }
+
+  .toolbar-btn-text {
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+  }
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================ */
+
+@media print {
+  .editor-toolbar,
+  .format-panel,
+  .zoom-control {
+    display: none !important;
+  }
+
+  .editor-content {
+    padding: 0;
+    margin: 0;
+  }
+
+  .editor-page {
+    box-shadow: none;
+  }
+}
+
+/* ============================================================================
+   Accessibility Styles
+   ============================================================================ */
+
+.editor-content:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.toolbar-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .toolbar-btn-icon {
+    border-color: #9ca3af;
+  }
+
+  .toolbar-btn-icon.active {
+    border-color: #16a34a;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-btn,
+  .table-picker-cell,
+  .color-picker-swatch {
+    transition: none;
+  }
+
+  .skeleton-loader {
+    animation: none;
+    background-color: #f0f0f0;
+  }
+}

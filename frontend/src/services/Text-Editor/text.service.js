@@ -1,24 +1,21 @@
-/**
- * Text Editor AI Services
- * Centralized API calls for AI features (Claude, Pollinations)
- */
 import axios from 'axios';
 
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+const getAuthConfig = () => {
+  const token = localStorage.getItem('token');
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  };
+};
 
 /**
- * Call Claude AI API for text generation/streaming
- * @param {Object} params - Request parameters
- * @param {string} params.systemPrompt - System instruction prompt
- * @param {string} params.userPrompt - User message prompt
- * @param {number} [params.temperature=0.7] - Creativity temperature (0-1)
- * @param {number} [params.maxTokens=4096] - Maximum tokens to generate
- * @param {Function} [params.onChunk] - Callback for streaming chunks
- * @param {AbortSignal} [params.signal] - AbortController signal
- * @returns {Promise<string>} Generated text response
+ * Call Backend AI API for text generation (OpenAI)
  */
-async function callClaude({ 
+async function callAI({ 
   systemPrompt, 
   userPrompt, 
   temperature = 0.7, 
@@ -26,112 +23,50 @@ async function callClaude({
   onChunk, 
   signal 
 }) {
-  const res = await fetch(CLAUDE_API_URL, {
-    method: 'POST',
-    signal,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: maxTokens,
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/text-editor/ai/generate`, {
+      systemPrompt,
+      userPrompt,
       temperature,
-      stream: true,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
-  
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
+      maxTokens
+    }, { ...getAuthConfig(), signal });
+
+    const result = response.data.text;
+    onChunk?.(result); // Single chunk for now as backend is non-streaming
+    return result;
+  } catch (error) {
+    console.error("AI Generation Error:", error);
+    throw new Error(error.response?.data?.message || "AI failed to generate content");
   }
-  
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = '';
-  
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    
-    for (const line of decoder.decode(value).split('\n')) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') continue;
-      
-      try {
-        const text = JSON.parse(data)?.delta?.text ?? '';
-        if (text) { 
-          full += text; 
-          onChunk?.(full); 
-        }
-      } catch { /* skip parse errors */ }
-    }
-  }
-  
-  return full;
 }
 
 /**
- * Call Claude AI API for chat conversations
- * @param {Object} params - Request parameters
- * @param {Array} params.messages - Array of chat messages
- * @param {string} params.systemPrompt - System instruction prompt
- * @param {number} [params.temperature=0.7] - Creativity temperature (0-1)
- * @param {Function} [params.onChunk] - Callback for streaming chunks
- * @param {AbortSignal} [params.signal] - AbortController signal
- * @returns {Promise<string>} Generated chat response
+ * Call Backend AI API for chat (OpenAI)
  */
-async function callClaudeChat({ 
+async function callAIChat({ 
   messages, 
   systemPrompt, 
   temperature = 0.7, 
   onChunk, 
   signal 
 }) {
-  const res = await fetch(CLAUDE_API_URL, {
-    method: 'POST',
-    signal,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: 4096,
-      temperature,
-      stream: true,
-      system: systemPrompt,
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/text-editor/ai/chat`, {
       messages,
-    }),
-  });
-  
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
+      systemPrompt,
+      temperature
+    }, { ...getAuthConfig(), signal });
+
+    const result = response.data.text;
+    onChunk?.(result);
+    return result;
+  } catch (error) {
+    console.error("AI Chat Error:", error);
+    throw new Error(error.response?.data?.message || "AI failed to generate response");
   }
-  
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = '';
-  
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    
-    for (const line of decoder.decode(value).split('\n')) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') continue;
-      
-      try {
-        const text = JSON.parse(data)?.delta?.text ?? '';
-        if (text) { 
-          full += text; 
-          onChunk?.(full); 
-        }
-      } catch { /* skip parse errors */ }
-    }
-  }
-  
-  return full;
 }
+
+// callClaude and callClaudeChat have been replaced by callAI and callAIChat
 
 /**
  * Build Pollinations AI image generation URL
@@ -171,7 +106,7 @@ async function generateDocument({
       `You are a professional ${type.toLowerCase()} writer. Create a well-structured, engaging ${type.toLowerCase()} with a ${tone} tone. Target length: approximately ${pages * 380} words.`
   };
 
-  return await callClaude({
+  return await callAI({
     systemPrompt: PROMPTS.generate(docType, tone, pages),
     userPrompt: `Write a ${docType} about: ${topic.trim()}`,
     temperature: creativity,
@@ -201,7 +136,7 @@ async function generateImage({
   
   if (enhancePrompt) {
     try {
-      const enhanced = await callClaude({
+      const enhanced = await callAI({
         systemPrompt: 'You are an expert at writing detailed AI image generation prompts. Take the user\'s description and expand it into a rich, detailed prompt with visual specifics, lighting, composition, mood, and style. Return ONLY the prompt text — no quotes, no explanation.',
         userPrompt: `Create an image generation prompt for: "${prompt.trim()}". Style: ${style}. Make it detailed and vivid.`,
         temperature: 0.7,
@@ -253,7 +188,7 @@ async function transformText({
     custom: customPrompt ? `${customPrompt}\n\nApply to this text:\n\n"${text}"` : `Transform this text:\n\n"${text}"`,
   };
 
-  return await callClaude({
+  return await callAI({
     systemPrompt: 'You are a professional editor and writing assistant. Help users improve their text with clarity, correctness, and impact.',
     userPrompt: TRANSFORM_PROMPTS[action] || TRANSFORM_PROMPTS.rewrite,
     temperature: creativity,
@@ -276,7 +211,7 @@ async function chatWithAI({
   signal,
   onChunk
 }) {
-  return await callClaudeChat({
+  return await callAIChat({
     messages,
     systemPrompt: 'You are Athena, a helpful AI assistant integrated into a document editor. Provide clear, accurate, and helpful responses.',
     temperature: creativity,
@@ -285,28 +220,7 @@ async function chatWithAI({
   });
 }
 
-// ============================================================================
-// Backend API Configuration
-// ============================================================================
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-
-/**
- * Get authentication headers from localStorage token
- * @returns {Object} Axios config object with headers
- */
-const getAuthConfig = () => {
-  const token = localStorage.getItem('token');
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  return { headers };
-};
+// Backend API Configuration is now at the top
 
 // ============================================================================
 // Document Management APIs (Backend)
@@ -381,9 +295,10 @@ async function deleteDocument(documentId) {
  * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string, ownerId: string}>}>}
  */
 async function getAllDocuments(userId) {
-  const url = userId 
+  // Only use the specific endpoint if a valid userId string is provided
+  const url = (userId && userId !== 'undefined' && userId !== 'null') 
     ? `${API_BASE_URL}/api/text-editor/all/documents/${userId}`
-    : `${API_BASE_URL}/api/text-editor/documents`;
+    : `${API_BASE_URL}/api/text-editor/all/documents`;
   
   const response = await axios.get(url, getAuthConfig());
   
@@ -393,8 +308,8 @@ async function getAllDocuments(userId) {
 // Export all service functions
 export const TextEditorService = {
   // AI Functions
-  callClaude,
-  callClaudeChat,
+  callAI,
+  callAIChat,
   buildPollinationsUrl,
   generateDocument,
   generateImage,

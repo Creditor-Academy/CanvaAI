@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiSettings, FiBell } from "react-icons/fi";
-import api from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 // add at top
 import { FiLogOut, FiUser } from "react-icons/fi";
 
@@ -14,7 +14,8 @@ const TopNavbar = () => {
 
   const profileRef = useRef(null);
 
-  // profile states
+  // Get profile from AuthContext instead of API call
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
 
@@ -41,17 +42,12 @@ const TopNavbar = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* --------------------------- Fetch profile from API -------------------------- */
+  /* --------------------------- Sync profile from AuthContext -------------------------- */
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await api.getProfile();
-        if (mounted) setProfile(data || null);
-      } catch { }
-    })();
-    return () => (mounted = false);
-  }, []);
+    if (user) {
+      setProfile(user);
+    }
+  }, [user]);
 
   return (
     <header

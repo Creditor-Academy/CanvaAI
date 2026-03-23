@@ -10,10 +10,6 @@ import { toast } from 'sonner';
 import JSZip from 'jszip';
 import DOMPurify from 'dompurify';
 
-// Import Google Docs pagination engine
-import { PaginationEngine, flattenDocument } from './pagination/paginationEngine';
-import { GOOGLE_DOCS_CONFIG } from './pagination/constants';
-
 // ─── Unit constants ────────────────────────────────────────────────────────────
 const PT_TO_MM   = 0.352778;   // 1 pt  → mm
 const PX_TO_MM   = 0.264583;   // 1 px  → mm (96 dpi)
