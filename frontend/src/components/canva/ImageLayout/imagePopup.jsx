@@ -17,7 +17,10 @@ const isTransparent = (color) => {
 
 // Render image preview from data
 const renderImagePreview = (image) => {
-    if (!image?.data) return null;
+    if (!image?.data) {
+        console.warn('No image data provided for preview');
+        return null;
+    }
 
     const layers = Array.isArray(image.data)
         ? image.data
@@ -29,35 +32,39 @@ const renderImagePreview = (image) => {
 
     const isGradient = bgColor && bgColor.includes('gradient');
 
+    // Ensure canvas size has valid dimensions
+    const width = Math.max(canvasSize?.width || 800, 100);
+    const height = Math.max(canvasSize?.height || 600, 100);
+
     return (
         <svg
             width="100%"
             height="100%"
-            viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+            viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMidYMid meet"
             xmlns="http://www.w3.org/2000/svg"
-            style={{ maxHeight: '400px', width: 'auto' }}
+            style={{ maxHeight: '400px', width: 'auto', backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor }}
         >
             {/* Background */}
             <defs>
                 {bgImage && (
                     <pattern id="bgPattern" patternUnits="objectBoundingBox" width="1" height="1">
-                        <image href={bgImage} width={canvasSize.width} height={canvasSize.height} preserveAspectRatio="xMidYMid slice" />
+                        <image href={bgImage} width={width} height={height} preserveAspectRatio="xMidYMid slice" />
                     </pattern>
                 )}
             </defs>
 
             {/* Background rect */}
             <rect
-                width={canvasSize.width}
-                height={canvasSize.height}
+                width={width}
+                height={height}
                 fill={isGradient ? 'white' : (isTransparent(bgColor) ? '#f8fafc' : bgColor)}
                 style={isGradient ? { background: bgColor } : {}}
             />
             {bgImage && (
                 <rect
-                    width={canvasSize.width}
-                    height={canvasSize.height}
+                    width={width}
+                    height={height}
                     fill="url(#bgPattern)"
                 />
             )}
@@ -141,18 +148,28 @@ const renderImagePreview = (image) => {
 const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
     const { isAdmin } = useAuth()
     const [importing, setImporting] = useState(false)
-    if (!image) return null;
 
-    // Generate preview from image data
-    const preview = useMemo(() => renderImagePreview(image), [image]);
+    // IMPORTANT: Hooks must be called in same order every render
+    // Generate preview BEFORE the early return
+    const preview = useMemo(() => {
+        if (!image) return null;
+        return renderImagePreview(image);
+    }, [image]);
+
+    if (!image) {
+        return null;
+    }
+
+    console.log('ImagePopup rendering with image:', image);
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={onClose}
         >
+            {/* Modal content */}
             <div
-                className="bg-white rounded-2xl max-w-2xl w-full mx-auto overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300"
+                className="relative bg-white rounded-2xl max-w-2xl w-full mx-auto overflow-hidden shadow-2xl border border-slate-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header with gradient */}
@@ -200,19 +217,21 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                             </div>
                         </div>
                     ) : preview ? (
-                        <div className="w-full flex items-center justify-center">
+                        <div className="w-full h-full flex items-center justify-center">
                             {preview}
                         </div>
                     ) : (
-                        <div className="text-center">
-                            <div className="relative">
-                                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-ping" />
-                                </div>
+                        <div className="text-center py-12">
+                            <div className="w-20 h-20 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                                <ImageIcon className="w-10 h-10 text-slate-400" />
                             </div>
-                            <p className="text-slate-600 font-medium">Loading preview...</p>
-                            <p className="text-sm text-slate-400 mt-1">This may take a moment</p>
+                            <p className="text-slate-600 font-semibold mb-2">Preview Not Available</p>
+                            <p className="text-sm text-slate-500 mb-4">This template has no preview data</p>
+                            {image.title && (
+                                <div className="mt-4 pt-4 border-t border-slate-200">
+                                    <p className="text-sm font-medium text-slate-700">Template: {image.title}</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

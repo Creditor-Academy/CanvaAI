@@ -1,7 +1,7 @@
 import { getUserImages, deleteImage } from '@/services/imageEditor/imageApi'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, memo } from 'react'
 import { Link } from 'react-router-dom'
 
 const isTransparent = (color) => {
@@ -100,7 +100,7 @@ const getShapeSVG = (shape, width, height, fillColor, strokeColor, strokeWidth) 
     </svg>`;
 };
 
-const ImageThumbPreview = ({ image }) => {
+const ImageThumbPreview = memo(({ image }) => {
     const layers = Array.isArray(image?.data)
         ? image.data
         : (image?.data?.layer || image?.data?.layers || [])
@@ -267,7 +267,7 @@ const ImageThumbPreview = ({ image }) => {
             </div>
         </div>
     )
-}
+})
 
 const ImageUser = () => {
     const { user } = useAuth()
@@ -275,16 +275,25 @@ const ImageUser = () => {
 
     const [images, setImages] = useState([])
     const [loading, setLoading] = useState(true)
+    const [loadingMore, setLoadingMore] = useState(false)
     const [error, setError] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
+    const [page, setPage] = useState(1)
+    const [hasMore, setHasMore] = useState(true)
+    const ITEMS_PER_PAGE = 20
 
     useEffect(() => {
         let mounted = true
         const fetchImages = async () => {
             try {
                 setLoading(true)
-                const data = await getUserImages(userId)
-                if (mounted) setImages(data || [])
+                const data = await getUserImages(userId, 1, ITEMS_PER_PAGE)
+                if (mounted) {
+                    const imageArray = Array.isArray(data) ? data : data?.data || []
+                    setImages(imageArray)
+                    setHasMore(imageArray.length === ITEMS_PER_PAGE)
+                    setPage(1)
+                }
             } catch (err) {
                 console.error('Load images error', err)
                 if (mounted) setError('Failed to load images')
@@ -296,6 +305,28 @@ const ImageUser = () => {
         if (userId) fetchImages()
         return () => { mounted = false }
     }, [userId])
+
+    const loadMore = async () => {
+        if (loadingMore || !hasMore) return
+        try {
+            setLoadingMore(true)
+            const nextPage = page + 1
+            const data = await getUserImages(userId, nextPage, ITEMS_PER_PAGE)
+            const imageArray = Array.isArray(data) ? data : data?.data || []
+            if (imageArray.length > 0) {
+                setImages(prev => [...prev, ...imageArray])
+                setPage(nextPage)
+                setHasMore(imageArray.length === ITEMS_PER_PAGE)
+            } else {
+                setHasMore(false)
+            }
+        } catch (err) {
+            console.error('Load more error', err)
+            toast.error('Failed to load more images')
+        } finally {
+            setLoadingMore(false)
+        }
+    }
 
     const handleDelete = async (imageId) => {
         if (!window.confirm('Are you sure you want to delete this design?')) return
@@ -354,7 +385,7 @@ const ImageUser = () => {
                     {/* Create with AI Button */}
                     <Link
                         to="/create/ai-design"
-                        className="flex-1 max-w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white p-6 rounded-2xl shadow-xl shadow-orange-200 transition-all flex items-center gap-4 active:scale-[0.98] group"
+                        className="flex-1 max-w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white p-6 rounded-2xl shadow-xl shadow-orange-200 transition-all flex items-center gap-4 active:scale-[0.98] group"
                     >
                         <div className="bg-white/20 p-3 rounded-xl group-hover:scale-110 transition-transform">
                             <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -400,59 +431,84 @@ const ImageUser = () => {
                 )}
 
                 {!loading && filteredImages.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {filteredImages.map(image => {
-                            const canvasSize = image.data?.canvasSize || { width: 1200, height: 630 };
-                            const aspectRatio = (canvasSize.height / canvasSize.width) * 100;
-                            return (
-                                <a key={image._id} href={`/canva-clone/${image._id}`} target="_blank" rel="noopener noreferrer" className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 block">
-                                    <div
-                                        className="relative bg-slate-100 overflow-hidden"
-                                        style={{
-                                            aspectRatio: `${canvasSize.width} / ${canvasSize.height}`
-                                        }}
-                                    >
+                    <div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            {filteredImages.map(image => {
+                                const canvasSize = image.data?.canvasSize || { width: 1200, height: 630 };
+                                const aspectRatio = (canvasSize.height / canvasSize.width) * 100;
+                                return (
+                                    <a key={image._id} href={`/canva-clone/${image._id}`} target="_blank" rel="noopener noreferrer" className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 block">
                                         <div
-                                            className="absolute inset-0"
+                                            className="relative bg-slate-100 overflow-hidden"
                                             style={{
-                                                ['--thumb-scale']: `${Math.min(
-                                                    1,
-                                                    1
-                                                )}`
-                                            }}
-                                            ref={(el) => {
-                                                if (!el) return
-                                                const rect = el.getBoundingClientRect()
-                                                const cw = canvasSize?.width || 800
-                                                const ch = canvasSize?.height || 600
-                                                const scale = Math.min(rect.width / cw, rect.height / ch)
-                                                el.style.setProperty('--thumb-scale', String(scale))
+                                                aspectRatio: `${canvasSize.width} / ${canvasSize.height}`
                                             }}
                                         >
-                                            <ImageThumbPreview image={image} />
+                                            <div
+                                                className="absolute inset-0"
+                                                style={{
+                                                    ['--thumb-scale']: `${Math.min(
+                                                        1,
+                                                        1
+                                                    )}`
+                                                }}
+                                                ref={(el) => {
+                                                    if (!el) return
+                                                    const rect = el.getBoundingClientRect()
+                                                    const cw = canvasSize?.width || 800
+                                                    const ch = canvasSize?.height || 600
+                                                    const scale = Math.min(rect.width / cw, rect.height / ch)
+                                                    el.style.setProperty('--thumb-scale', String(scale))
+                                                }}
+                                            >
+                                                <ImageThumbPreview image={image} />
+                                            </div>
+
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+
+                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(image._id); }} className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 shadow-lg cursor-pointer z-10" title="Delete Design">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
                                         </div>
 
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
-
-                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(image._id); }} className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 shadow-lg cursor-pointer z-10" title="Delete Design">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
-                                    </div>
-
-                                    <div className="p-5">
-                                        <div className="flex items-start justify-between">
-                                            <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
-                                        </div>
-                                        <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-                                            <span className="flex items-center gap-1">{new Date(image.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full font-medium">{image.data?.canvasSize ? `${image.data.canvasSize.width}×${image.data.canvasSize.height}` : '—'}</span>
+                                        <div className="p-5">
+                                            <div className="flex items-start justify-between">
+                                                <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
+                                            </div>
+                                            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                                                <span className="flex items-center gap-1">{new Date(image.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full font-medium">{image.data?.canvasSize ? `${image.data.canvasSize.width}×${image.data.canvasSize.height}` : '—'}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </a>
-                            )
-                        })}
+                                    </a>
+                                )
+                            })}
+                        </div>
+                        {hasMore && !searchTerm && (
+                            <div className="flex justify-center mt-12">
+                                <button
+                                    onClick={loadMore}
+                                    disabled={loadingMore}
+                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-200 flex items-center gap-2"
+                                >
+                                    {loadingMore ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Load More
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : (!loading && (
                     <div className="text-center py-8 bg-white rounded-3xl border border-dashed border-slate-200">

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { getPublicTemplateImages, deleteImage, cloneImage } from '../../../services/imageEditor/imageApi'
 import { toast } from 'sonner'
 import { useAuth } from '../../../contexts/AuthContext'
-import ImagePopup from './ImagePopup'
+import ImagePopup from './imagePopup'
 
 const isTransparent = (color) => {
     if (!color) return true;
@@ -283,7 +283,10 @@ const ImageAdmin = () => {
                                                 {image.title || 'Untitled Template'}
                                             </h3>
                                             <button
-                                                onClick={() => setSelectedImage(image)}
+                                                onClick={() => {
+                                                    console.log('View button clicked, setting image:', image);
+                                                    setSelectedImage(image);
+                                                }}
                                                 className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition cursor-pointer"
                                             >
                                                 View
@@ -337,4 +340,4 @@ const ImageAdmin = () => {
     )
 }
 
-export default ImageAdmin
+export default ImageAdmin;
