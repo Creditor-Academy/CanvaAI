@@ -3,21 +3,23 @@
 ========================= */
 
 .slides-panel {
-  position: absolute;
-  top: 16px; 
+  position: fixed;
+  top: 56px; 
+ 
   /* was 88px, moved closer to top of the body container */
-  left: 16px;
-
-  width: 150px;
-  max-height: 500px; /* limits viewport to ~5 slides before scrolling */
-  height: fit-content;
+  
+   width: 200px;
+  height: calc(100vh - 66px);
 
   display: flex;
   flex-direction: column;
 
   background: #ffffff;
 
-  border-radius: 8px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-left: none;
   border: 2px solid #f8b21a;
 
   box-shadow:
@@ -36,9 +38,8 @@
 
 /* Hover elevation */
 .slides-panel:not(.collapsed):hover {
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.06);
+  transform: none;
 }
 
 /* =========================
@@ -46,7 +47,7 @@
 ========================= */
 
 .slides-panel.collapsed {
-  transform: translateX(calc(-100% - 16px));
+  transform: translateX(calc(-100% + 18px));
   box-shadow: none;
 }
 
@@ -62,45 +63,40 @@
 
 .collapse-btn {
   position: absolute;
-  right: -14px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
 
-  width: 28px;
-  height: 56px;
+  width: 32px;
+  height: 72px;
 
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 0 8px 8px 0;
-  /* Rounded only on the right side */
+  border-left: none;
+  border-radius: 0 10px 10px 0;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #475569;
 
-  box-shadow:
-    2px 0 6px rgba(0, 0, 0, 0.08);
-
-  transition: all 0.3s ease;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease;
   z-index: 50;
 }
 
 .slides-panel.collapsed .collapse-btn {
-  right: -28px;
-  /* Move out to be fully visible at edge */
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.12);
+  right: -32px;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.12);
 }
 
 .collapse-btn:hover {
   background: #f8fafc;
   color: #0c4a6e;
-  width: 32px;
-  right: -18px;
 }
 
 .slides-panel.collapsed .collapse-btn:hover {
@@ -115,11 +111,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   margin-bottom: 12px;
-
   border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .slides-title {
@@ -166,7 +161,9 @@
 
 .slides-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
 }
 
@@ -199,11 +196,11 @@
 
 /* Slide Number */
 .slide-number {
-  width: 16px;
-  font-size: 11px;
-  font-weight: 500;
+  width: 22px;
+  font-size: 12px;
+  font-weight: 600;
   color: #475569;
-  padding-top: 6px;
+  padding-top: 8px;
   user-select: none;
 }
 
@@ -233,11 +230,11 @@
 }
 
 .thumbnail {
-  width: 100px;
-  height: 56.25px;
+  width: 140px;
+  height: 78.75px;
 
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
 
   overflow: hidden;

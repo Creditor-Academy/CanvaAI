@@ -8,6 +8,18 @@ import { withHybridLoader } from "../../utils/withHybridLoader";
 import { toggleBlock, isBlockActive } from "../../editors/slate/slateBlocks";
 import { Link as LinkIcon, X } from "lucide-react";
 import "./properties-panel.css";
+import {
+  AlignStartHorizontal,
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
+} from "lucide-react";
+
 
 const ColorPicker = React.memo(({ value, onChange, onHistorySave }) => {
   const [localValue, setLocalValue] = useState(value);
@@ -90,18 +102,11 @@ const RangeControl = React.memo(({ label, value, min, max, onChange, onHistorySa
 });
 
 // Shared 2x5 palette used for slide background + text colors
-const PALETTE_COLORS = [
-  "#ffffff",
-  "#e5e7eb",
-  "#64748b",
-  "#000000",
-  "#ef4444",
-  "#3b82f6",
-  "#22c55e",
-  "#eab308",
-  "#a855f7",
-  "#f97316",
+const THEME_COLORS = [
+  ["#c00000", "#ff0000", "#ffc000", "#ffff00", "#92d050", "#00b050",],
+  ["#00b0f0", "#0070c0", "#002060", "#7030a0", "#ff66cc", "#999999"],
 ];
+
 
 // MS Paint–style color control with current color, "+" custom picker and swatch grid
 const PaletteColorControl = ({
@@ -110,7 +115,9 @@ const PaletteColorControl = ({
   onColorChange,
   onHistorySave,
 }) => {
+  const [showPicker, setShowPicker] = useState(false);
   const isInteracting = useRef(false);
+  const btnRef = useRef(null);
 
   // Debounced reset to clear the interaction flag after user stops dragging
   const resetInteraction = React.useCallback(
@@ -124,9 +131,11 @@ const PaletteColorControl = ({
   const currentColor = value || "#ffffff";
 
   const handleOpenPicker = () => {
-    if (inputRef.current) {
-      inputRef.current.click();
-    }
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.click();
+      }
+    }, 10);
   };
 
   const handleCustomChange = (e) => {
@@ -157,40 +166,38 @@ const PaletteColorControl = ({
         <span>{label}</span>
       </div>
 
-      <div className="palette-row">
-        <div
-          className="palette-color-current"
-          style={{ backgroundColor: currentColor }}
-        />
-        <button
-          type="button"
-          className="palette-color-add"
-          onClick={handleOpenPicker}
-        >
-          +
-        </button>
-        <input
-          ref={inputRef}
-          type="color"
-          value={currentColor}
-          onChange={handleCustomChange}
-          className="palette-color-input-hidden"
-        />
+      <div className="palette-heading">Colors</div>
+
+      <div className="theme-colors">
+        {THEME_COLORS.slice(0, 2).map((row, rowIndex) => (
+          <div key={rowIndex} className="color-row">
+            {row.slice(0, 6).map((color) => (
+              <button
+                key={color}
+                className={`color-swatch ${currentColor === color ? "selected" : ""}`}
+                style={{ backgroundColor: color }}
+                onClick={() => handleSwatchClick(color)}
+              />
+            ))}
+          </div>
+        ))}
       </div>
 
-      <div className="color-swatch-grid">
-        {PALETTE_COLORS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            className={`color-swatch ${currentColor.toLowerCase() === color.toLowerCase()
-              ? "selected"
-              : ""
-              }`}
-            style={{ backgroundColor: color }}
-            onClick={() => handleSwatchClick(color)}
+      <div className="palette-bottom-row">
+        <div className="no-fill" onClick={() => handleSwatchClick("transparent")}>
+          <div className="no-fill-box"></div>
+          <span>No Fill</span>
+        </div>
+
+        <label className="palette-color-add">
+          +
+          <input
+            type="color"
+            value={currentColor}
+            onChange={handleCustomChange}
+            className="palette-color-input-hidden"
           />
-        ))}
+        </label>
       </div>
     </div>
   );
@@ -265,12 +272,12 @@ const PropertiesPanel = () => {
     "Desirable Calligraphy",
   ];
 
-  const activeSlide = React.useMemo(() => 
-    slides.find(s => s.id === activeSlideId), 
+  const activeSlide = React.useMemo(() =>
+    slides.find(s => s.id === activeSlideId),
     [slides, activeSlideId]
   );
 
-  const selectedLayer = React.useMemo(() => 
+  const selectedLayer = React.useMemo(() =>
     activeSlide?.layers?.find(l => l.id === selectedLayerId) || null,
     [activeSlide?.layers, selectedLayerId]
   );
@@ -296,676 +303,615 @@ const PropertiesPanel = () => {
           <>
             {/* SLIDE PROPERTIES (no layer selected) */}
             {!selectedLayer && (
-          <>
-            <h3 style={styles.heading}>Slide</h3>
+              <>
+                <h3 style={styles.heading}>Slide</h3>
 
-            {/* Section 1: Background Color (MS Paint style) */}
-            <PaletteColorControl
-              label="Background"
-              value={activeSlide.background}
-              onHistorySave={saveToHistory}
-              onColorChange={(color, save) =>
-                updateSlideBackground(activeSlideId, color, save)
-              }
-            />
-
-            {/* Section 2: Background Image */}
-            <div className="panel-section">
-              <div className="panel-section-header">
-                <span>Background Image</span>
-              </div>
-
-              <div style={styles.row}>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = "image/*";
-                    input.onchange = async (e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-
-                      try {
-                        await withHybridLoader(
-                          async () => {
-                            const pptId = presentationId || "new";
-                            const { url, key } = await uploadFile(file, user?._id, pptId);
-
-                            setSlideBackgroundImage(activeSlideId, url, key);
-                            e.target.value = ""; // Reset input
-
-                            return { url, key };
-                          },
-                          "top",
-                          "Uploading background image..."
-                        );
-                      } catch (error) {
-                        alert("Failed to upload background image.");
-                      }
-                    };
-                    input.click();
-                  }}
-                >
-                  Insert Image (Local)
-                </button>
-              </div>
-
-              <div style={{ ...styles.row, marginTop: "8px", position: "relative" }}>
-                <button
-                  style={{ ...styles.btn, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                  onClick={() => setShowUrlPopup(!showUrlPopup)}
-                  title="Set background image from URL"
-                >
-                  <LinkIcon size={16} /> Insert from URL
-                </button>
-
-                {showUrlPopup && createPortal(
-                  <div className="modal-overlay" onClick={() => setShowUrlPopup(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                      <h3>Add Image from URL</h3>
-                      <input
-                        type="url"
-                        placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
-                        value={tempUrl}
-                        onChange={(e) => setTempUrl(e.target.value)}
-                        className="url-input-field"
-                      />
-                      <div className="modal-buttons">
-                        <button
-                          className="secondary-btn"
-                          onClick={() => setShowUrlPopup(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          className="primary-btn"
-                          onClick={() => {
-                            if (tempUrl) {
-                              setSlideBackgroundImage(activeSlideId, tempUrl);
-                              setTempUrl("");
-                              setShowUrlPopup(false);
-                            }
-                          }}
-                          disabled={!tempUrl}
-                        >
-                          Add Image
-                        </button>
-                      </div>
-                    </div>
-                  </div>,
-                  document.body
-                )}
-              </div>
-
-              {activeSlide.backgroundImage && (
-                <button
-                  style={{
-                    ...styles.btn,
-                    color: "#dc3545",
-                    borderColor: "#dc3545",
-                    marginTop: "8px",
-                    width: "100%",
-                  }}
-                  onClick={() => setSlideBackgroundImage(activeSlideId, null)}
-                  title="Remove image"
-                >
-                  Remove Image
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-
-        {/* ========================= */}
-        {/* COMMON LAYER PROPERTIES (Arrange + canvas alignment) */}
-        {selectedLayer && (
-          <div style={{ marginBottom: "20px", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
-            <h3 style={styles.heading}>Arrange</h3>
-            <div style={styles.row}>
-              <button
-                style={styles.btn}
-                onClick={() => reorderLayer(selectedLayer.id, "forward")}
-                title="Bring Forward"
-              >
-                Bring Forward
-              </button>
-              <button
-                style={styles.btn}
-                onClick={() => reorderLayer(selectedLayer.id, "backward")}
-                title="Send Backward"
-              >
-                Send Backward
-              </button>
-            </div>
-
-            <div style={styles.control}>
-              <label style={styles.label}>Rotation</label>
-              <button
-                style={{ ...styles.btn, width: "100%" }}
-                onClick={() => {
-                  const currentRotation = selectedLayer.rotation || 0;
-                  updateLayerRotation(selectedLayer.id, (currentRotation + 90) % 360);
-                }}
-                title="Rotate 90° clockwise"
-              >
-                Rotate 90°
-              </button>
-            </div>
-
-            <div style={styles.control}>
-              <label style={styles.label}>Alignment</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'top-left')}
-                  title="Align to top-left"
-                >
-                  ↖
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'top')}
-                  title="Align to top center"
-                >
-                  ↑
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'top-right')}
-                  title="Align to top-right"
-                >
-                  ↗
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'left')}
-                  title="Align to left center"
-                >
-                  ←
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'center')}
-                  title="Align to center"
-                >
-                  ⊙
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'right')}
-                  title="Align to right center"
-                >
-                  →
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'bottom-left')}
-                  title="Align to bottom-left"
-                >
-                  ↙
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'bottom')}
-                  title="Align to bottom center"
-                >
-                  ↓
-                </button>
-                <button
-                  style={{ ...styles.btn, padding: '8px' }}
-                  onClick={() => alignLayer(selectedLayer.id, 'bottom-right')}
-                  title="Align to bottom-right"
-                >
-                  ↘
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {/* ========================= */}
-        {/* TABLE PROPERTIES */}
-        {/* ========================= */}
-        {selectedLayer?.type === "table" && (
-          <>
-            <h3 style={styles.heading}>Table</h3>
-
-            <div className="accordion-section open">
-              <div className="accordion-header">
-                <span>Table Style</span>
-              </div>
-              <div className="accordion-content">
+                {/* Section 1: Background Color (MS Paint style) */}
                 <PaletteColorControl
-                  label="Border Color"
-                  value={selectedLayer.borderColor || "#e5e7eb"}
+                  label="Background"
+                  value={activeSlide.background}
                   onHistorySave={saveToHistory}
                   onColorChange={(color, save) =>
-                    updateLayerStyle(selectedLayer.id, {
-                      borderColor: color,
-                    }, save)
+                    updateSlideBackground(activeSlideId, color, save)
                   }
                 />
-                <div className="property-row">
-                  <label>Border Width ({selectedLayer.borderWidth || 1}px)</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    value={selectedLayer.borderWidth || 1}
-                    onChange={(e) =>
-                      updateLayerStyle(selectedLayer.id, {
-                        borderWidth: parseInt(e.target.value),
-                      })
+
+                {/* Section 2: Background Image */}
+                <div className="panel-section ">
+                  <div className="panel-section-header">
+                    <span>Background Image</span>
+                  </div>
+
+                  <div style={styles.row}>
+                    <button
+                      style={{ ...styles.btn, flex: 1 }}
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "image/*";
+                        input.onchange = async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+
+                          try {
+                            await withHybridLoader(
+                              async () => {
+                                const pptId = presentationId || "new";
+                                const { url, key } = await uploadFile(file, user?._id, pptId);
+
+                                setSlideBackgroundImage(activeSlideId, url, key);
+                                e.target.value = ""; // Reset input
+
+                                return { url, key };
+                              },
+                              "top",
+                              "Uploading background image..."
+                            );
+                          } catch (error) {
+                            alert("Failed to upload background image.");
+                          }
+                        };
+                        input.click();
+                      }}
+                    >
+                      Insert Image (Local)
+                    </button>
+                  </div>
+
+                  <div style={{ ...styles.row, marginTop: "8px", position: "relative" }}>
+                    <button
+                      style={{ ...styles.btn, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      onClick={() => setShowUrlPopup(!showUrlPopup)}
+                      title="Set background image from URL"
+                    >
+                      <LinkIcon size={16} /> Insert from URL
+                    </button>
+
+                    {showUrlPopup && createPortal(
+                      <div className="modal-overlay" onClick={() => setShowUrlPopup(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                          <h3>Add Image from URL</h3>
+                          <input
+                            type="url"
+                            placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                            value={tempUrl}
+                            onChange={(e) => setTempUrl(e.target.value)}
+                            className="url-input-field"
+                          />
+                          <div className="modal-buttons">
+                            <button
+                              className="secondary-btn"
+                              onClick={() => setShowUrlPopup(false)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              className="primary-btn"
+                              onClick={() => {
+                                if (tempUrl) {
+                                  setSlideBackgroundImage(activeSlideId, tempUrl);
+                                  setTempUrl("");
+                                  setShowUrlPopup(false);
+                                }
+                              }}
+                              disabled={!tempUrl}
+                            >
+                              Add Image
+                            </button>
+                          </div>
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                  </div>
+
+                  {activeSlide.backgroundImage && (
+                    <button
+                      style={{
+                        ...styles.btn,
+                        color: "#dc3545",
+                        borderColor: "#dc3545",
+                        marginTop: "8px",
+                        width: "100%",
+                      }}
+                      onClick={() => setSlideBackgroundImage(activeSlideId, null)}
+                      title="Remove image"
+                    >
+                      Remove Image
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
+
+            {/* ========================= */}
+            {/* COMMON LAYER PROPERTIES (Arrange + canvas alignment) */}
+            {selectedLayer && (
+              <div style={{ marginBottom: "20px", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
+                <h3 style={styles.heading}>Position</h3>
+
+                <div className="tool-section">
+                  <div className="tool-title">Alignment</div>
+
+                  <div className="align-row">
+                    {/* Horizontal */}
+                    <button title="Align Left"
+                      onClick={() => alignLayer(selectedLayer.id, 'left')}>
+                      <AlignStartVertical size={16} />
+                    </button>
+
+                    <button title="Align Center"
+                      onClick={() => alignLayer(selectedLayer.id, 'center')}>
+                      <AlignCenterHorizontal size={16} />
+                    </button>
+
+                    <button title="Align Right"
+                      onClick={() => alignLayer(selectedLayer.id, 'right')}>
+                      <AlignEndVertical size={16} />
+                    </button>
+
+                    <div className="align-divider"></div>
+
+                    {/* Vertical */}
+                    <button title="Align Top"
+                      onClick={() => alignLayer(selectedLayer.id, 'top')}>
+                      <AlignStartHorizontal size={16} />
+                    </button>
+
+                    <button title="Align Center"
+                      onClick={() => alignLayer(selectedLayer.id, 'center')}>
+                      <AlignCenterVertical size={16} />
+                    </button>
+
+
+
+                    <button title="Align Bottom"
+                      onClick={() => alignLayer(selectedLayer.id, 'bottom')}>
+                      <AlignEndHorizontal size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="tool-section">
+                  <div className="tool-title">Position</div>
+
+                  <div className="xy-row">
+                    <div className="xy-input">
+                      <span>X-</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={Number(selectedLayer.x).toFixed(1)}
+                        onChange={(e) =>
+                          updateLayerStyle(selectedLayer.id, { x: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+
+                    <div className="xy-input">
+                      <span>Y-</span>
+                      <input
+                        type="number" step="0.1"
+                        value={Number(selectedLayer.y).toFixed(1)}
+                        onChange={(e) =>
+                          updateLayerStyle(selectedLayer.id, { y: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="tool-section">
+                  <div className="tool-title">Arrange</div>
+
+                  <div className="arrange-row">
+                    <button onClick={() => reorderLayer(selectedLayer.id, "forward")}>
+                      Bring Forward
+                    </button>
+
+                    <button onClick={() => reorderLayer(selectedLayer.id, "backward")}>
+                      Send Backward
+                    </button>
+                  </div>
+                </div>
+                <div className="tool-section">
+                  <div className="tool-title">Rotation</div>
+
+                  <div className="rotation-only">
+                    <span>Rotation</span>
+                    <div className="rotation-input">
+                      <span>°</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={Number(selectedLayer.rotation || 0).toFixed(1)}
+                        onChange={(e) =>
+                          updateLayerRotation(selectedLayer.id, Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+
+            {/* ========================= */}
+            {/* TABLE PROPERTIES */}
+            {/* ========================= */}
+            {selectedLayer?.type === "table" && (
+              <>
+                <h3 style={styles.heading}>Table</h3>
+
+                <div className="accordion-section open">
+                  <div className="accordion-header">
+                    <span>Table Style</span>
+                  </div>
+                  <div className="accordion-content">
+                    <PaletteColorControl
+                      label="Border Color"
+                      value={selectedLayer.borderColor || "#e5e7eb"}
+                      onHistorySave={saveToHistory}
+                      onColorChange={(color, save) =>
+                        updateLayerStyle(selectedLayer.id, {
+                          borderColor: color,
+                        }, save)
+                      }
+                    />
+                    <div className="tool-section">
+                      <div className="tool-title">Border Width</div>
+
+                      <div className="inline-input">
+                        <span>Width</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          value={selectedLayer.borderWidth || 0}
+                          onChange={(e) =>
+                            updateLayerStyle(selectedLayer.id, {
+                              borderWidth: Math.min(20, Math.max(0, Number(e.target.value))),
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="tool-section">
+                  <div className="tool-title">Table Structure</div>
+
+                  <div className="table-structure">
+                    <div className="ts-row">
+                      <span>Row</span>
+                      <button onClick={() => addTableRow(selectedLayer.id)}>+</button>
+                      <button
+                        disabled={selectedLayer.rows <= 1}
+                        onClick={() => removeTableRow(selectedLayer.id)}
+                      >
+                        -
+                      </button>
+                    </div>
+
+                    <div className="ts-row">
+                      <span>Column</span>
+                      <button onClick={() => addTableColumn(selectedLayer.id)}>+</button>
+                      <button
+                        disabled={selectedLayer.cols <= 1}
+                        onClick={() => removeTableColumn(selectedLayer.id)}
+                      >
+                        -
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ========================= */}
+            {/* SHAPE PROPERTIES */}
+            {/* ========================= */}
+            {selectedLayer?.type === "shape" && (
+              <>
+                <h3 style={styles.heading}>Shape</h3>
+
+                {/* 1. Fill Color (Hidden for Line/Arrow) */}
+                {selectedLayer.shapeType !== "line" && selectedLayer.shapeType !== "arrow" && (
+                  <PaletteColorControl
+                    label="Fill Color"
+                    value={selectedLayer.fillColor || "#ffffff"}
+                    onHistorySave={saveToHistory}
+                    onColorChange={(color, save) =>
+                      updateShapeLayer(selectedLayer.id, { fillColor: color }, save)
+                    }
+                  />
+                )}
+
+                {/* 2. Stroke Color */}
+                <PaletteColorControl
+                  label="Stroke Color"
+                  value={selectedLayer.strokeColor || "#000000"}
+                  onHistorySave={saveToHistory}
+                  onColorChange={(color, save) =>
+                    updateShapeLayer(selectedLayer.id, { strokeColor: color }, save)
+                  }
+                />
+
+                {/* 3. Stroke Width */}
+                <div className="tool-section">
+                  <div className="tool-title">Stroke Width</div>
+
+                  <div className="inline-input">
+                    <span>Width</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={selectedLayer.strokeWidth ?? 0}
+                      onChange={(e) =>
+                        updateShapeLayer(selectedLayer.id, {
+                          strokeWidth: Math.min(20, Math.max(0, Number(e.target.value))),
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+
+            {/* ========================= */}
+            {/* TEXT PROPERTIES (Also for Table Cells when editing) */}
+            {/* ========================= */}
+            {(selectedLayer?.type === "text" || (selectedLayer?.type === "table" && editingCell)) && (
+              <>
+                <h3 style={styles.heading}>
+                  {selectedLayer.type === "table" ? "Cell Text" : "Typography"}
+                </h3>
+
+                <div className="tool-section typography-card">
+                  {/* Font Family */}
+                  <div style={styles.control}>
+                    <label style={styles.label}>Font</label>
+                    <select
+                      value={
+                        editingLayerId || editingCell
+                          ? (selectionMarks.fontFamily || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.fontFamily : selectedLayer.fontFamily))
+                          : selectedLayer.fontFamily
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (editingLayerId) {
+                          window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
+                        } else if (editingCell) {
+                          window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
+                          updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontFamily: val });
+                        } else {
+                          applyGlobalTextStyle(selectedLayer.id, { fontFamily: val });
+                        }
+                      }}
+                    >
+                      {FONTS.map((font) => (
+                        <option key={font} value={font} style={{ fontFamily: font }}>
+                          {font}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="typography-row">
+                    {/* Style Dropdown */}
+                    <select
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "bold") {
+                          applyGlobalTextStyle(selectedLayer.id, { fontWeight: "bold" });
+                        }
+                        if (val === "italic") {
+                          applyGlobalTextStyle(selectedLayer.id, { fontStyle: "italic" });
+                        }
+                        if (val === "underline") {
+                          applyGlobalTextStyle(selectedLayer.id, { textDecoration: "underline" });
+                        }
+                      }}
+                    >
+                      <option value="">Style</option>
+                      <option value="bold">Bold</option>
+                      <option value="italic">Italic</option>
+                      <option value="underline">Underline</option>
+                    </select>
+
+                    {/* Font Size */}
+                    <input
+                      type="number"
+                      value={selectedLayer.fontSize}
+                      onChange={(e) =>
+                        applyGlobalTextStyle(selectedLayer.id, { fontSize: Number(e.target.value) })
+                      }
+                    />
+
+
+                  </div>
+
+                  {/* Alignment */}
+                  <div style={styles.control}>
+                    <label style={styles.label}>Alignment</label>
+                    <div className="text-align-row">
+                      <button
+                        className={selectedLayer.textAlign === "left" ? "active" : ""}
+                        onClick={() => applyGlobalTextStyle(selectedLayer.id, { textAlign: "left" })}
+                      >
+                        <AlignLeft size={16} />
+                      </button>
+
+                      <button
+                        className={selectedLayer.textAlign === "center" ? "active" : ""}
+                        onClick={() => applyGlobalTextStyle(selectedLayer.id, { textAlign: "center" })}
+                      >
+                        <AlignCenter size={16} />
+                      </button>
+
+                      <button
+                        className={selectedLayer.textAlign === "right" ? "active" : ""}
+                        onClick={() => applyGlobalTextStyle(selectedLayer.id, { textAlign: "right" })}
+                      >
+                        <AlignRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "8px" }}>
+                    <div className="tool-title">Bullets</div>
+
+                    <div className="bullet-row">
+                      <button
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          if (activeEditor) toggleBlock(activeEditor, "bulleted-list");
+                        }}
+                        className={activeEditor && isBlockActive(activeEditor, "bulleted-list") ? "active" : ""}
+                      >
+                        • List
+                      </button>
+
+                      <button
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          if (activeEditor) toggleBlock(activeEditor, "numbered-list");
+                        }}
+                        className={activeEditor && isBlockActive(activeEditor, "numbered-list") ? "active" : ""}
+                      >
+                        1. List
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+
+
+                {/* Text Color – shared palette UI */}
+                <PaletteColorControl
+                  label="Text Color"
+                  value={
+                    editingLayerId || editingCell
+                      ? (selectionMarks.color || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.color : selectedLayer.color))
+                      : selectedLayer.color
+                  }
+                  onHistorySave={saveToHistory}
+                  onColorChange={(color, save) => {
+                    if (editingLayerId) {
+                      window.dispatchEvent(
+                        new CustomEvent("slate-apply-mark", {
+                          detail: { format: "color", value: color },
+                        })
+                      );
+                    } else if (editingCell) {
+                      window.dispatchEvent(
+                        new CustomEvent("slate-apply-mark", {
+                          detail: { format: "color", value: color },
+                        })
+                      );
+                      updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { color: color }, save);
+                    } else {
+                      applyGlobalTextStyle(selectedLayer.id, { color }, save);
+                    }
+                  }}
+                />
+
+
+
+                {/* Link */}
+                {selectedLayer.type !== "table" && (
+                  <div style={styles.control}>
+                    <label style={styles.label}>Link</label>
+                    <input
+                      type="text"
+                      placeholder="https://example.com"
+                      value={selectedLayer.link || ""}
+                      onChange={(e) => {
+                        const url = e.target.value;
+                        const updates = { link: url };
+
+                        // Auto-style if adding a link
+                        if (url && !selectedLayer.link) {
+                          updates.color = "#2563eb";
+                          updates.textDecoration = "underline";
+                        }
+
+                        updateTextLayer(selectedLayer.id, updates);
+                      }}
+                    />
+                  </div>
+                )}
+
+
+
+
+
+              </>
+            )}
+
+            {/* ========================= */}
+            {/* TABLE PROPERTIES */}
+            {/* ========================= */}
+
+            {/* ========================= */}
+            {/* IMAGE PROPERTIES */}
+            {/* ========================= */}
+            {selectedLayer?.type === "image" && (
+              <>
+                <div className="tool-section">
+                  <div className="tool-title">Image</div>
+
+                  <div className="image-row">
+                    <div className="image-input">
+                      <span>Radius (%)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={selectedLayer.borderRadius || 0}
+                        onChange={(e) =>
+                          updateLayerStyle(selectedLayer.id, {
+                            borderRadius: Math.min(100, Math.max(0, Number(e.target.value))),
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="image-input">
+                      <span>Border Width</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={50}
+                        value={selectedLayer.borderWidth || 0}
+                        onChange={(e) =>
+                          updateLayerStyle(selectedLayer.id, {
+                            borderWidth: Math.min(50, Math.max(0, Number(e.target.value))),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+
+
+                <div style={styles.control}>
+                  <label style={styles.label}>Border Color</label>
+                  <PaletteColorControl
+                    label="Border Color"
+                    value={selectedLayer.borderColor || "#000000"}
+                    onHistorySave={saveToHistory}
+                    onColorChange={(color, save) =>
+                      updateLayerStyle(selectedLayer.id, { borderColor: color }, save)
                     }
                   />
                 </div>
-              </div>
-            </div>
-
-            <div style={styles.control}>
-              <label style={styles.label}>Table Structure</label>
-              <div style={styles.row}>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => addTableRow(selectedLayer.id)}
-                >
-                  + Row
-                </button>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  onClick={() => addTableColumn(selectedLayer.id)}
-                >
-                  + Col
-                </button>
-              </div>
-              <div style={{ ...styles.row, marginTop: "8px" }}>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  disabled={selectedLayer.rows <= 1}
-                  onClick={() => removeTableRow(selectedLayer.id)}
-                  title={selectedLayer.rows <= 1 ? "Cannot remove last row" : "Remove Row"}
-                >
-                  - Row
-                </button>
-                <button
-                  style={{ ...styles.btn, flex: 1 }}
-                  disabled={selectedLayer.cols <= 1}
-                  onClick={() => removeTableColumn(selectedLayer.id)}
-                  title={selectedLayer.cols <= 1 ? "Cannot remove last column" : "Remove Column"}
-                >
-                  - Col
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ========================= */}
-        {/* SHAPE PROPERTIES */}
-        {/* ========================= */}
-        {selectedLayer?.type === "shape" && (
-          <>
-            <h3 style={styles.heading}>Shape</h3>
-
-            {/* 1. Fill Color (Hidden for Line/Arrow) */}
-            {selectedLayer.shapeType !== "line" && selectedLayer.shapeType !== "arrow" && (
-              <PaletteColorControl
-                label="Fill Color"
-                value={selectedLayer.fillColor || "#ffffff"}
-                onHistorySave={saveToHistory}
-                onColorChange={(color, save) =>
-                  updateShapeLayer(selectedLayer.id, { fillColor: color }, save)
-                }
-              />
+              </>
             )}
-
-            {/* 2. Stroke Color */}
-            <PaletteColorControl
-              label="Stroke Color"
-              value={selectedLayer.strokeColor || "#000000"}
-              onHistorySave={saveToHistory}
-              onColorChange={(color, save) =>
-                updateShapeLayer(selectedLayer.id, { strokeColor: color }, save)
-              }
-            />
-
-            {/* 3. Stroke Width */}
-            <RangeControl
-              label={`Stroke Width (${selectedLayer.strokeWidth ?? 0}px)`}
-              value={selectedLayer.strokeWidth ?? 0}
-              min={0}
-              max={20}
-              onHistorySave={saveToHistory}
-              onChange={(val, save) =>
-                updateShapeLayer(selectedLayer.id, { strokeWidth: val }, save)
-              }
-            />
-          </>
-        )}
-
-
-        {/* ========================= */}
-        {/* TEXT PROPERTIES (Also for Table Cells when editing) */}
-        {/* ========================= */}
-        {(selectedLayer?.type === "text" || (selectedLayer?.type === "table" && editingCell)) && (
-          <>
-            <h3 style={styles.heading}>
-              {selectedLayer.type === "table" ? "Cell Text" : "Text"}
-            </h3>
-
-            {/* Font Size */}
-            <div style={styles.control}>
-              <label style={styles.label}>Font Size</label>
-              <input
-                type="number"
-                value={
-                  editingLayerId || editingCell
-                    ? (selectionMarks.fontSize || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.fontSize : selectedLayer.fontSize))
-                    : selectedLayer.fontSize
-                }
-                min={8}
-                max={200}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (editingLayerId) {
-                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
-                  } else if (editingCell) {
-                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontSize', value: val } }));
-                    // Also update cell prop directly for container style
-                    updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontSize: val });
-                  } else {
-                    applyGlobalTextStyle(selectedLayer.id, { fontSize: val });
-                  }
-                }}
-              />
-            </div>
-
-            {/* Text Color – shared palette UI */}
-            <PaletteColorControl
-              label="Text Color"
-              value={
-                editingLayerId || editingCell
-                  ? (selectionMarks.color || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.color : selectedLayer.color))
-                  : selectedLayer.color
-              }
-              onHistorySave={saveToHistory}
-              onColorChange={(color, save) => {
-                if (editingLayerId) {
-                  window.dispatchEvent(
-                    new CustomEvent("slate-apply-mark", {
-                      detail: { format: "color", value: color },
-                    })
-                  );
-                } else if (editingCell) {
-                  window.dispatchEvent(
-                    new CustomEvent("slate-apply-mark", {
-                      detail: { format: "color", value: color },
-                    })
-                  );
-                  updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { color: color }, save);
-                } else {
-                  applyGlobalTextStyle(selectedLayer.id, { color }, save);
-                }
-              }}
-            />
-            {/* Font Family */}
-            <div style={styles.control}>
-              <label style={styles.label}>Font</label>
-              <select
-                value={
-                  editingLayerId || editingCell
-                    ? (selectionMarks.fontFamily || (editingCell ? selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.fontFamily : selectedLayer.fontFamily))
-                    : selectedLayer.fontFamily
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (editingLayerId) {
-                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
-                  } else if (editingCell) {
-                    window.dispatchEvent(new CustomEvent('slate-apply-mark', { detail: { format: 'fontFamily', value: val } }));
-                    updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { fontFamily: val });
-                  } else {
-                    applyGlobalTextStyle(selectedLayer.id, { fontFamily: val });
-                  }
-                }}
-              >
-                {FONTS.map((font) => (
-                  <option key={font} value={font} style={{ fontFamily: font }}>
-                    {font}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-
-            {/* Link */}
-            {selectedLayer.type !== "table" && (
-              <div style={styles.control}>
-                <label style={styles.label}>Link</label>
-                <input
-                  type="text"
-                  placeholder="https://example.com"
-                  value={selectedLayer.link || ""}
-                  onChange={(e) => {
-                    const url = e.target.value;
-                    const updates = { link: url };
-
-                    // Auto-style if adding a link
-                    if (url && !selectedLayer.link) {
-                      updates.color = "#2563eb";
-                      updates.textDecoration = "underline";
-                    }
-
-                    updateTextLayer(selectedLayer.id, updates);
-                  }}
-                />
-              </div>
-            )}
-
-
-            {/* Bold / Italic / Underline / Lists */}
-            <div style={styles.control}>
-              <label style={styles.label}>Style</label>
-              <div style={styles.row}>
-                <button
-                  onClick={() => {
-                    if (editingLayerId || editingCell) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'bold' } }));
-                    } else {
-                      const newVal = selectedLayer.fontWeight === "bold" ? "normal" : "bold";
-                      applyGlobalTextStyle(selectedLayer.id, { fontWeight: newVal });
-                    }
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    ...styles.btn,
-                    background:
-                      (editingLayerId ? selectionMarks.bold : (editingCell && selectionMarks.bold) || selectedLayer.fontWeight === "bold")
-                        ? "#2563eb"
-                        : "#f3f4f6",
-                    color:
-                      (editingLayerId ? selectionMarks.bold : (editingCell && selectionMarks.bold) || selectedLayer.fontWeight === "bold")
-                        ? "#fff"
-                        : "#000",
-                  }}
-                >
-                  B
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (editingLayerId || editingCell) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'italic' } }));
-                    } else {
-                      const newVal = selectedLayer.fontStyle === "italic" ? "normal" : "italic";
-                      applyGlobalTextStyle(selectedLayer.id, { fontStyle: newVal });
-                    }
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    ...styles.btn,
-                    background:
-                      (editingLayerId ? selectionMarks.italic : (editingCell && selectionMarks.italic) || selectedLayer.fontStyle === "italic")
-                        ? "#2563eb"
-                        : "#f3f4f6",
-                    color:
-                      (editingLayerId ? selectionMarks.italic : (editingCell && selectionMarks.italic) || selectedLayer.fontStyle === "italic")
-                        ? "#fff"
-                        : "#000",
-                  }}
-                >
-                  I
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (editingLayerId || editingCell) {
-                      window.dispatchEvent(new CustomEvent('slate-toggle-mark', { detail: { format: 'underline' } }));
-                    } else {
-                      const newVal = selectedLayer.textDecoration === "underline" ? "none" : "underline";
-                      applyGlobalTextStyle(selectedLayer.id, { textDecoration: newVal });
-                    }
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    ...styles.btn,
-                    background:
-                      (editingLayerId ? selectionMarks.underline : (editingCell && selectionMarks.underline) || selectedLayer.textDecoration === "underline")
-                        ? "#2563eb"
-                        : "#f3f4f6",
-                    color:
-                      (editingLayerId ? selectionMarks.underline : (editingCell && selectionMarks.underline) || selectedLayer.textDecoration === "underline")
-                        ? "#fff"
-                        : "#000",
-                  }}
-                >
-                  U
-                </button>
-
-                {/* Bullet List */}
-                <button
-                  onClick={() => {
-                    if (activeEditor) toggleBlock(activeEditor, "bulleted-list");
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    ...styles.btn,
-                    background: (activeEditor && isBlockActive(activeEditor, "bulleted-list")) ? "#2563eb" : "#f3f4f6",
-                    color: (activeEditor && isBlockActive(activeEditor, "bulleted-list")) ? "#fff" : "#000",
-                  }}
-                  title="Bullet List"
-                >
-                  •
-                </button>
-
-                {/* Numbered List */}
-                <button
-                  onClick={() => {
-                    if (activeEditor) toggleBlock(activeEditor, "numbered-list");
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    ...styles.btn,
-                    background: (activeEditor && isBlockActive(activeEditor, "numbered-list")) ? "#2563eb" : "#f3f4f6",
-                    color: (activeEditor && isBlockActive(activeEditor, "numbered-list")) ? "#fff" : "#000",
-                    fontWeight: "600",
-                    fontSize: "10px"
-                  }}
-                  title="Numbered List"
-                >
-                  1.
-                </button>
-              </div>
-            </div>
-
-            {/* Alignment */}
-            <div style={styles.control}>
-              <label style={styles.label}>Alignment</label>
-              <div style={styles.row}>
-                {["left", "center", "right"].map((align) => (
-                  <button
-                    key={align}
-                    style={{
-                      ...styles.btn,
-                      background:
-                        (editingCell && selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.textAlign === align) || selectedLayer.textAlign === align
-                          ? "#2563eb"
-                          : "#f3f4f6",
-                      color:
-                        (editingCell && selectedLayer.cells?.[editingCell.row]?.[editingCell.col]?.textAlign === align) || selectedLayer.textAlign === align
-                          ? "#fff"
-                          : "#000",
-                    }}
-                    onClick={() => {
-                      if (editingLayerId) {
-                        window.dispatchEvent(new CustomEvent('slate-set-block-style', { detail: { properties: { textAlign: align } } }));
-                        updateTextLayer(selectedLayer.id, { textAlign: align }, false);
-                      } else if (editingCell) {
-                        window.dispatchEvent(new CustomEvent('slate-set-block-style', { detail: { properties: { textAlign: align } } }));
-                        updateTableCell(selectedLayer.id, editingCell.row, editingCell.col, { textAlign: align });
-                      } else {
-                        applyGlobalTextStyle(selectedLayer.id, { textAlign: align });
-                      }
-                    }}
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    {align}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ========================= */}
-        {/* TABLE PROPERTIES */}
-        {/* ========================= */}
-
-        {/* ========================= */}
-        {/* IMAGE PROPERTIES */}
-        {/* ========================= */}
-        {selectedLayer?.type === "image" && (
-          <>
-            <h3 style={styles.heading}>Image Style</h3>
-
-            <RangeControl
-              label="Corner Radius"
-              value={selectedLayer.borderRadius || 0}
-              min={0}
-              max={100}
-              onChange={(val, saveHistory) =>
-                updateLayerStyle(selectedLayer.id, { borderRadius: val }, saveHistory)
-              }
-              onHistorySave={saveToHistory}
-            />
-
-            <RangeControl
-              label="Border Width"
-              value={selectedLayer.borderWidth || 0}
-              min={0}
-              max={20}
-              onChange={(val, saveHistory) =>
-                updateLayerStyle(selectedLayer.id, { borderWidth: val }, saveHistory)
-              }
-              onHistorySave={saveToHistory}
-            />
-
-            <div style={styles.control}>
-              <label style={styles.label}>Border Color</label>
-              <PaletteColorControl
-                label="Border Color"
-                value={selectedLayer.borderColor || "#000000"}
-                onHistorySave={saveToHistory}
-                onColorChange={(color, save) =>
-                  updateLayerStyle(selectedLayer.id, { borderColor: color }, save)
-                }
-              />
-            </div>
-          </>
-        )}
           </>
         )}
       </div>
@@ -1004,5 +950,6 @@ const styles = {
     padding: "6px 10px",
     border: "1px solid #ddd",
     cursor: "pointer",
+    fontSize: 14
   },
 };

@@ -333,7 +333,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
               className="icon-btn"
               data-tooltip="Add Table"
             >
-              <Table size={18} />
+              <Table size={34} />
               <ChevronDown size={14} />
             </button>
 
@@ -385,7 +385,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
               onClick={() => setShowShapes(!showShapes)}
               data-tooltip="Shapes"
             >
-              <Square size={18} />
+              <Square size={38} />
               <ChevronDown size={14} />
             </button>
 
@@ -510,7 +510,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
               onClick={() => setShowImageOptions(!showImageOptions)}
               data-tooltip="Image Options"
             >
-              <ImageIcon size={18} />
+              <ImageIcon size={38} />
               <ChevronDown size={14} />
             </button>
 
