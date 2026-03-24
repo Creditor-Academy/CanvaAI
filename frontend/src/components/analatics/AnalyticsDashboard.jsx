@@ -124,7 +124,7 @@ export default function CreditsAnalytics() {
 
       <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-slate-100/60 blur-2xl"></div>
 
-      <div className="relative px-4 pt-4 lg:px-4 lg:pt-4">
+     <div className="relative px-5 pt-5">
         <div className="flex items-center gap-3">
           <div
             className={`flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-md ${color}`}
@@ -140,7 +140,7 @@ export default function CreditsAnalytics() {
         </div>
       </div>
 
-      <div className="relative space-y-3 px-4 py-4 lg:px-4 lg:py-4">
+      <div className="relative space-y-3 px-5 py-5">
         {children}
       </div>
     </div>
@@ -230,7 +230,7 @@ export default function CreditsAnalytics() {
         </div>
 
         {/* BOTTOM 3 BOXES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 max-w-[900px] mx-auto">
           <Section
             title="Presentation"
             color="bg-blue-800"
@@ -278,7 +278,7 @@ export default function CreditsAnalytics() {
             <Row label="Editor Usage" value={`$${usage.image.editor}`} />
           </Section>
 
-          <Section
+          {/* <Section
             title="Documents"
             color="bg-[#62b2e1]"
             icon={
@@ -298,7 +298,7 @@ export default function CreditsAnalytics() {
           >
             <Row label="AI Generator" value={`$${usage.document.aiGenerator}`} />
             <Row label="Editor Images" value={`$${usage.document.editorImages}`} />
-          </Section>
+          </Section> */}
         </div>
       </div>
     </div>

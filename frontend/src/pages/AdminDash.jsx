@@ -153,7 +153,6 @@ const AdminDash = () => {
                   >
                     <option value="all">All Categories</option>
                     <option value="presentation">Presentation</option>
-                    <option value="document">Document</option>
                     <option value="image">Image</option>
                   </select>
 

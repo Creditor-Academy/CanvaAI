@@ -34,12 +34,12 @@ const TOOLS = [
     route: "/canva-clone",
     color: "bg-yellow-400 text-black"
   },
-  {
-    name: "Doc",
-    icon: HiOutlineDocumentText,
-    route: "/editor",
-    color: "bg-blue-500 text-white"
-  },
+  // {
+  //   name: "Doc",
+  //   icon: HiOutlineDocumentText,
+  //   route: "/editor",
+  //   color: "bg-blue-500 text-white"
+  // },
   {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
@@ -52,12 +52,12 @@ const TOOLS = [
     route: "/create/ai-design",
     color: "bg-yellow-300 text-black"
   },
-  {
-    name: "AI Doc",
-    icon: HiOutlineDocumentText,
-    route: "/create/content-writer",
-    color: "bg-blue-800 text-white"
-  }
+  // {
+  //   name: "AI Doc",
+  //   icon: HiOutlineDocumentText,
+  //   route: "/create/content-writer",
+  //   color: "bg-blue-800 text-white"
+  // }
 ];
 
 const toolImages = [
@@ -220,11 +220,11 @@ export default function Dashboard() {
       title: "Image",
       route: "/canva-clone"
     },
-    {
-      icon: HiOutlineDocumentText,
-      title: "Document",
-      route: "/editor"
-    }
+    // {
+    //   icon: HiOutlineDocumentText,
+    //   title: "Document",
+    //   route: "/editor"
+    // }
   ];
 
   const aiTools = [
@@ -238,11 +238,11 @@ export default function Dashboard() {
       title: "AI Image",
       route: "/create/ai-design"
     },
-    {
-      icon: HiOutlineDocumentText,
-      title: "AI Doc",
-      route: "/create/content-writer"
-    }
+    // {
+    //   icon: HiOutlineDocumentText,
+    //   title: "AI Doc",
+    //   route: "/create/content-writer"
+    // }
   ];
 
   return (
@@ -283,7 +283,7 @@ export default function Dashboard() {
                 <p className="text-sm sm:text-[15px] text-slate-600 mt-2 max-w-xl leading-6">
                   Create <span className="font-semibold text-slate-700">presentations</span>,{" "}
                   <span className="font-semibold text-slate-700">images</span> and{" "}
-                  <span className="font-semibold text-slate-700">documents</span> with
+                  {/* <span className="font-semibold text-slate-700">documents</span> with */}
                   AI-powered templates in minutes.
                 </p>
               </div>
@@ -326,17 +326,9 @@ export default function Dashboard() {
 
         {/* TOOLS */}
         <div className="mt-3 relative">
-          <button
-            onClick={scrollLeft}
-            className="hidden md:flex absolute left-[-12px] lg:left-[-18px] top-1/2 -translate-y-1/2 z-10 bg-white rounded-full w-10 h-10 items-center justify-center shadow"
-          >
-            <FiChevronLeft />
-          </button>
+          
 
-          <div
-            ref={scrollRef}
-            className="flex gap-4 sm:gap-5 lg:gap-7 overflow-x-auto overflow-y-hidden scroll-smooth hide-scrollbar py-4 pr-1"
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 py-4">
             {TOOLS.map((tool, i) => {
               const colors = [
                 "bg-blue-100",
@@ -352,7 +344,7 @@ export default function Dashboard() {
                   key={i}
                   onClick={() => navigate(tool.route)}
                   transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                  className={`group relative w-[185px] sm:w-[200px] lg:w-[210px] h-[96px] sm:h-[100px] flex-shrink-0 rounded-2xl px-4 sm:px-5 py-4 cursor-pointer ${colors[i]}`}
+                  className={`group relative w-full h-[96px] sm:h-[100px] flex-shrink-0 rounded-2xl px-4 sm:px-5 py-4 cursor-pointer ${colors[i]}`}
                 >
                   <p className="text-sm font-semibold text-gray-900">{tool.name}</p>
 
@@ -372,12 +364,7 @@ export default function Dashboard() {
             })}
           </div>
 
-          <button
-            onClick={scrollRight}
-            className="hidden md:flex absolute right-[-12px] lg:right-[-18px] top-1/2 -translate-y-1/2 z-10 bg-white rounded-full w-10 h-10 items-center justify-center shadow"
-          >
-            <FiChevronRight />
-          </button>
+          
         </div>
 
         {/* TEMPLATES */}
@@ -453,7 +440,7 @@ export default function Dashboard() {
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[760px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-8 lg:p-10 relative border border-white/70"
+             className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
             >
               <button
                 onClick={() => setShowCreate(false)}
@@ -493,7 +480,7 @@ export default function Dashboard() {
                   key={tab}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                 className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
                 >
                   {aiTools.map((tool, i) => {
                     const Icon = tool.icon;
@@ -522,7 +509,7 @@ export default function Dashboard() {
                   key={tab}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
                 >
                   {manualTools.map((tool, i) => {
                     const Icon = tool.icon;

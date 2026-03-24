@@ -25,8 +25,7 @@ const Footer = () => {
             </div>
 
             <p>
-              Designova AI helps creators generate presentations,
-              documents and visuals instantly with powerful AI tools.
+              Designova AI helps creators generate presentations and visuals instantly with powerful AI tools.
             </p>
 
             <div className="social-icons">
