@@ -16,14 +16,15 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import PageComponent from '../components/PageView.jsx';
 
-// ── A4 constants (96 DPI) ─────────────────────────────────────────────────────
+// ── A4 constants (96 DPI) - MUST MATCH CSS! ────────────────────────────────────
+// CSS: .page { min-height: 1123px; padding: 48px 72px; }
 export const PAGE_HEIGHT   = 1123;
 export const PAGE_WIDTH    = 794;
-export const TOP_MARGIN    = 96;
-export const BOTTOM_MARGIN = 96;
-export const LEFT_MARGIN   = 72;
-export const RIGHT_MARGIN  = 72;
-export const USABLE_HEIGHT = PAGE_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN; // 931px
+export const TOP_MARGIN    = 48;    // Match CSS padding-top
+export const BOTTOM_MARGIN = 48;    // Match CSS padding-bottom
+export const LEFT_MARGIN   = 72;    // Match CSS padding-left
+export const RIGHT_MARGIN  = 72;    // Match CSS padding-right
+export const USABLE_HEIGHT = PAGE_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN; // 1027px
 
 // Kept for backward compat with TextEditor.jsx imports
 export const addHeadingStyles = () => {};

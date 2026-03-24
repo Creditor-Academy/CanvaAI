@@ -32,18 +32,18 @@
   border-radius: 2px;
   
   /* Internal padding = margins */
-  padding: 96px 72px;             /* Top/Bottom 96px, Left/Right 72px */
+  padding: 48px 72px;             /* Top/Bottom 48px, Left/Right 72px */
   box-sizing: border-box;         /* Include padding in dimensions */
   
   /* Positioning */
   position: relative;
   display: block;
   
-  /* CRITICAL: Allow content to flow naturally, don't clip */
-  overflow: visible;
+  /* CRITICAL: Clip content to page boundaries to prevent margin overflow */
+  overflow: hidden;                /* Changed from visible to hidden */
   
   /* PERFORMANCE OPTIMIZATIONS */
-  contain: layout style;          /* Removed paint containment */
+  contain: layout style paint;     /* Full containment for better performance */
   will-change: transform;
   transform: translateZ(0);       /* GPU acceleration */
 }

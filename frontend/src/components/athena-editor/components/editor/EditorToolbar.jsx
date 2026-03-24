@@ -383,8 +383,113 @@ export const EditorToolbar = ({
   const [exportFormat, setExportFormat] = useState('');
   const [exportProgressMessage, setExportProgressMessage] = useState('');
 
-  // Routing
-  const navigate = useNavigate();
+  // 🔥 CRITICAL: Toolbar reactive state - tracks current selection formatting
+  const [toolbarState, setToolbarState] = useState({
+    isBold: false,
+    isItalic: false,
+    isUnderline: false,
+    isStrikethrough: false,
+    isCode: false,
+    isSuperscript: false,
+    isSubscript: false,
+    isHeading1: false,
+    isHeading2: false,
+    isHeading3: false,
+    isParagraph: false,
+    isBulletList: false,
+    isOrderedList: false,
+    isTaskList: false,
+    textAlign: 'left',
+    isBlockquote: false,
+  });
+
+  // 🔥 CRITICAL FIX: Update toolbar state based on current selection
+  // This runs whenever selection or transaction changes
+  const updateToolbarState = useCallback(() => {
+    if (!editor || editor.isDestroyed) return;
+    
+    try {
+      const newState = {
+        isBold: editor.isActive('bold'),
+        isItalic: editor.isActive('italic'),
+        isUnderline: editor.isActive('underline'),
+        isStrikethrough: editor.isActive('strikethrough'),
+        isCode: editor.isActive('code'),
+        isSuperscript: editor.isActive('superscript'),
+        isSubscript: editor.isActive('subscript'),
+        isHeading1: editor.isActive('heading', { level: 1 }),
+        isHeading2: editor.isActive('heading', { level: 2 }),
+        isHeading3: editor.isActive('heading', { level: 3 }),
+        isParagraph: editor.isActive('paragraph'),
+        isBulletList: editor.isActive('bulletList'),
+        isOrderedList: editor.isActive('orderedList'),
+        isTaskList: editor.isActive('taskList'),
+        textAlign: editor.isActive({ textAlign: 'center' }) ? 'center' :
+                   editor.isActive({ textAlign: 'right' }) ? 'right' :
+                   editor.isActive({ textAlign: 'justify' }) ? 'justify' : 'left',
+        isBlockquote: editor.isActive('blockquote'),
+      };
+      
+      // 🔥 DEBUG: Log toolbar state changes to diagnose update issues
+      console.log('[updateToolbarState] Selection changed:', {
+        from: editor.state.selection.from,
+        to: editor.state.selection.to,
+        selectedText: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '').substring(0, 50),
+        isH1: newState.isHeading1,
+        isH2: newState.isHeading2,
+        isH3: newState.isHeading3,
+        isParagraph: newState.isParagraph,
+        isBold: newState.isBold,
+        textAlign: newState.textAlign
+      });
+      
+      setToolbarState(newState);
+    } catch (error) {
+      console.error('[updateToolbarState] Error:', error);
+    }
+  }, [editor]);
+
+  // 🔥 CRITICAL: Subscribe to editor events to update toolbar reactively
+  useEffect(() => {
+    if (!editor) return;
+    
+    // Update immediately on mount
+    updateToolbarState();
+    
+    // Subscribe to selection updates - this fires when cursor moves or selection changes
+    const unsubscribeSelection = editor.on('selectionUpdate', () => {
+      updateToolbarState();
+    });
+    
+    // Subscribe to transactions - this fires on any content change
+    const unsubscribeTransaction = editor.on('transaction', ({ transaction }) => {
+      // Only update if it's not a pagination transaction to avoid unnecessary re-renders
+      if (!transaction.getMeta('athena_is_paginating')) {
+        updateToolbarState();
+      }
+    });
+    
+    // Also listen to mouseup on editor DOM for click-based selection
+    const handleMouseUp = () => {
+      console.log('[EditorToolbar] Mouseup detected on editor - updating toolbar state...');
+      // Small delay to ensure selection has updated
+      setTimeout(updateToolbarState, 10);
+    };
+    
+    const editorDom = editor.view?.dom;
+    if (editorDom) {
+      editorDom.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    // Cleanup
+    return () => {
+      unsubscribeSelection?.();
+      unsubscribeTransaction?.();
+      if (editorDom) {
+        editorDom.removeEventListener('mouseup', handleMouseUp);
+      }
+    };
+  }, [editor, updateToolbarState]);
 
   // AI States
   const [showAIAssistant, setShowAIAssistant] = useState(false);
@@ -2471,7 +2576,12 @@ export const EditorToolbar = ({
         <div className="flex items-center gap-2">
           <Select
             modal={false}
-            value={String(activeHeadingLevel || 0)}
+            value={String(
+              toolbarState.isHeading1 ? '1' :
+              toolbarState.isHeading2 ? '2' :
+              toolbarState.isHeading3 ? '3' :
+              '0'
+            )}
             onOpenChange={(open) => {
               if (open) {
                 onMenuOpen(editor);
@@ -2500,7 +2610,7 @@ export const EditorToolbar = ({
             </SelectContent>
           </Select>
           <div className="text-xs text-blue-600 font-medium px-2 py-1 bg-blue-50 rounded-full">
-            Level: {activeHeadingLevel || 0}
+            Level: {toolbarState.isHeading1 ? '1' : toolbarState.isHeading2 ? '2' : toolbarState.isHeading3 ? '3' : '0'}
           </div>
         </div>
 
@@ -2510,7 +2620,7 @@ export const EditorToolbar = ({
         <ToolbarButton
           editor={editor}
           onClick={() => handleFormatAction('bold')}
-          isActive={editor.isActive("bold")}
+          isActive={toolbarState.isBold}
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Bold className="w-4 h-4 text-blue-600" />
@@ -2518,7 +2628,7 @@ export const EditorToolbar = ({
         <ToolbarButton
           editor={editor}
           onClick={() => handleFormatAction('italic')}
-          isActive={editor.isActive("italic")}
+          isActive={toolbarState.isItalic}
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Italic className="w-4 h-4 text-blue-600" />
@@ -2526,7 +2636,7 @@ export const EditorToolbar = ({
         <ToolbarButton
           editor={editor}
           onClick={() => handleFormatAction('underline')}
-          isActive={editor.isActive("underline")}
+          isActive={toolbarState.isUnderline}
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Underline className="w-4 h-4 text-blue-600" />
@@ -2534,7 +2644,7 @@ export const EditorToolbar = ({
         <ToolbarButton
           editor={editor}
           onClick={() => handleFormatAction('strike')}
-          isActive={editor.isActive("strike")}
+          isActive={toolbarState.isStrikethrough}
           className="rounded-lg bg-linear-to-br from-blue-100 to-sky-100 hover:from-blue-200 hover:to-sky-200 text-blue-600 transition-all duration-300"
         >
           <Strikethrough className="w-4 h-4 text-blue-600" />
@@ -2944,33 +3054,33 @@ export const EditorToolbar = ({
                 console.log('Numbered list selected');
                 toggleOrderedList();
               }}
-              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("orderedList") ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-                }`}
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${toolbarState.isOrderedList ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""}
+                `}
             >
               <ListOrdered className="w-4 h-4 mr-2" />
-              Numbered List {editor.isActive("orderedList") && "✓"}
+              Numbered List {toolbarState.isOrderedList && "✓"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 console.log('Bullet list selected');
                 toggleBulletList();
               }}
-              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("bulletList") ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-                }`}
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${toolbarState.isBulletList ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""}
+                `}
             >
               <List className="w-4 h-4 mr-2" />
-              Bullet List {editor.isActive("bulletList") && "✓"}
+              Bullet List {toolbarState.isBulletList && "✓"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 console.log('Task list selected');
                 toggleTaskList();
               }}
-              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${editor.isActive("taskList") ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""
-                }`}
+              className={`hover:bg-linear-to-r hover:from-blue-50 hover:to-blue-100 transition-all duration-200 cursor-pointer px-2 py-1.5 text-sm rounded-sm ${toolbarState.isTaskList ? "bg-linear-to-r from-green-50 to-green-100 text-green-700 font-medium" : ""}
+                `}
             >
               <ListChecks className="w-4 h-4 mr-2" />
-              Task List {editor.isActive("taskList") && "✓"}
+              Task List {toolbarState.isTaskList && "✓"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

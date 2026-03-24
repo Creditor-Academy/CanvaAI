@@ -16,9 +16,9 @@ import { paginateDocument } from './paginationEngine.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const PAGE_HEIGHT = 1123;        // Full A4 height in px
-const MARGIN_TOP = 96;           // Top margin in px
-const MARGIN_BOTTOM = 96;        // Bottom margin in px
-const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 931px
+const MARGIN_TOP = 48;           // Top margin - MUST MATCH CSS padding-top
+const MARGIN_BOTTOM = 48;        // Bottom margin - MUST MATCH CSS padding-bottom
+const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 1027px
 
 // ── Mutex & Scheduling ───────────────────────────────────────────────────────
 let isPaginating = false;
@@ -152,8 +152,34 @@ const needsFullPagination = (editor) => {
 const measureBlockHeight = (editor, pos, node) => {
   const dom = editor.view.nodeDOM(pos);
   if (dom instanceof HTMLElement) {
-    return dom.offsetHeight || 20;
+    // 🔥 CRITICAL DEBUG: Catch the 1123px bug
+    const height = dom.offsetHeight || 20;
+    
+    console.log(`[measureBlockHeight] ${node.type.name}:`, {
+      position: pos,
+      domElement: dom.tagName,
+      domClass: dom.className,
+      offsetHeight: height,
+      parentElement: dom.parentElement?.tagName,
+      grandParent: dom.parentElement?.parentElement?.tagName,
+      expectedRange: node.type.name === 'paragraph' ? '20-120px' : 'varies'
+    });
+    
+    // 🚨 SAFEGUARD: If we're measuring a full page, something is VERY wrong
+    if (height > 1000) {
+      console.error(`🚨 [measureBlockHeight] BLOCK HEIGHT ${height}px IS SUSPICIOUS! This is likely measuring the page container, not the block!`, {
+        nodeType: node.type.name,
+        domStructure: dom.outerHTML.substring(0, 200),
+        parentStructure: dom.parentElement?.outerHTML.substring(0, 200)
+      });
+      
+      // Force reasonable max height to prevent pagination explosion
+      return Math.min(height, 300); // Cap at 300px max for any single block
+    }
+    
+    return height;
   }
+  console.warn(`[measureBlockHeight] Could not measure ${node.type.name} at pos ${pos} - using fallback`);
   return 20; // Fallback height
 };
 

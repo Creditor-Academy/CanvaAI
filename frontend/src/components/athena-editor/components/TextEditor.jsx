@@ -4292,9 +4292,38 @@ const TextEditorContent = ({
   const isPastingRef = useRef(false);
   const pasteTimerRef = useRef(null);
   
-  // 🚀 OPTIMIZATION: Extract docId and use React Query for document fetching
-  const urlParams = new URL(window.location.href).searchParams;
-  const docId = urlParams.get('docId');
+  // 🚀 OPTIMIZATION: Extract docId from multiple sources with priority
+  // Priority: 1) ?docId= query param, 2) URL path, 3) localStorage
+  const getDocId = () => {
+    const urlParams = new URL(window.location.href).searchParams;
+    
+    // Priority 1: Query parameter
+    const queryDocId = urlParams.get('docId');
+    if (queryDocId && /^[0-9a-fA-F]{24}$/.test(queryDocId)) {
+      console.log('[getDocId] Using query param:', queryDocId);
+      return queryDocId;
+    }
+    
+    // Priority 2: URL path (/editor/:docId)
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const lastPart = pathParts[pathParts.length - 1];
+    if (/^[0-9a-fA-F]{24}$/.test(lastPart)) {
+      console.log('[getDocId] Using URL path:', lastPart);
+      return lastPart;
+    }
+    
+    // Priority 3: localStorage
+    const storedId = localStorage.getItem('athena_current_mongo_id');
+    if (storedId && /^[0-9a-fA-F]{24}$/.test(storedId)) {
+      console.log('[getDocId] Using localStorage:', storedId);
+      return storedId;
+    }
+    
+    console.log('[getDocId] No valid docId found');
+    return null;
+  };
+  
+  const docId = getDocId();
   
   const { 
     data: backendResponse, 
@@ -5210,20 +5239,44 @@ const TextEditorContent = ({
     const jsonContent = fetchedDoc.data?.content || fetchedDoc.content;
     const htmlContent = fetchedDoc.data?.html || fetchedDoc.html || '';
 
+    console.log('📥 LOADING DOCUMENT:', {
+      hasJsonContent: !!jsonContent,
+      hasHtmlContent: !!htmlContent,
+      jsonType: typeof jsonContent,
+      contentKeys: jsonContent ? Object.keys(jsonContent) : [],
+      firstChildType: jsonContent?.content?.[0]?.type,
+      usedSource: jsonContent ? 'JSON (TipTap)' : 'HTML (Fallback)',
+      rawDataStructure: fetchedDoc.data ? 'has data wrapper' : 'no data wrapper',
+      fullFetchedDoc: fetchedDoc  // Log entire object for inspection
+    });
+
     // Defer setContent to avoid flushSync warning in React 19
     requestAnimationFrame(() => {
       if (jsonContent && typeof jsonContent === 'object') {
+        console.log('✅ Setting content from TipTap JSON - preserves all formatting');
+        console.log('   JSON structure:', JSON.stringify(jsonContent, null, 2).substring(0, 500) + '...');
         editor.commands.setContent(jsonContent);
+        
+        // 🔥 CRITICAL: Force pagination after setting content
+        // This ensures content is properly distributed across pages
+        setTimeout(() => {
+          console.log('[setContent] Forcing pagination after content load');
+          import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
+            paginateDocument(editor, { force: true });
+          });
+        }, 100);
       } else if (htmlContent) {
+        console.warn('⚠️ Using HTML fallback - some formatting may be lost');
+        console.warn('   HTML content:', htmlContent.substring(0, 300) + '...');
         editor.commands.setContent(normalizeInlineStyles(htmlContent));
-      }
-      
-      if (fetchedDoc.data?.isAiGenerated) {
-        setIsAiGeneratedDoc(true);
-      }
-
-      if (fetchedDoc.title && setDocumentTitle) {
-        setDocumentTitle(fetchedDoc.title);
+        
+        // 🔥 CRITICAL: Force pagination after setting content
+        setTimeout(() => {
+          console.log('[setContent] Forcing pagination after HTML load');
+          import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
+            paginateDocument(editor, { force: true });
+          });
+        }, 100);
       }
       
       // Mark as loaded in editor storage to prevent re-runs
@@ -5250,11 +5303,65 @@ const TextEditorContent = ({
     if (!editor) return;
     try {
       const { from, to } = editor.state.selection;
-      if (from === to) { toast.info('Nothing selected to copy'); return; }
-      const text = editor.state.doc.textBetween(from, to, ' ');
-      if (navigator.clipboard) { await navigator.clipboard.writeText(text); } else { document.execCommand('copy'); }
-      toast.success('Content copied to clipboard');
-    } catch (error) { toast.error('Failed to copy content'); }
+      if (from === to) {
+        toast.info('Nothing selected to copy');
+        return;
+      }
+      
+      // 🔥 CRITICAL: Extract both HTML and plain text for clipboard
+      // Google Docs and other rich text apps need HTML to preserve formatting
+      
+      // Get the selected slice of the document
+      const slice = editor.state.doc.slice(from, to);
+      
+      // 🔥 Serialize to HTML using TipTap's built-in serializer
+      const htmlContent = editor.storage.markdown?.serializer
+        ? editor.storage.markdown.serializer.serialize(slice.content)
+        : editor.getHTML(); // Fallback to full HTML if markdown not available
+      
+      // For better control, use ProseMirror's HTML serializer
+      const { DOMSerializer } = require('@tiptap/pm/model');
+      const serializer = DOMSerializer.fromSchema(editor.schema);
+      const fragment = slice.content;
+      
+      // Create a temporary div to hold the serialized HTML
+      const tempDiv = document.createElement('div');
+      serializer.serializeFragment(fragment, { document }, tempDiv);
+      const serializedHtml = tempDiv.innerHTML;
+      
+      // Get plain text fallback
+      const textContent = editor.state.doc.textBetween(from, to, '\n');
+      
+      console.log('[handleCopy] Copying to clipboard:', {
+        hasHtml: !!serializedHtml,
+        htmlLength: serializedHtml?.length || 0,
+        textLength: textContent.length,
+        selectionRange: `${from}-${to}`
+      });
+      
+      // 🔥 CRITICAL: Use Clipboard API with BOTH HTML and plain text
+      // This ensures Google Docs receives formatted content
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([serializedHtml], { type: 'text/html' }),
+          'text/plain': new Blob([textContent], { type: 'text/plain' })
+        })
+      ]);
+      
+      toast.success('Content copied with formatting! 📋');
+      console.log('[handleCopy] ✅ HTML successfully copied to clipboard');
+      
+    } catch (error) {
+      console.error('[handleCopy] Error:', error);
+      // Fallback to execCommand if Clipboard API fails
+      try {
+        document.execCommand('copy');
+        toast.success('Content copied (fallback mode)');
+      } catch (execError) {
+        toast.error('Failed to copy content');
+        console.error('[handleCopy] Fallback failed:', execError);
+      }
+    }
   }, [editor]);
 
   const handlePaste = useCallback(() => { }, []);
@@ -5495,6 +5602,18 @@ const TextEditorContent = ({
 
         try {
           // Update existing document using /api/text-editor/document/:id
+          console.log('📤 SENDING TO BACKEND:', {
+            docIdToUpdate,
+            title: documentTitle,
+            data: {
+              hasContent: !!editor.getJSON(),
+              hasHtml: !!editor.getHTML(),
+              contentStructure: editor.getJSON()?.type,
+              firstBlockType: editor.getJSON()?.content?.[0]?.type,
+              hasMarks: JSON.stringify(editor.getJSON()).includes('marks')
+            }
+          });
+          
           await TextEditorService.updateDocument(docIdToUpdate, {
             title: documentTitle,
             data: {
@@ -5502,6 +5621,8 @@ const TextEditorContent = ({
               html: editor.getHTML()
             }
           });
+
+          console.log('✅ SAVE SUCCESSFUL - Check network tab to verify backend stored JSON');
 
           setLastSaved(new Date());
           setSaveStatus('saved');

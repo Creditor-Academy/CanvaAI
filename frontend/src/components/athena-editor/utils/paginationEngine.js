@@ -10,17 +10,19 @@
  * If you see two different ?t= timestamps in console, do a full page reload.
  */
 
-// ── Page geometry ─────────────────────────────────────────────────────────────
+// ── Page geometry (MUST MATCH CSS!) ─────────────────────────────────────────────
+// CSS: .page { min-height: 1123px; padding: 48px 72px; }
+// Actual usable height = 1123 - 48 - 48 = 1027px (NOT 931px!)
 const PAGE_HEIGHT   = 1123;
-const MARGIN_TOP    = 96;
-const MARGIN_BOTTOM = 96;
-export const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 931px
+const MARGIN_TOP    = 48;   // Match CSS padding-top
+const MARGIN_BOTTOM = 48;   // Match CSS padding-bottom
+export const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 1027px
 
 // ── Typography model (11pt Inter, 1.6 line-height, 650px usable width) ────────
 const LINE_H         = 28;   // px per line
 const CHARS_PER_LINE = 95;   // characters per line at 650px
 const PARA_MARGIN    = 14;   // bottom margin per block
-const TABLE_ROW_H    = 40;   // px per table row
+const TABLE_ROW_H    = 32;   // px per table row (reduced from 40px for accuracy)
 const IMAGE_H        = 200;  // fallback image height
 const HR_H           = 24;   // horizontal rule height
 const CODE_PAD       = 24;   // code block top+bottom padding
@@ -45,12 +47,21 @@ const estimateHeight = (node) => {
     case 'heading': {
       const lines = Math.max(1, Math.ceil((node.textContent.length || 1) / CHARS_PER_LINE));
       const extra = [0, 16, 10, 6, 4, 2, 2][node.attrs.level] ?? 4;
-      return lines * (LINE_H + extra) + PARA_MARGIN;
+      const h = lines * (LINE_H + extra) + PARA_MARGIN;
+      // 🔥 DEBUG: Log suspicious heights
+      if (h > USABLE_HEIGHT * 0.5) {
+        console.warn(`⚠️ [estimateHeight] ${node.type.name} estimated at ${h}px (text: ${node.textContent.length} chars)`);
+      }
+      return h;
     }
 
     case 'codeBlock': {
       const lines = Math.max(1, (node.textContent || '').split('\n').length);
-      return lines * LINE_H + CODE_PAD + PARA_MARGIN;
+      const h = lines * LINE_H + CODE_PAD + PARA_MARGIN;
+      if (h > USABLE_HEIGHT * 0.5) {
+        console.warn(`⚠️ [estimateHeight] codeBlock estimated at ${h}px (${lines} lines)`);
+      }
+      return h;
     }
 
     case 'blockquote': {
@@ -62,7 +73,11 @@ const estimateHeight = (node) => {
     case 'table': {
       let rows = 0;
       node.forEach(() => rows++);
-      return rows * TABLE_ROW_H + PARA_MARGIN;
+      const h = rows * TABLE_ROW_H + PARA_MARGIN;
+      if (h > USABLE_HEIGHT * 0.5) {
+        console.warn(`⚠️ [estimateHeight] table estimated at ${h}px (${rows} rows)`);
+      }
+      return h;
     }
 
     case 'bulletList':
@@ -72,13 +87,35 @@ const estimateHeight = (node) => {
       node.forEach(item => {
         item.forEach(child => { h += estimateHeight(child); });
       });
-      return h + PARA_MARGIN;
+      const totalH = h + PARA_MARGIN;
+      if (totalH > USABLE_HEIGHT * 0.5) {
+        console.warn(`⚠️ [estimateHeight] list estimated at ${totalH}px`);
+      }
+      return totalH;
     }
 
     default: { // paragraph and anything else
       const len   = node.textContent.length;
       const lines = len === 0 ? 1 : Math.max(1, Math.ceil(len / CHARS_PER_LINE));
-      return lines * LINE_H + PARA_MARGIN;
+      const h = lines * LINE_H + PARA_MARGIN;
+      
+      // 🔥 CRITICAL DEBUG: Log EVERY paragraph height to catch the bug
+      console.log(`[estimateHeight] Paragraph: ${len} chars → ${lines} lines → ${h}px`, {
+        nodeType: node.type.name,
+        textLength: len,
+        calculatedLines: lines,
+        finalHeight: h,
+        expectedRange: '20-120px'
+      });
+      
+      // 🚨 SAFEGUARD: Cap paragraph height to prevent catastrophic overflow
+      const cappedHeight = Math.min(h, USABLE_HEIGHT * 0.3); // Max 30% of page
+      
+      if (h !== cappedHeight) {
+        console.error(`🚨 [estimateHeight] Paragraph capped from ${h}px to ${cappedHeight}px - THIS IS THE BUG!`);
+      }
+      
+      return cappedHeight;
     }
   }
 };
@@ -138,7 +175,8 @@ export const paginateDocument = (editor, options = {}) => {
     console.log(`[paginateDocument] → ${pages.length} pages`);
 
     // No-op check: same page count + same block distribution
-    if (doc.childCount === pages.length) {
+    // Skip this check when force mode is enabled
+    if (!options.force && doc.childCount === pages.length) {
       let same = true, bi = 0;
       doc.forEach(pageNode => {
         if (pageNode.type.name !== 'page') { same = false; return; }

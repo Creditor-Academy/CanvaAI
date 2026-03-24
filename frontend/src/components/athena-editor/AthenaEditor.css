@@ -196,7 +196,7 @@
   height: auto; /* Allow content to expand naturally */
   margin: 20px auto;
   background: white;
-  padding: 96px 72px; /* Top/Bottom: 96px, Left/Right: 72px */
+  padding: 48px 72px; /* Top/Bottom: 48px, Left/Right: 72px */
   box-sizing: border-box;
   display: block !important; /* CRITICAL: Force visible */
   position: relative;
@@ -205,7 +205,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   visibility: visible !important; /* CRITICAL: Ensure visible */
   opacity: 1; /* CRITICAL: Full opacity */
-  overflow: visible; /* Allow content to be fully visible */
+  overflow: hidden; /* Clip content to page boundaries */
 }
 
 .page-content {
