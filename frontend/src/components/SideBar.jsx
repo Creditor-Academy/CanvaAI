@@ -70,7 +70,7 @@ const AdminIcon = ({ size = 20 }) => (
 const BASE_ITEMS = [
   { label: "Home", path: "/home", icon: <HomeIcon /> },
   { label: "PPT", path: "/presentation", icon: <PPTIcon /> },
-  { label: "Editor", path: "/editor", icon: <EditorIcon /> },
+  // { label: "Editor", path: "/editor", icon: <EditorIcon /> },
   { label: "Image", path: "/create-image", icon: <ImageIcon /> },
   { label: "Files", path: "/projects", icon: <FolderIcon /> },
   { label: "Analytics", path: "/analytics", icon: <AnalyticsIcon /> }

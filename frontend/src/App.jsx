@@ -64,6 +64,7 @@ const AppContent = () => {
 
   const isFullScreenRoute =
     location.pathname.startsWith('/canva-clone') ||
+    location.pathname.startsWith('/create-image') ||
     location.pathname.startsWith('/presentation-editor') ||
     location.pathname.startsWith('/presentation-editor-v3');
 
@@ -73,7 +74,7 @@ const AppContent = () => {
       {!isFullScreenRoute && <SideBar />}
 
       {/* Navbar */}
-      <Navbar />
+      {!isFullScreenRoute && <Navbar />}
 
 
 
