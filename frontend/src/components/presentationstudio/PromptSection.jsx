@@ -8,16 +8,22 @@ import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
 
 const TitleInput = ({ prompt, setPrompt }) => (
   <div style={{ marginBottom: '24px' }}>
-    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-      Title
-    </label>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+      <label style={{ fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+        Title
+      </label>
+      <span style={{ fontSize: '12px', color: prompt.length >= 60 ? '#ef4444' : '#9ca3af', fontWeight: '500' }}>
+        {prompt.length}/60
+      </span>
+    </div>
     <textarea
       value={prompt}
-      onChange={(e) => setPrompt(e.target.value)}
+      onChange={(e) => setPrompt(e.target.value.slice(0, 60))}
       placeholder="Write your presentation title..."
+      maxLength={60}
       style={{
         width: '100%',
-        border: '1px solid #e5e7eb',
+        border: prompt.length >= 60 ? '1px solid #fca5a5' : '1px solid #e5e7eb',
         borderRadius: '12px',
         padding: '16px',
         minHeight: '56px',
@@ -25,27 +31,33 @@ const TitleInput = ({ prompt, setPrompt }) => (
         fontSize: '15px',
         fontFamily: "'Inter', sans-serif",
         outline: 'none',
-        transition: 'border-color 0.2s',
+        transition: 'all 0.2s',
         boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
       }}
-      onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+      onFocus={(e) => e.target.style.borderColor = prompt.length >= 60 ? '#ef4444' : '#6366f1'}
+      onBlur={(e) => e.target.style.borderColor = prompt.length >= 60 ? '#fca5a5' : '#e5e7eb'}
     />
   </div>
 );
 
 const OutlineInput = ({ outlineText, setOutlineText }) => (
   <div style={{ marginBottom: '32px' }}>
-    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-      Outline (Optional)
-    </label>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+      <label style={{ fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+        Outline (Optional)
+      </label>
+      <span style={{ fontSize: '12px', color: (outlineText?.length || 0) >= 500 ? '#ef4444' : '#9ca3af', fontWeight: '500' }}>
+        {outlineText?.length || 0}/500
+      </span>
+    </div>
     <textarea
       value={outlineText || ""}
-      onChange={(e) => setOutlineText(e.target.value)}
+      onChange={(e) => setOutlineText(e.target.value.slice(0, 500))}
       placeholder="Write bullet points or structured outline..."
+      maxLength={500}
       style={{
         width: '100%',
-        border: '1px solid #e5e7eb',
+        border: (outlineText?.length || 0) >= 500 ? '1px solid #fca5a5' : '1px solid #e5e7eb',
         borderRadius: '12px',
         padding: '16px',
         minHeight: '120px',
@@ -53,11 +65,11 @@ const OutlineInput = ({ outlineText, setOutlineText }) => (
         fontSize: '15px',
         fontFamily: "'Inter', sans-serif",
         outline: 'none',
-        transition: 'border-color 0.2s',
+        transition: 'all 0.2s',
         boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
       }}
-      onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+      onFocus={(e) => e.target.style.borderColor = (outlineText?.length || 0) >= 500 ? '#ef4444' : '#6366f1'}
+      onBlur={(e) => e.target.style.borderColor = (outlineText?.length || 0) >= 500 ? '#fca5a5' : '#e5e7eb'}
     />
   </div>
 );

@@ -238,19 +238,35 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                   <textarea
                     value={slide.content.rawText || ""}
                     onChange={(e) => {
-                      handleContentChange(
-                        index,
-                        e.target.value
-                      );
-                      autoResizeTextarea(e.target);
+                      if (e.target.value.length <= 200) {
+                        handleContentChange(
+                          index,
+                          e.target.value
+                        );
+                        autoResizeTextarea(e.target);
+                      }
                     }}
                     onKeyDown={(e) =>
                       handleKeyDown(e, index)
                     }
                     className="outline-editor-textarea"
                     placeholder="Enter slide content"
+                    maxLength={200}
                     rows={4}
                   />
+                  <div
+                    style={{
+                      textAlign: "right",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      color:
+                        (slide.content.rawText || "").length >= 200
+                          ? "#e53e3e"
+                          : "#888",
+                    }}
+                  >
+                    {(slide.content.rawText || "").length}/200
+                  </div>
 
                   {slide.bullets && slide.bullets.length > 0 && (
                     <div className="outline-editor-bullets-container">
