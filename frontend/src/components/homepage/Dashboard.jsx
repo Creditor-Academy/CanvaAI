@@ -34,12 +34,12 @@ const TOOLS = [
     route: "/canva-clone",
     color: "bg-yellow-400 text-black"
   },
-  {
-    name: "Doc",
-    icon: HiOutlineDocumentText,
-    route: "/editor",
-    color: "bg-blue-500 text-white"
-  },
+  // {
+  //   name: "Doc",
+  //   icon: HiOutlineDocumentText,
+  //   route: "/editor",
+  //   color: "bg-blue-500 text-white"
+  // },
   {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
@@ -52,13 +52,14 @@ const TOOLS = [
     route: "/create/ai-design",
     color: "bg-yellow-300 text-black"
   },
-  {
-    name: "AI Doc",
-    icon: HiOutlineDocumentText,
-    route: "/create/content-writer",
-    color: "bg-blue-800 text-white"
-  }
+  // {
+  //   name: "AI Doc",
+  //   icon: HiOutlineDocumentText,
+  //   route: "/create/content-writer",
+  //   color: "bg-blue-800 text-white"
+  // }
 ];
+
 const toolImages = [
   "https://i.pinimg.com/736x/96/52/26/965226daa2d2a6aab40d6458646f34f4.jpg",
   "https://i.pinimg.com/1200x/7e/d5/4e/7ed54e337f028c3cd32335c62ee95e0f.jpg",
@@ -72,33 +73,31 @@ const toolImages = [
 
 
 export default function Dashboard() {
-
   const navigate = useNavigate();
-  const [scrollX, setScrollX] = useState(0);
   const scrollRef = React.useRef(null);
-
-  const scrollLeft = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
-    }
-  };
 
   const [profile, setProfile] = useState(null);
   const [page, setPage] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [tab, setTab] = useState("manual");
+  const [tokens, setTokens] = useState(0);
 
   const templates = Array.from({ length: 24 }, (_, i) => i + 1);
   const perPage = 8;
 
-  useEffect(() => {
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -260, behavior: "smooth" });
+    }
+  };
 
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 260, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
     let mounted = true;
 
     const fetchData = async () => {
@@ -120,8 +119,87 @@ export default function Dashboard() {
 
     fetchData();
 
-    return () => mounted = false;
+        if (mounted) {
+          setTokens(Number(data.totalBalance || 0) - Number(data.usedBalance || 0));
+        }
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      }
+    };
 
+    fetchData();
+
+    return () => (mounted = false);
+  }, []);
+
+  useEffect(() => {
+    const style = document.createElement("style");
+
+    style.innerHTML = `
+      @keyframes borderTrace {
+        0% { background-position: 0% 0%; }
+        25% { background-position: 100% 0%; }
+        50% { background-position: 100% 100%; }
+        75% { background-position: 0% 100%; }
+        100% { background-position: 0% 0%; }
+      }
+
+      .ai-tool-wrapper {
+        position: relative;
+        border-radius: 24px;
+        padding: 2px;
+        background: linear-gradient(
+          90deg,
+          #a8af1e,
+          #f3f63b,
+          #faf260,
+          #e5e90e,
+          #afaa1e
+        );
+        background-size: 300% 300%;
+        animation: borderTrace 4s linear infinite;
+        box-shadow:
+          0 6px 0 rgba(235, 232, 37, 0.9),
+          0 20px 25px -5px rgba(246, 234, 59, 0.35),
+          0 10px 10px -5px rgba(227, 246, 59, 0.15);
+        transition: transform .2s ease, box-shadow .2s ease;
+      }
+
+      .ai-tool-wrapper:hover {
+        transform: translateY(-4px);
+        box-shadow:
+          0 20px 25px -5px rgba(230, 246, 59, 0.35),
+          0 10px 10px -5px rgba(246, 221, 59, 0.15);
+      }
+
+      .ai-tool-inner {
+        border-radius: 22px;
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      @media (hover: none), (pointer: coarse), (max-width: 1024px) {
+        .ai-tool-wrapper:hover {
+          transform: none;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
   }, []);
 
   const fullName =
@@ -131,10 +209,16 @@ export default function Dashboard() {
 
   const [tokens, setTokens] = useState(0);
 
-  const visibleTemplates = templates.slice(
-    page * perPage,
-    page * perPage + perPage
-  );
+      const data = await userService.getWalletDashboard();
+      const wallet = data.data || data;
+
+      setTokens(Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0));
+    } catch (error) {
+      console.error("Renew plan failed:", error.message);
+    }
+  };
+
+  const visibleTemplates = templates.slice(page * perPage, page * perPage + perPage);
 
   const manualTools = [
     {
@@ -147,11 +231,11 @@ export default function Dashboard() {
       title: "Image",
       route: "/canva-clone"
     },
-    {
-      icon: HiOutlineDocumentText,
-      title: "Document",
-      route: "/editor"
-    }
+    // {
+    //   icon: HiOutlineDocumentText,
+    //   title: "Document",
+    //   route: "/editor"
+    // }
   ];
 
   const aiTools = [
@@ -165,11 +249,11 @@ export default function Dashboard() {
       title: "AI Image",
       route: "/create/ai-design"
     },
-    {
-      icon: HiOutlineDocumentText,
-      title: "AI Doc",
-      route: "/create/content-writer"
-    }
+    // {
+    //   icon: HiOutlineDocumentText,
+    //   title: "AI Doc",
+    //   route: "/create/content-writer"
+    // }
   ];
   useEffect(() => {
     const style = document.createElement("style");
@@ -235,12 +319,29 @@ export default function Dashboard() {
 
 
         {/* HERO */}
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="relative mt-2 mb-3 py-8 px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-[28px] overflow-hidden"
         >
+          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] bg-gradient-to-r from-white via-sky-200 to-white opacity-70 pointer-events-none" />
+          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] border border-sky-200 pointer-events-none" />
+          <div className="absolute top-0 left-0 w-full h-[120px] sm:h-[150px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none rounded-t-[22px] sm:rounded-t-[28px]" />
+
+          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            {/* LEFT */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
+              <img
+                src={logo}
+                alt="logo"
+                className="h-12 xs:h-13 sm:h-16 md:h-18 lg:h-20 w-auto max-w-[110px] sm:max-w-[130px] lg:max-w-[160px] object-contain drop-shadow-lg shrink-0"
+              />
+
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Ready to create
+                </div>
 
           {/* BLUE GLASS PANEL (dark-blue tint, content stays normal) */}
           
@@ -305,7 +406,6 @@ export default function Dashboard() {
             </button>
 
           </div>
-
         </motion.div>
         {/* EXPLORE */}
 
@@ -317,12 +417,11 @@ export default function Dashboard() {
 
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2 rounded-full font-semibold shadow"
+            className="w-full sm:w-auto min-w-[130px] flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black text-sm sm:text-[15px] font-semibold shadow transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
           >
-            <FiPlus />
+            <FiPlus className="text-[16px] sm:text-[18px]" />
             Create
           </button>
-
         </div>
 
         {/* TOOLS */}
@@ -403,6 +502,17 @@ export default function Dashboard() {
         </div>
 
         {/* TEMPLATES */}
+        <div className="mt-10 pb-20 sm:pb-24">
+          <div className="flex items-end justify-between mb-6 sm:mb-8">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                Ready Templates
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Pick a layout and start editing instantly.
+              </p>
+            </div>
+          </div>
 
         <div className="mt-10 pb-24">
 
@@ -420,7 +530,6 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
             {visibleTemplates.map((i) => (
-
               <motion.div
                 key={i}
                 whileHover={{ y: -4 }}
@@ -447,11 +556,8 @@ export default function Dashboard() {
                   </p>
 
                 </div>
-
               </motion.div>
-
             ))}
-
           </div>
 
           <div className="flex justify-center gap-3 mt-10">
@@ -473,33 +579,25 @@ export default function Dashboard() {
               Next
               <FiChevronRight />
             </button>
-
           </div>
-
         </div>
-
       </div>
 
       {/* CREATE MODAL */}
-
       <AnimatePresence>
-
         {showCreate && (
-
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50"
           >
-
             <motion.div
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
               className="bg-white/85 backdrop-blur-xl rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-[760px] max-w-[92vw] p-10 relative border border-white/70"
             >
-
               <button
                 onClick={() => setShowCreate(false)}
                 className="absolute top-6 right-6 text-slate-600 hover:text-slate-900 w-10 h-10 rounded-full bg-white/70 hover:bg-white flex items-center justify-center border border-white/60 shadow-sm"
@@ -507,7 +605,7 @@ export default function Dashboard() {
                 <FiX size={22} />
               </button>
 
-              <h2 className="text-2xl font-bold text-blue-900 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-blue-900 mb-5 sm:mb-6">
                 Quick Start
               </h2>
 
@@ -534,7 +632,6 @@ export default function Dashboard() {
                 >
                   AI
                 </button>
-
               </div>
 
               {/* IMPROVED CARDS */}
@@ -608,15 +705,9 @@ export default function Dashboard() {
               )}
 
             </motion.div>
-
           </motion.div>
-
         )}
-
       </AnimatePresence>
-
     </div>
-
   );
-
 }

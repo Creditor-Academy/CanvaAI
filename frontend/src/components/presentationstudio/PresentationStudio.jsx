@@ -22,6 +22,7 @@ const PresentationStudio = ({ onBack }) => {
   const [progress, setProgress] = useState(0);
 
 
+
   // Step 2: Outline data
   const [outlineData, setOutlineData] = useState(null);
 
@@ -30,6 +31,8 @@ const PresentationStudio = ({ onBack }) => {
 
   // Error state
   const [error, setError] = useState(null);
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [balancePopupMessage, setBalancePopupMessage] = useState('');
 
   // Transform backend response to OutlineEditor format
   const transformOutlineResponse = (apiResponse) => {
@@ -182,7 +185,21 @@ const PresentationStudio = ({ onBack }) => {
 
     } catch (error) {
       stopFakeProgress?.();
-      setError(error.message || 'Failed to generate outline. Please try again.');
+
+      const status = error?.status;
+      const backendMessage = error?.data?.message || error?.message;
+
+      if (status === 403 && backendMessage === 'Not enough Balance') {
+        setShowBalancePopup(true);
+        setBalancePopupMessage(
+          'Not enough balance to generate outline. Please renew your plan or add more credits.'
+        );
+        setError(null);
+        setProgress(0);
+        return;
+      }
+
+      setError(backendMessage || 'Failed to generate outline. Please try again.');
     } finally {
       stopFakeProgress?.();
       setIsGenerating(false);
@@ -318,9 +335,34 @@ const PresentationStudio = ({ onBack }) => {
   return (
     <div className="presentation-studio">
       <div className="presentation-studio-container">
-
-
         {renderCurrentStep()}
+
+        {showBalancePopup && (
+          <div className="balance-popup-overlay">
+            <div className="balance-popup">
+              <div className="balance-popup-icon">⚠️</div>
+              <h3>Insufficient Balance</h3>
+              <p>{balancePopupMessage}</p>
+              <div className="balance-popup-actions">
+                <button
+                  className="balance-popup-secondary"
+                  onClick={() => setShowBalancePopup(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="balance-popup-primary"
+                  onClick={() => {
+                    setShowBalancePopup(false);
+                    navigate('/pricing');
+                  }}
+                >
+                  Renew Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -140,17 +140,23 @@ export default function CreditsAnalytics() {
       {/* top bar */}
       <div className={`h-2 w-full ${color}`}></div>
 
-      <div className="flex items-center justify-between px-6 pt-5">
+     <div className="relative px-5 pt-5">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${color}`}>
+          <div
+            className={`flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-md ${color}`}
+          >
             {icon}
           </div>
-          <h3 className="font-semibold text-lg text-slate-900">{title}</h3>
+          <div>
+            <h3 className="text-[18px] lg:text-[19px] font-bold leading-none tracking-tight text-slate-900">
+              {title}
+            </h3>
+            <p className="mt-1 text-[11px] text-slate-500">Usage breakdown</p>
+          </div>
         </div>
-
       </div>
 
-      <div className="px-6 py-6 space-y-5">
+      <div className="relative space-y-3 px-5 py-5">
         {children}
       </div>
     </div>
@@ -181,8 +187,8 @@ export default function CreditsAnalytics() {
                   <h2 className="text-2xl font-semibold text-slate-800 leading-tight">
                     {userName || "User"}
                   </h2>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Your AI workspace activity overview
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed max-w-[560px]">
+                    Here’s your workspace usage and credit activity for this month.
                   </p>
                 </div>
               </div>
@@ -220,22 +226,25 @@ export default function CreditsAnalytics() {
 
 
 
+                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    style={{ width: `${percent}%` }}
+                    className="h-full bg-[#fbbf24] rounded-full transition-all duration-300"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="relative overflow-hidden rounded-3xl p-6 flex flex-col justify-center text-white shadow-xl
-                bg-gradient-to-br from-[#bdc8d8] via-[#62b2e1] to-[#1e40af]">
+          <div className="relative overflow-hidden rounded-[22px] p-4 sm:p-5 lg:p-5 flex flex-col justify-center text-white shadow-xl bg-gradient-to-br from-[#bdc8d8] via-[#62b2e1] to-[#1e40af] min-h-[170px] lg:min-h-[190px]">
+            <img
+              src="https://pngimg.com/uploads/hourglass/hourglass_PNG3.png"
+              alt="credits"
+              className="pointer-events-none select-none absolute top-2 right-2 w-8 sm:w-9 opacity-90 mix-blend-soft-light"
+            />
 
-          {/* floating image */}
-          <img
-            src="https://pngimg.com/uploads/hourglass/hourglass_PNG3.png"
-            alt="credits"
-            className="pointer-events-none select-none absolute top-2 right-2 w-10 opacity-90 mix-blend-soft-light"
-          />
-
-          {/* soft glow */}
-          <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/20 blur-3xl rounded-full"></div>
+            <div className="absolute -top-24 -right-24 w-52 h-52 sm:w-64 sm:h-64 bg-white/20 blur-3xl rounded-full"></div>
+            <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]"></div>
 
           {/* subtle glass layer */}
           <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]"></div>
@@ -290,6 +299,77 @@ export default function CreditsAnalytics() {
           <Row label="Editor Images" value={`$${usage.document.editorImages}`} color="bg-[#62b2e1]" />
         </Section>
 
+        {/* BOTTOM 3 BOXES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 max-w-[900px] mx-auto">
+          <Section
+            title="Presentation"
+            color="bg-blue-800"
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="17"
+                height="17"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <rect x="3" y="4" width="18" height="14" rx="2" />
+                <path d="M8 20h8" />
+              </svg>
+            }
+          >
+            <Row label="PPT Generation" value={`$${usage.ppt.pptGeneration}`} />
+            <Row label="Slide Generation" value={`$${usage.ppt.slideGeneration}`} />
+            <Row label="Slide Expand" value={`$${usage.ppt.slideExpand}`} />
+            <Row label="Images inside PPT" value={`$${usage.ppt.imagesInsidePPT}`} />
+          </Section>
+
+          <Section
+            title="Images"
+            color="bg-[#475569]"
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="17"
+                height="17"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="m21 15-5-5L5 21" />
+              </svg>
+            }
+          >
+            <Row label="AI Generator" value={`$${usage.image.aiGenerator}`} />
+            <Row label="Editor Usage" value={`$${usage.image.editor}`} />
+          </Section>
+
+          {/* <Section
+            title="Documents"
+            color="bg-[#62b2e1]"
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="17"
+                height="17"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2z" />
+                <path d="M14 2v6h6" />
+              </svg>
+            }
+          >
+            <Row label="AI Generator" value={`$${usage.document.aiGenerator}`} />
+            <Row label="Editor Images" value={`$${usage.document.editorImages}`} />
+          </Section> */}
+        </div>
       </div>
     </div>
   );
