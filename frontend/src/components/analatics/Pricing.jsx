@@ -1,21 +1,20 @@
 import React, { useState } from "react";
+import api from "../../services/api";
 
 const Pricing = () => {
-  const [yearly, setYearly] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
 
   const plans = [
     {
-      name: "Free",
-      monthly: 0,
-      yearly: 0,
+      name: "Basic",
+      price: 0,
       description: "Best for beginners",
       features: [
         "Manual Presentation Creation",
         "Basic Templates",
         "Basic Image Editing",
-        "5 AI PPT / month",
-        "5 AI Image Edits / month",
+        "5 AI PPT",
+        "5 AI Image Edits",
         "Download Files",
         "Community Support",
       ],
@@ -25,8 +24,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      monthly: 299,
-      yearly: 2999,
+      price: 299,
       description: "Best for students & professionals",
       features: [
         "Unlimited Presentations",
@@ -43,9 +41,8 @@ const Pricing = () => {
       border: "border-yellow-300",
     },
     {
-      name: "Team",
-      monthly: 799,
-      yearly: 7999,
+      name: "Elite",
+      price: 799,
       description: "Best for teams & businesses",
       features: [
         "Everything in Pro",
@@ -72,28 +69,51 @@ const Pricing = () => {
     { name: "Team Collaboration", free: false, pro: false, team: true },
     { name: "Priority Support", free: false, pro: true, team: true },
   ];
+  const handlePayment = async (planName) => {
+    try {
+      const token = localStorage.getItem("token");
 
-  const faqs = [
-    {
-      q: "Can I cancel my subscription anytime?",
-      a: "Yes, you can cancel anytime from account settings.",
-    },
-    {
-      q: "Will I be charged automatically?",
-      a: "Yes, subscription renews automatically unless cancelled.",
-    },
-    {
-      q: "Do you offer refunds?",
-      a: "Refund available within 7 days of purchase.",
-    },
-    {
-      q: "Can I upgrade later?",
-      a: "Yes, you can upgrade anytime.",
-    },
-  ];
+      if (!token) {
+        alert("Please login first");
+        return;
+      }
+
+      const planMapping = {
+        Basic: "Basic_Test",
+        Pro: "Pro_Test",
+        Elite: "Elite_Test",
+      };
+
+      const planId = planMapping[planName];
+
+      const response = await fetch(
+        `http://localhost:5000/api/payment/create-payment/${planId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          redirect: "manual", // VERY IMPORTANT
+        }
+      );
+
+      // Redirect URL yahan milega
+      const redirectUrl = response.headers.get("Location");
+
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+      } else {
+        console.log("No redirect URL found");
+      }
+
+    } catch (error) {
+      console.error("Payment error:", error);
+    }
+  };
+
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] py-26  font-[Inter]">
+    <div className="min-h-screen bg-[#e9f4ff] py-26 font-[Inter]">
 
       {/* Header */}
       <div id="pricing-top" className="text-center max-w-3xl mx-auto">
@@ -103,26 +123,6 @@ const Pricing = () => {
         <p className="text-gray-600 mb-6">
           Choose our different plans according to your needs.
         </p>
-
-        {/* Toggle */}
-        <div className="flex justify-center items-center gap-4">
-          <span className={!yearly ? "font-semibold text-blue-700" : ""}>
-            Monthly
-          </span>
-          <div
-            className="w-14 h-7 bg-yellow-300 rounded-full flex items-center cursor-pointer"
-            onClick={() => setYearly(!yearly)}
-          >
-            <div
-              className={`w-6 h-6 bg-white rounded-full shadow transform duration-300 ${
-                yearly ? "translate-x-7" : "translate-x-1"
-              }`}
-            />
-          </div>
-          <span className={yearly ? "font-semibold text-blue-700" : ""}>
-            Yearly
-          </span>
-        </div>
       </div>
 
       {/* Pricing Cards */}
@@ -131,7 +131,7 @@ const Pricing = () => {
           <div
             key={index}
             className={`relative rounded-2xl p-8 border ${plan.border}
-            bg-white/70  backdrop-blur-lg shadow-lg
+            bg-white/70 backdrop-blur-lg shadow-lg
             transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl
             flex flex-col`}
           >
@@ -146,10 +146,8 @@ const Pricing = () => {
             <p className="text-gray-500 mb-4">{plan.description}</p>
 
             <div className="text-4xl font-bold text-blue-900 mb-6">
-              ₹{yearly ? plan.yearly : plan.monthly}
-              <span className="text-lg text-gray-500">
-                {yearly ? "/year" : "/month"}
-              </span>
+              ${plan.price}
+
             </div>
 
             <ul className="space-y-3 mb-6 flex-grow">
@@ -160,7 +158,11 @@ const Pricing = () => {
               ))}
             </ul>
 
-            <button className={`w-full py-3 rounded-xl font-semibold shadow-md transition ${plan.button}`}>
+            <button
+              type="button"
+              onClick={() => handlePayment(plan.name)}
+              className={`w-full py-3 rounded-xl font-semibold shadow-md transition ${plan.button}`}
+            >
               Choose Plan
             </button>
           </div>
@@ -205,39 +207,6 @@ const Pricing = () => {
           </tbody>
         </table>
       </div>
-
-      {/* FAQ - FIXED SMOOTH */}
-      {/* <div className="max-w-4xl mx-auto mt-24">
-        <h2 className="text-3xl font-[Georgia] text-center text-blue-900 mb-10">
-          Pricing FAQs
-        </h2>
-
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <div key={index} className="bg-white rounded-xl shadow-md border border-blue-100">
-              <button
-                onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                className="w-full flex justify-between items-center p-5 text-left"
-              >
-                <span className="font-semibold text-blue-800">{faq.q}</span>
-                <span className="text-xl text-blue-500">
-                  {openFaq === index ? "−" : "+"}
-                </span>
-              </button>
-
-              <div className={`grid transition-all duration-300 ease-in-out ${
-                openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-              }`}>
-                <div className="overflow-hidden">
-                  <p className="px-5 pb-5 text-gray-600">{faq.a}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div> */}
-
-      
 
     </div>
   );

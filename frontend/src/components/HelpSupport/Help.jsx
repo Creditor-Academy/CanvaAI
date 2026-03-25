@@ -415,8 +415,7 @@ const Help = () => {
             </h2>
 
             <p className="faq-desc">
-              Optiv is a cloud-based platform that helps you manage projects,
-              track sales, design easily and automate workflows.
+              Create presentations, edit images, and generate designs faster with our AI-powered tools.
             </p>
 
             <div className="faq-cta">
