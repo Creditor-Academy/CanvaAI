@@ -12,93 +12,199 @@ import {
   FiX,
 } from "react-icons/fi";
 
-export default function AllProjects() {
-  const navigate = useNavigate();
+export default function AllProjects(){
 
-  const demoProjects = [
-    {
-      id: 1,
-      title: "Marketing Slides",
-      type: "ppt",
-      date: "2026-03-01",
-      img: "https://images.unsplash.com/photo-1557804506-669a67965ba0",
-    },
-    {
-      id: 2,
-      title: "Company Report",
-      type: "doc",
-      date: "2026-03-02",
-      img: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
-    },
-    {
-      id: 3,
-      title: "Instagram Banner",
-      type: "image",
-      date: "2026-03-05",
-      img: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0",
-    },
-    {
-      id: 4,
-      title: "Sales Presentation",
-      type: "ppt",
-      date: "2026-03-06",
-      img: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f",
-    },
-  ];
+const navigate = useNavigate();
 
-  const [projects, setProjects] = useState(demoProjects);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
-  const [modal, setModal] = useState(false);
+const demoProjects = [
+{
+id:1,
+title:"Marketing Slides",
+type:"ppt",
+date:"2026-03-01",
+img:"https://images.unsplash.com/photo-1557804506-669a67965ba0"
+},
+{
+id:2,
+title:"Company Report",
+type:"doc",
+date:"2026-03-02",
+img:"https://images.unsplash.com/photo-1519389950473-47ba0277781c"
+},
+{
+id:3,
+title:"Instagram Banner",
+type:"image",
+date:"2026-03-05",
+img:"https://images.unsplash.com/photo-1542744173-8e7e53415bb0"
+},
+{
+id:4,
+title:"Sales Presentation",
+type:"ppt",
+date:"2026-03-06",
+img:"https://images.unsplash.com/photo-1522202176988-66273c2fd55f"
+}
+];
 
-  const [deleteModal, setDeleteModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
+const [projects,setProjects] = useState(demoProjects);
+const [search,setSearch] = useState("");
+const [page,setPage] = useState(0);
+const [modal,setModal] = useState(false);
 
-  const itemsPerPage = 8;
+const [deleteModal,setDeleteModal] = useState(false);
+const [selectedProject,setSelectedProject] = useState(null);
 
-  const filtered = useMemo(() => {
-    return projects.filter((p) =>
-      p.title.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [projects, search]);
+const itemsPerPage = 8;
 
-  useEffect(() => {
-    setPage(0);
-  }, [search]);
+const filtered = useMemo(()=>{
+return projects.filter(p =>
+p.title.toLowerCase().includes(search.toLowerCase())
+);
+},[projects,search]);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+const totalPages = Math.ceil(filtered.length/itemsPerPage);
 
-  const paginated = filtered.slice(
-    page * itemsPerPage,
-    page * itemsPerPage + itemsPerPage
-  );
+const paginated = filtered.slice(
+page*itemsPerPage,
+page*itemsPerPage + itemsPerPage
+);
 
-  const openDeleteModal = (project) => {
-    setSelectedProject(project);
-    setDeleteModal(true);
-  };
+const openDeleteModal = (project)=>{
+setSelectedProject(project);
+setDeleteModal(true);
+};
 
-  const confirmDelete = async () => {
-    if (!selectedProject) return;
+const confirmDelete = async ()=>{
 
-    setProjects((prev) => prev.filter((p) => p.id !== selectedProject.id));
-    setDeleteModal(false);
-    setSelectedProject(null);
-  };
+// API CALL HERE
+// await api.deleteProject(selectedProject.id)
 
-  return (
-    <div className="w-full min-w-0 bg-[#e9f4ff] px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-24 sm:pt-28 md:pt-32 lg:pt-36 pb-28 md:pb-10">
-      <div className="w-full max-w-7xl mx-auto bg-[#f9fafb] rounded-[24px] sm:rounded-[28px] p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 shadow-sm">
-        {/* HEADER */}
-        <div className="text-center mb-8 sm:mb-10 md:mb-12">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black leading-tight">
-            Projects
-          </h1>
+setProjects(prev => prev.filter(p => p.id !== selectedProject.id));
 
-          <p className="text-sm sm:text-base text-gray-500 mt-2">
-            Total Projects – {projects.length}
-          </p>
-        </div>
+setDeleteModal(false);
+setSelectedProject(null);
+
+};
+
+return(
+
+<div className="w-full mx-auto my-auto p-26 pt-25 pl-34 bg-[#e9f4ff]">
+
+<div className=" bg-[#f9fafb]  rounded-3xl p-16 shadow-sm">
+
+{/* HEADER */}
+
+<div className="text-center mb-12">
+
+<h1 className="text-4xl font-bold text-black">
+Projects
+</h1>
+
+<p className="text-gray-500 mt-2">
+Total Projects – {projects.length}
+</p>
+
+</div>
+
+{/* SEARCH + CREATE */}
+
+<div className="flex items-center justify-between mb-12 flex-wrap gap-4">
+
+<div className="relative w-80 max-w-full">
+
+<FiSearch className="absolute left-4 top-3.5 text-gray-400"/>
+
+<input
+value={search}
+onChange={(e)=>setSearch(e.target.value)}
+placeholder="Search projects..."
+className="w-full bg-gray-50 border border-gray-200 rounded-full py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+/>
+
+</div>
+
+<button
+onClick={()=>setModal(true)}
+className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 shadow"
+>
+<FiPlus/>
+Create
+</button>
+
+</div>
+
+{/* PROJECT GRID */}
+
+<h2 className="text-xl font-semibold mb-6">
+Your Projects
+</h2>
+
+<div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+
+{paginated.map(p=>(
+
+<div
+key={p.id}
+className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl transition"
+>
+
+<div className="relative">
+
+<img
+src={p.img}
+alt=""
+className="w-full h-44 object-cover"
+/>
+
+<span className="absolute top-3 left-3 text-xs px-2 py-1 bg-black/70 text-white rounded">
+{p.type.toUpperCase()}
+</span>
+
+</div>
+
+<div className="p-4">
+
+<h3 className="font-semibold text-sm text-black">
+{p.title}
+</h3>
+
+<p className="text-xs text-gray-500 mt-1">
+Created {new Date(p.date).toLocaleDateString()}
+</p>
+
+<button
+onClick={()=>openDeleteModal(p)}
+className="flex items-center gap-1 mt-4 text-red-500 text-sm hover:text-red-600"
+>
+<FiTrash2 size={14}/>
+Delete
+</button>
+
+</div>
+
+</div>
+
+))}
+
+</div>
+
+{/* PAGINATION */}
+
+{totalPages>1 && (
+
+<div className="flex justify-center items-center gap-4 mt-10">
+
+<button
+onClick={()=>setPage(p=>Math.max(0,p-1))}
+className="p-2 border rounded-lg hover:bg-gray-100"
+>
+<FiChevronLeft/>
+</button>
+
+<span className="text-gray-600">
+Page {page+1}/{totalPages}
+</span>
 
         {/* SEARCH + CREATE */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 sm:mb-10 md:mb-12 gap-4">

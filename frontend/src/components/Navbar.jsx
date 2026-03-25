@@ -121,7 +121,7 @@ const TopNavbar = () => {
         </button>
 
         {/* NOTIFICATIONS */}
-        {/* <div ref={notifRef} className="relative">
+        <div ref={notifRef} className="relative">
           <button
             onClick={() => setOpenNotif(!openNotif)}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-yellow-100 transition relative"
@@ -155,7 +155,7 @@ const TopNavbar = () => {
               </div>
             </div>
           )}
-        </div> */}
+        </div>
 
         {/* PROFILE (desktop only) */}
         <div className="hidden md:block relative" ref={profileRef}>
@@ -219,8 +219,7 @@ const TopNavbar = () => {
               <div className="px-4 pb-2 text-xs text-slate-500 flex justify-between">
                 <span>Tokens</span>
                 <span>
-                  {Number(wallet.remainingTokens || 0).toFixed(3)} /{" "}
-                  {Number(wallet.totalTokens || 0).toFixed(3)}
+                  {wallet.remainingTokens} / {wallet.totalTokens}
                 </span>
               </div>
 
