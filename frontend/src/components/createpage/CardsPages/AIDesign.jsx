@@ -17,11 +17,11 @@ export const AIDesign = () => {
   const [popupMessage, setPopupMessage] = useState("");
 
   const styles = [
-    { name: "Realistic", img: "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=200" },
-    { name: "Anime", img: "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=200" },
-    { name: "Cartoon", img: "https://images.unsplash.com/photo-1673328021673-17902775371d?w=200" },
-    { name: "Sketch", img: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=200" },
-    { name: "Painting", img: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=200" },
+    { name: "Realistic", img: "https://i.pinimg.com/736x/19/b2/74/19b274d1f2cf1c2fc90a111c1093eb94.jpg" },
+    { name: "Anime", img: "https://i.pinimg.com/736x/58/19/d2/5819d2ed10ee0f8142341f08aa928cd3.jpg" },
+    { name: "Cartoon", img: "https://i.pinimg.com/736x/42/62/67/426267b169ac8c49155ee9abc071ae3e.jpg" },
+    { name: "Sketch", img: "https://i.pinimg.com/avif/736x/89/5c/93/895c931f7182dbc68efa4ee87254fc81.avf" },
+    { name: "Painting", img: "https://i.pinimg.com/1200x/e4/47/93/e44793bcfda653dd605c105308cf3a1a.jpg" },
   ];
 
   const examplePrompts = [

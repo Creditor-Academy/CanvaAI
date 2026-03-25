@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../../services/api";
 import userService from "../../services/UserDash/User.service";
 import userdash from "../../assets/user-dash.webm";
+import { useNavigate } from "react-router-dom";
 
 export default function CreditsAnalytics() {
   const [usage, setUsage] = useState({
@@ -78,25 +79,28 @@ export default function CreditsAnalytics() {
     fetchDashboard();
   }, []);
 
-  const handleRenewPlan = async () => {
-    try {
-      const amount = Number(500);
-      await userService.creditWallet(amount);
+  // const handleRenewPlan = async () => {
+  //   try {
+  //     const amount = Number(500);
+  //     await userService.creditWallet(amount);
 
-      const res = await userService.getWalletDashboard();
-      const data = res.data;
+  //     const res = await userService.getWalletDashboard();
+  //     const data = res.data;
 
-      setWallet({
-        totalBalance: data.totalBalance,
-        usedBalance: data.usedBalance,
-        remainingTokens: data.remainingTokens,
-        totalTokens: data.totalTokens
-      });
-    } catch (error) {
-      console.error("Renew plan failed:", error.message);
-    }
-  };
-
+  //     setWallet({
+  //       totalBalance: data.totalBalance,
+  //       usedBalance: data.usedBalance,
+  //       remainingTokens: data.remainingTokens,
+  //       totalTokens: data.totalTokens
+  //     });
+  //   } catch (error) {
+  //     console.error("Renew plan failed:", error.message);
+  //   }
+  // };
+  const navigate = useNavigate();
+const handleRenewPlan = () => {
+  navigate("/pricing");
+};
   const percent =
     wallet.totalTokens > 0
       ? (wallet.remainingTokens / wallet.totalTokens) * 100
@@ -105,6 +109,7 @@ export default function CreditsAnalytics() {
   const Row = ({ label, value }) => {
     const numericValue = Number(value?.toString().replace("$", "") || 0);
     const formattedValue = `$${numericValue.toFixed(3)}`;
+    
 
     return (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2.5 transition-all duration-200 hover:bg-white hover:shadow-sm">

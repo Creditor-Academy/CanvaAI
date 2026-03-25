@@ -4,28 +4,28 @@ import "./FAQ.css";
 
 const faqs = [
   {
-    q: "How do I start a new design?",
-    a: "Open the Create section or click Start Creating to begin with templates or a blank canvas."
+    q: "What can I create on this platform?",
+    a: "You can create professional presentations and edit images using both manual tools and AI-powered features on this platform."
   },
   {
-    q: "Where are my saved templates?",
-    a: "Visit the Favorites section where all your saved templates and collections are organized."
+    q: "Can I create presentations using AI?",
+    a: "Yes, you can generate presentations automatically using AI. You just need to enter your topic, and AI will create slides for you."
   },
   {
-    q: "Can I collaborate with my team?",
-    a: "Yes. Invite teammates to your workspace and collaborate in real-time."
+    q: "Can I edit presentations manually?",
+    a: "Yes, you can fully edit your presentations by changing text, images, colors, fonts, layouts, and other design elements."
   },
   {
-    q: "How do I contact support?",
-    a: "Open Help & Support from the dashboard or email our team anytime."
+    q: "Does this platform support AI image editing?",
+    a: "Yes, you can edit and generate images using AI tools, or you can manually edit images using the built-in editing features."
   },
   {
-    q: "Can I export my designs?",
-    a: "You can export your designs in PNG, JPG, SVG and PDF formats."
+    q: "Is this platform suitable for beginners?",
+    a: "Yes, the platform is designed to be simple and user-friendly, so beginners can easily create presentations and edit images without design experience."
   },
   {
-    q: "Is there a free version available?",
-    a: "Yes. You can start with the free plan and upgrade anytime."
+    q: "Can I download my presentations and images?",
+    a: "Yes, you can download your presentations and edited images and use them anywhere you want."
   }
 ];
 

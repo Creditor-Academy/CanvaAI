@@ -56,6 +56,7 @@ import PresentationTemplates from "./pages/PresentationTemplates";
 import DocumentTemplates from "./pages/DocumentTemplates";
 import ImageTemplates from "./pages/ImageTemplates";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
+import Pricing from "./components/analatics/Pricing";
 
 const AppContent = () => {
   const location = useLocation();
@@ -143,6 +144,7 @@ const AppContent = () => {
           <Route path="/PresentationTemplates" element={<PresentationTemplates />} />
           <Route path="/documentTemplates" element={<DocumentTemplates />} />
           <Route path="/imageTemplates" element={<ImageTemplates />} />
+          <Route path="/pricing" element={<Pricing />} />
         </Routes>
 
       </div>

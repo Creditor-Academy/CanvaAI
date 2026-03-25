@@ -193,19 +193,22 @@ export default function Dashboard() {
       ? `${profile.firstName} ${profile.lastName || ""}`
       : profile?.email?.split("@")[0] || "User";
 
-  const handleRenewPlan = async () => {
-    try {
-      const amount = Number(500);
-      await userService.creditWallet(amount);
+  // const handleRenewPlan = async () => {
+  //   try {
+  //     const amount = Number(500);
+  //     await userService.creditWallet(amount);
 
-      const data = await userService.getWalletDashboard();
-      const wallet = data.data || data;
+  //     const data = await userService.getWalletDashboard();
+  //     const wallet = data.data || data;
 
-      setTokens(Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0));
-    } catch (error) {
-      console.error("Renew plan failed:", error.message);
-    }
-  };
+  //     setTokens(Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0));
+  //   } catch (error) {
+  //     console.error("Renew plan failed:", error.message);
+  //   }
+  // };
+  const handleRenewPlan = () => {
+  navigate("/pricing");
+};
 
   const visibleTemplates = templates.slice(page * perPage, page * perPage + perPage);
 

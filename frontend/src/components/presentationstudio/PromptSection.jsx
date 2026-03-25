@@ -163,31 +163,31 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
       id: 'Realistic',
       label: 'Realistic',
       image:
-        'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/78/44/15/78441592d2823fb8e217fdc9abf87eb8.jpg',
     },
     {
       id: 'Anime',
       label: 'Anime',
       image:
-        'https://images.unsplash.com/photo-1618331833071-ce81bd50d300?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/avif/736x/8c/9b/07/8c9b07e5f25b7776190bf9de4da60c47.avf',
     },
     {
       id: 'Cartoon',
       label: 'Cartoon',
       image:
-        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/37/8c/f4/378cf484b8202e3a2452b54145308bd3.jpg',
     },
     {
       id: 'Sketch',
       label: 'Sketch',
       image:
-        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/be/ae/c2/beaec2a95b96f2c669473b6c15f082b3.jpg',
     },
     {
       id: 'Painting',
       label: 'Painting',
       image:
-        'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/1200x/ad/f1/83/adf183d1cbd843bcfc778ee54c50d6f7.jpg',
     },
   ];
 
