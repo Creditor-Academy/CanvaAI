@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import api from "../../../services/api";
 
+
 export const AIDesign = () => {
   const navigate = useNavigate();
+
 
   const [prompt, setPrompt] = useState("");
   const [selectedStyle, setSelectedStyle] = useState(null);
@@ -16,6 +18,7 @@ export const AIDesign = () => {
   const [showBalancePopup, setShowBalancePopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
 
+
   const styles = [
     { name: "Realistic", img: "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=200" },
     { name: "Anime", img: "https://images.unsplash.com/photo-1627667661797-d113e31a3e6f?w=200" },
@@ -23,6 +26,7 @@ export const AIDesign = () => {
     { name: "Sketch", img: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=200" },
     { name: "Painting", img: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=200" },
   ];
+
 
   const examplePrompts = [
     "Futuristic neon city",
@@ -32,6 +36,7 @@ export const AIDesign = () => {
     "Cartoon astronaut mascot",
   ];
 
+
   // const mockImages = [
   //   "https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=600",
   //   "https://images.unsplash.com/photo-1611521448635-a3a774ee7c7d?w=600",
@@ -39,24 +44,31 @@ export const AIDesign = () => {
   //   "https://images.unsplash.com/photo-1690037704521-f614da226dac?w=600",
   // ];
 
+
   useEffect(() => {
     if (!isLoading) return;
 
+
     setProgress(0);
+
 
     const timer = setInterval(() => {
       setProgress((p) => (p < 95 ? p + Math.random() * 6 : p));
     }, 200);
 
+
     return () => clearInterval(timer);
   }, [isLoading]);
+
 
   // const handleGenerate = () => {
   //   if (!prompt.trim() || !selectedStyle) return;
 
+
   //   setIsLoading(true);
   //   setGeneratedImages([]);
   //   setSelectedImages([]);
+
 
   //   setTimeout(() => {
   //     setProgress(100);
@@ -67,41 +79,46 @@ export const AIDesign = () => {
   const handleGenerate = async () => {
     if (!prompt.trim() || !selectedStyle) return;
 
+
     try {
       setIsLoading(true);
       setGeneratedImages([]);
       setSelectedImages([]);
       setProgress(10);
 
+
       const style = selectedStyle.toLowerCase();
 
-      // const res = await api.generateLogo(prompt, style);
-      const res = {
-    "msg": "Logo generated successfully",
-    "data": [
-        {
-            "url1": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
-            },
-            "url2": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
-            },
-            "url3": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
-            },
-            "url4": {
-                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
-                "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
-            }
-        }
-    ]
-}
+
+       const res = await api.generateLogo(prompt, style);
+      // const res = {
+      //   "msg": "Logo generated successfully",
+      //   "data": [
+      //     {
+      //       "url1": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
+      //       },
+      //       "url2": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
+      //       },
+      //       "url3": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
+      //       },
+      //       "url4": {
+      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
+      //         "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
+      //       }
+      //     }
+      //   ]
+      // }
       console.log(res);
 
+
       const images = res?.data?.[0];
+
 
       const imageList = [
         images?.url1?.url,
@@ -110,17 +127,29 @@ export const AIDesign = () => {
         images?.url4?.url,
       ].filter(Boolean);
 
+
       setProgress(100);
       setGeneratedImages(imageList);
 
+
     } catch (error) {
       console.error("Logo generation failed:", error);
-      alert("Image generation failed");
+
+
+      const message = error?.message || "Image generation failed";
+
+
+      if (message === "Not enough Balance for generate Image") {
+        setGeneratedImages([]);
+        setSelectedImages([]);
+        setPopupMessage(message);
+        setShowBalancePopup(true);
+      } else {
+        alert(message);
+      }
     } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-        setProgress(0);
-      }, 500);
+      setIsLoading(false);
+      setProgress(0);
     }
   };
   const toggleImageSelection = (img) => {
@@ -131,22 +160,28 @@ export const AIDesign = () => {
     );
   };
 
+
   const handleImport = () => {
     alert(`Importing ${selectedImages.length} images`);
   };
+
 
   const openEditor = () => {
     navigate("/edito", { state: { image: activePreview } });
   };
 
+
   return (
-    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col">
+    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col px-4 sm:px-5 md:px-6 lg:px-8 xl:pl-[96px] pb-[96px] md:pb-8">
+
+
+
 
 
 
       {/* HERO */}
-      <div className="text-center pt-24 md:pt-30 z-10 px-4">
-        <h1 className="text-4xl font-bold text-blue-900">
+      <div className="text-center pt-24 md:pt-24 xl:pt-20 z-10 px-2 sm:px-4">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900">
           AI IMAGE GENERATOR
         </h1>
         <p className="text-blue-700 text-xs sm:text-sm mt-1">
@@ -154,17 +189,22 @@ export const AIDesign = () => {
         </p>
       </div>
 
-      {/* MAIN */}
-      <div className="flex-1 flex items-center justify-center px-4 md:px-10 z-10">
 
-        <div className="w-full max-w-sm sm:max-w-xl md:max-w-4xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* MAIN */}
+      <div className="flex-1 flex items-start justify-center w-full z-10 pt-6 sm:pt-8">
+
+
+        <div className="w-full max-w-sm sm:max-w-2xl lg:max-w-5xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-5 lg:gap-6">
+
 
           {/* LEFT PANEL */}
           <div className="bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5">
 
+
             <label className="text-sm font-semibold text-blue-900">
               Prompt
             </label>
+
 
             <textarea
               placeholder="for example: Medusa"
@@ -173,8 +213,10 @@ export const AIDesign = () => {
               className="mt-2 w-full border border-blue-700 rounded-lg p-2.5 h-[84px] resize-none outline-none text-sm text-blue-900"
             />
 
+
             {/* EXAMPLE PROMPTS */}
             <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+
 
               {examplePrompts.map((ex, i) => (
                 <button
@@ -186,20 +228,27 @@ export const AIDesign = () => {
                 </button>
               ))}
 
+
             </div>
+
 
             {/* STYLES */}
             <div className="mt-4">
+
 
               <p className="text-sm font-semibold text-blue-900 mb-2">
                 Styles
               </p>
 
+
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+
 
                 {styles.map((style) => {
 
+
                   const active = selectedStyle === style.name;
+
 
                   return (
                     <button
@@ -212,23 +261,29 @@ export const AIDesign = () => {
                         }`}
                     >
 
+
                       <img
                         src={style.img}
                         className="w-full h-[52px] sm:h-[55px] object-cover"
                         alt=""
                       />
 
+
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition">
                         {style.name}
                       </div>
+
 
                     </button>
                   );
                 })}
 
+
               </div>
 
+
             </div>
+
 
             {/* GENERATE */}
             <button
@@ -239,10 +294,13 @@ export const AIDesign = () => {
               Generate
             </button>
 
+
           </div>
 
+
           {/* RIGHT PANEL */}
-          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center min-h-[320px] md:min-h-[420px]">
+          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5 flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] md:min-h-[420px]">
+
 
             {!generatedImages.length && !isLoading && (
               <>
@@ -252,39 +310,51 @@ export const AIDesign = () => {
                   alt=""
                 />
 
+
                 <p className="relative text-blue-900 text-sm font-medium">
                   Generated images will appear here
                 </p>
               </>
             )}
 
+
             {isLoading && (
               <div className="w-full max-w-[360px] text-center">
 
+
                 <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
+
 
                   <div
                     className="h-full bg-yellow-400 transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
 
+
                 </div>
+
 
                 <p className="mt-2 text-blue-900 font-semibold text-sm">
                   {Math.floor(progress)}% Generating images
                 </p>
 
+
               </div>
             )}
 
+
             {generatedImages.length > 0 && (
 
+
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                <div className="grid w-full grid-cols-2 gap-2 sm:gap-3">
+
 
                   {generatedImages.map((img, idx) => {
 
+
                     const selected = selectedImages.includes(img);
+
 
                     return (
                       <div
@@ -302,6 +372,7 @@ export const AIDesign = () => {
     alt=""
   />
 
+
   {!selected && (
     <>
       {/* Desktop hover overlay */}
@@ -316,6 +387,7 @@ export const AIDesign = () => {
           Preview
         </button>
       </div>
+
 
       {/* Mobile bottom chip */}
       <button
@@ -333,7 +405,9 @@ export const AIDesign = () => {
                     );
                   })}
 
+
                 </div>
+
 
                 <button
                   onClick={handleImport}
@@ -343,18 +417,23 @@ export const AIDesign = () => {
                   Import Selected ({selectedImages.length})
                 </button>
 
+
               </>
             )}
           </div>
 
+
         </div>
 
+
       </div>
+
 
       {/* MODAL */}
       {activePreview &&
         createPortal(
           <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-[999]">
+
 
             <button
               onClick={() => setActivePreview(null)}
@@ -363,7 +442,9 @@ export const AIDesign = () => {
               ✕
             </button>
 
+
             <div className="text-center">
+
 
               <img
                 src={activePreview}
@@ -371,7 +452,9 @@ export const AIDesign = () => {
                 alt=""
               />
 
+
               <div className="flex gap-6 justify-center mt-6">
+
 
                 <button
                   onClick={openEditor}
@@ -380,9 +463,12 @@ export const AIDesign = () => {
                   Open In Editor
                 </button>
 
+
               </div>
 
+
             </div>
+
 
           </div>,
           document.body
@@ -395,13 +481,16 @@ export const AIDesign = () => {
                 !
               </div>
 
+
               <h2 className="text-lg sm:text-xl font-bold text-red-600">
                 Insufficient Balance
               </h2>
 
+
               <p className="text-gray-700 mt-2 text-sm leading-6">
                 {popupMessage || "Not enough Balance for generate Image"}
               </p>
+
 
               <div className="mt-6 flex justify-center">
                 <button
@@ -416,6 +505,7 @@ export const AIDesign = () => {
           document.body
         )}
 
+
       <style>
         {`
         .no-scrollbar::-webkit-scrollbar { display:none; }
@@ -423,8 +513,11 @@ export const AIDesign = () => {
         `}
       </style>
 
+
     </div>
   );
 };
 
+
 export default AIDesign;
+

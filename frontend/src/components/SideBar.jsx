@@ -222,8 +222,6 @@ const SideBar = () => {
           icon={item.icon}
           active={location.pathname === item.path}
           onClick={() => go(item.path)}
-          compact={isCompactRail}
-          mobile={isMobile}
         />
       ))}
     </aside>

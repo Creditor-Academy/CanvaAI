@@ -189,36 +189,6 @@ const AdminDash = () => {
             </div>
 
             <div className="admin-recents__grid">
-
-              {loading ? (
-                <p>Loading presentations...</p>
-              ) : filteredTemplates.length === 0 ? (
-                <p>No templates created yet</p>
-              ) : (
-                filteredTemplates.map(temp => (
-                  <div
-                    key={temp.id}
-                    className="recent-card"
-                    onClick={() => temp.url && window.open(temp.url, '_blank')}
-                    style={{ cursor: temp.url ? 'pointer' : 'default' }}
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="presentation">Presentation</option>
-                    <option value="image">Image</option>
-                  </select>
-
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All</option>
-                    <option value="published">Published</option>
-                    <option value="unpublished">Unpublished</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="admin-recents__grid">
                 {loading ? (
                   <p>Loading presentations...</p>
                 ) : filteredTemplates.length === 0 ? (
@@ -377,7 +347,6 @@ const AdminDash = () => {
 
         <ImageDash />
       </div>
-    </div>
     </div>
   );
 };

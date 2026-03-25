@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ThemeCard from './ThemeCard';
 import ThemeBrowserModal from './ThemeBrowserModal';
 import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
+import './styles/PresentationStudio.css';
 
 const FieldLabel = ({ children }) => (
   <label className="ps-field-label">{children}</label>
@@ -73,24 +74,36 @@ const CustomSelect = ({
 
 const TitleInput = ({ prompt, setPrompt }) => (
   <div className="ps-field-block">
-    <FieldLabel>Title</FieldLabel>
+    <div className="ps-field-info-row">
+      <FieldLabel>Title</FieldLabel>
+      <span className={`ps-char-counter ${prompt.length >= 60 ? 'limit' : ''}`}>
+        {prompt.length}/60
+      </span>
+    </div>
     <textarea
-      value={prompt}
-      onChange={(e) => setPrompt(e.target.value)}
-      placeholder="Write your presentation title..."
       className="ps-textarea ps-title-input"
+      value={prompt}
+      onChange={(e) => setPrompt(e.target.value.slice(0, 60))}
+      placeholder="Write your presentation title..."
+      maxLength={60}
     />
   </div>
 );
 
 const OutlineInput = ({ outlineText, setOutlineText }) => (
   <div className="ps-field-block">
-    <FieldLabel>Outline (Optional)</FieldLabel>
+    <div className="ps-field-info-row">
+      <FieldLabel>Outline (Optional)</FieldLabel>
+      <span className={`ps-char-counter ${(outlineText?.length || 0) >= 500 ? 'limit' : ''}`}>
+        {outlineText?.length || 0}/500
+      </span>
+    </div>
     <textarea
-      value={outlineText || ''}
-      onChange={(e) => setOutlineText(e.target.value)}
-      placeholder="Write bullet points or structured outline..."
       className="ps-textarea ps-outline-input"
+      value={outlineText || ""}
+      onChange={(e) => setOutlineText(e.target.value.slice(0, 500))}
+      placeholder="Write bullet points or structured outline..."
+      maxLength={500}
     />
   </div>
 );
@@ -133,8 +146,7 @@ const SlideSelector = ({ length, setLength }) => {
 };
 
 const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
-  const options = ['AI Images', 'No Media'];
-
+  const options = ['Ai-Images', 'No Media'];
   return (
     <div className="ps-field-block">
       <FieldLabel>Media</FieldLabel>
@@ -295,7 +307,7 @@ const PromptSection = ({
     tone &&
     length &&
     mediaStyle &&
-    (mediaStyle !== 'AI Images' || imageStyle) &&
+    (mediaStyle !== "Ai-Images" || imageStyle) &&
     selectedTheme;
 
   const handleGenerateClick = () => {
@@ -308,8 +320,10 @@ const PromptSection = ({
       meta: {
         tone: tone ? tone.toLowerCase() : 'professional',
         slideCount: length ? Number(length) : 5,
-        mediaStyle: mediaStyle === 'AI Images' ? 'ai-image' : 'no-media',
-        imageStyle: mediaStyle === 'AI Images' ? imageStyle : undefined,
+        media: {
+          mediaType: mediaStyle,
+          mediaStyle: mediaStyle === "Ai-Images" ? imageStyle : undefined,
+        },
         theme: {
           name: selectedTheme.name,
           slideBackground: selectedTheme.slideBackground,
@@ -348,8 +362,11 @@ const PromptSection = ({
 
             <MediaSelector mediaStyle={mediaStyle} setMediaStyle={setMediaStyle} />
 
-            {mediaStyle === 'AI Images' && (
-              <ImageStyleSelector imageStyle={imageStyle} setImageStyle={setImageStyle} />
+            {mediaStyle === "Ai-Images" && (
+              <ImageStyleSelector
+                imageStyle={imageStyle}
+                setImageStyle={setImageStyle}
+              />
             )}
 
             <ThemeGrid

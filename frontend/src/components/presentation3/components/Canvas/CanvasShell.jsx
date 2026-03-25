@@ -648,27 +648,29 @@ export default CanvasShell;
 const styles = {
   canvasWrapper: {
     flex: 1,
-    background: "#f3f4f6", // Subtle grey, as requested
-    padding: "79px 48px",  // Increased top padding to move content down
-    overflow: "auto",      // Handle scrolling if needed
-    display: "flex",       // To allow centering the editor-center
+    background: "#f3f4f6",
+    padding: "40px 24px",
+    overflow: "auto",
+    display: "flex",
     flexDirection: "column",
+    marginRight: "60px", // IMPORTANT: right properties panel ki width
   },
   editorCenter: {
-    maxWidth: 1400,        // Design max width
+    maxWidth: 1000,        // Design max width
     width: "100%",         // Take up available space up to max
     margin: "0 auto",      // Center horizontally
     display: "flex",
     justifyContent: "center",
     // alignItems: "center", // Optional: if we want vertical centering when zoomed out highly
-    minHeight: "min-content", // Ensure it can grow
+    // Ensure it can grow
   },
   slide: {
-    width: SLIDE_WIDTH,
-    height: SLIDE_HEIGHT,
+    width: "100%",
+    maxWidth: "900px",   // canvas chhota ho jayega
+    aspectRatio: "16 / 9",
     position: "relative",
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-    flexShrink: 0, // Prevent slide from shrinking
+    flexShrink: 0,
   },
   resizeHandle: {
     position: "absolute",

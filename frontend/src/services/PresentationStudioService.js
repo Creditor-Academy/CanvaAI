@@ -1,83 +1,55 @@
-const API_BASE_URL = '/api/pp';
+import axios from 'axios';
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL = `${BASE_URL}/api/pp`;
+
+// Helper to get auth headers in Axios format
+const getAxiosConfig = () => {
   const token = localStorage.getItem('token');
   return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
   };
 };
 
 /**
  * Generate outline for presentation from backend
  * @param {Object} params - Parameters for outline generation
- * @param {string} params.topic - Topic of the presentation
- * @param {string} params.tone - Tone of the presentation (professional, friendly, etc.)
- * @param {number} params.length - Number of slides
- * @param {string} params.mediaStyle - Media style (AI Graphics, Stock Images, None)
- * @param {string} params.outlineText - Optional outline text
  * @returns {Promise<Object>} - Generated outline with slides
  */
 export const generateOutline = async (params) => {
-  const response = await fetch(`${API_BASE_URL}/get-presentation-outline`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(params)
-
-  });
-  if (!response.ok) throw new Error(`Failed to generate outline: ${response.status}`);
-  return response.json();
+  const response = await axios.post(`${API_BASE_URL}/get-presentation-outline`, params, getAxiosConfig());
+  return response.data;
 };
 
 /**
  * Generate presentation data from backend
  * @param {Object} params - Parameters for presentation generation
- * @param {string} params.prompt - Topic of the presentation
  * @returns {Promise<Object>} - Generated slides and theme
  */
 export const generatePresentation = async (params) => {
-  const response = await fetch(`${API_BASE_URL}/get-presentation-outline`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(params)
-
-  });
-  if (!response.ok) throw new Error(`Failed to generate presentation: ${response.status}`);
-  return response.json();
+  const response = await axios.post(`${API_BASE_URL}/get-presentation-outline`, params, getAxiosConfig());
+  return response.data;
 };
 
 /**
  * Export presentation as different formats
  * @param {Array} slides - Edited slides array
+ * @param {Object} theme - Presentation theme
  * @param {string} format - Format, e.g., 'pptx', 'pdf'
  * @returns {Promise<Blob>} - Blob data for download
  */
 export const exportPresentation = async (slides, theme, format) => {
-  const response = await fetch(`${API_BASE_URL}/generate-ppt`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ topic: 'presentation', editedData: { slides, theme } })
-  });
-  if (!response.ok) throw new Error(`Failed to export presentation: ${response.status}`);
-  return response.blob();
+  const response = await axios.post(`${API_BASE_URL}/generate-ppt`, 
+    { topic: 'presentation', editedData: { slides, theme } }, 
+    { 
+      ...getAxiosConfig(),
+      responseType: 'blob'
+    }
+  );
+  return response.data;
 };
-
-// /**
-//  * Rewrite slide content using AI
-//  * @param {string} content - Original slide content
-//  * @param {string} instruction - Instruction for rewriting
-//  * @returns {Promise<Object>} - { rewrittenContent: string }
-//  */
-// export const rewriteContent = async (content, instruction) => {
-//   const response = await fetch(`${API_BASE_URL}/rewrite-slide`, {
-//     method: 'POST',
-//     headers: getAuthHeaders(),
-//     body: JSON.stringify({ content, instruction })
-//   });
-//   if (!response.ok) throw new Error(`Failed to rewrite content: ${response.status}`);
-//   return response.json();
-// };
 
 /**
  * Generate AI image for a slide
@@ -85,14 +57,6 @@ export const exportPresentation = async (slides, theme, format) => {
  * @returns {Promise<Object>} - { imageUrl: string }
  */
 export const generateImage = async (prompt) => {
-  const response = await fetch(`${API_BASE_URL}/generate-slide-image`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ prompt })
-  });
-  if (!response.ok) throw new Error(`Failed to generate image: ${response.status}`);
-  return response.json();
+  const response = await axios.post(`${API_BASE_URL}/generate-slide-image`, { prompt }, getAxiosConfig());
+  return response.data;
 };
-
-
-

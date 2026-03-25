@@ -151,4 +151,4 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
   );
 };
 
-export default SlideThumbnail;
+export default React.memo(SlideThumbnail);
