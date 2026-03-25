@@ -567,10 +567,19 @@ class ApiService {
       {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ prompt, style }),
+        body: JSON.stringify({ prompt }),
       }
     );
   }
+
+  // ============= PAYMENT API =============
+async createPayment(planName) {
+  return this.request(`/api/payment/create-payment/${planName}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+}
+  
 }
 
 export default new ApiService();

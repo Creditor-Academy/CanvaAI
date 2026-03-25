@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import userService from "../../services/UserDash/User.service";
 
+
 import {
   HiOutlinePresentationChartLine,
-  HiOutlineDocumentText
 } from "react-icons/hi2";
 
+
 import { FaRegImage } from "react-icons/fa";
+
 
 import {
   FiPlus,
@@ -18,8 +20,10 @@ import {
   FiZap
 } from "react-icons/fi";
 
+
 import logo from "../../assets/logo.png";
 import api from "../../services/api";
+
 
 const TOOLS = [
   {
@@ -35,12 +39,6 @@ const TOOLS = [
     color: "bg-yellow-400 text-black"
   },
   {
-    name: "Doc",
-    icon: HiOutlineDocumentText,
-    route: "/editor",
-    color: "bg-blue-500 text-white"
-  },
-  {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
     route: "/ai-presentation",
@@ -52,12 +50,6 @@ const TOOLS = [
     route: "/create/ai-design",
     color: "bg-yellow-300 text-black"
   },
-  {
-    name: "AI Doc",
-    icon: HiOutlineDocumentText,
-    route: "/create/content-writer",
-    color: "bg-blue-800 text-white"
-  }
 ];
 
 const toolImages = [
@@ -68,6 +60,7 @@ const toolImages = [
   "https://i.pinimg.com/736x/70/d3/de/70d3dea50a707732f92d493961ad29b9.jpg",
   "https://i.pinimg.com/1200x/f2/5d/cd/f25dcd144cc08c007d3e64cdc91349f0.jpg"
 ];
+
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -193,18 +186,8 @@ export default function Dashboard() {
       ? `${profile.firstName} ${profile.lastName || ""}`
       : profile?.email?.split("@")[0] || "User";
 
-  const handleRenewPlan = async () => {
-    try {
-      const amount = Number(500);
-      await userService.creditWallet(amount);
-
-      const data = await userService.getWalletDashboard();
-      const wallet = data.data || data;
-
-      setTokens(Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0));
-    } catch (error) {
-      console.error("Renew plan failed:", error.message);
-    }
+  const handleRenewPlan = () => {
+    navigate("/pricing");
   };
 
   const visibleTemplates = templates.slice(page * perPage, page * perPage + perPage);
@@ -219,11 +202,6 @@ export default function Dashboard() {
       icon: FaRegImage,
       title: "Image",
       route: "/canva-clone"
-    },
-    {
-      icon: HiOutlineDocumentText,
-      title: "Document",
-      route: "/editor"
     }
   ];
 
@@ -237,13 +215,9 @@ export default function Dashboard() {
       icon: FaRegImage,
       title: "AI Image",
       route: "/create/ai-design"
-    },
-    {
-      icon: HiOutlineDocumentText,
-      title: "AI Doc",
-      route: "/create/content-writer"
     }
   ];
+
 
   return (
     <div className="min-h-screen bg-[#e9f4ff]">
@@ -252,13 +226,13 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative mt-2 mb-4 rounded-[22px] sm:rounded-[28px] overflow-hidden px-4 py-5 sm:px-6 sm:py-7 lg:px-10 lg:py-8"
+          className="relative mt-2 mb-3 py-8 px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-[28px] overflow-hidden"
         >
           <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] bg-gradient-to-r from-white via-sky-200 to-white opacity-70 pointer-events-none" />
           <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] border border-sky-200 pointer-events-none" />
           <div className="absolute top-0 left-0 w-full h-[120px] sm:h-[150px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none rounded-t-[22px] sm:rounded-t-[28px]" />
 
-          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 w-full">
             {/* LEFT */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
               <img
@@ -283,7 +257,6 @@ export default function Dashboard() {
                 <p className="text-sm sm:text-[15px] text-slate-600 mt-2 max-w-xl leading-6">
                   Create <span className="font-semibold text-slate-700">presentations</span>,{" "}
                   <span className="font-semibold text-slate-700">images</span> and{" "}
-                  <span className="font-semibold text-slate-700">documents</span> with
                   AI-powered templates in minutes.
                 </p>
               </div>
@@ -311,6 +284,7 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
+
         {/* EXPLORE */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-8 sm:mt-10">
           <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Explore Tools</h2>
@@ -324,19 +298,10 @@ export default function Dashboard() {
           </button>
         </div>
 
+
         {/* TOOLS */}
         <div className="mt-3 relative">
-          <button
-            onClick={scrollLeft}
-            className="hidden md:flex absolute left-[-12px] lg:left-[-18px] top-1/2 -translate-y-1/2 z-10 bg-white rounded-full w-10 h-10 items-center justify-center shadow"
-          >
-            <FiChevronLeft />
-          </button>
-
-          <div
-            ref={scrollRef}
-            className="flex gap-4 sm:gap-5 lg:gap-7 overflow-x-auto overflow-y-hidden scroll-smooth hide-scrollbar py-4 pr-1"
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 py-4">
             {TOOLS.map((tool, i) => {
               const colors = [
                 "bg-blue-100",
@@ -347,14 +312,16 @@ export default function Dashboard() {
                 "bg-yellow-200"
               ];
 
+
               return (
                 <motion.div
                   key={i}
                   onClick={() => navigate(tool.route)}
                   transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                  className={`group relative w-[185px] sm:w-[200px] lg:w-[210px] h-[96px] sm:h-[100px] flex-shrink-0 rounded-2xl px-4 sm:px-5 py-4 cursor-pointer ${colors[i]}`}
+                  className={`group relative w-full h-[96px] sm:h-[100px] flex-shrink-0 rounded-2xl px-4 sm:px-5 py-4 cursor-pointer ${colors[i]}`}
                 >
                   <p className="text-sm font-semibold text-gray-900">{tool.name}</p>
+
 
                   <img
                     src={toolImages[i]}
@@ -371,14 +338,8 @@ export default function Dashboard() {
               );
             })}
           </div>
-
-          <button
-            onClick={scrollRight}
-            className="hidden md:flex absolute right-[-12px] lg:right-[-18px] top-1/2 -translate-y-1/2 z-10 bg-white rounded-full w-10 h-10 items-center justify-center shadow"
-          >
-            <FiChevronRight />
-          </button>
         </div>
+
 
         {/* TEMPLATES */}
         <div className="mt-10 pb-20 sm:pb-24">
@@ -392,6 +353,7 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
             {visibleTemplates.map((i) => (
@@ -410,6 +372,7 @@ export default function Dashboard() {
                   <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-900/10 via-transparent to-white/10 opacity-80" />
                 </div>
 
+
                 <div className="p-4">
                   <h3 className="font-semibold text-slate-900 text-sm">Template {i}</h3>
                   <p className="text-xs text-slate-500 mt-1">Editable layout</p>
@@ -417,6 +380,7 @@ export default function Dashboard() {
               </motion.div>
             ))}
           </div>
+
 
           <div className="flex flex-col sm:flex-row justify-center gap-3 mt-8 sm:mt-10">
             <button
@@ -427,6 +391,7 @@ export default function Dashboard() {
               <FiChevronLeft />
               Prev
             </button>
+
 
             <button
               disabled={(page + 1) * perPage >= templates.length}
@@ -439,6 +404,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
 
       {/* CREATE MODAL */}
       <AnimatePresence>
@@ -453,7 +419,7 @@ export default function Dashboard() {
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[760px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-8 lg:p-10 relative border border-white/70"
+             className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
             >
               <button
                 onClick={() => setShowCreate(false)}
@@ -466,6 +432,7 @@ export default function Dashboard() {
                 Quick Start
               </h2>
 
+
               <div className="inline-flex bg-white/70 backdrop-blur-xl rounded-full p-1 w-fit mb-6 sm:mb-8 border border-white/70 shadow-sm">
                 <button
                   onClick={() => setTab("manual")}
@@ -476,6 +443,7 @@ export default function Dashboard() {
                 >
                   Manual
                 </button>
+
 
                 <button
                   onClick={() => setTab("ai")}
@@ -488,12 +456,13 @@ export default function Dashboard() {
                 </button>
               </div>
 
+
               {tab === "ai" ? (
                 <motion.div
                   key={tab}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                 className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
                 >
                   {aiTools.map((tool, i) => {
                     const Icon = tool.icon;
@@ -522,10 +491,11 @@ export default function Dashboard() {
                   key={tab}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
                 >
                   {manualTools.map((tool, i) => {
                     const Icon = tool.icon;
+
 
                     return (
                       <motion.div
@@ -538,6 +508,7 @@ export default function Dashboard() {
                         <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 ring-2 ring-blue-200">
                           <Icon size={22} />
                         </div>
+
 
                         <p className="font-semibold text-blue-900 text-sm tracking-wide">
                           {tool.title}

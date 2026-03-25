@@ -189,12 +189,12 @@ const AgentPanel = ({ isOpen, onClose }) => {
             <input
               type="radio"
               name="mediaType"
-              value="AI-Images"
-              checked={mediaType === "AI-Images"}
+              value="Ai-Images"
+              checked={mediaType === "Ai-Images"}
               onChange={(e) => setMediaType(e.target.value)}
               disabled={isGenerating}
             />
-            <span>AI-Images</span>
+            <span>Ai-Images</span>
           </label>
         </div>
       )}

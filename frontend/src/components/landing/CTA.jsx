@@ -25,7 +25,7 @@ const CTA = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          Join Designova AI
+          Join Designova 
         </motion.div>
 
         <motion.h2

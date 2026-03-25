@@ -2,8 +2,11 @@ import React, { useState, useEffect } from "react";
 import api from "../../services/api";
 import userService from "../../services/UserDash/User.service";
 import userdash from "../../assets/user-dash.webm";
+import { useNavigate } from "react-router-dom";
+
 
 export default function CreditsAnalytics() {
+  const navigate = useNavigate();
   const [usage, setUsage] = useState({
     ppt: {
       pptGeneration: 0,
@@ -15,6 +18,7 @@ export default function CreditsAnalytics() {
     document: { aiGenerator: 0, editorImages: 0 }
   });
 
+
   const [wallet, setWallet] = useState({
     totalBalance: 0,
     usedBalance: 0,
@@ -22,11 +26,14 @@ export default function CreditsAnalytics() {
     remainingTokens: 0
   });
 
+
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
 
+
   const remainingBalance =
     Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0);
+
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -39,10 +46,12 @@ export default function CreditsAnalytics() {
       }
     };
 
+
     const fetchDashboard = async () => {
       try {
         const res = await userService.getWalletDashboard();
         const data = res.data;
+
 
         setUsage({
           ppt: {
@@ -61,6 +70,7 @@ export default function CreditsAnalytics() {
           }
         });
 
+
         setWallet({
           totalBalance: data.totalBalance,
           usedBalance: data.usedBalance,
@@ -68,46 +78,58 @@ export default function CreditsAnalytics() {
           totalTokens: data.totalTokens
         });
 
+
         setLoading(false);
       } catch (error) {
         console.error("Dashboard API error:", error);
       }
     };
 
+
     fetchProfile();
     fetchDashboard();
   }, []);
 
-  const handleRenewPlan = async () => {
-    try {
-      const amount = Number(500);
-      await userService.creditWallet(amount);
 
-      const res = await userService.getWalletDashboard();
-      const data = res.data;
+  // const handleRenewPlan = async () => {
+  //   try {
+  //     const amount = Number(500);
+  //     await userService.creditWallet(amount);
 
-      setWallet({
-        totalBalance: data.totalBalance,
-        usedBalance: data.usedBalance,
-        remainingTokens: data.remainingTokens,
-        totalTokens: data.totalTokens
-      });
-    } catch (error) {
-      console.error("Renew plan failed:", error.message);
-    }
-  };
+
+  //     const res = await userService.getWalletDashboard();
+  //     const data = res.data;
+
+
+  //     setWallet({
+  //       totalBalance: data.totalBalance,
+  //       usedBalance: data.usedBalance,
+  //       remainingTokens: data.remainingTokens,
+  //       totalTokens: data.totalTokens
+  //     });
+  //   } catch (error) {
+  //     console.error("Renew plan failed:", error.message);
+  //   }
+  // };
+
+  const handleRenewPlan = () => {
+  navigate("/pricing");
+};
+
 
   const percent =
     wallet.totalTokens > 0
       ? (wallet.remainingTokens / wallet.totalTokens) * 100
       : 0;
 
+
   const Row = ({ label, value }) => {
     const numericValue = Number(value?.toString().replace("$", "") || 0);
     const formattedValue = `$${numericValue.toFixed(3)}`;
 
+
     return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2.5 transition-all duration-200 hover:bg-white hover:shadow-sm">
+      <div className="flex items-center justify-between gap-3  rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2.5 transition-all duration-200 hover:bg-white hover:shadow-sm">
         <span className="text-[12px] sm:text-[13px] font-medium text-slate-600 leading-snug">
           {label}
         </span>
@@ -118,13 +140,11 @@ export default function CreditsAnalytics() {
     );
   };
 
+
   const Section = ({ title, icon, color, children }) => (
     <div className="group relative overflow-hidden rounded-[20px] lg:rounded-[22px] border border-slate-200/80 bg-white/85 shadow-[0_6px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(30,41,59,0.09)]">
       <div className={`h-1.5 w-full ${color}`}></div>
-
-      <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-slate-100/60 blur-2xl"></div>
-
-      <div className="relative px-4 pt-4 lg:px-4 lg:pt-4">
+      <div className="relative px-5 pt-5">
         <div className="flex items-center gap-3">
           <div
             className={`flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-md ${color}`}
@@ -139,12 +159,12 @@ export default function CreditsAnalytics() {
           </div>
         </div>
       </div>
-
-      <div className="relative space-y-3 px-4 py-4 lg:px-4 lg:py-4">
+      <div className="relative space-y-3 px-5 py-5">
         {children}
       </div>
     </div>
   );
+
 
   return (
     <div className="min-h-screen bg-[#e9f4ff]
@@ -160,6 +180,7 @@ export default function CreditsAnalytics() {
             <div className="absolute -top-20 -left-20 w-52 h-52 sm:w-64 sm:h-64 bg-blue-100/40 blur-3xl rounded-full"></div>
             <div className="absolute -bottom-24 right-10 w-52 h-52 sm:w-64 sm:h-64 bg-indigo-100/40 blur-3xl rounded-full"></div>
 
+
             <div className="relative z-10 flex flex-col gap-4 lg:gap-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="min-w-0">
@@ -171,6 +192,7 @@ export default function CreditsAnalytics() {
                   </p>
                 </div>
 
+
                 <video
                   src={userdash}
                   autoPlay
@@ -181,6 +203,7 @@ export default function CreditsAnalytics() {
                 />
               </div>
 
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3 text-xs sm:text-sm text-slate-600 font-medium">
                   <span>Monthly Usage</span>
@@ -189,7 +212,6 @@ export default function CreditsAnalytics() {
                     {Number(wallet.totalTokens || 0).toFixed(3)}
                   </span>
                 </div>
-
                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     style={{ width: `${percent}%` }}
@@ -200,15 +222,16 @@ export default function CreditsAnalytics() {
             </div>
           </div>
 
+
           <div className="relative overflow-hidden rounded-[22px] p-4 sm:p-5 lg:p-5 flex flex-col justify-center text-white shadow-xl bg-gradient-to-br from-[#bdc8d8] via-[#62b2e1] to-[#1e40af] min-h-[170px] lg:min-h-[190px]">
             <img
               src="https://pngimg.com/uploads/hourglass/hourglass_PNG3.png"
               alt="credits"
               className="pointer-events-none select-none absolute top-2 right-2 w-8 sm:w-9 opacity-90 mix-blend-soft-light"
             />
-
             <div className="absolute -top-24 -right-24 w-52 h-52 sm:w-64 sm:h-64 bg-white/20 blur-3xl rounded-full"></div>
             <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]"></div>
+
 
             <div className="relative z-10">
               <div className="text-xs sm:text-sm opacity-90">Remaining</div>
@@ -218,6 +241,7 @@ export default function CreditsAnalytics() {
               <div className="text-[11px] sm:text-xs opacity-80">
                 of ${Number(wallet.totalBalance || 0).toFixed(3)}
               </div>
+
 
               <button
                 onClick={handleRenewPlan}
@@ -229,8 +253,9 @@ export default function CreditsAnalytics() {
           </div>
         </div>
 
-        {/* BOTTOM 3 BOXES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+
+        {/* BOTTOM BOXES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 max-w-[900px] mx-auto">
           <Section
             title="Presentation"
             color="bg-blue-800"
@@ -255,6 +280,7 @@ export default function CreditsAnalytics() {
             <Row label="Images inside PPT" value={`$${usage.ppt.imagesInsidePPT}`} />
           </Section>
 
+
           <Section
             title="Images"
             color="bg-[#475569]"
@@ -278,7 +304,8 @@ export default function CreditsAnalytics() {
             <Row label="Editor Usage" value={`$${usage.image.editor}`} />
           </Section>
 
-          <Section
+
+          {/* <Section
             title="Documents"
             color="bg-[#62b2e1]"
             icon={
@@ -298,7 +325,7 @@ export default function CreditsAnalytics() {
           >
             <Row label="AI Generator" value={`$${usage.document.aiGenerator}`} />
             <Row label="Editor Images" value={`$${usage.document.editorImages}`} />
-          </Section>
+          </Section> */}
         </div>
       </div>
     </div>

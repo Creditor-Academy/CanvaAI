@@ -139,36 +139,56 @@ const AdminDash = () => {
 
   return (
     <div className="min-h-screen bg-[#e9f4ff]">
-      <div className="admin-dash">
-        <div className="admin-dash__shell">
-          <div className="admin-dash__container">
-            <section className="admin-recents">
-              <div className="admin-recents__header">
-                <h2>Recent Templates</h2>
+    <div className="admin-dash">
+      <div className="admin-dash__shell">
+        <div className="admin-dash__container">
+          {/* <section className="admin-hero">
+            <div className="admin-hero__text">
+              <p className="admin-hero__eyebrow">Welcome back, {user?.firstName || 'Admin'}</p>
+              <h1>Create or manage templates from one place</h1>
+              <p className="admin-hero__subtext">
+                Choose what you want to build and jump into the right workspace. Presentation opens
+                the layout picker instantly.
+              </p>
+            </div>
 
-                <div className="admin-recents__filters">
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="presentation">Presentation</option>
-                    <option value="document">Document</option>
-                    <option value="image">Image</option>
-                  </select>
+            <div className="admin-hero__actions">
+              <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+                + Create Template
+              </button>
+              <button
+                className={`btn btn-ghost ${activeView === 'manage' ? 'is-active' : ''}`}
+                onClick={() => setActiveView('manage')}
+              >
+                Manage Templates
+              </button>
+            </div>
+          </section> */}
 
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All</option>
-                    <option value="published">Published</option>
-                    <option value="unpublished">Unpublished</option>
-                  </select>
-                </div>
+          {/* ===== Recent Templates Section ===== */}
+          <section className="admin-recents">
+
+            <div className="admin-recents__header">
+              <h2>Recent Templates</h2>
+
+              <div className="admin-recents__filters">
+
+                <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                  <option value="all">All Categories</option>
+                  <option value="presentation">Presentation</option>
+                  <option value="document">Document</option>
+                  <option value="image">Image</option>
+                </select>
+
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="all">All</option>
+                  <option value="published">Published</option>
+                  <option value="unpublished">Unpublished</option>
+                </select>
               </div>
+            </div>
 
-              <div className="admin-recents__grid">
+            <div className="admin-recents__grid">
                 {loading ? (
                   <p>Loading presentations...</p>
                 ) : filteredTemplates.length === 0 ? (

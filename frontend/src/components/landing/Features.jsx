@@ -21,12 +21,12 @@ const features = [
     title: "Image Generator",
     desc: "Turn text prompts into high-quality visuals and artwork instantly."
   },
-  {
-    icon: <FaFileWord />,
-    number: "03",
-    title: "Document Generator",
-    desc: "Generate blogs, reports and professional documents within seconds."
-  }
+  // {
+  //   icon: <FaFileWord />,
+  //   number: "03",
+  //   title: "Document Generator",
+  //   desc: "Generate blogs, reports and professional documents within seconds."
+  // }
 ];
 
 const containerVariants = {
@@ -69,7 +69,7 @@ const Features = () => {
         >
           <h2>Features</h2>
           <p>
-            Generate, edit and design presentations, images and documents
+            Generate, edit and design presentations and images 
             with powerful AI tools.
           </p>
         </motion.div>

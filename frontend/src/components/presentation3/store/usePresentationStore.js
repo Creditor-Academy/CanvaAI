@@ -598,6 +598,26 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
+    moveSlide: (dragIndex, hoverIndex, saveHistory = false) => {
+      if (saveHistory) get().saveToHistory();
+      const { slides } = get();
+      if (
+        dragIndex < 0 ||
+        dragIndex >= slides.length ||
+        hoverIndex < 0 ||
+        hoverIndex >= slides.length
+      ) {
+        return;
+      }
+
+      const draggedSlide = slides[dragIndex];
+      const updatedSlides = [...slides];
+      updatedSlides.splice(dragIndex, 1);
+      updatedSlides.splice(hoverIndex, 0, draggedSlide);
+
+      set({ slides: updatedSlides });
+    },
+
     updateSlideBackground: (slideId, color, saveHistory = true) => {
       if (saveHistory) get().saveToHistory();
       set((state) => ({

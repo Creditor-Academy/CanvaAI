@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ThemeCard from './ThemeCard';
 import ThemeBrowserModal from './ThemeBrowserModal';
 import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
+import './styles/PresentationStudio.css';
 
 const FieldLabel = ({ children }) => (
   <label className="ps-field-label">{children}</label>
@@ -73,24 +74,36 @@ const CustomSelect = ({
 
 const TitleInput = ({ prompt, setPrompt }) => (
   <div className="ps-field-block">
-    <FieldLabel>Title</FieldLabel>
+    <div className="ps-field-info-row">
+      <FieldLabel>Title</FieldLabel>
+      <span className={`ps-char-counter ${prompt.length >= 60 ? 'limit' : ''}`}>
+        {prompt.length}/60
+      </span>
+    </div>
     <textarea
-      value={prompt}
-      onChange={(e) => setPrompt(e.target.value)}
-      placeholder="Write your presentation title..."
       className="ps-textarea ps-title-input"
+      value={prompt}
+      onChange={(e) => setPrompt(e.target.value.slice(0, 60))}
+      placeholder="Write your presentation title..."
+      maxLength={60}
     />
   </div>
 );
 
 const OutlineInput = ({ outlineText, setOutlineText }) => (
   <div className="ps-field-block">
-    <FieldLabel>Outline (Optional)</FieldLabel>
+    <div className="ps-field-info-row">
+      <FieldLabel>Outline (Optional)</FieldLabel>
+      <span className={`ps-char-counter ${(outlineText?.length || 0) >= 500 ? 'limit' : ''}`}>
+        {outlineText?.length || 0}/500
+      </span>
+    </div>
     <textarea
-      value={outlineText || ''}
-      onChange={(e) => setOutlineText(e.target.value)}
-      placeholder="Write bullet points or structured outline..."
       className="ps-textarea ps-outline-input"
+      value={outlineText || ""}
+      onChange={(e) => setOutlineText(e.target.value.slice(0, 500))}
+      placeholder="Write bullet points or structured outline..."
+      maxLength={500}
     />
   </div>
 );
@@ -98,9 +111,10 @@ const OutlineInput = ({ outlineText, setOutlineText }) => (
 const ToneSelector = ({ tone, setTone }) => {
   const tones = ['Professional', 'Friendly', 'Creative', 'Corporate'];
 
+
   return (
     <CustomSelect
-      label="Tone"
+    label="Tone"
       value={tone}
       onChange={setTone}
       placeholder="Select tone"
@@ -109,7 +123,7 @@ const ToneSelector = ({ tone, setTone }) => {
         value: item,
       }))}
     />
-  );
+  );  
 };
 
 const SlideSelector = ({ length, setLength }) => {
@@ -133,8 +147,7 @@ const SlideSelector = ({ length, setLength }) => {
 };
 
 const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
-  const options = ['AI Images', 'No Media'];
-
+  const options = ['Ai-Images', 'No Media'];
   return (
     <div className="ps-field-block">
       <FieldLabel>Media</FieldLabel>
@@ -163,31 +176,31 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
       id: 'Realistic',
       label: 'Realistic',
       image:
-        'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/78/44/15/78441592d2823fb8e217fdc9abf87eb8.jpg',
     },
     {
       id: 'Anime',
       label: 'Anime',
       image:
-        'https://images.unsplash.com/photo-1618331833071-ce81bd50d300?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/avif/736x/8c/9b/07/8c9b07e5f25b7776190bf9de4da60c47.avf',
     },
     {
       id: 'Cartoon',
       label: 'Cartoon',
       image:
-        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/37/8c/f4/378cf484b8202e3a2452b54145308bd3.jpg',
     },
     {
       id: 'Sketch',
       label: 'Sketch',
       image:
-        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/be/ae/c2/beaec2a95b96f2c669473b6c15f082b3.jpg',
     },
     {
       id: 'Painting',
       label: 'Painting',
       image:
-        'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/1200x/ad/f1/83/adf183d1cbd843bcfc778ee54c50d6f7.jpg',
     },
   ];
 
@@ -295,7 +308,7 @@ const PromptSection = ({
     tone &&
     length &&
     mediaStyle &&
-    (mediaStyle !== 'AI Images' || imageStyle) &&
+    (mediaStyle !== "Ai-Images" || imageStyle) &&
     selectedTheme;
 
   const handleGenerateClick = () => {
@@ -308,8 +321,10 @@ const PromptSection = ({
       meta: {
         tone: tone ? tone.toLowerCase() : 'professional',
         slideCount: length ? Number(length) : 5,
-        mediaStyle: mediaStyle === 'AI Images' ? 'ai-image' : 'no-media',
-        imageStyle: mediaStyle === 'AI Images' ? imageStyle : undefined,
+        media: {
+          mediaType: mediaStyle,
+          mediaStyle: mediaStyle === "Ai-Images" ? imageStyle : undefined,
+        },
         theme: {
           name: selectedTheme.name,
           slideBackground: selectedTheme.slideBackground,
@@ -348,8 +363,11 @@ const PromptSection = ({
 
             <MediaSelector mediaStyle={mediaStyle} setMediaStyle={setMediaStyle} />
 
-            {mediaStyle === 'AI Images' && (
-              <ImageStyleSelector imageStyle={imageStyle} setImageStyle={setImageStyle} />
+            {mediaStyle === "Ai-Images" && (
+              <ImageStyleSelector
+                imageStyle={imageStyle}
+                setImageStyle={setImageStyle}
+              />
             )}
 
             <ThemeGrid

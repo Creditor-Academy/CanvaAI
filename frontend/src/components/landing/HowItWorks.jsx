@@ -7,19 +7,19 @@ const steps = [
   {
     id: 1,
     title: "Choose a Tool",
-    text: "Select the AI tool you want to use — presentations, images or documents.",
+    text: "Select the AI tool you want to use — presentations or images.",
     color: "#f5c66a"
   },
   {
     id: 2,
     title: "Generate with AI",
-    text: "Let AI generate content, edit images, or build documents instantly.",
+    text: "Let AI generate content, edit images, or build Presentation instantly.",
     color: "#5bfcff"
   },
   {
     id: 3,
     title: "Download & Use",
-    text: "Download your presentation, image or document and start using it instantly.",
+    text: "Download your presentation, image and start using it instantly.",
     color: "#110956"
   }
 ];

@@ -31,7 +31,7 @@ const Hero = () => {
           </h1>
 
           <p>
-            Generate presentations, documents and visuals instantly
+            Generate presentations and visuals instantly
             using powerful AI technology.
           </p>
 
