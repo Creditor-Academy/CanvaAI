@@ -22,27 +22,9 @@
 
 .ps-panel {
   display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 540px;
-  padding: 24px;
-  border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 255, 0.94) 100%);
-  border: 1px solid rgba(199, 210, 254, 0.7);
-  box-shadow:
-    0 18px 45px rgba(59, 130, 246, 0.08),
-    0 10px 24px rgba(168, 85, 247, 0.08);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-sizing: border-box;
-  overflow: visible;
-  position: relative;
-  z-index: 1;
-}
-.ps-custom-select {
-  position: relative;
-  z-index: 50;
+  align-items: center;
+  justify-content: center; /* center content */
+  padding-top: 80px;
 }
 
 .ps-custom-select.open {

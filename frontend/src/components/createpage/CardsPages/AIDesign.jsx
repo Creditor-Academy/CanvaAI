@@ -75,30 +75,30 @@ export const AIDesign = () => {
 
       const style = selectedStyle.toLowerCase();
 
-       const res = await api.generateLogo(prompt, style);
-      // const res = {
-      //   "msg": "Logo generated successfully",
-      //   "data": [
-      //     {
-      //       "url1": {
-      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
-      //         "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
-      //       },
-      //       "url2": {
-      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
-      //         "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
-      //       },
-      //       "url3": {
-      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
-      //         "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
-      //       },
-      //       "url4": {
-      //         "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
-      //         "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
-      //       }
-      //     }
-      //   ]
-      // }
+      // const res = await api.generateLogo(prompt, style);
+      const res = {
+    "msg": "Logo generated successfully",
+    "data": [
+        {
+            "url1": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image1-1773463463639/6997f22005cc54d1c2f4925b-image1-1773463463639-1773463463639-3d3654ba.jpg"
+            },
+            "url2": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image2-1773463469112/6997f22005cc54d1c2f4925b-image2-1773463469112-1773463469112-6e355911.jpg"
+            },
+            "url3": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image3-1773463473817/6997f22005cc54d1c2f4925b-image3-1773463473817-1773463473817-a5d05533.jpg"
+            },
+            "url4": {
+                "url": "https://athna-ai.s3.us-east-1.amazonaws.com/temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg",
+                "key": "temp/6997f22005cc54d1c2f4925b/image4-1773463477492/6997f22005cc54d1c2f4925b-image4-1773463477492-1773463477492-13c64631.jpg"
+            }
+        }
+    ]
+}
       console.log(res);
 
       const images = res?.data?.[0];
@@ -115,20 +115,12 @@ export const AIDesign = () => {
 
     } catch (error) {
       console.error("Logo generation failed:", error);
-
-      const message = error?.message || "Image generation failed";
-
-      if (message === "Not enough Balance for generate Image") {
-        setGeneratedImages([]);
-        setSelectedImages([]);
-        setPopupMessage(message);
-        setShowBalancePopup(true);
-      } else {
-        alert(message);
-      }
+      alert("Image generation failed");
     } finally {
-      setIsLoading(false);
-      setProgress(0);
+      setTimeout(() => {
+        setIsLoading(false);
+        setProgress(0);
+      }, 500);
     }
   };
   const toggleImageSelection = (img) => {
@@ -148,13 +140,13 @@ export const AIDesign = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col px-4 sm:px-5 md:px-6 lg:px-8 xl:pl-[96px] pb-[96px] md:pb-8">
+    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col">
 
 
 
       {/* HERO */}
-      <div className="text-center pt-24 md:pt-24 xl:pt-20 z-10 px-2 sm:px-4">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900">
+      <div className="text-center pt-24 md:pt-30 z-10 px-4">
+        <h1 className="text-4xl font-bold text-blue-900">
           AI IMAGE GENERATOR
         </h1>
         <p className="text-blue-700 text-xs sm:text-sm mt-1">
@@ -163,9 +155,9 @@ export const AIDesign = () => {
       </div>
 
       {/* MAIN */}
-      <div className="flex-1 flex items-start justify-center w-full z-10 pt-6 sm:pt-8">
+      <div className="flex-1 flex items-center justify-center px-4 md:px-10 z-10">
 
-        <div className="w-full max-w-sm sm:max-w-2xl lg:max-w-5xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-5 lg:gap-6">
+        <div className="w-full max-w-sm sm:max-w-xl md:max-w-4xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-6">
 
           {/* LEFT PANEL */}
           <div className="bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5">
@@ -250,7 +242,7 @@ export const AIDesign = () => {
           </div>
 
           {/* RIGHT PANEL */}
-          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5 flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] md:min-h-[420px]">
+          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-5 flex flex-col items-center justify-center min-h-[320px] md:min-h-[420px]">
 
             {!generatedImages.length && !isLoading && (
               <>
@@ -288,7 +280,7 @@ export const AIDesign = () => {
             {generatedImages.length > 0 && (
 
               <>
-                <div className="grid w-full grid-cols-2 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
 
                   {generatedImages.map((img, idx) => {
 

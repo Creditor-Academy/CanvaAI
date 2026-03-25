@@ -1,17 +1,9 @@
 .admin-dash {
   min-height: 100vh;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-x: hidden;
-  transform: none;
+  padding-top: 70px;
+  padding-left: 58px;
+ transform: scale(0.9);
   transform-origin: top center;
-
-  /* default desktop */
-  padding-top: 110px;
-  padding-left: 120px;
-  padding-right: 0;
-  padding-bottom: 0;
 }
 
 .admin-dash__shell {

@@ -567,7 +567,7 @@ class ApiService {
       {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ prompt, style }),
+        body: JSON.stringify({ prompt }),
       }
     );
   }
