@@ -159,18 +159,32 @@ const AgentPanel = ({ isOpen, onClose }) => {
         </span>
       </div>
 
-      <textarea
-        className="agent-prompt-input"
-        placeholder={
-          mode === "generate-image"
-            ? "Describe the image you want..."
-            : "Describe the content for your slide..."
-        }
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        rows={4}
-        disabled={isGenerating}
-      />
+      {(() => {
+        const maxLen = mode === "generate-image" ? 50 : mode === "expand-slide" ? 100 : 200;
+        const atLimit = prompt.length >= maxLen;
+        return (
+          <>
+            <textarea
+              className={`agent-prompt-input${atLimit ? " agent-prompt-input--limit" : ""}`}
+              placeholder={
+                mode === "generate-image"
+                  ? "Describe the image you want..."
+                  : "Describe the content for your slide..."
+              }
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value.slice(0, maxLen))}
+              rows={4}
+              disabled={isGenerating}
+              maxLength={maxLen}
+            />
+            {atLimit && (
+              <span className="agent-prompt-limit-msg">
+                Character limit reached ({maxLen})
+              </span>
+            )}
+          </>
+        );
+      })()}
 
       {showMediaOptions && (
         <div className="media-options">

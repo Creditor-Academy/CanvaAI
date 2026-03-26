@@ -152,6 +152,21 @@
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
 }
 
+.agent-prompt-input--limit {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+  margin-bottom: 4px;
+}
+
+.agent-prompt-limit-msg {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ef4444;
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+
 .media-options {
   display: flex;
   gap: 16px;

@@ -171,6 +171,60 @@ const normalizeCells = (cells, rows, cols) => {
    NORMALIZATION HELPERS
 ========================= */
 
+/**
+ * Normalizes an AI-generated layer to remove invalid absolute positioning
+ * from list item children and text nodes, ensuring flow layout works correctly.
+ */
+export function normalizeAILayer(layer) {
+  if (!layer || layer.type !== "text" || !Array.isArray(layer?.content)) {
+    return layer;
+  }
+
+  const hasList = layer.content.some(
+    (node) => node?.type === "bulleted-list" || node?.type === "numbered-list"
+  );
+
+  if (!hasList) {
+    return layer;
+  }
+
+  const cleanNode = (node) => {
+    if (node === null || node === undefined) return null;
+
+    if (typeof node.text === "string") {
+      if (node.text.trim() === "") return null;
+
+      const validTextNode = { text: node.text };
+      if (node.color !== undefined) validTextNode.color = node.color;
+      if (node.fontSize !== undefined) validTextNode.fontSize = node.fontSize;
+      if (node.fontFamily !== undefined) validTextNode.fontFamily = node.fontFamily;
+      if (node.fontWeight !== undefined) validTextNode.fontWeight = node.fontWeight;
+      if (node.fontStyle !== undefined) validTextNode.fontStyle = node.fontStyle;
+      if (node.textDecoration !== undefined) validTextNode.textDecoration = node.textDecoration;
+
+      return validTextNode;
+    }
+
+    if (Array.isArray(node.children)) {
+      const cleanedChildren = node.children.map(cleanNode).filter((child) => child !== null);
+      if (cleanedChildren.length === 0) return null;
+
+      const { x, y, width, height, rotation, ...safeProps } = node;
+      return { ...safeProps, children: cleanedChildren };
+    }
+
+    const { x, y, width, height, rotation, ...safeProps } = node;
+    if (Object.keys(safeProps).length === 0) return null;
+
+    return safeProps;
+  };
+
+  return {
+    ...layer,
+    content: layer.content.map(cleanNode).filter((node) => node !== null),
+  };
+}
+
 const normalizeLayer = (layer, forceNewId = false) => {
   if (!layer) return layer;
 
@@ -252,6 +306,19 @@ const normalizeLayer = (layer, forceNewId = false) => {
     if (normalizedLayer.strokeColor === undefined) {
       normalizedLayer.strokeColor = "#1e40af";
     }
+  }
+
+  // APPLY AI LIST NORMALIZATION
+  if (normalizedLayer.type === "text") {
+    normalizedLayer = normalizeAILayer(normalizedLayer);
+
+    // Safeguard: Force width and height to be strictly numbers. 
+    // AI often sends 'auto', '100%', or leaves it undefined which breaks drag rendering completely.
+    const safeWidth = Number(normalizedLayer.width);
+    const safeHeight = Number(normalizedLayer.height);
+
+    normalizedLayer.width = isNaN(safeWidth) || safeWidth < 200 ? 700 : safeWidth;
+    normalizedLayer.height = isNaN(safeHeight) || safeHeight < 40 ? 100 : safeHeight;
   }
 
   return normalizedLayer;

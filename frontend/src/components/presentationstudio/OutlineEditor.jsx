@@ -325,6 +325,21 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                 : ""
                 }`}
             >
+              {isFinalizing && (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="outline-editor-spin"
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              )}
               {isFinalizing
                 ? "Generating Final Presentation..."
                 : "Generate Final Presentation"}
