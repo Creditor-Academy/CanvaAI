@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 
 export default function CreditsAnalytics() {
   const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [usage, setUsage] = useState({
     ppt: {
       pptGeneration: 0,
@@ -86,8 +88,22 @@ export default function CreditsAnalytics() {
     };
 
 
+    const fetchOrders = async () => {
+      try {
+        const data = await userService.getAllOrders();
+        const orderList = data.orders || data.data || data || [];
+        setOrders(Array.isArray(orderList) ? orderList : []);
+      } catch (error) {
+        console.error("Orders API error:", error);
+        setOrders([]);
+      } finally {
+        setOrdersLoading(false);
+      }
+    };
+
     fetchProfile();
     fetchDashboard();
+    fetchOrders();
   }, []);
 
 
@@ -326,6 +342,79 @@ export default function CreditsAnalytics() {
             <Row label="AI Generator" value={`$${usage.document.aiGenerator}`} />
             <Row label="Editor Images" value={`$${usage.document.editorImages}`} />
           </Section> */}
+        </div>
+
+        {/* ORDER HISTORY */}
+        <div className="mt-6 lg:mt-8 max-w-[900px] mx-auto">
+          <div className="rounded-[20px] lg:rounded-[22px] border border-slate-200/80 bg-white/85 shadow-[0_6px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl overflow-hidden">
+            <div className="h-1.5 w-full bg-gradient-to-r from-blue-800 to-indigo-600"></div>
+            <div className="px-5 pt-5 pb-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-md bg-blue-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                    <rect x="9" y="3" width="6" height="4" rx="1" />
+                    <path d="M9 12h6M9 16h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-[18px] lg:text-[19px] font-bold leading-none tracking-tight text-slate-900">Order History</h3>
+                  <p className="mt-1 text-[11px] text-slate-500">All your payment transactions</p>
+                </div>
+              </div>
+
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-10 text-slate-400 text-sm">Loading orders...</div>
+              ) : orders.length === 0 ? (
+                <div className="flex items-center justify-center py-10 text-slate-400 text-sm">No orders found.</div>
+              ) : (
+                <div className="overflow-x-auto overflow-y-auto max-h-72">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Order ID</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Plan</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {orders.map((order, idx) => (
+                        <tr key={order._id || order.orderId || idx} className="hover:bg-slate-50/60 transition-colors duration-150">
+                          <td className="py-3 px-3 text-[12px] text-slate-500 font-mono">
+                            #{(order._id || order.orderId || "").toString().slice(-8).toUpperCase()}
+                          </td>
+                          <td className="py-3 px-3 text-[13px] font-medium text-slate-700">
+                            {order.planName || order.plan || order.description || "—"}
+                          </td>
+                          <td className="py-3 px-3 text-[13px] font-semibold text-slate-900">
+                            ${Number(order.amount || order.price || 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                              (order.status || "").toLowerCase() === "completed" || (order.status || "").toLowerCase() === "success" || (order.status || "").toLowerCase() === "succeeded" || (order.status || "").toLowerCase() === "paid"
+                                ? "bg-green-100 text-green-700 border border-green-300"
+                                : (order.status || "").toLowerCase() === "pending"
+                                ? "bg-red-50 text-red-400 border border-red-200"
+                                : "bg-red-100 text-red-700 border border-red-300"
+                            }`}>
+                              {order.status || "Unknown"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-[12px] text-slate-500">
+                            {order.createdAt || order.date
+                              ? new Date(order.createdAt || order.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
