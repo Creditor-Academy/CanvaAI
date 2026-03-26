@@ -27,7 +27,7 @@ const Hero = () => {
 
           <h1>
             Design <span> Projects</span><br />
-            With Our Designova AI
+            With Our Designova
           </h1>
 
           <p>

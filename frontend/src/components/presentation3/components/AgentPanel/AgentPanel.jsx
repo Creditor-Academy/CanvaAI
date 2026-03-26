@@ -46,6 +46,8 @@ const AgentPanel = ({ isOpen, onClose }) => {
     }
     return null;
   };
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [balancePopupMessage, setBalancePopupMessage] = useState("");
 
   // Reset state when closing or changing modes
   useEffect(() => {
@@ -72,17 +74,16 @@ const AgentPanel = ({ isOpen, onClose }) => {
     if (!prompt.trim() || isGenerating) return;
 
     const userId = getUserId();
-    console.log("--- AgentPanel: handleSubmit IDs check:", { userId, presentationId });
 
     if (!userId || !presentationId) {
-      alert(`Missing IDs. userId: ${userId || 'null'}, presentationId: ${presentationId || 'null'}. Please ensure you are logged in and the presentation is saved.`);
+      alert("Missing IDs. Please login again.");
       return;
     }
 
     setIsGenerating(true);
+
     try {
       if (mode === "generate-image") {
-        console.log("--- AgentPanel: Generating image with prompt:", prompt);
         const activeSlide = slides.find(s => s.id === activeSlideId);
         const res = await aiService.generateAIImage({
           userId,
@@ -94,7 +95,6 @@ const AgentPanel = ({ isOpen, onClose }) => {
           addImageLayer(null, res.url, res.key);
         }
       } else if (mode === "generate-slide") {
-        console.log("--- AgentPanel: Generating slide. Payload check:", { userId, presentationId, prompt, mediaType });
         const presentationData = { slides };
         const res = await aiService.generateAISlide({
           userId,
@@ -103,24 +103,12 @@ const AgentPanel = ({ isOpen, onClose }) => {
           mediaStyle: mediaType,
           presentationData
         });
-        console.log("--- AgentPanel: Generate slide response:", res);
         if (res.success && res.data) {
           appendSlide(res.data);
-          // appendSlide already handles normalization and setActiveSlide internally
-          // onClose() will ensure the workspace view updates immediately to the new slide
           onClose();
         }
       } else if (mode === "expand-slide") {
         const slideToExpand = slides.find(s => s.id === selectedSlideId);
-        console.log("--- AgentPanel: Expanding slide. Payload check:", {
-          userId,
-          presentationId,
-          prompt,
-          mediaType,
-          slideId: selectedSlideId,
-          slideDataSample: slideToExpand?.layers?.[0]?.type
-        });
-
         const res = await aiService.expandAISlide({
           userId,
           pptId: presentationId,
@@ -128,19 +116,29 @@ const AgentPanel = ({ isOpen, onClose }) => {
           userPrompt: prompt,
           mediaStyle: mediaType
         });
-        console.log("--- AgentPanel: Expand slide response:", res);
 
         if (res.success && res.data) {
           appendLayersToSlide(selectedSlideId, res.data);
-          setActiveSlide(selectedSlideId); // Synchronize view to updated slide
+          setActiveSlide(selectedSlideId);
         }
       }
 
-      // Success feedback or just reset
       handleBack();
     } catch (error) {
       console.error("AI Action failed:", error);
-      alert("Failed to complete AI action. Please try again.");
+
+      const message = error?.message || "";
+
+      if (message.includes("Not enough Balance") || message.includes("403")) {
+        setShowBalancePopup(true);
+        setBalancePopupMessage(
+          "Your AI credits are finished. Please renew your plan to continue using AI features."
+        );
+        return;
+      }
+
+      setShowBalancePopup(true);
+      setBalancePopupMessage("Something went wrong. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -266,7 +264,32 @@ const AgentPanel = ({ isOpen, onClose }) => {
       <button className="agent-close-btn" onClick={onClose}>
         <X size={18} />
       </button>
-
+      {showBalancePopup && (
+        <div className="balance-popup-overlay">
+          <div className="balance-popup">
+            <div className="balance-popup-icon">⚠️</div>
+            <h3>Insufficient Balance</h3>
+            <p>{balancePopupMessage}</p>
+            <div className="balance-popup-actions">
+              <button
+                className="balance-popup-secondary"
+                onClick={() => setShowBalancePopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="balance-popup-primary"
+                onClick={() => {
+                  setShowBalancePopup(false);
+                  window.location.href = "/pricing";
+                }}
+              >
+                Renew Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="agent-content">
         <div className="agent-header">
           <div className="agent-title">

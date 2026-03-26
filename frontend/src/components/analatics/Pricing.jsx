@@ -4,6 +4,7 @@ import api from "../../services/api";
 const Pricing = () => {
   const [openFaq, setOpenFaq] = useState(null);
 
+
   const plans = [
     {
       name: "Basic",
@@ -70,46 +71,34 @@ const Pricing = () => {
     { name: "Priority Support", free: false, pro: true, team: true },
   ];
   const handlePayment = async (planName) => {
-    try {
-      const token = localStorage.getItem("token");
+  try {
+    // ✅ Blank tab open first
+    const newTab = window.open("", "_blank");
 
-      if (!token) {
-        alert("Please login first");
-        return;
-      }
+    const planMapping = {
+      Basic: "Basic_Test",
+      Pro: "Pro_Test",
+      Elite: "Elite_Test",
+    };
 
-      const planMapping = {
-        Basic: "Basic_Test",
-        Pro: "Pro_Test",
-        Elite: "Elite_Test",
-      };
+    const planId = planMapping[planName];
 
-      const planId = planMapping[planName];
+    const res = await api.createPayment(planId);
 
-      const response = await fetch(
-        `http://localhost:5000/api/payment/create-payment/${planId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          redirect: "manual", // VERY IMPORTANT
-        }
-      );
+    console.log("res : ", res);
 
-      // Redirect URL yahan milega
-      const redirectUrl = response.headers.get("Location");
-
-      if (redirectUrl) {
-        window.location.href = redirectUrl;
-      } else {
-        console.log("No redirect URL found");
-      }
-
-    } catch (error) {
-      console.error("Payment error:", error);
+    if (res.checkoutUrl) {
+      console.log("res checkout url : ", res.checkoutUrl);
+      newTab.location.href = res.checkoutUrl; // ✅ new tab redirect
+    } else {
+      newTab.close();
+      console.log("Checkout URL not found");
     }
-  };
+
+  } catch (error) {
+    console.error("Payment error:", error);
+  }
+};
 
 
   return (
