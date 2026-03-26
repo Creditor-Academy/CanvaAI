@@ -125,7 +125,7 @@ export default function CreditsAnalytics() {
 
   const Row = ({ label, value }) => {
     const numericValue = Number(value?.toString().replace("$", "") || 0);
-    const formattedValue = `$${numericValue.toFixed(3)}`;
+    const formattedValue = `$${numericValue.toFixed(4)}`;
 
 
     return (
@@ -208,8 +208,8 @@ export default function CreditsAnalytics() {
                 <div className="flex items-center justify-between gap-3 text-xs sm:text-sm text-slate-600 font-medium">
                   <span>Monthly Usage</span>
                   <span className="shrink-0">
-                    {Number(wallet.remainingTokens || 0).toFixed(3)} /
-                    {Number(wallet.totalTokens || 0).toFixed(3)}
+                    {Number(wallet.remainingTokens || 0).toFixed(4)} /
+                    {Number(wallet.totalTokens || 0).toFixed(4)}
                   </span>
                 </div>
                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -236,10 +236,10 @@ export default function CreditsAnalytics() {
             <div className="relative z-10">
               <div className="text-xs sm:text-sm opacity-90">Remaining</div>
               <div className="text-[28px] sm:text-[34px] lg:text-[36px] font-bold tracking-tight break-words">
-                ${remainingBalance.toFixed(3)}
+                ${remainingBalance.toFixed(4)}
               </div>
               <div className="text-[11px] sm:text-xs opacity-80">
-                of ${Number(wallet.totalBalance || 0).toFixed(3)}
+                of ${Number(wallet.totalBalance || 0).toFixed(4)}
               </div>
 
 
