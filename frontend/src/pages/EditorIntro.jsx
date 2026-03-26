@@ -61,6 +61,200 @@ const timeAgo = (date) => {
     return new Date(date).toLocaleDateString();
 };
 
+// ── ChatGPT-style Markdown Preview ───────────────────────────────────────────
+const MarkdownPreview = ({ content }) => {
+    const inlineFormat = (str) => str
+        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:0.85em;font-family:monospace;color:#d97706;">$1</code>')
+        .replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+    const renderMarkdown = (text) => {
+        if (!text) return [];
+        const lines = text.split('\n');
+        const elements = [];
+        let i = 0;
+        let listItems = [];
+        let listType = null;
+        let codeLines = [];
+        let inCode = false;
+        let codeLanguage = '';
+
+        const flushList = () => {
+            if (listItems.length === 0) return;
+            if (listType === 'ol') {
+                elements.push(
+                    <ol key={`ol-${elements.length}`} style={{ paddingLeft: '1.5rem', margin: '0.5rem 0 0.75rem', lineHeight: 1.7 }}>
+                        {listItems.map((item, idx) => (
+                            <li key={idx} style={{ marginBottom: '0.25rem', color: '#374151', fontSize: '0.925rem' }}
+                                dangerouslySetInnerHTML={{ __html: inlineFormat(item) }} />
+                        ))}
+                    </ol>
+                );
+            } else {
+                elements.push(
+                    <ul key={`ul-${elements.length}`} style={{ paddingLeft: '1.5rem', margin: '0.5rem 0 0.75rem', listStyleType: 'disc', lineHeight: 1.7 }}>
+                        {listItems.map((item, idx) => (
+                            <li key={idx} style={{ marginBottom: '0.25rem', color: '#374151', fontSize: '0.925rem' }}
+                                dangerouslySetInnerHTML={{ __html: inlineFormat(item) }} />
+                        ))}
+                    </ul>
+                );
+            }
+            listItems = [];
+            listType = null;
+        };
+
+        while (i < lines.length) {
+            const line = lines[i];
+
+            // Code block fence
+            if (line.startsWith('```')) {
+                flushList();
+                if (!inCode) {
+                    inCode = true;
+                    codeLanguage = line.slice(3).trim();
+                    codeLines = [];
+                } else {
+                    inCode = false;
+                    elements.push(
+                        <div key={`code-${elements.length}`} style={{ margin: '1rem 0', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                            {codeLanguage && (
+                                <div style={{ background: '#1e293b', padding: '5px 14px' }}>
+                                    <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontFamily: 'monospace' }}>{codeLanguage}</span>
+                                </div>
+                            )}
+                            <pre style={{ background: '#0f172a', color: '#e2e8f0', padding: '1rem', margin: 0, overflowX: 'auto', fontSize: '0.85rem', lineHeight: 1.6, fontFamily: 'monospace' }}>
+                                <code>{codeLines.join('\n')}</code>
+                            </pre>
+                        </div>
+                    );
+                    codeLines = [];
+                }
+                i++; continue;
+            }
+            if (inCode) { codeLines.push(line); i++; continue; }
+
+            // Horizontal rule
+            if (/^---+$/.test(line.trim())) {
+                flushList();
+                elements.push(<hr key={`hr-${elements.length}`} style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '1rem 0' }} />);
+                i++; continue;
+            }
+
+            // Headings
+            const h1 = line.match(/^# (.+)/);
+            const h2 = line.match(/^## (.+)/);
+            const h3 = line.match(/^### (.+)/);
+            const h4 = line.match(/^#### (.+)/);
+            if (h1) {
+                flushList();
+                elements.push(<h1 key={`h1-${elements.length}`} style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', margin: '1.4rem 0 0.4rem', lineHeight: 1.25, letterSpacing: '-0.02em' }} dangerouslySetInnerHTML={{ __html: inlineFormat(h1[1]) }} />);
+                i++; continue;
+            }
+            if (h2) {
+                flushList();
+                elements.push(<h2 key={`h2-${elements.length}`} style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', margin: '1.25rem 0 0.35rem', lineHeight: 1.35, paddingBottom: '0.25rem', borderBottom: '1.5px solid #f1f5f9' }} dangerouslySetInnerHTML={{ __html: inlineFormat(h2[1]) }} />);
+                i++; continue;
+            }
+            if (h3) {
+                flushList();
+                elements.push(<h3 key={`h3-${elements.length}`} style={{ fontSize: '0.975rem', fontWeight: 700, color: '#334155', margin: '1rem 0 0.25rem' }} dangerouslySetInnerHTML={{ __html: inlineFormat(h3[1]) }} />);
+                i++; continue;
+            }
+            if (h4) {
+                flushList();
+                elements.push(<h4 key={`h4-${elements.length}`} style={{ fontSize: '0.925rem', fontWeight: 600, color: '#475569', margin: '0.8rem 0 0.2rem' }} dangerouslySetInnerHTML={{ __html: inlineFormat(h4[1]) }} />);
+                i++; continue;
+            }
+
+            // Blockquote
+            if (line.startsWith('> ')) {
+                flushList();
+                elements.push(
+                    <blockquote key={`bq-${elements.length}`} style={{ borderLeft: '3px solid #f59e0b', paddingLeft: '1rem', margin: '0.75rem 0', color: '#64748b', fontStyle: 'italic', fontSize: '0.925rem', background: 'rgba(245,158,11,0.04)', borderRadius: '0 6px 6px 0', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}
+                        dangerouslySetInnerHTML={{ __html: inlineFormat(line.slice(2)) }} />
+                );
+                i++; continue;
+            }
+
+            // Ordered list
+            const olMatch = line.match(/^(\d+)\.\s(.+)/);
+            if (olMatch) {
+                if (listType !== 'ol') { flushList(); listType = 'ol'; }
+                listItems.push(olMatch[2]);
+                i++; continue;
+            }
+
+            // Unordered list
+            const ulMatch = line.match(/^[-*+]\s(.+)/);
+            if (ulMatch) {
+                if (listType !== 'ul') { flushList(); listType = 'ul'; }
+                listItems.push(ulMatch[1]);
+                i++; continue;
+            }
+
+            // Table
+            if (line.startsWith('|') && lines[i + 1]?.match(/^\|[-| :]+\|$/)) {
+                flushList();
+                const headers = line.split('|').slice(1, -1).map(h => h.trim());
+                const rows = [];
+                i += 2;
+                while (i < lines.length && lines[i].startsWith('|')) {
+                    rows.push(lines[i].split('|').slice(1, -1).map(c => c.trim()));
+                    i++;
+                }
+                elements.push(
+                    <div key={`tbl-${elements.length}`} style={{ overflowX: 'auto', margin: '1rem 0' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                            <thead>
+                                <tr style={{ background: '#f8fafc' }}>
+                                    {headers.map((h, hi) => (
+                                        <th key={hi} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '2px solid #e5e7eb' }}
+                                            dangerouslySetInnerHTML={{ __html: inlineFormat(h) }} />
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((row, ri) => (
+                                    <tr key={ri} style={{ borderBottom: '1px solid #f1f5f9', background: ri % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                        {row.map((cell, ci) => (
+                                            <td key={ci} style={{ padding: '8px 12px', color: '#374151' }}
+                                                dangerouslySetInnerHTML={{ __html: inlineFormat(cell) }} />
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+                continue;
+            }
+
+            // Empty line
+            if (line.trim() === '') { flushList(); i++; continue; }
+
+            // Paragraph
+            flushList();
+            elements.push(
+                <p key={`p-${elements.length}`} style={{ fontSize: '0.925rem', lineHeight: 1.75, color: '#374151', margin: '0.4rem 0' }}
+                    dangerouslySetInnerHTML={{ __html: inlineFormat(line) }} />
+            );
+            i++;
+        }
+
+        flushList();
+        return elements;
+    };
+
+    return (
+        <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+            {renderMarkdown(content)}
+        </div>
+    );
+};
+
 const EditorIntro = () => {
     const [activeTab, setActiveTab] = useState('Recommended');
     const [searchQuery, setSearchQuery] = useState('');
@@ -111,6 +305,7 @@ const EditorIntro = () => {
     const [genPhaseLabel, setGenPhaseLabel] = useState('');
     const [generatedDocId, setGeneratedDocId] = useState(null);
     const [generatedDocTitle, setGeneratedDocTitle] = useState('');
+    const [generatedContent, setGeneratedContent] = useState('');
     const [wordCount, setWordCount] = useState(0);
     const [aiStep, setAiStep] = useState(1); // wizard step 1 or 2
 
@@ -146,7 +341,7 @@ const EditorIntro = () => {
 
     const openEditor = async (templateType = 'blank', docId = null) => {
         if (docId) {
-            // Check if this is a MongoDB ID (24 character hex string) or localStorage ID
+            // MongoDB ID validation (24 character hex string)
             const isMongoId = /^[0-9a-fA-F]{24}$/.test(docId);
 
             try {
@@ -163,20 +358,10 @@ const EditorIntro = () => {
                         hasContent: !!doc.data?.content
                     });
                 } else {
-                    // For localStorage IDs, check if it has backend reference
-                    const localDoc = documents.find(d => d.id === docId);
-                    if (!localDoc) {
-                        throw new Error('Document not found');
-                    }
-
-                    // If document has mongoBackendId, load from backend
-                    if (localDoc.mongoBackendId) {
-                        doc = await TextEditorService.getDocumentById(localDoc.mongoBackendId);
-                    } else {
-                        // Document exists only in localStorage - show error
-                        toast.error('This document needs to be saved to backend first');
-                        return;
-                    }
+                    // Invalid document ID format
+                    console.error('Invalid document ID format:', docId);
+                    toast.error('Document not found or invalid ID');
+                    return;
                 }
 
                 // Pass document data via URL params for the editor to fetch
@@ -210,11 +395,8 @@ const EditorIntro = () => {
                 pinned: false,
                 slideCount: 0
             };
-            // Update cache
+            // Update cache only
             queryClient.setQueryData(['documents'], old => [newDoc, ...(old || [])]);
-            localStorage.setItem('athena_active_doc_id', newDoc.id);
-            localStorage.setItem('athena_active_doc_content', content);
-            localStorage.setItem('athena_active_doc_title', newDoc.title);
         }
         window.open('/editor', '_blank');
     };
@@ -463,6 +645,7 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
             // Count words for the done screen
             const wc = generatedContent.replace(/[#*`>\-]/g, '').split(/\s+/).filter(Boolean).length;
             setWordCount(wc);
+            setGeneratedContent(generatedContent);
             setGenProgress(80); setGenPhaseLabel('Saving to your workspace…');
             await new Promise(r => setTimeout(r, 300));
 
@@ -962,93 +1145,119 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
 
                             {/* ── Done State ───────────────────────────────── */}
                             {genStep === 'done' && (
-                                <div className="flex flex-col items-center justify-center py-6 px-8 text-center flex-1 overflow-y-auto custom-scrollbar">
-                                    {/* Success burst */}
-                                    <div className="relative shrink-0">
-                                        <motion.div
-                                            initial={{ scale: 0, opacity: 0 }}
-                                            animate={{ scale: 1, opacity: 1 }}
-                                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                                            className="w-24 h-24 rounded-full flex items-center justify-center"
-                                            style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}
-                                        >
-                                            <CheckCircle2 className="w-12 h-12 text-white" />
-                                        </motion.div>
-                                        {/* Sparkle bursts */}
-                                        {[0, 1, 2, 3, 4, 5].map(i => (
-                                            <motion.div key={i}
-                                                initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
-                                                animate={{ scale: 1, x: Math.cos((i / 6) * Math.PI * 2) * 52, y: Math.sin((i / 6) * Math.PI * 2) * 52, opacity: 0 }}
-                                                transition={{ duration: 0.7, delay: 0.1 }}
-                                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                                                style={{ background: i % 2 === 0 ? '#f59e0b' : '#22c55e' }}
-                                            />
-                                        ))}
-                                    </div>
-
-                                    <div className="space-y-2 shrink-0">
-                                        <motion.h3
-                                            initial={{ opacity: 0, y: 8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: 0.2 }}
-                                            className="text-2xl font-bold text-slate-900">
-                                            Document Ready! ✨
-                                        </motion.h3>
-                                        <motion.p
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.3 }}
-                                            className="text-sm"
-                                            style={{ color: 'rgba(0,0,0,0.5)' }}>
-                                            Your document has been saved to your workspace
-                                        </motion.p>
-                                    </div>
-
-                                    {/* Stats row */}
+                                <div className="flex flex-col flex-1 overflow-hidden">
+                                    {/* ── Top success bar ── */}
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
+                                        initial={{ opacity: 0, y: -8 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.35 }}
-                                        className="flex flex-wrap justify-center items-center gap-4 shrink-0">
-                                        {[
-                                            { icon: Type, label: `~${wordCount.toLocaleString()} words` },
-                                            { icon: Layers, label: aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1) },
-                                            { icon: Target, label: aiTonality.charAt(0).toUpperCase() + aiTonality.slice(1) },
-                                        ].map(({ icon: Icon, label }) => (
-                                            <div key={label} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
-                                                style={{ background: 'rgba(0,0,0,0.03)', color: 'rgba(0,0,0,0.6)' }}>
-                                                <Icon className="w-4 h-4" style={{ color: '#f59e0b' }} />
-                                                {label}
+                                        transition={{ duration: 0.35 }}
+                                        className="shrink-0 px-5 pt-4 pb-3 flex items-center justify-between gap-3"
+                                        style={{ borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'linear-gradient(135deg,rgba(34,197,94,0.06),rgba(245,158,11,0.04))' }}
+                                    >
+                                        {/* Left: icon + title */}
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="relative shrink-0">
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.1 }}
+                                                    className="w-9 h-9 rounded-full flex items-center justify-center"
+                                                    style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}
+                                                >
+                                                    <CheckCircle2 className="w-5 h-5 text-white" />
+                                                </motion.div>
+                                                {[0,1,2,3].map(i => (
+                                                    <motion.div key={i}
+                                                        initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+                                                        animate={{ scale: 1, x: Math.cos((i/4)*Math.PI*2)*22, y: Math.sin((i/4)*Math.PI*2)*22, opacity: 0 }}
+                                                        transition={{ duration: 0.6, delay: 0.15 }}
+                                                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                                                        style={{ background: i % 2 === 0 ? '#f59e0b' : '#22c55e' }}
+                                                    />
+                                                ))}
                                             </div>
-                                        ))}
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-slate-900 truncate">✨ Document Ready!</p>
+                                                <p className="text-[11px] truncate" style={{ color: 'rgba(0,0,0,0.4)' }}>{generatedDocTitle}</p>
+                                            </div>
+                                        </div>
+                                        {/* Right: stats + actions */}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {[
+                                                { icon: Type, label: `~${wordCount.toLocaleString()} words` },
+                                                { icon: Layers, label: aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1) },
+                                                { icon: Target, label: aiTonality.charAt(0).toUpperCase() + aiTonality.slice(1) },
+                                            ].map(({ icon: Icon, label }) => (
+                                                <div key={label} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                                                    style={{ background: 'rgba(0,0,0,0.04)', color: 'rgba(0,0,0,0.55)' }}>
+                                                    <Icon className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} />
+                                                    {label}
+                                                </div>
+                                            ))}
+                                            <button
+                                                onClick={() => {
+                                                    setShowAIGenerator(false);
+                                                    setGenStep('config');
+                                                    setAiTopic(''); setAiContentType('document');
+                                                    setAiLength('medium'); setAiTonality('professional');
+                                                    setAiStep(1); setGeneratedContent('');
+                                                }}
+                                                className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                                                style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.55)' }}
+                                            >
+                                                New
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const url = `/editor/${generatedDocId}?docId=${generatedDocId}`;
+                                                    const win = window.open(url, '_blank', 'noopener,noreferrer');
+                                                    if (!win) toast.info('Allow popups to open the editor');
+                                                    setShowAIGenerator(false);
+                                                    setGenStep('config');
+                                                }}
+                                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl font-bold text-xs transition-all hover:opacity-90"
+                                                style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', boxShadow: '0 3px 12px rgba(245,158,11,0.35)' }}
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                Open in Editor
+                                            </button>
+                                        </div>
                                     </motion.div>
 
-                                    {/* Document title */}
+                                    {/* ── Content preview (ChatGPT-style) ── */}
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.4 }}
-                                        className="w-full max-w-sm px-5 py-3.5 rounded-2xl flex items-center gap-3 shrink-0"
-                                        style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)' }}>
-                                        <FileText className="w-5 h-5 shrink-0" style={{ color: '#f59e0b' }} />
-                                        <p className="text-sm font-semibold text-slate-900 truncate text-left">{generatedDocTitle}</p>
+                                        transition={{ delay: 0.2, duration: 0.4 }}
+                                        className="flex-1 overflow-y-auto"
+                                        style={{ background: '#fff' }}
+                                    >
+                                        {/* Document paper */}
+                                        <div style={{ maxWidth: '680px', margin: '0 auto', padding: '2rem 2.5rem 3rem' }}>
+                                            {/* Paper header accent */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
+                                                <div style={{ width: '3px', height: '20px', borderRadius: '2px', background: 'linear-gradient(180deg,#f59e0b,#f97316)' }} />
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                                    AI Generated · {aiTonality.charAt(0).toUpperCase() + aiTonality.slice(1)} tone
+                                                </span>
+                                            </div>
+                                            {/* Rendered markdown */}
+                                            <MarkdownPreview content={generatedContent} />
+                                        </div>
                                     </motion.div>
 
-                                    {/* Action buttons */}
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.45 }}
-                                        className="flex gap-3 w-full max-w-sm shrink-0">
+                                    {/* ── Bottom mobile action bar ── */}
+                                    <div className="md:hidden shrink-0 px-5 py-3 flex gap-2"
+                                        style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                                         <button
                                             onClick={() => {
                                                 setShowAIGenerator(false);
                                                 setGenStep('config');
                                                 setAiTopic(''); setAiContentType('document');
                                                 setAiLength('medium'); setAiTonality('professional');
-                                                setAiStep(1);
+                                                setAiStep(1); setGeneratedContent('');
                                             }}
-                                            className="flex-1 h-11 rounded-2xl font-semibold text-sm transition-all"
+                                            className="flex-1 h-10 rounded-2xl font-semibold text-sm transition-all"
                                             style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.6)' }}
                                         >
                                             Create Another
@@ -1061,13 +1270,13 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                                 setShowAIGenerator(false);
                                                 setGenStep('config');
                                             }}
-                                            className="flex-1 h-11 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                                            className="flex-1 h-10 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90"
                                             style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', boxShadow: '0 4px 20px rgba(245,158,11,0.4)' }}
                                         >
                                             <ExternalLink className="w-4 h-4" />
                                             Open in Editor
                                         </button>
-                                    </motion.div>
+                                    </div>
                                 </div>
                             )}
 

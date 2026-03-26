@@ -5,6 +5,8 @@ import Portal from '../ui/Portal';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentExporter } from '../../../../utils/documentExporter.js';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import {
   Bold,
   Italic,
@@ -1582,8 +1584,17 @@ export const EditorToolbar = ({
           return;
         }
 
+        // ✅ BUG 1 FIX: Parse markdown to HTML before inserting AI transformation results
+        const parseMarkdownToHtml = (text) => {
+          if (!text) return '';
+          const looksLikeMarkdown = /^#{1,6}\s|^\*\*|^-\s|\*\*/.test(text);
+          if (!looksLikeMarkdown) return `<p>${text}</p>`;
+          return DOMPurify.sanitize(marked.parse(text));
+        };
+        
+        const html = parseMarkdownToHtml(result);
         const { from, to } = editor.state.selection;
-        runWithSavedSelection(editor, (chain) => chain.deleteRange({ from, to }).insertContent(result));
+        runWithSavedSelection(editor, (chain) => chain.deleteRange({ from, to }).insertContent(html));
         toast.success(`${actionOrMode.replace('_', ' ')} completed`);
       } catch (error) {
         toast.error(`Failed to ${actionOrMode.replace('_', ' ')} text`);
@@ -2490,7 +2501,20 @@ export const EditorToolbar = ({
     >
       {/* Header with Menu */}
       <div className="flex items-center justify-between px-4 py-1 border-b border-blue-100">
-        {/* Menus removed - now in HeaderMenuBar */}
+        {/* Document Title Input - Top Left */}
+        <div className="flex items-center gap-2">
+          <Input
+            value={documentTitle || ''}
+            onChange={(e) => {
+              if (onSave && typeof onSave === 'function') {
+                // Save title change immediately
+                onSave({ title: e.target.value });
+              }
+            }}
+            placeholder="Untitled Document"
+            className="text-sm font-medium bg-transparent border-none focus-visible:ring-0 focus-visible:outline-none px-0 w-[300px] truncate"
+          />
+        </div>
       </div>
 
       {/* Compact Single-Row Toolbar */}

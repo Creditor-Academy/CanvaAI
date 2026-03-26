@@ -26,7 +26,8 @@ import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../extensions/Indent.js';
 import { Page, initializePagination } from '../extensions/Page.js';
 import { addHeadingStyles } from '../extensions/Page.js';  // Only need heading styles function
-import { paginateDocument, debouncePaginate, setupPasteDetection } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
 import '../AthenaEditor.css'; // 🔥 CRITICAL: Page NodeView styling
 import '../../../styles/real-pagination.css';
 import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
@@ -48,6 +49,50 @@ import { EditorProvider, useEditorContext } from '../contexts/EditorContent.jsx'
 import { ImageProvider, useImageContext } from '../contexts/ImageContext.jsx';
 import { useExportState } from '../hooks/useExportState.js';
 import { toast } from 'sonner';
+import { debounce } from 'lodash'; // 🔥 For debounced auto-save
+
+// ✅ BUG 1 FIX: Parse markdown to HTML before inserting into editor
+const parseMarkdownToHtml = (text) => {
+  if (!text) return '';
+  // Only parse if it looks like markdown (has # or ** or -)
+  const looksLikeMarkdown = /^#{1,6}\s|^\*\*|^-\s|\*\*/.test(text);
+  if (!looksLikeMarkdown) return `<p>${text}</p>`;
+  return DOMPurify.sanitize(marked.parse(text));
+};
+
+// ✅ FIX 2: Normalize multi-paragraph content by splitting \n in paragraphs
+const normalizeParagraphs = (jsonContent) => {
+  if (!jsonContent?.content) return jsonContent;
+
+  const splitNode = (node) => {
+    // Only split paragraphs with newlines embedded in text
+    if (node.type !== 'paragraph') {
+      return [{ ...node, content: node.content?.map ? node.content.flatMap(splitNode) : node.content }];
+    }
+    // Gather full text of this paragraph
+    const fullText = node.content?.map(c => c.text || '').join('') || '';
+    if (!fullText.includes('\n')) return [node];
+
+    console.log('[normalizeParagraphs] Splitting paragraph with', fullText.split('\n').length, 'lines');
+    
+    // Split into multiple paragraphs on newlines
+    return fullText.split('\n').map(line => ({
+      type: 'paragraph',
+      attrs: node.attrs,
+      content: line.trim() ? [{ type: 'text', text: line }] : []
+    }));
+  };
+
+  const walkContent = (nodes) =>
+    nodes.flatMap(node => {
+      if (node.type === 'page') {
+        return [{ ...node, content: walkContent(node.content || []) }];
+      }
+      return splitNode(node);
+    });
+
+  return { ...jsonContent, content: walkContent(jsonContent.content) };
+};
 import {
   rewriteText,
   expandText,
@@ -1895,13 +1940,33 @@ export const EditorToolbar = ({
             disabled: exportLoading && exportLoading[format.value]
           }))
         },
-        { type: 'separator' },
         {
-          label: 'Rename Document', icon: FileEdit, action: () => {
+          label: 'Rename Document', icon: FileEdit, action: async () => {
             const current = documentTitle || 'Untitled';
             const newName = window.prompt('Rename document:', current);
             if (newName && newName.trim()) {
-              toast.success(`Document renamed to "${newName.trim()}"`);
+              try {
+                // Get document ID from URL
+                const docId = getDocId();
+                if (!docId) {
+                  toast.error('Cannot rename - document not saved yet');
+                  return;
+                }
+                
+                // Update backend
+                await TextEditorService.updateDocument(docId, {
+                  title: newName.trim()
+                });
+                
+                setDocumentTitle(newName.trim());
+                toast.success(`Document renamed to "${newName.trim()}"`);
+                
+                // Notify other tabs to refresh
+                localStorage.setItem('athena_document_refresh', Date.now().toString());
+              } catch (error) {
+                console.error('Failed to rename document:', error);
+                toast.error('Failed to rename document');
+              }
             }
           }
         },
@@ -4103,16 +4168,90 @@ export const EditorToolbar = ({
         open={showAIAssistant}
         onOpenChange={setShowAIAssistant}
         onGenerateDocument={(data) => {
-          console.log('Generate document:', data);
-          // Handle document generation
-          setShowAIAssistant(false);
+          console.log('📝 AI Generate document:', data);
+          
+          if (!editor) return;
+          
+          // ✅ FIX: Properly insert AI-generated HTML content into editor
+          const insertGeneratedContent = async () => {
+            try {
+              // Clear current content and show loading state
+              editor.commands.clearContent();
+              editor.commands.insertContent(
+                '<div style="text-align: center; padding: 40px;">' +
+                  '<h1 style="color: #3b82f6; font-size: 28px; margin-bottom: 16px;">✨ Forging your document...</h1>' +
+                  '<p style="color: #6b7280; font-size: 16px;">Please wait while the AI generates your content.</p>' +
+                '</div>'
+              );
+              
+              // If content is provided, parse and insert it with professional formatting
+              if (data.html) {
+                console.log('📄 Raw AI content received:', data.html.substring(0, 200) + '...');
+                console.log('📄 Content type:', typeof data.html);
+                console.log('📄 Starts with markdown code block?', data.html.startsWith('```'));
+                
+                // Clean markdown code blocks if present
+                let cleanContent = data.html;
+                if (cleanContent.startsWith('```html') || cleanContent.startsWith('```markdown') || cleanContent.startsWith('```')) {
+                  console.log('🧹 Removing markdown code block wrappers...');
+                  cleanContent = cleanContent.replace(/^```\w*\s*/i, '').replace(/```\s*$/i, '').trim();
+                }
+                
+                console.log('📄 Clean content length:', cleanContent.length);
+                console.log('📄 First 100 chars after cleaning:', cleanContent.substring(0, 100));
+                
+                // ✅ CRITICAL: Convert markdown to HTML with proper formatting
+                console.log('🔄 Converting markdown to HTML...');
+                const htmlContent = parseMarkdownToHtml(cleanContent);
+                console.log('✅ HTML conversion complete. Output length:', htmlContent.length);
+                console.log('📄 HTML preview:', htmlContent.substring(0, 200) + '...');
+                
+                // ✅ Add professional styling wrapper
+                const styledContent = `
+                  <div class="professional-document">
+                    ${htmlContent}
+                  </div>
+                `;
+                
+                console.log('🎨 Styled content created, inserting into editor...');
+                
+                setTimeout(() => {
+                  // Sanitize and insert
+                  const sanitized = DOMPurify.sanitize(styledContent);
+                  console.log('🔒 Sanitized content length:', sanitized.length);
+                  
+                  editor.commands.setContent(sanitized);
+                  console.log('✅ Content inserted successfully!');
+                  
+                  toast.success(`Document generated — ${data.pages} page${data.pages > 1 ? 's' : ''}!`);
+                  
+                  // Force pagination to properly distribute content
+                  import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
+                    setTimeout(() => {
+                      console.log('📑 Running pagination...');
+                      paginateDocument(editor, { force: true });
+                    }, 50); // Small delay for DOM to settle
+                  });
+                }, 150); // Slightly longer delay for better UX
+              }
+              
+              setShowAIAssistant(false);
+            } catch (error) {
+              console.error('Failed to insert generated content:', error);
+              toast.error('Failed to display generated document');
+            }
+          };
+          
+          insertGeneratedContent();
         }}
         onInlineAction={(behavior, content) => {
           if (!editor) return;
+          // ✅ BUG 1 FIX: Parse markdown to HTML before inserting
+          const html = parseMarkdownToHtml(content);
           if (behavior === 'replace') {
-            editor.chain().focus().deleteSelection().insertContent(content).run();
+            editor.chain().focus().deleteSelection().insertContent(html).run();
           } else if (behavior === 'append') {
-            editor.chain().focus().insertContent(`<p>${content}</p>`).run();
+            editor.chain().focus().insertContent(html).run();
           }
           toast.success('AI action applied');
         }}
@@ -4292,8 +4431,9 @@ const TextEditorContent = ({
   const isPastingRef = useRef(false);
   const pasteTimerRef = useRef(null);
   
-  // 🚀 OPTIMIZATION: Extract docId from multiple sources with priority
-  // Priority: 1) ?docId= query param, 2) URL path, 3) localStorage
+  // 🚀 OPTIMIZATION: Extract docId from URL ONLY (Single Source of Truth)
+  // Priority: 1) ?docId= query param, 2) URL path /editor/:mongoId
+  // NO localStorage - MongoDB is the single source of truth
   const getDocId = () => {
     const urlParams = new URL(window.location.href).searchParams;
     
@@ -4304,7 +4444,7 @@ const TextEditorContent = ({
       return queryDocId;
     }
     
-    // Priority 2: URL path (/editor/:docId)
+    // Priority 2: URL path (/editor/:mongoId)
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
     if (/^[0-9a-fA-F]{24}$/.test(lastPart)) {
@@ -4312,14 +4452,7 @@ const TextEditorContent = ({
       return lastPart;
     }
     
-    // Priority 3: localStorage
-    const storedId = localStorage.getItem('athena_current_mongo_id');
-    if (storedId && /^[0-9a-fA-F]{24}$/.test(storedId)) {
-      console.log('[getDocId] Using localStorage:', storedId);
-      return storedId;
-    }
-    
-    console.log('[getDocId] No valid docId found');
+    console.log('[getDocId] No valid docId found in URL');
     return null;
   };
   
@@ -4333,6 +4466,53 @@ const TextEditorContent = ({
   
   // Unwrap the document from the response
   const fetchedDoc = backendResponse?.document || backendResponse;
+  
+  // 🔥 DELTA-BASED AUTO-SAVE: Debounced save to MongoDB
+  const debouncedSave = useCallback(
+    debounce(async (content) => {
+      if (!docId) {
+        console.log('⏭️ Skipping save - no document ID');
+        return;
+      }
+      
+      // Use editorRef to avoid closure issues
+      const currentEditor = editorRef.current;
+      if (!currentEditor || currentEditor.isDestroyed) {
+        console.log('⏭️ Skipping save - editor not ready');
+        return;
+      }
+      
+      try {
+        console.log('💾 Auto-saving to MongoDB...');
+        
+        // 🔥 CRITICAL: Save as TipTap JSON, NOT HTML or Markdown
+        const jsonContent = currentEditor.state.doc.toJSON();
+        const htmlContent = currentEditor.getHTML();
+        
+        await TextEditorService.updateDocument(docId, {
+          data: { 
+            content: jsonContent, // ✅ Save TipTap JSON structure
+            html: htmlContent // For compatibility/fallback
+          },
+          updatedAt: new Date()
+        });
+        
+        setSaveStatus('saved');
+        setLastSaved(new Date());
+        console.log('✅ Auto-saved to MongoDB:', {
+          docId,
+          contentType: 'TipTap JSON',
+          nodesCount: jsonContent.content?.length,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ Auto-save failed:', error);
+        setSaveStatus('error');
+        toast.error('Failed to save document. Please check your connection.');
+      }
+    }, 1000), // Wait 1 second after user stops typing
+    [docId, setSaveStatus, setLastSaved]
+  );
   
   // ── Sync word/character count from refs to state for footer display ───────
   //
@@ -4916,7 +5096,6 @@ const TextEditorContent = ({
   // After 400 ms (enough for ProseMirror schema normalisation + React batch)
   // we reset the flag, clear the fingerprint, and run the scanner once
   // against the fully settled document.
-  //
   const pastePluginRef = useRef(null);
   if (!pastePluginRef.current) {
     pastePluginRef.current = new Plugin({
@@ -4928,10 +5107,14 @@ const TextEditorContent = ({
 
           pasteTimerRef.current = setTimeout(() => {
             isPastingRef.current = false;
-            // Pagination is handled by setupPasteDetection in paginationEngine.js
+            import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+              const tiptapEditor = editorRef.current;
+              if (tiptapEditor && !tiptapEditor.isDestroyed) {
+                forceRepaginate(tiptapEditor);
+              }
+            });
           }, 500);
 
-          // 🔥 SMART PDF PASTE HANDLING
           const clipboardData = event.clipboardData;
           if (!clipboardData) return false;
           
@@ -4939,27 +5122,53 @@ const TextEditorContent = ({
           const html = clipboardData.getData('text/html');
           const rtf = clipboardData.getData('application/rtf');
           
-          console.log('[handlePaste] Paste detected:', { 
-            textLength: text.length, 
-            hasHtml: !!html,
-            hasRtf: !!rtf,
-            paragraphs: text.split(/\n\n+/).length 
-          });
+          // ✅ CRITICAL FIX: Strip any page wrappers from pasted HTML
+          // This prevents nested pages which cause overlapping bugs
+          let processedHtml = html;
+          if (processedHtml) {
+            // Check if HTML contains page-like structures
+            const hasPageWrappers = /data-page-number|class="[^"]*page/.test(processedHtml);
+            if (hasPageWrappers) {
+              // Create a temporary DOM element to parse the HTML
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = processedHtml;
+              
+              // Find all page wrapper elements
+              const pageWrappers = tempDiv.querySelectorAll('[data-page-number], .page');
+              
+              // Extract content from each page wrapper
+              const extractedContent = [];
+              pageWrappers.forEach((pageWrapper) => {
+                // Get all child nodes (not just elements, but text too)
+                Array.from(pageWrapper.childNodes).forEach(child => {
+                  extractedContent.push(child.cloneNode(true));
+                });
+              });
+              
+              // Rebuild HTML with extracted content
+              const newTempDiv = document.createElement('div');
+              extractedContent.forEach(node => {
+                newTempDiv.appendChild(node);
+              });
+              
+              processedHtml = newTempDiv.innerHTML;
+            }
+          }
           
-          // 🔥 DETECT PDF CONTENT
+          // 🔥 DETECT LARGE CONTENT (PDF, web articles, etc.)
+          const isLargeContent = text.length > 500; // More than ~100 words
           const isFromPDF = !html && text.includes('\n') && text.length > 100;
           
-          if (isFromPDF) {
-            console.log('[handlePaste] 📄 PDF content detected - applying smart parsing');
-            
-            // Prevent default paste for PDFs
+          // 🔥 HANDLE ALL LARGE CONTENT WITH CUSTOM PARSER
+          if (isLargeContent || isFromPDF) {
+            // Prevent default paste for large content
             event.preventDefault();
             
-            // Smart PDF parser
+            // Smart parser - use TEXT ONLY to avoid importing external CSS classes/structure
             const { state, view } = _view;
             const { tr } = state;
             
-            // 🔥 CRITICAL FIX: Find current page to insert into
+            // 🔥 CRITICAL FIX: Ensure we're inserting into a proper page structure
             const currentPos = state.selection.from;
             let targetPagePos = 0;
             let targetPageNode = null;
@@ -4978,19 +5187,54 @@ const TextEditorContent = ({
               }
             });
             
-            // If no page found, create one
+            // If no page found at cursor OR document has no pages yet, create page structure
             if (!targetPageNode) {
-              console.log('[handlePaste] No page found at cursor - creating first page');
-              const blankPage = state.schema.nodes.page.create(
-                { pageNumber: 1, isBlank: false },
-                []
-              );
-              tr.insert(0, blankPage);
-              targetPagePos = 0;
-              targetPageNode = blankPage;
+              // Check if document has ANY pages
+              const hasPages = state.doc.firstChild?.type.name === 'page';
+              
+              if (!hasPages) {
+                // Document has no pages - need to initialize pagination first
+                
+                // Create first page with empty paragraph
+                const blankPage = state.schema.nodes.page.create(
+                  { pageNumber: 1, isBlank: false },
+                  [state.schema.nodes.paragraph.create()]
+                );
+                
+                // Insert at position 0
+                tr.insert(0, blankPage);
+                targetPagePos = 0;
+                targetPageNode = blankPage;
+                targetPageIndex = 0;
+                
+                // Set cursor to inside the new page
+                tr.setSelection(state.schema.textSelection.create(state.doc, 1));
+              } else {
+                // Document has pages but cursor is outside - find last page
+                console.log('[handlePaste] Cursor outside page - finding insertion point');
+                let lastPagePos = 0;
+                let lastPageNode = null;
+                let lastPageIndex = 0;
+                let pageIndex = 0;
+                
+                state.doc.descendants((node, pos) => {
+                  if (node.type.name === 'page') {
+                    lastPagePos = pos;
+                    lastPageNode = node;
+                    lastPageIndex = pageIndex;
+                    pageIndex++;
+                  }
+                });
+                
+                if (lastPageNode) {
+                  targetPagePos = lastPagePos;
+                  targetPageNode = lastPageNode;
+                  targetPageIndex = lastPageIndex;
+                }
+              }
             }
             
-            // Split by double newlines (paragraphs)
+            // Split by double newlines (paragraphs) - works for both PDF and HTML
             const paragraphs = text.split(/\n\n+/);
             
             // Build structured content
@@ -5035,18 +5279,37 @@ const TextEditorContent = ({
               return parseParagraphWithFormatting(trimmed, state.schema);
             }).filter(Boolean);
             
-            // 🔥 CRITICAL FIX: Insert at END of target page (not at cursor)
+            // 🔥 CRITICAL FIX: Insert at END of target page (inside page wrapper)
             if (fragment.length > 0) {
+              // Calculate insert position: end of page content (before closing)
               const insertPos = targetPagePos + targetPageNode.nodeSize - 1;
+              
               tr.insert(insertPos, Fragment.from(fragment));
               view.dispatch(tr);
-              console.log(`[handlePaste] ✅ Inserted ${fragment.length} blocks into page ${targetPageIndex + 1}`);
+              
+              // ✅ FIX 2: Cancel outer pasteTimerRef to prevent double-trigger
+              // We'll handle pagination ourselves with a single forceRepaginate call
+              if (pasteTimerRef.current) {
+                clearTimeout(pasteTimerRef.current);
+                pasteTimerRef.current = null;
+              }
+              isPastingRef.current = false; // Allow pagination to proceed
+              
+              // Single forceRepaginate after the view.dispatch (200ms delay for ProseMirror to commit)
+              setTimeout(() => {
+                const tiptapEditor = editorRef.current;
+                if (tiptapEditor && !tiptapEditor.isDestroyed) {
+                  import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+                    forceRepaginate(tiptapEditor);
+                  });
+                }
+              }, 200); // 200ms gives ProseMirror time to fully commit the transaction
             }
             
             return true; // Handled
           }
           
-          // For non-PDF content, let ProseMirror handle it normally
+          // For small content (normal copy-paste), let ProseMirror handle it normally
           return false;
         },
       },
@@ -5068,7 +5331,6 @@ const TextEditorContent = ({
         codeBlock: false,
         bulletList: false,
         orderedList: false,
-        // 🔥 CRITICAL: Disable HardBreak - Shift+Enter should create new paragraphs
         hardBreak: false
       }),
       Document.extend({ content: 'page+' }),  // Allow page nodes in document
@@ -5106,6 +5368,32 @@ const TextEditorContent = ({
     corec: false,
     // 🔥 CRITICAL: Custom Shift+Enter handler - create new paragraph instead of hard break
     editorProps: {
+      // ✅ CRITICAL FIX: Strip page wrappers from ALL pasted content
+      // This runs BEFORE handlePaste and catches everything
+      transformPasted(slice) {
+        const { Fragment } = this.schema;
+        const newNodes = [];
+
+        // Check if ANY of the pasted nodes are pages
+        const hasPageNodes = slice.content.some(node => node.type.name === 'page');
+        
+        if (hasPageNodes) {
+          // Flatten page nodes - extract their children
+          slice.content.forEach(node => {
+            if (node.type.name === 'page') {
+              // Add all children of this page node
+              node.content.forEach(child => newNodes.push(child));
+            } else {
+              newNodes.push(node);
+            }
+          });
+
+          return slice.copy(Fragment.fromArray(newNodes));
+        }
+        
+        return slice;
+      },
+      
       handleKeyDown: (view, event) => {
         if (event.shiftKey && event.key === 'Enter') {
           event.preventDefault();
@@ -5137,8 +5425,9 @@ const TextEditorContent = ({
         console.log('[TextEditor.onCreate] Delayed init result:', result2);
       }, 50);
       
-      // 🔥 CRITICAL: Setup paste detection to prevent 250-page explosion
-      setupPasteDetection(editor);
+      // ✅ BUG 3 FIX: Removed setupPasteDetection - conflicts with paste plugin
+      // The paste plugin in TextEditor.jsx already handles paste interception
+      // setupPasteDetection creates duplicate listeners that fight each other
     },
     onUpdate: ({ editor: editorInstance }) => {
       // ── INFINITE LOOP GUARD ──────────────────────────────────────────────
@@ -5149,9 +5438,31 @@ const TextEditorContent = ({
         return;
       }
 
+      // ✅ CRITICAL FIX: Check for nested pages and remove them
+      const doc = editorInstance.state.doc;
+      let hasNestedPages = false;
+      
+      // Check if any page node contains another page node
+      doc.descendants((node, pos) => {
+        if (node.type.name === 'page') {
+          node.content.forEach(child => {
+            if (child.type.name === 'page') {
+              hasNestedPages = true;
+            }
+          });
+        }
+      });
+
       // ── DEBOUNCED RE-PAGINATION (only after DOM settles) ─────────────────
       // CRITICAL: This runs on EVERY content change, but the debounce prevents
       // rapid-fire pagination. The 300ms delay lets the DOM render completely.
+      
+      // 🔥 CRITICAL: Skip pagination during paste - let paste handler trigger it
+      if (isPastingRef.current) {
+        console.log('[onUpdate] Skipping pagination - paste in progress');
+        return;
+      }
+      
       debouncePaginate(editorInstance, 300);
 
       // ── Stats + autosave (unchanged) ─────────────────────────────────────
@@ -5187,11 +5498,13 @@ const TextEditorContent = ({
         // REMOVED: setDocumentStats - was causing parent re-renders
         // if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
       }, STATS_DELAY); // Extended delay to prevent cursor interruption
-
-      // REMOVED: Auto-pagination on every content change - this was causing cursor jump bug
-      // Pagination now only runs after paste or explicit page break operations
-      if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-      autoSaveTimeoutRef.current = setTimeout(() => handleAutoSaveRef.current?.(), 3000);
+      
+      // 🔥 DELTA-BASED AUTO-SAVE: Trigger debounced save on every content change
+      const json = editorInstance.state.doc.toJSON();
+      debouncedSave(json);
+      
+      // REMOVED: Old auto-save timeout - replaced by debounced save
+      // Pagination only runs after paste or explicit page break operations
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
       // CRITICAL FIX: Don't update state on every selection change
@@ -5222,6 +5535,79 @@ const TextEditorContent = ({
 
     console.log('🔍 Editor mounted with props:', { mongoId, activeDocId });
     console.log('🔍 Current URL:', window.location.href);
+    
+    // 🔥 AUTOMATIC OUTLINE SCANNER: Register callback for pagination complete
+    const extractHeadingsForOutline = () => {
+      console.log('📑 Automatic Outline Scanner triggered by pagination');
+      
+      const newHeadings = [];
+      let paragraphs = 0, images = 0, tables = 0;
+      
+      if (!editor || editor.isDestroyed) {
+        console.warn('⚠️ Editor not available during outline scan');
+        return;
+      }
+      
+      try {
+        editor.state.doc.descendants((node, pos) => {
+          const type = node.type.name;
+          
+          if (type === 'heading') {
+            // 🔥 Ensure heading has unique ID for navigation
+            const headingId = node.attrs.id || `heading-${pos}-${Date.now()}`;
+            newHeadings.push({ 
+              level: node.attrs.level, 
+              text: node.textContent, 
+              id: headingId,
+              pos: pos // Store position for scrolling
+            });
+          }
+          else if (type === 'paragraph') paragraphs++;
+          else if (type === 'image') images++;
+          else if (type === 'table') tables++;
+        });
+        
+        console.log('📊 Outline scan complete:', { 
+          headingsCount: newHeadings.length, 
+          paragraphs, 
+          images, 
+          tables,
+          sampleHeadings: newHeadings.slice(0, 3)
+        });
+        
+        // Update ref immediately
+        headingsRef.current = newHeadings;
+        
+        // Force state update to refresh outline sidebar
+        setHeadings(newHeadings);
+        
+        // Update document stats to trigger parent component updates
+        if (updateDocumentStatsAction) {
+          updateDocumentStatsAction(prev => ({ 
+            ...prev, 
+            paragraphs, 
+            images, 
+            tables,
+            pages: editor.state.doc.childCount
+          }));
+        }
+        
+        console.log('✅ Outline sidebar updated via automatic scanner');
+        
+        // Auto-open outline if it's closed and document has headings
+        if (newHeadings.length > 0 && !isOutlineOpen) {
+          console.log('📖 Auto-opening outline panel for document with', newHeadings.length, 'headings');
+          setIsOutlineOpen(true);
+        }
+      } catch (error) {
+        console.error('❌ Error in automatic outline scanner:', error);
+      }
+    };
+    
+    // Register the callback
+    editor.storage.onPaginationComplete = extractHeadingsForOutline;
+    console.log('✅ Outline scanner registered with editor storage');
+    
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 🚀 OPTIMIZATION: Synchronize editor content when document data arrives from cache/backend
@@ -5231,9 +5617,10 @@ const TextEditorContent = ({
     // Check if we've already loaded this document to avoid re-setting and losing focus
     if (editor.storage.athena_loaded_id === (fetchedDoc.id || fetchedDoc._id)) return;
 
-    console.log('✅ Synchronizing content from React Query cache:', { 
+    console.log('✅ DOCUMENT LOAD TRIGGERED:', { 
       id: fetchedDoc.id || fetchedDoc._id, 
-      title: fetchedDoc.title 
+      title: fetchedDoc.title,
+      previousId: editor.storage.athena_loaded_id || 'none'
     });
 
     const jsonContent = fetchedDoc.data?.content || fetchedDoc.content;
@@ -5243,61 +5630,117 @@ const TextEditorContent = ({
       hasJsonContent: !!jsonContent,
       hasHtmlContent: !!htmlContent,
       jsonType: typeof jsonContent,
-      contentKeys: jsonContent ? Object.keys(jsonContent) : [],
-      firstChildType: jsonContent?.content?.[0]?.type,
-      usedSource: jsonContent ? 'JSON (TipTap)' : 'HTML (Fallback)',
+      contentKeys: jsonContent ? (typeof jsonContent === 'object' ? Object.keys(jsonContent) : 'string - length: ' + jsonContent.length) : [],
+      firstChildType: typeof jsonContent === 'object' ? jsonContent?.content?.[0]?.type : 'N/A - string format',
+      usedSource: jsonContent ? (typeof jsonContent === 'object' ? 'JSON (TipTap)' : 'STRING - needs parsing') : 'HTML (Fallback)',
       rawDataStructure: fetchedDoc.data ? 'has data wrapper' : 'no data wrapper',
-      fullFetchedDoc: fetchedDoc  // Log entire object for inspection
+      fullFetchedDoc: fetchedDoc
     });
 
     // Defer setContent to avoid flushSync warning in React 19
     requestAnimationFrame(() => {
-      if (jsonContent && typeof jsonContent === 'object') {
-        console.log('✅ Setting content from TipTap JSON - preserves all formatting');
-        console.log('   JSON structure:', JSON.stringify(jsonContent, null, 2).substring(0, 500) + '...');
-        editor.commands.setContent(jsonContent);
+      console.log('🔄 requestAnimationFrame callback started');
+      console.log('📋 Content variables:', {
+        jsonContent: jsonContent ? 'exists' : 'null',
+        htmlContent: htmlContent ? 'exists' : 'null',
+        jsonContentType: typeof jsonContent,
+        htmlContentType: typeof htmlContent
+      });
+      
+      // 🔥 CRITICAL FIX: Use Markdown transformer for string content
+      const content = jsonContent || htmlContent;
+      
+      if (!content) {
+        console.warn('⚠️ No content available to display!');
+        return;
+      }
+      
+      console.log('📝 Processing content:', {
+        type: typeof content,
+        length: typeof content === 'string' ? content.length : 'N/A',
+        first100Chars: typeof content === 'string' ? content.substring(0, 100) : 'object'
+      });
+      
+      // Try to parse JSON if content is a string
+      let parsedJsonContent = null;
+      if (typeof content === 'string' && !isMarkdown(content)) {
+        try {
+          parsedJsonContent = JSON.parse(content);
+          console.log('✅ Successfully parsed JSON string');
+        } catch (error) {
+          console.error('❌ Failed to parse JSON:', error);
+          parsedJsonContent = null;
+        }
+      }
+      
+      if (typeof content === 'string') {
+        console.log('📝 Content is a string - checking if it\'s Markdown');
+        
+        // Check if it looks like Markdown
+        if (isMarkdown(content)) {
+          console.log('✅ Detected Markdown format - using transformer');
+          transformMarkdownToEditor(editor, content);
+        } else {
+          console.log('ℹ️ Content is HTML or plain text');
+          editor.commands.setContent(normalizeInlineStyles(content));
+          console.log('✅ HTML/text content set in editor');
+          
+          // Trigger pagination
+          setTimeout(() => {
+            import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+              forceRepaginate(editor);
+              console.log('[setContent] forceRepaginate called for HTML/text');
+            });
+          }, 100);
+        }
+      } else if (parsedJsonContent && typeof parsedJsonContent === 'object') {
+        console.log('✅ Setting content from parsed JSON');
+        // ✅ FIX 2: Normalize paragraphs by splitting \n into separate nodes
+        const normalized = normalizeParagraphs(parsedJsonContent);
+        
+        editor.commands.setContent(normalized);
+        console.log('✅ Content set successfully from JSON');
         
         // 🔥 CRITICAL: Force pagination after setting content
-        // This ensures content is properly distributed across pages
+        // This will trigger the automatic outline scanner via onPaginationComplete callback
         setTimeout(() => {
           console.log('[setContent] Forcing pagination after content load');
-          import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
-            paginateDocument(editor, { force: true });
+          import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+            forceRepaginate(editor);
+            console.log('[setContent] forceRepaginate called');
           });
         }, 100);
-      } else if (htmlContent) {
-        console.warn('⚠️ Using HTML fallback - some formatting may be lost');
-        console.warn('   HTML content:', htmlContent.substring(0, 300) + '...');
-        editor.commands.setContent(normalizeInlineStyles(htmlContent));
+      } else if (typeof content === 'object' && content !== null) {
+        // Handle case where content is already an object (TipTap JSON)
+        console.log('✅ Content is already a TipTap JSON object');
+        const normalized = normalizeParagraphs(content);
+        editor.commands.setContent(normalized);
+        console.log('✅ Object content set successfully');
         
-        // 🔥 CRITICAL: Force pagination after setting content
         setTimeout(() => {
-          console.log('[setContent] Forcing pagination after HTML load');
-          import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
-            paginateDocument(editor, { force: true });
+          import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+            forceRepaginate(editor);
+            console.log('[setContent] forceRepaginate called for object');
           });
         }, 100);
       }
+      
+      // 🔥 CRITICAL FIX: Set document title from fetched document
+      if (fetchedDoc.title) {
+        console.log('📝 Setting document title:', fetchedDoc.title);
+        setDocumentTitle(fetchedDoc.title);
+      }
+      
+      // Note: Outline will be automatically updated by the pagination callback
+      // No need for manual heading extraction - it happens via onPaginationComplete
       
       // Mark as loaded in editor storage to prevent re-runs
       editor.storage.athena_loaded_id = fetchedDoc.id || fetchedDoc._id;
     });
   }, [editor, isDocLoaded, fetchedDoc, setDocumentTitle, setIsAiGeneratedDoc]);
 
-  // Handle document ID setup for save operations
-  useEffect(() => {
-    if (!docId || docId === 'undefined') return;
-    
-    // Extract mongoId from URL path like /editor/:mongoId
-    const pathParts = window.location.pathname.split('/').filter(Boolean);
-    const pathMongoId = pathParts[pathParts.length - 1];
-
-    if (pathMongoId && pathMongoId !== 'editor' && /^[0-9a-fA-F]{24}$/.test(pathMongoId)) {
-      localStorage.setItem('athena_current_mongo_id', pathMongoId);
-    } else if (docId && /^[0-9a-fA-F]{24}$/.test(docId)) {
-      localStorage.setItem('athena_current_mongo_id', docId);
-    }
-  }, [docId]);
+  // 🔥 CRITICAL FIX: Removed localStorage usage - URL is single source of truth
+  // Document ID is now tracked ONLY via URL path and React props
 
   const handleCopy = useCallback(async () => {
     if (!editor) return;
@@ -5570,35 +6013,45 @@ const TextEditorContent = ({
 
       // Note: Removed localStorage backup. Only save to backend (MongoDB).
 
-      // Determine the document ID to use for saving
-      // Priority: 1) mongoId prop, 2) Extract from URL path, 3) localStorage fallback, 4) activeDocId
+      // 🔥 CRITICAL FIX: Determine document ID from URL ONLY (Single Source of Truth)
+      // Priority: 1) mongoId prop, 2) Extract from URL path
+      // NO localStorage fallback - MongoDB is the single source of truth
       const effectiveMongoId = mongoId || (() => {
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         const lastPart = pathParts[pathParts.length - 1];
         if (/^[0-9a-fA-F]{24}$/.test(lastPart)) return lastPart;
         return null;
-      })() || localStorage.getItem('athena_current_mongo_id');
+      })();
 
-      console.log('💾 SAVE DEBUG:', {
-        activeDocId,
+      console.log('💾 SAVE DEBUG - Single Source of Truth:', {
         mongoIdProp: mongoId,
         urlExtractedId: (() => {
           const pathParts = window.location.pathname.split('/').filter(Boolean);
           const lastPart = pathParts[pathParts.length - 1];
           return /^[0-9a-fA-F]{24}$/.test(lastPart) ? lastPart : null;
         })(),
-        localStorageId: localStorage.getItem('athena_current_mongo_id'),
         effectiveMongoId,
-        hasActiveDocId: !!activeDocId,
-        hasEffectiveMongoId: !!effectiveMongoId,
+        hasValidDocId: !!(mongoId || effectiveMongoId),
         urlPath: window.location.pathname,
         urlQuery: window.location.search
       });
 
+      // 🔥 CRITICAL FIX: Always use the mongoId from URL if available
+      // This prevents creating duplicate documents when editing existing ones
+      const docIdToUpdate = effectiveMongoId || activeDocId;
+      
       // If we have ANY document ID (activeDocId OR mongoId), update existing document
-      if (activeDocId || effectiveMongoId) {
-        const docIdToUpdate = effectiveMongoId || activeDocId;
+      if (docIdToUpdate) {
         console.log('📝 Updating existing document with ID:', docIdToUpdate);
+        console.log('🔍 Document ID source:', {
+          from_mongoId_prop: !!mongoId,
+          from_url_path: !!(function() {
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const lastPart = pathParts[pathParts.length - 1];
+            return /^[0-9a-fA-F]{24}$/.test(lastPart) ? lastPart : null;
+          })(),
+          from_localStorage: !!localStorage.getItem('athena_current_mongo_id')
+        });
 
         try {
           // Update existing document using /api/text-editor/document/:id
@@ -5722,10 +6175,43 @@ const TextEditorContent = ({
     if (from !== to) { editor.chain().focus().deleteRange({ from, to }).insertContent(result).run(); }
   }, [editor]);
 
-  const handleHeadingClick = useCallback((id) => {
+  const handleHeadingClick = useCallback((headingId) => {
     if (!editor) return;
-    try { const pos = parseInt(id.replace('heading-', '')); editor.chain().focus().setTextSelection(pos).run(); }
-    catch (error) { console.error('Heading click error:', error); }
+    try {
+      // 🔥 Find heading by ID in document
+      let targetPos = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading' && 
+            (node.attrs.id === headingId || `${pos}` === headingId.replace('heading-', '').split('-')[0])) {
+          targetPos = pos;
+          return false; // Stop searching
+        }
+        return true;
+      });
+      
+      if (targetPos !== null) {
+        // Set selection at heading position
+        editor.chain().focus().setTextSelection(targetPos).run();
+        
+        // 🔥 Smooth scroll to heading in viewport
+        setTimeout(() => {
+          const contentContainer = contentContainerRef.current;
+          if (contentContainer) {
+            const headingElement = contentContainer.querySelector(`[data-pos="${targetPos}"]`);
+            if (headingElement) {
+              headingElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'nearest'
+              });
+              console.log('📑 Scrolled to heading:', headingId);
+            }
+          }
+        }, 50); // Small delay for DOM to update after selection
+      }
+    } catch (error) { 
+      console.error('Heading click error:', error); 
+    }
   }, [editor]);
 
   const handleZoomChange = useCallback((newZoom) => {
@@ -6391,15 +6877,75 @@ const TextEditorContent = ({
           open={showAIAssistant}
           onOpenChange={setShowAIAssistant}
           onGenerateDocument={(data) => {
-            console.log('Generate document:', data);
-            toast.success(`Generating ${data.type} - ${data.pages} page${data.pages > 1 ? 's' : ''}`);
+            console.log('📝 AI Generate document:', data);
+            
+            if (!editor) return;
+            
+            // ✅ FIX: Properly insert AI-generated HTML content into editor
+            const insertGeneratedContent = async () => {
+              try {
+                // Clear current content and show loading state
+                editor.commands.clearContent();
+                editor.commands.insertContent(
+                  '<div style="text-align: center; padding: 40px;">' +
+                    '<h1 style="color: #3b82f6; font-size: 28px; margin-bottom: 16px;">✨ Forging your document...</h1>' +
+                    '<p style="color: #6b7280; font-size: 16px;">Please wait while the AI generates your content.</p>' +
+                  '</div>'
+                );
+                
+                // If content is provided, parse and insert it with professional formatting
+                if (data.html) {
+                  console.log('📄 Inserting generated content...');
+                  
+                  // Clean markdown code blocks if present
+                  let cleanContent = data.html;
+                  if (cleanContent.startsWith('```html') || cleanContent.startsWith('```markdown') || cleanContent.startsWith('```')) {
+                    cleanContent = cleanContent.replace(/^```\w*\s*/i, '').replace(/```\s*$/i, '').trim();
+                  }
+                  
+                  // ✅ CRITICAL: Convert markdown to HTML with proper formatting
+                  const htmlContent = parseMarkdownToHtml(cleanContent);
+                  
+                  // ✅ Add professional styling wrapper
+                  const styledContent = `
+                    <div class="professional-document">
+                      ${htmlContent}
+                    </div>
+                  `;
+                  
+                  setTimeout(() => {
+                    // Sanitize and insert
+                    const sanitized = DOMPurify.sanitize(styledContent);
+                    editor.commands.setContent(sanitized);
+                    
+                    toast.success(`Document generated — ${data.pages} page${data.pages > 1 ? 's' : ''}!`);
+                    
+                    // Force pagination to properly distribute content
+                    import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
+                      setTimeout(() => {
+                        paginateDocument(editor, { force: true });
+                      }, 50); // Small delay for DOM to settle
+                    });
+                  }, 150); // Slightly longer delay for better UX
+                }
+                
+                setShowAIAssistant(false);
+              } catch (error) {
+                console.error('Failed to insert generated content:', error);
+                toast.error('Failed to display generated document');
+              }
+            };
+            
+            insertGeneratedContent();
           }}
           onInlineAction={(behavior, content) => {
             if (!editor) return;
+            // ✅ BUG 1 FIX: Parse markdown to HTML before inserting
+            const html = parseMarkdownToHtml(content);
             if (behavior === 'replace') {
-              editor.chain().focus().deleteSelection().insertContent(content).run();
+              editor.chain().focus().deleteSelection().insertContent(html).run();
             } else if (behavior === 'append') {
-              editor.chain().focus().insertContent(`<p>${content}</p>`).run();
+              editor.chain().focus().insertContent(html).run();
             }
             toast.success('AI action applied');
           }}

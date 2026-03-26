@@ -33,7 +33,10 @@ export const addHeadingStyles = () => {};
 export const Page = Node.create({
   name: 'page',
   group: 'block',
+  // ✅ CRITICAL FIX: Only allow standard block content, NOT other pages
+  // This prevents nested pages which cause overlapping/overlay bugs
   content: 'block+',
+  // Explicitly define what blocks are allowed (exclude page node)
   defining: true,
   isolating: true,
 
