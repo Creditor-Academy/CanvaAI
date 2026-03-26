@@ -143,12 +143,12 @@ const ImageThumbPreview = memo(({ image }) => {
             <div
                 style={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
+                    top: '50%',
+                    left: '50%',
                     width: canvasSize.width,
                     height: canvasSize.height,
-                    transformOrigin: 'top left',
-                    transform: 'scale(var(--thumb-scale, 1))',
+                    transformOrigin: 'center',
+                    transform: 'translate(-50%, -50%) scale(var(--thumb-scale, 1))',
                 }}
                 className="pointer-events-none"
             >
@@ -421,8 +421,21 @@ const ImageUser = () => {
                 </div>
 
                 {loading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {[1, 2, 3, 4].map(i => (<div key={i} className="bg-white border border-slate-100 rounded-2xl h-64 animate-pulse" />))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                <div className="aspect-[12/6.3] bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 relative overflow-hidden">
+                                    <div className="absolute inset-0 animate-pulse" />
+                                </div>
+                                <div className="p-5">
+                                    <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg mb-3 animate-pulse" />
+                                    <div className="flex items-center justify-between">
+                                        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-100 rounded w-20 animate-pulse" />
+                                        <div className="h-5 bg-slate-100 rounded-full w-16 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -437,13 +450,14 @@ const ImageUser = () => {
                                 const canvasSize = image.data?.canvasSize || { width: 1200, height: 630 };
                                 const aspectRatio = (canvasSize.height / canvasSize.width) * 100;
                                 return (
-                                    <a key={image._id} href={`/canva-clone/${image._id}`} target="_blank" rel="noopener noreferrer" className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 block">
-                                        <div
-                                            className="relative bg-slate-100 overflow-hidden"
-                                            style={{
-                                                aspectRatio: `${canvasSize.width} / ${canvasSize.height}`
-                                            }}
-                                        >
+                                    <a
+                                        key={image._id}
+                                        href={`/canva-clone/${image._id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-[320px]"
+                                    >
+                                        <div className="relative bg-slate-100 overflow-hidden h-[180px]">
                                             <div
                                                 className="absolute inset-0"
                                                 style={{
@@ -471,7 +485,7 @@ const ImageUser = () => {
                                             </button>
                                         </div>
 
-                                        <div className="p-5">
+                                        <div className="p-5 flex flex-col justify-between flex-1">
                                             <div className="flex items-start justify-between">
                                                 <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
                                             </div>

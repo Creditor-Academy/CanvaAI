@@ -4,6 +4,31 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import React, { useEffect, useState } from 'react'
 
+
+const getShapeSVG = (shape, width, height, fillColor, strokeColor, strokeWidth) => {
+
+    const w = width
+    const h = height
+    const fill = fillColor || 'none'
+    const stroke = strokeColor || '#000'
+    const sw = strokeWidth || 1
+
+    const paths = {
+        rectangle: `M0 0 L${w} 0 L${w} ${h} L0 ${h} Z`,
+        circle: `M${w / 2} 0 A${w / 2} ${h / 2} 0 1 1 ${w / 2} ${h} A${w / 2} ${h / 2} 0 1 1 ${w / 2} 0 Z`,
+        triangle: `M${w / 2} 0 L${w} ${h} L0 ${h} Z`,
+        diamond: `M${w / 2} 0 L${w} ${h / 2} L${w / 2} ${h} L0 ${h / 2} Z`
+    }
+
+    const d = paths[shape] || paths.rectangle
+
+    return `
+        <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+            <path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />
+        </svg>
+    `
+}
+
 const isTransparent = (color) => {
     if (!color) return true;
     const c = color.replace(/\s/g, '').toLowerCase();
@@ -14,24 +39,35 @@ const isTransparent = (color) => {
     );
 };
 
-const ImageThumbPreview = ({ image }) => {
+const ImageThumbPreview = React.memo(({ image }) => {
+
     const layers = Array.isArray(image?.data)
         ? image.data
         : (image?.data?.layer || image?.data?.layers || [])
 
-    const canvasSize = image?.data?.canvasSize || layers?.[0]?.canvasSize || { width: 800, height: 600 }
-    const bgColor = image?.data?.canvasBgColor || layers?.[0]?.canvasBgColor || '#ffffff'
-    const bgImage = image?.data?.canvasBgImage || layers?.[0]?.canvasBgImage || null
+    const canvasSize = image?.data?.canvasSize || { width: 800, height: 600 }
+    const bgColor = image?.data?.canvasBgColor || '#ffffff'
+    const bgImage = image?.data?.canvasBgImage || null
+
+    const isGradient = bgColor && bgColor.includes('gradient')
+
+    const style = isGradient
+        ? {
+            backgroundImage: bgColor
+        }
+        : {
+            backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor,
+            backgroundImage: bgImage ? `url(${bgImage})` : 'none'
+        }
 
     return (
         <div
             className="absolute inset-0 overflow-hidden pointer-events-none"
             style={{
-                backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor,
-                backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+                ...style,
                 backgroundSize: '100% 100%',
                 backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
+                backgroundPosition: 'center'
             }}
         >
             <div
@@ -42,44 +78,34 @@ const ImageThumbPreview = ({ image }) => {
                     width: canvasSize.width,
                     height: canvasSize.height,
                     transformOrigin: 'top left',
-                    transform: 'scale(var(--thumb-scale, 1))',
+                    transform: 'scale(var(--thumb-scale,1))'
                 }}
             >
-                {layers?.map((layer) => {
+                {layers?.map(layer => {
+
                     if (!layer || layer.visible === false) return null
 
-                    const commonStyle = {
+                    const style = {
                         position: 'absolute',
                         left: layer.x || 0,
                         top: layer.y || 0,
                         width: layer.width || 0,
                         height: layer.height || 0,
-                        transform: `rotate(${layer.rotation || 0}deg)`,
-                        transformOrigin: 'center center',
+                        transform: `rotate(${layer.rotation || 0}deg)`
                     }
 
                     if (layer.type === 'text') {
                         return (
-                            <div
-                                key={layer.id}
-                                style={{
-                                    ...commonStyle,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'flex-start',
-                                    padding: 4,
-                                    overflow: 'hidden',
-                                    fontSize: layer.fontSize || 16,
-                                    fontFamily: layer.fontFamily || 'Arial',
-                                    fontWeight: layer.fontWeight || 400,
-                                    fontStyle: layer.fontStyle || 'normal',
-                                    textDecoration: layer.textDecoration || 'none',
-                                    color: layer.color || '#111827',
-                                    textAlign: layer.textAlign || 'left',
-                                    whiteSpace: 'pre-wrap',
-                                    lineHeight: 1.1,
-                                }}
-                            >
+                            <div key={layer.id} style={{
+                                ...style,
+                                fontSize: layer.fontSize || 16,
+                                fontFamily: layer.fontFamily || 'Arial',
+                                color: layer.color || '#111',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: 4,
+                                whiteSpace: 'pre-wrap'
+                            }}>
                                 {layer.text}
                             </div>
                         )
@@ -88,19 +114,39 @@ const ImageThumbPreview = ({ image }) => {
                     if (layer.type === 'image') {
                         const src = layer.imageUrl || layer.url || layer.src
                         if (!src) return null
+
                         return (
                             <img
                                 key={layer.id}
                                 src={src}
-                                alt={layer.name || ''}
                                 draggable={false}
                                 style={{
-                                    ...commonStyle,
+                                    ...style,
                                     objectFit: 'cover',
-                                    opacity: ((layer.opacity ?? 100) / 100),
-                                    borderRadius: layer.cornerRadius || 0,
-                                    filter: `brightness(${layer.brightness || 100}%) contrast(${layer.contrast || 100}%) blur(${layer.blur || 0}px)`,
+                                    opacity: ((layer.opacity ?? 100) / 100)
                                 }}
+                            />
+                        )
+                    }
+                    if (layer.type === 'shape') {
+
+                        const svg = getShapeSVG(
+                            layer.shape,
+                            layer.width || 100,
+                            layer.height || 100,
+                            layer.fillColor,
+                            layer.strokeColor,
+                            layer.strokeWidth
+                        )
+
+                        return (
+                            <div
+                                key={layer.id}
+                                style={{
+                                    ...style,
+                                    opacity: ((layer.opacity ?? 100) / 100)
+                                }}
+                                dangerouslySetInnerHTML={{ __html: svg }}
                             />
                         )
                     }
@@ -110,7 +156,7 @@ const ImageThumbPreview = ({ image }) => {
             </div>
         </div>
     )
-}
+})
 
 const ImageDash = () => {
     const { user } = useAuth()
@@ -127,8 +173,8 @@ const ImageDash = () => {
         const fetchImages = async () => {
             try {
                 setLoading(true)
-                const data = await getUserImages(userId)
-                if (mounted) setImages(data || [])
+                const res = await getUserImages(userId)
+                if (mounted) setImages(Array.isArray(res) ? res : res?.data || [])
             } catch (err) {
                 console.error('Load images error', err)
                 if (mounted) setError('Failed to load images')
@@ -140,6 +186,11 @@ const ImageDash = () => {
         if (userId) fetchImages()
         return () => { mounted = false }
     }, [userId])
+
+
+    useEffect(() => {
+        window.dispatchEvent(new Event('resize'))
+    }, [images])
 
     const handleDelete = async (imageId) => {
         try {
@@ -184,9 +235,9 @@ const ImageDash = () => {
             setVisLoading(prev => { const copy = { ...prev }; delete copy[imageId]; return copy })
         }
     }
-
-    const filteredImages = images.filter(img => (img.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase()))
-
+    const filteredImages = images
+        .filter(img => (img.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase()))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     return (
         <div className=" bg-slate-50/50 p-8">
             <div className="max-w-7xl mx-auto">
@@ -221,8 +272,21 @@ const ImageDash = () => {
                 </div>
 
                 {loading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {[1, 2, 3, 4].map(i => (<div key={i} className="bg-white border border-slate-100 rounded-2xl h-64 animate-pulse" />))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                                <div className="aspect-[16/10] bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 relative overflow-hidden">
+                                    <div className="absolute inset-0 animate-pulse" />
+                                </div>
+                                <div className="p-5">
+                                    <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg mb-3 animate-pulse" />
+                                    <div className="flex items-center justify-between">
+                                        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-100 rounded w-20 animate-pulse" />
+                                        <div className="h-5 bg-green-100 rounded-full w-16 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -233,13 +297,15 @@ const ImageDash = () => {
                 {!loading && filteredImages.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {filteredImages.map(image => {
-                            const layers = Array.isArray(image?.data)
-                                ? image.data
-                                : (image?.data?.layer || image?.data?.layers || [])
-                            const canvasSize = image?.data?.canvasSize || layers?.[0]?.canvasSize || { width: 800, height: 600 }
+                            const canvasSize = image.data?.canvasSize || { width: 1200, height: 630 }
                             return (
                                 <a key={image._id} href={`/canva-clone/${image._id}`} target="_blank" rel="noopener noreferrer" className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 block">
-                                    <div className="aspect-[16/10] bg-slate-100 relative overflow-hidden">
+                                    <div
+                                        className="relative bg-slate-100 overflow-hidden"
+                                        style={{
+                                            aspectRatio: `${canvasSize.width} / ${canvasSize.height}`
+                                        }}
+                                    >
                                         <div
                                             className="absolute inset-0"
                                             style={{

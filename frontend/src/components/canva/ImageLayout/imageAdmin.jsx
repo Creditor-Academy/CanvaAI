@@ -211,9 +211,20 @@ const ImageAdmin = () => {
                 </div>
 
                 {loading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                            <div key={i} className="bg-white border border-slate-100 rounded-2xl h-64 animate-pulse" />
+                            <div key={i} className="bg-white rounded-2xl border border-slate-300 overflow-hidden">
+                                <div className="aspect-[16/10] bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 relative overflow-hidden">
+                                    <div className="absolute inset-0 animate-pulse" />
+                                </div>
+                                <div className="p-5">
+                                    <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg mb-3 animate-pulse" />
+                                    <div className="flex items-center justify-between">
+                                        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-100 rounded w-20 animate-pulse" />
+                                        <div className="h-5 bg-blue-100 rounded-full w-16 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
