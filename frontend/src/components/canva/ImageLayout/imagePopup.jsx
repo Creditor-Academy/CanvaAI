@@ -4,6 +4,28 @@ import { X, Download, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { useAuth } from '../../../contexts/AuthContext'
 import { cloneImage } from '../../../services/imageEditor/imageApi'
 import { toast } from 'sonner'
+import axios from "axios";
+
+const handleCloneImage = async (imageId) => {
+    console.log('importing image', imageId);
+    try {
+        const token = localStorage.getItem("token"); // or wherever you store it
+
+const response = await axios.get(
+    `http://localhost:5000/api/images/clone/${imageId}`,
+    {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    }
+);
+        console.log(response.data,"This is the response data");
+        return response.data; // ✅ IMPORTANT
+    } catch (err) {
+        console.error('Clone/import failed', err);
+        throw err; // let caller handle error
+    }
+};
 
 // Helper function - check if color is transparent
 const isTransparent = (color) => {
@@ -37,6 +59,8 @@ const renderImagePreview = (image) => {
     const width = Math.max(canvasSize?.width || 800, 100);
     const height = Math.max(canvasSize?.height || 600, 100);
 
+
+    
     return (
         <svg
             width="100%"
@@ -197,47 +221,51 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                     <button
                         style={{ ...popupStyles.importBtn, opacity: importing ? 0.6 : 1 }}
                         disabled={importing}
-                        onClick={async () => {
-                            // If the parent provided an onImport handler, delegate entirely to it
-                            if (onImport) {
-                                try {
-                                    setImporting(true)
-                                    await onImport(image)
-                                    onClose()
-                                } catch (err) {
-                                    console.error('Clone/import failed', err)
-                                    toast.error('Failed to import template')
-                                } finally {
-                                    setImporting(false)
-                                }
-                                return
-                            }
-                            const targetId = image.imageId || image._id
-                            try {
-                                setImporting(true)
-                                const resp = await cloneImage(targetId)
-                                const newId = resp?.data?._id || resp?.imageId || resp?.data?.imageId || resp?._id || targetId
-                                try {
-                                    const payload = resp.data || resp
-                                    sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify(payload))
-                                    sessionStorage.setItem(`prefill_import_flag_${newId}`, '1')
-                                } catch (err) {
-                                    console.warn('Failed to store cloned prefill project', err)
-                                }
-                                window.open(`/canva-clone/${newId}`, '_blank')
-                                toast.success('Template imported to your account')
-                                onClose()
-                            } catch (err) {
-                                console.error('Clone/import failed', err)
-                                toast.error('Failed to import template')
-                            } finally {
-                                setImporting(false)
-                            }
-                        }}
+                       onClick={async () => {
+    const targetId = image.imageId;
+    console.log(targetId,"This is the target id");
+
+    try {
+        setImporting(true);
+
+        const data = await handleCloneImage(targetId);
+        // console.log("data : ",data._id, " : data inside data",data.data._id) // ✅ correct
+        const newId = data.data._id;
+        console.log(data,"This is the data");
+
+        // Save prefill data
+        try {
+            sessionStorage.setItem(
+                `prefill_project_${newId}`,
+                JSON.stringify(data)
+            );
+            sessionStorage.setItem(
+                `prefill_import_flag_${newId}`,
+                '1'
+            );
+        } catch (err) {
+            console.warn('Failed to store cloned prefill project', err);
+        }
+            console.log(newId,"This is new id")
+        toast.success('Template imported to your account');
+        window.location.href = `/canva-clone/${newId}`;
+        onClose();
+
+    } catch (err) {
+        console.error('Clone/import failed', err);
+        toast.error('Failed to import template');
+    } finally {
+        setImporting(false);
+    }
+}}
                     >
                         <ExternalLink size={16} style={{ marginRight: '8px' }} />
                         {importing ? 'Importing...' : 'Import Template'}
                     </button>
+                    {/* <button>
+                        onclick = {handleCloneImage(image.imageId)}
+                        import button
+                    </button> */}
                 </div>
             </div>
         </div>,
