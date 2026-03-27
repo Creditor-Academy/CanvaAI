@@ -1,6 +1,8 @@
 // src/components/canva/TextEnhanceService.js
 // Service for handling AI text enhancement API calls
 
+import axios from 'axios';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const API_ENDPOINT = `${API_BASE_URL}/api/text-enhance/enhance`;
 
@@ -15,21 +17,20 @@ export const enhanceText = async (text, isHeading = false) => {
     throw new Error('Text is required');
   }
 
-  const response = await fetch(API_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text: text,
-      isHeading: isHeading
-    }),
-  });
+  const token = localStorage.getItem('token');
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to enhance text');
-  }
+  const response = await axios.post(
+    API_ENDPOINT,
+    { text, isHeading },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
 
-  const data = await response.json();
+  const data = response.data;
 
   if (!data.enhancedText) {
     throw new Error('No enhanced text received');
