@@ -5,7 +5,7 @@ const Pricing = () => {
   const plans = [
     {
       name: "Basic",
-      price: 0,
+      price: 10,
       description: "Best for beginners",
       features: [
         "Manual Presentation Creation",
@@ -22,7 +22,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      price: 299,
+      price: 20,
       description: "Best for students & professionals",
       features: [
         "Unlimited Presentations",
@@ -40,7 +40,7 @@ const Pricing = () => {
     },
     {
       name: "Elite",
-      price: 799,
+      price: 30,
       description: "Best for teams & businesses",
       features: [
         "Everything in Pro",
