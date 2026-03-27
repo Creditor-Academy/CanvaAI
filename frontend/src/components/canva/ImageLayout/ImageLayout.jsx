@@ -405,7 +405,10 @@ const ImageLayout = () => {
             const newId = resp?.imageId || resp?.data?._id || resp?._id
             if (newId) {
                 try {
-                    sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify(image.data))
+                    sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify({
+                        title: (image.title || 'Untitled Template') + '_copy',
+                        data: image.data,
+                    }))
                     sessionStorage.setItem(`prefill_import_flag_${newId}`, '1')
                 } catch (e) { /* noop */ }
                 window.open(`/canva-clone/${newId}`, '_blank')

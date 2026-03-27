@@ -9,16 +9,17 @@ import axios from "axios";
 const handleCloneImage = async (imageId) => {
     console.log('importing image', imageId);
     try {
-        const token = localStorage.getItem("token"); // or wherever you store it
+        const token = localStorage.getItem("token");
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-const response = await axios.get(
-    `http://localhost:5000/api/images/clone/${imageId}`,
-    {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    }
-);
+        const response = await axios.get(
+            `${API_BASE_URL}/api/images/clone/${imageId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
         console.log(response.data,"This is the response data");
         return response.data; // ✅ IMPORTANT
     } catch (err) {
@@ -61,6 +62,12 @@ const renderImagePreview = (image) => {
 
 
     
+    const svgBackgroundStyle = bgImage
+        ? { background: '#ffffff' }
+        : (isGradient
+            ? { background: bgColor }
+            : { backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor });
+
     return (
         <svg
             width="100%"
@@ -68,7 +75,7 @@ const renderImagePreview = (image) => {
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMidYMid meet"
             xmlns="http://www.w3.org/2000/svg"
-            style={{ maxHeight: '400px', width: 'auto', backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor }}
+            style={{ maxHeight: '400px', width: 'auto', ...svgBackgroundStyle }}
         >
             {/* Background */}
             <defs>
@@ -83,8 +90,7 @@ const renderImagePreview = (image) => {
             <rect
                 width={width}
                 height={height}
-                fill={isGradient ? 'white' : (isTransparent(bgColor) ? '#f8fafc' : bgColor)}
-                style={isGradient ? { background: bgColor } : {}}
+                fill={isGradient ? 'transparent' : (isTransparent(bgColor) ? '#f8fafc' : bgColor)}
             />
             {bgImage && (
                 <rect

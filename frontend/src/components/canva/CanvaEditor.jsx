@@ -60,7 +60,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(true);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState('linear-gradient(135deg, #00F260 0%, #0575E6 100%)');
+  const [canvasBgColor, setCanvasBgColor] = useState(projectId ? '#ffffff' : 'linear-gradient(135deg, #00F260 0%, #0575E6 100%)');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -289,6 +289,16 @@ const CanvaEditor = () => {
   }, [layers]);
 
   useEffect(() => {
+    // For existing/imported projects, never inject default heading or gradient placeholders.
+    if (projectId) {
+      if (!hasInitializedRef.current && layers.length === 0) {
+        hasInitializedRef.current = true;
+        resetHistory([]);
+        setHasUnsavedChanges(false);
+      }
+      return;
+    }
+
     // Only add default heading if:
     // 1. We haven't initialized yet
     // 2. There are no layers
@@ -300,11 +310,8 @@ const CanvaEditor = () => {
       }
 
       // Wait a bit to ensure project loader has finished (if loading a project)
-      // If no projectId, this will still work for new projects
       projectLoadTimeoutRef.current = setTimeout(() => {
-        // Check current layers state (not closure value)
         if (layersRef.current.length === 0 && !hasInitializedRef.current) {
-          // Create a default heading at center-top of canvas
           const centerX = Math.max(100, (canvasSize.width - 300) / 2);
           const centerY = 100;
 
@@ -341,7 +348,7 @@ const CanvaEditor = () => {
       // If layers exist, mark as initialized so we don't add heading
       hasInitializedRef.current = true;
     }
-  }, [layers.length, handleAddElement, resetHistory, textSettings, canvasSize, projectId]);
+  }, [layers.length, handleAddElement, resetHistory, textSettings, canvasSize, projectId, saveToHistory]);
 
   // Keep right sidebar open when text layer is selected (only on selection, not on every state change)
   useEffect(() => {

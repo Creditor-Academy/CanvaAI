@@ -103,7 +103,7 @@ const RangeControl = React.memo(({ label, value, min, max, onChange, onHistorySa
 
 // Shared 2x5 palette used for slide background + text colors
 const THEME_COLORS = [
-  ["#c00000", "#ff0000", "#ffc000", "#ffff00", "#92d050", "#00b050",],
+  ["#ffffff", "#ff0000", "#ffc000", "#ffff00", "#92d050", "#00b050",],
   ["#00b0f0", "#0070c0", "#002060", "#7030a0", "#ff66cc", "#999999"],
 ];
 

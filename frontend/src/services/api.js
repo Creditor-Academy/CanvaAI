@@ -572,6 +572,22 @@ class ApiService {
     );
   }
 
+  // ============= EXPORT / DOWNLOAD =============
+  // Returns a Blob (binary response), NOT JSON — do not use this.request()
+  async exportS3Image(s3Url, format = 'png') {
+    const token = localStorage.getItem('token');
+    const url = `${API_BASE_URL}/api/export/s3/images?s3Url=${encodeURIComponent(s3Url)}&format=${encodeURIComponent(format)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(msg || 'Download failed');
+    }
+    return response.blob();
+  }
+
   // ============= PAYMENT API =============
 async createPayment(planName) {
   return this.request(`/api/payment/create-payment/${planName}`, {
