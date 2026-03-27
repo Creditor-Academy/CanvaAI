@@ -5,6 +5,10 @@ import * as Popover from '@radix-ui/react-popover';
 
 export const GRADIENTS = [
   {
+    name: 'Mint Fresh',
+    value: 'linear-gradient(135deg, #00F260 0%, #0575E6 100%)'
+  },
+  {
     name: 'Midnight Rose',
     value: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
@@ -72,10 +76,7 @@ export const GRADIENTS = [
     name: 'Coral Reef',
     value: 'linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)'
   },
-  {
-    name: 'Mint Fresh',
-    value: 'linear-gradient(135deg, #00F260 0%, #0575E6 100%)'
-  },
+
   {
     name: 'Desert Dunes',
     value: 'linear-gradient(135deg, #EDDE5D 0%, #F09819 100%)'

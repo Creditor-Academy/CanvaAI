@@ -533,7 +533,7 @@ const CanvasArea = ({
   return (
     <div
       ref={canvasAreaRef}
-      className="flex-1 relative overflow-visible bg-[#f0f2f5] flex items-center justify-center"
+      className="flex-1 relative overflow-visible  flex items-center justify-center"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -566,8 +566,8 @@ const CanvasArea = ({
             width: `${canvasSize.width}px`,
             height: `${canvasSize.height}px`,
             transform: `scale(${zoom / 100})`,
-            background: canvasBgColor,
-            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : 'none',
+            background: canvasBgImage ? 'none' : canvasBgColor,
+            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : (canvasBgColor.includes('gradient') ? canvasBgColor : 'none'),
             backgroundSize: canvasBgImage ? '100% 100%' : 'auto',
             backgroundRepeat: canvasBgImage ? 'no-repeat' : 'repeat',
             backgroundPosition: 'center',

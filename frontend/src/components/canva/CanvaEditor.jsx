@@ -47,7 +47,7 @@ const CanvaEditor = () => {
   const { id: projectId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
+  
   // Core state
   const [selectedTool, setSelectedTool] = useState('select');
   const [layers, setLayers] = useState([]);
@@ -60,7 +60,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(true);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState('#82c787ff');
+  const [canvasBgColor, setCanvasBgColor] = useState('linear-gradient(135deg, #00F260 0%, #0575E6 100%)');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
