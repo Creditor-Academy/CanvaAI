@@ -307,13 +307,13 @@ export default function Dashboard() {
         transition: color 0.18s, background 0.18s, box-shadow 0.18s;
       }
       .dash-tab-btn.active {
-        background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+        background: #facc15;
         color: #fff;
         box-shadow: 0 2px 8px rgba(99,102,241,0.35);
       }
       .dash-tab-btn:not(.active):hover {
         background: rgba(99,102,241,0.08);
-        color: #4f46e5;
+        color: #312e81;
       }
       .dash-tpl-card {
         border-radius: 16px;
