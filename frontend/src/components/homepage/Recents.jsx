@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -6,6 +6,7 @@ import {
   FiFileText,
   FiLayout,
 } from "react-icons/fi";
+import { useDocuments } from "../../hooks/useDocuments";
 
 /* ===== BRAND COLORS ===== */
 const COLORS = {
@@ -21,57 +22,21 @@ const {
   bgLight,
 } = COLORS;
 
-/* ===== DEMO DATA ===== */
-const DEMO_PROJECTS = [
-  {
-    id: 1,
-    title: "Marketing PPT",
-    desc: "Sales strategy presentation",
-    type: "presentation",
-    date: new Date(),
-  },
-  {
-    id: 2,
-    title: "Company Profile",
-    desc: "Business overview document",
-    type: "document",
-    date: new Date(Date.now() - 86400000),
-  },
-  {
-    id: 3,
-    title: "Instagram Post",
-    desc: "Social media design",
-    type: "image",
-    date: new Date(Date.now() - 10 * 86400000),
-  },
-  {
-    id: 4,
-    title: "Product Launch Slides",
-    desc: "Startup pitch deck",
-    type: "presentation",
-    date: new Date(Date.now() - 20 * 86400000),
-  },
-  {
-    id: 5,
-    title: "AI Generated Poster",
-    desc: "Creative visual",
-    type: "image",
-    date: new Date(Date.now() - 40 * 86400000),
-  },
-];
-
 const Recents = ({
   selectedCategory = "all",
   selectedDate = "all",
-  searchQuery = ""
+  searchQuery = "",
+  userId // Add userId prop to fetch user's documents
 }) => {
-  const [projects, setProjects] = useState([]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    setProjects(DEMO_PROJECTS);
-  }, []);
+  
+  // Fetch real documents from backend
+  const { 
+    data: projects = [], 
+    isLoading, 
+    error 
+  } = useDocuments(userId);
 
   // Prefetch document data on hover for instant loading (when you have real IDs)
   const handleCardHover = (projectId) => {
@@ -88,18 +53,17 @@ const Recents = ({
     }
   };
 
-  const handleClick = (projectId, type) => {
-    // For demo purposes, only navigate if it's a string ID
-    if (typeof projectId === 'string') {
-      if (type === 'document') {
-        navigate(`/editor/${projectId}`);
-      } else if (type === 'presentation') {
-        navigate(`/presentation/${projectId}`);
-      } else {
-        navigate(`/image-editor/${projectId}`);
-      }
+  const handleClick = (project) => {
+    // Navigate based on document type
+    if (project.type === 'document' || project.template === 'document') {
+      navigate(`/editor/${project.id}`);
+    } else if (project.type === 'presentation') {
+      navigate(`/presentation/${project.id}`);
+    } else if (project.type === 'image') {
+      navigate(`/image-editor/${project.id}`);
     } else {
-      alert('Demo mode: This is a demo project. Real documents will open when you have backend data.');
+      // Default to editor for unknown types
+      navigate(`/editor/${project.id}`);
     }
   };
 
@@ -125,13 +89,14 @@ const Recents = ({
   const filteredProjects = projects.filter((project) => {
     const categoryMatch =
       selectedCategory === "all" ||
-      project.type === selectedCategory;
+      project.type === selectedCategory ||
+      project.template === selectedCategory;
     const searchMatch =
-      project.title.toLowerCase().includes(searchQuery.toLowerCase());
+      project.title?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const dateMatch = filterByDate(project.date);
+    const dateMatch = filterByDate(project.updatedAt || project.createdAt || Date.now());
 
-    return categoryMatch && dateMatch && searchMatch;
+    return categoryMatch && searchMatch && dateMatch;
   });
 
   const getIcon = (type) => {
@@ -141,6 +106,57 @@ const Recents = ({
       return <FiFileText size={22} color={navyText} />;
     return <FiImage size={22} color={Grey} />;
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="w-full py-10">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2
+            className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
+            style={{
+              backgroundImage:
+               "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
+            }}
+          >
+            Recent Documents
+          </h2>
+          <div className="text-center py-16">
+            <p style={{ color: Grey }}>Loading your documents...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="w-full py-10">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2
+            className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
+            style={{
+              backgroundImage:
+               "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
+            }}
+          >
+            Recent Documents
+          </h2>
+          <div
+            className="text-center py-16 rounded-2xl"
+            style={{
+              background: "#fee2e2",
+              border: `1px solid #ef4444`,
+              color: "#dc2626",
+            }}
+          >
+            Failed to load documents. Please try again later.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full py-10">
@@ -153,7 +169,7 @@ const Recents = ({
              "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
           }}
         >
-          Recent Designs
+          Recent Documents
         </h2>
 
         {filteredProjects.length === 0 ? (
@@ -166,7 +182,7 @@ const Recents = ({
               color: Grey,
             }}
           >
-            No matching results found.
+            {userId ? 'No documents found. Create your first document!' : 'Please log in to view your documents.'}
           </div>
         ) : (
           <div 
@@ -192,7 +208,7 @@ const Recents = ({
                   e.currentTarget.style.boxShadow =
                     "0 10px 30px rgba(0,0,0,0.08)";
                 }}
-                onClick={() => handleClick(project.id, project.type)}
+                onClick={() => handleClick(project)}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.boxShadow =
@@ -200,36 +216,36 @@ const Recents = ({
                 }}
               >
                 <div className="mb-4">
-                  {getIcon(project.type)}
+                  {getIcon(project.template || project.type || 'document')}
                 </div>
 
                 <div
                   className="font-semibold text-sm mb-1 truncate"
                   style={{ color: navyText }}
                 >
-                  {project.title}
+                  {project.title || 'Untitled Document'}
                 </div>
 
                 <div
                   className="text-xs line-clamp-2"
                   style={{ color: Grey }}
                 >
-                  {project.desc}
+                  Last updated: {new Date(project.updatedAt || project.createdAt || Date.now()).toLocaleDateString()}
                 </div>
 
                 <div
                   className="mt-4 text-[10px] font-semibold px-3 py-1 rounded-full inline-block"
                   style={{
                     background:
-                      project.type === "presentation"
+                      (project.template || project.type) === "presentation"
                         ? navyText
-                        : project.type === "document"
+                        : (project.template || project.type) === "document"
                           ? deepBlue
                           : Grey,
                     color: "#fff",
                   }}
                 >
-                  {project.type}
+                  {project.template || project.type || 'document'}
                 </div>
               </div>
             ))}

@@ -124,16 +124,21 @@ export class DocumentExporter {
         orientation: 'portrait',
         unit:        'mm',
         format:      [A4_W_MM, A4_H_MM],
-        compress,
+        compress:    false, // Disable compression to avoid corruption
         putOnlyUsedFonts: true,
+        hotfixes: ['px_scaling'], // Fix scaling issues
       });
 
+      // Set proper PDF metadata with valid date format
+      const now = new Date();
       pdf.setProperties({
-        title,
-        author,
-        creator:      'Athena Editor',
-        producer:     'Athena AI',
-        creationDate: new Date(),
+        title: title || 'Document',
+        author: author || 'Athena Editor',
+        subject: '',
+        keywords: '',
+        creator: 'Athena Editor',
+        producer: 'Athena AI',
+        creationDate: now.toISOString().replace(/[-:T]/g, '').slice(0, 14) + 'Z', // PDF date format
       });
 
       // ── Embed custom fonts ─────────────────────────────────────────────────
@@ -167,7 +172,15 @@ export class DocumentExporter {
         includeDocTitle, margin, theme, fontName: resolvedFont,
       });
 
-      pdf.save(filename);
+      // Validate PDF has at least one page
+      if (pdf.getNumberOfPages() === 0) {
+        throw new Error('PDF has no pages');
+      }
+
+      // Save PDF with proper filename sanitization
+      const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      pdf.save(safeFilename);
+      
       toast.success(`PDF exported — ${pdf.getNumberOfPages()} page${pdf.getNumberOfPages() > 1 ? 's' : ''}`);
     } catch (err) {
       console.error('[PDF export]', err);
@@ -578,11 +591,32 @@ export class DocumentExporter {
                 pdf.text('⚠ Image unavailable', x + imgW / 2, currentY + Math.min(imgH, 30) / 2, { align: 'center' });
                 currentY += Math.min(imgH, 30) + 2;
               } else {
-                const fmt = dataUrl.includes('image/png')  ? 'PNG'
-                          : dataUrl.includes('image/webp') ? 'WEBP'
-                          : 'JPEG';
-                pdf.addImage(dataUrl, fmt, x, currentY, imgW, imgH, undefined, 'FAST');
-                currentY += imgH + 2;
+                try {
+                  const fmt = dataUrl.includes('image/png')  ? 'PNG'
+                            : dataUrl.includes('image/webp') ? 'WEBP'
+                            : 'JPEG';
+                  
+                  // Validate base64 data before adding to PDF
+                  const base64Data = dataUrl.split(',')[1];
+                  if (!base64Data || base64Data.length < 100) {
+                    throw new Error('Invalid image data');
+                  }
+                  
+                  pdf.addImage(dataUrl, fmt, x, currentY, imgW, imgH, undefined, 'FAST');
+                  currentY += imgH + 2;
+                } catch (imgError) {
+                  console.warn('[PDF] Image render error:', imgError);
+                  // Show placeholder for failed images
+                  pdf.setFillColor(240, 240, 240);
+                  pdf.setDrawColor(...C.border);
+                  pdf.setLineWidth(0.3);
+                  pdf.rect(x, currentY, imgW, Math.min(imgH, 30), 'FD');
+                  pdf.setFont(fontName, 'italic');
+                  pdf.setFontSize(8);
+                  pdf.setTextColor(...C.muted);
+                  pdf.text('⚠ Image unavailable', x + imgW / 2, currentY + Math.min(imgH, 30) / 2, { align: 'center' });
+                  currentY += Math.min(imgH, 30) + 2;
+                }
               }
               // Caption / alt text (shown even for broken images if alt text exists)
               if (sec.alt && sec.alt !== 'AI Generated Image') {

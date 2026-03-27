@@ -92,15 +92,12 @@ const HeaderMenuBar = React.memo(({
   
   // Debug: Log callback props on mount
   useEffect(() => {
-    console.group('🔧 [HeaderMenuBar] Callback Props Check');
-    console.log('✅ editor:', !!editor);
-    console.log('✅ onToggleBold:', typeof onToggleBold);
-    console.log('✅ onToggleItalic:', typeof onToggleItalic);
-    console.log('✅ onSetTextAlign:', typeof onSetTextAlign);
-    console.log('✅ onToggleUnderline:', typeof onToggleUnderline);
-    console.log('✅ onClearFormatting:', typeof onClearFormatting);
-    console.groupEnd();
-  }, []);
+    console.log('🔧 [HeaderMenuBar] Zoom callbacks available:', { 
+      hasEditor: !!editor, 
+      hasZoom: !!zoom, 
+      hasOnZoomChange: typeof onZoomChange === 'function' 
+    });
+  }, [zoom, onZoomChange]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -300,16 +297,16 @@ const HeaderMenuBar = React.memo(({
       label: 'Zoom',
       icon: ZoomIn,
       submenu: [
-        { id: 'zoom-in', label: 'Zoom In', icon: ZoomIn, shortcut: 'Ctrl++', onClick: () => onZoomChange(Math.min(200, zoom + 10)) },
-        { id: 'zoom-out', label: 'Zoom Out', icon: ZoomOut, shortcut: 'Ctrl+-', onClick: () => onZoomChange(Math.max(50, zoom - 10)) },
-        { id: 'zoom-reset', label: 'Reset Zoom', icon: Eye, shortcut: 'Ctrl+0', onClick: () => onZoomChange(100) },
+        { id: 'zoom-in', label: 'Zoom In', icon: ZoomIn, shortcut: 'Ctrl++', onClick: () => onZoomChange?.(Math.min(200, zoom + 10)) },
+        { id: 'zoom-out', label: 'Zoom Out', icon: ZoomOut, shortcut: 'Ctrl+-', onClick: () => onZoomChange?.(Math.max(50, zoom - 10)) },
+        { id: 'zoom-reset', label: 'Reset Zoom', icon: Eye, shortcut: 'Ctrl+0', onClick: () => onZoomChange?.(100) },
         { type: 'separator' },
-        { id: '50%', label: '50%', onClick: () => onZoomChange(50) },
-        { id: '75%', label: '75%', onClick: () => onZoomChange(75) },
-        { id: '100%', label: '100%', onClick: () => onZoomChange(100) },
-        { id: '125%', label: '125%', onClick: () => onZoomChange(125) },
-        { id: '150%', label: '150%', onClick: () => onZoomChange(150) },
-        { id: '200%', label: '200%', onClick: () => onZoomChange(200) },
+        { id: '50%', label: '50%', onClick: () => onZoomChange?.(50) },
+        { id: '75%', label: '75%', onClick: () => onZoomChange?.(75) },
+        { id: '100%', label: '100%', onClick: () => onZoomChange?.(100) },
+        { id: '125%', label: '125%', onClick: () => onZoomChange?.(125) },
+        { id: '150%', label: '150%', onClick: () => onZoomChange?.(150) },
+        { id: '200%', label: '200%', onClick: () => onZoomChange?.(200) },
       ]
     },
     { type: 'separator' },

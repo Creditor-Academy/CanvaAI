@@ -4349,6 +4349,9 @@ const TextEditorContent = ({
     updateUIState = () => { }, updateDocumentStats: updateDocumentStatsAction = () => { }
   } = editorActions;
 
+  // Zoom helper
+  const effectiveZoom = zoom || 100;
+
   const [isOutlineOpen, setIsOutlineOpen] = useState(true);
   const [selectedText, setSelectedText] = useState('');
   // CRITICAL FIX: Move stats to refs to prevent re-renders on every keystroke/delete
@@ -4458,14 +4461,35 @@ const TextEditorContent = ({
   
   const docId = getDocId();
   
+  // 🚀 OPTIMIZATION: Get document from sessionStorage instead of API call
+  // EditorIntro already fetched it, so we don't need to call GET API again
+  const getCachedDocument = () => {
+    if (!docId) return null;
+    try {
+      const cached = sessionStorage.getItem(`doc_${docId}`);
+      if (cached) {
+        const doc = JSON.parse(cached);
+        return doc;
+      }
+    } catch (error) {
+      console.error('Failed to parse cached document:', error);
+    }
+    return null;
+  };
+  
+  const cachedDoc = getCachedDocument();
+  
+  // Always call useDocument with docId if no cache - this triggers the API call
+  const shouldFetch = !cachedDoc && docId;
   const { 
     data: backendResponse, 
     isLoading: isDocLoading,
-    isSuccess: isDocLoaded
-  } = useDocument(docId);
+    isSuccess: isDocLoaded,
+    error: docError
+  } = useDocument(shouldFetch ? docId : null);
   
-  // Unwrap the document from the response
-  const fetchedDoc = backendResponse?.document || backendResponse;
+  // Use cached data or API response
+  const fetchedDoc = cachedDoc || backendResponse?.document || backendResponse;
   
   // 🔥 DELTA-BASED AUTO-SAVE: Debounced save to MongoDB
   const debouncedSave = useCallback(
@@ -4483,8 +4507,6 @@ const TextEditorContent = ({
       }
       
       try {
-        console.log('💾 Auto-saving to MongoDB...');
-        
         // 🔥 CRITICAL: Save as TipTap JSON, NOT HTML or Markdown
         const jsonContent = currentEditor.state.doc.toJSON();
         const htmlContent = currentEditor.getHTML();
@@ -4499,14 +4521,7 @@ const TextEditorContent = ({
         
         setSaveStatus('saved');
         setLastSaved(new Date());
-        console.log('✅ Auto-saved to MongoDB:', {
-          docId,
-          contentType: 'TipTap JSON',
-          nodesCount: jsonContent.content?.length,
-          timestamp: new Date().toISOString()
-        });
       } catch (error) {
-        console.error('❌ Auto-save failed:', error);
         setSaveStatus('error');
         toast.error('Failed to save document. Please check your connection.');
       }
@@ -5612,40 +5627,20 @@ const TextEditorContent = ({
 
   // 🚀 OPTIMIZATION: Synchronize editor content when document data arrives from cache/backend
   useEffect(() => {
-    if (!editor || !isDocLoaded || !fetchedDoc) return;
+    // Skip if editor not ready or no document to load
+    if (!editor || !fetchedDoc) return;
     
     // Check if we've already loaded this document to avoid re-setting and losing focus
-    if (editor.storage.athena_loaded_id === (fetchedDoc.id || fetchedDoc._id)) return;
+    const docId = fetchedDoc.id || fetchedDoc._id;
+    if (editor.storage.athena_loaded_id === docId) return;
 
-    console.log('✅ DOCUMENT LOAD TRIGGERED:', { 
-      id: fetchedDoc.id || fetchedDoc._id, 
-      title: fetchedDoc.title,
-      previousId: editor.storage.athena_loaded_id || 'none'
-    });
+    console.log('✅ Loading document:', fetchedDoc.title || 'Untitled');
 
     const jsonContent = fetchedDoc.data?.content || fetchedDoc.content;
     const htmlContent = fetchedDoc.data?.html || fetchedDoc.html || '';
 
-    console.log('📥 LOADING DOCUMENT:', {
-      hasJsonContent: !!jsonContent,
-      hasHtmlContent: !!htmlContent,
-      jsonType: typeof jsonContent,
-      contentKeys: jsonContent ? (typeof jsonContent === 'object' ? Object.keys(jsonContent) : 'string - length: ' + jsonContent.length) : [],
-      firstChildType: typeof jsonContent === 'object' ? jsonContent?.content?.[0]?.type : 'N/A - string format',
-      usedSource: jsonContent ? (typeof jsonContent === 'object' ? 'JSON (TipTap)' : 'STRING - needs parsing') : 'HTML (Fallback)',
-      rawDataStructure: fetchedDoc.data ? 'has data wrapper' : 'no data wrapper',
-      fullFetchedDoc: fetchedDoc
-    });
-
     // Defer setContent to avoid flushSync warning in React 19
     requestAnimationFrame(() => {
-      console.log('🔄 requestAnimationFrame callback started');
-      console.log('📋 Content variables:', {
-        jsonContent: jsonContent ? 'exists' : 'null',
-        htmlContent: htmlContent ? 'exists' : 'null',
-        jsonContentType: typeof jsonContent,
-        htmlContentType: typeof htmlContent
-      });
       
       // 🔥 CRITICAL FIX: Use Markdown transformer for string content
       const content = jsonContent || htmlContent;
@@ -6621,9 +6616,18 @@ const TextEditorContent = ({
             onCopy={handleCopy}
             style={{ position: 'relative', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}
           >
-            {/* Real Pagination - Pages Container */}
+            {/* Real Pagination - Pages Container with Zoom */}
             {editor && (
-              <div className="editor-pages-container">
+              <div 
+                className="editor-pages-container"
+                style={{ 
+                  transform: `scale(${effectiveZoom / 100})`,
+                  transformOrigin: 'top center',
+                  transition: 'transform 0.2s ease-out',
+                  width: `${100 * (100 / effectiveZoom)}%`,
+                  marginBottom: '20px'
+                }}
+              >
                 <EditorContent editor={editor} />
               </div>
             )}

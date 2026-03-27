@@ -347,16 +347,12 @@ const EditorIntro = () => {
             try {
                 let doc;
                 if (isMongoId) {
-                    // Load from backend directly
+                    // Load from backend directly ONCE - editor won't fetch again
                     const response = await TextEditorService.getDocumentById(docId);
                     doc = response.document || response;
                     
-                    console.log('📄 Loaded document from backend:', {
-                        id: doc.id || doc._id || docId,
-                        title: doc.title,
-                        hasHtml: !!doc.data?.html,
-                        hasContent: !!doc.data?.content
-                    });
+                    // Store document data in sessionStorage for the editor to use
+                    sessionStorage.setItem(`doc_${docId}`, JSON.stringify(doc));
                 } else {
                     // Invalid document ID format
                     console.error('Invalid document ID format:', docId);
@@ -364,10 +360,9 @@ const EditorIntro = () => {
                     return;
                 }
 
-                // Pass document data via URL params for the editor to fetch
-                // Editor will call the API directly to get content
+                // Open editor with just the ID - no need to pass data in URL
                 const finalId = doc.id || doc._id || docId;
-                const windowUrl = `/editor/${finalId}?docId=${finalId}`;
+                const windowUrl = `/editor/${finalId}`;
                 window.open(windowUrl, '_blank');
                 return; // 🚀 CRITICAL: DO NOT execute the default blank editor open below
 

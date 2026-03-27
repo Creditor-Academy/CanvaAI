@@ -11,6 +11,13 @@ export const ToolbarButton = ({
   children,
   className
 }) => {
+  // Debug: Log when active state changes
+  React.useEffect(() => {
+    if (isActive) {
+      console.log('🔵 [ToolbarButton] ACTIVE:', { tooltip });
+    }
+  }, [isActive, tooltip]);
+  
   // CRITICAL ROBUST FIX: Prevent focus stealing and page scrolling when clicking toolbar buttons
   const handleMouseDown = (e) => {
     if (!disabled) {
@@ -52,7 +59,7 @@ export const ToolbarButton = ({
         "h-9 w-9 p-0 rounded-lg",
         "bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border border-blue-200",
         "transition-all duration-200",
-        isActive && "bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 border-blue-300",
+        isActive && "bg-gradient-to-br from-blue-400 to-blue-600 text-white border-blue-500 shadow-md ring-2 ring-blue-300",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}

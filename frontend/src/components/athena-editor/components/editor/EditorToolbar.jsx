@@ -432,20 +432,24 @@ export const EditorToolbar = ({
         isBlockquote: editor.isActive('blockquote'),
       };
       
-      // 🔥 DEBUG: Log toolbar state changes to diagnose update issues
-      console.log('[updateToolbarState] Selection changed:', {
-        from: editor.state.selection.from,
-        to: editor.state.selection.to,
-        selectedText: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '').substring(0, 50),
-        isH1: newState.isHeading1,
-        isH2: newState.isHeading2,
-        isH3: newState.isHeading3,
-        isParagraph: newState.isParagraph,
-        isBold: newState.isBold,
-        textAlign: newState.textAlign
+      // Update state with visual feedback
+      setToolbarState(prev => {
+        const hasChanged = JSON.stringify(prev) !== JSON.stringify(newState);
+        if (hasChanged) {
+          console.log('✅ TOOLBAR UPDATE:', {
+            selection: `[${editor.state.selection.from}-${editor.state.selection.to}]`,
+            selectedText: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '').substring(0, 30),
+            formatting: {
+              bold: newState.isBold ? '✓' : '✗',
+              italic: newState.isItalic ? '✓' : '✗',
+              underline: newState.isUnderline ? '✓' : '✗',
+              strike: newState.isStrikethrough ? '✓' : '✗',
+              heading: newState.isHeading1 ? 'H1' : newState.isHeading2 ? 'H2' : newState.isHeading3 ? 'H3' : 'None'
+            }
+          });
+        }
+        return newState; // Always update to ensure UI reflects current state
       });
-      
-      setToolbarState(newState);
     } catch (error) {
       console.error('[updateToolbarState] Error:', error);
     }
@@ -453,7 +457,12 @@ export const EditorToolbar = ({
 
   // 🔥 CRITICAL: Subscribe to editor events to update toolbar reactively
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      console.log('⚠️ No editor available for toolbar subscription');
+      return;
+    }
+    
+    console.log('✅ Toolbar: Subscribing to editor events...');
     
     // Update immediately on mount
     updateToolbarState();
@@ -473,14 +482,19 @@ export const EditorToolbar = ({
     
     // Also listen to mouseup on editor DOM for click-based selection
     const handleMouseUp = () => {
-      console.log('[EditorToolbar] Mouseup detected on editor - updating toolbar state...');
-      // Small delay to ensure selection has updated
+      setTimeout(updateToolbarState, 10);
+    };
+    
+    // Listen to keyup for keyboard-based selection (Shift+Arrow keys, etc.)
+    const handleKeyUp = () => {
       setTimeout(updateToolbarState, 10);
     };
     
     const editorDom = editor.view?.dom;
     if (editorDom) {
       editorDom.addEventListener('mouseup', handleMouseUp);
+      editorDom.addEventListener('keyup', handleKeyUp);
+      console.log('✅ Toolbar: DOM event listeners attached');
     }
     
     // Cleanup
@@ -489,7 +503,9 @@ export const EditorToolbar = ({
       unsubscribeTransaction?.();
       if (editorDom) {
         editorDom.removeEventListener('mouseup', handleMouseUp);
+        editorDom.removeEventListener('keyup', handleKeyUp);
       }
+      console.log('👋 Toolbar: Cleaning up subscriptions');
     };
   }, [editor, updateToolbarState]);
 
@@ -2390,7 +2406,7 @@ export const EditorToolbar = ({
                 {item.label}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-56 bg-white border border-blue-100 shadow-xl rounded-md p-1">
+            <DropdownMenuContent className="w-56 bg-white border border-blue-100 shadow-xl rounded-md p-1">
               {item.items.map((menuItem, index) => {
                 if (menuItem.type === 'separator') {
                   return <DropdownMenuSeparator key={index} className="bg-blue-50" />;
@@ -2403,7 +2419,7 @@ export const EditorToolbar = ({
                         {menuItem.icon && typeof menuItem.icon === 'function' && <menuItem.icon className="mr-2 h-4 w-4 text-blue-500" />}
                         <span>{menuItem.label}</span>
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white border border-blue-100 shadow-xl rounded-md p-1">
+                      <DropdownMenuSubContent className="w-48 bg-white border border-blue-100 shadow-xl rounded-md p-1">
                         {menuItem.submenu.map((subItem, subIndex) => {
                           if (subItem.type === 'separator') {
                             return <DropdownMenuSeparator key={subIndex} className="bg-blue-50" />;
@@ -2501,20 +2517,7 @@ export const EditorToolbar = ({
     >
       {/* Header with Menu */}
       <div className="flex items-center justify-between px-4 py-1 border-b border-blue-100">
-        {/* Document Title Input - Top Left */}
-        <div className="flex items-center gap-2">
-          <Input
-            value={documentTitle || ''}
-            onChange={(e) => {
-              if (onSave && typeof onSave === 'function') {
-                // Save title change immediately
-                onSave({ title: e.target.value });
-              }
-            }}
-            placeholder="Untitled Document"
-            className="text-sm font-medium bg-transparent border-none focus-visible:ring-0 focus-visible:outline-none px-0 w-[300px] truncate"
-          />
-        </div>
+        {/* Menus removed - now in HeaderMenuBar */}
       </div>
 
       {/* Compact Single-Row Toolbar */}
@@ -2562,7 +2565,7 @@ export const EditorToolbar = ({
           <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-[110px] hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors truncate">
             <SelectValue placeholder="Font" />
           </SelectTrigger>
-          <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white w-[110px]">
+          <SelectContent className="rounded-md border-slate-200 shadow-xl bg-white w-[110px]">
             {FONTS.map(font => (
               <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }} className="truncate text-xs">
                 {font.label}
@@ -2588,7 +2591,7 @@ export const EditorToolbar = ({
           <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-16 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
             <SelectValue placeholder="Size" />
           </SelectTrigger>
-          <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white">
+          <SelectContent className="rounded-md border-slate-200 shadow-xl bg-white">
             {FONT_SIZES.map(size => (
               <SelectItem key={String(size)} value={String(size)}>
                 {size}
@@ -2623,7 +2626,7 @@ export const EditorToolbar = ({
             <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 min-w-0 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
               <SelectValue placeholder="Heading" />
             </SelectTrigger>
-            <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white">
+            <SelectContent className="rounded-md border-slate-200 shadow-xl bg-white">
               <SelectItem value="0">Normal</SelectItem>
               <SelectItem value="1">H1</SelectItem>
               <SelectItem value="2">H2</SelectItem>
@@ -2707,7 +2710,7 @@ export const EditorToolbar = ({
               <Palette className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+          <DropdownMenuContent className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 text-white">
               <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -2899,7 +2902,7 @@ export const EditorToolbar = ({
               <Highlighter className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
+          <DropdownMenuContent className="w-72 p-0 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden">
             {/* Header */}
             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-3 text-white">
               <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -3072,7 +3075,7 @@ export const EditorToolbar = ({
               <List className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
+          <DropdownMenuContent className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
             <DropdownMenuItem
               onClick={() => {
                 console.log('Numbered list selected');
@@ -3156,7 +3159,7 @@ export const EditorToolbar = ({
               <AlignLeft className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
+          <DropdownMenuContent className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
             <DropdownMenuItem
               onClick={() => {
                 console.log('Align left selected');
@@ -3381,7 +3384,6 @@ export const EditorToolbar = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                onCloseAutoFocus={(e) => e.preventDefault()}
                 className="w-64 bg-white border border-blue-200 rounded-lg shadow-lg p-2"
                 align="start"
                 side="bottom"
@@ -3798,7 +3800,7 @@ export const EditorToolbar = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Select language..." />
                 </SelectTrigger>
-                <SelectContent onCloseAutoFocus={(e) => e.preventDefault()}>
+                <SelectContent>
                   {CODE_LANGUAGES.map((lang) => (
                     <SelectItem key={lang} value={lang}>
                       {lang.charAt(0).toUpperCase() + lang.slice(1)}
