@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { X, ExternalLink } from 'lucide-react';
 
 const TemplatePreviewModal = ({ isOpen, onClose, templateData, onImport }) => {
@@ -8,7 +9,7 @@ const TemplatePreviewModal = ({ isOpen, onClose, templateData, onImport }) => {
         ? templateData.data.slides
         : (templateData.data?.layers ? [templateData.data] : []);
 
-    return (
+    return ReactDOM.createPortal(
         <div style={styles.overlay} onClick={onClose}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
                 <div style={styles.header}>
@@ -34,7 +35,8 @@ const TemplatePreviewModal = ({ isOpen, onClose, templateData, onImport }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -185,12 +187,11 @@ const styles = {
     overlay: {
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(15, 23, 42, 0.35)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 99999,
     },
     modal: {
         backgroundColor: '#fff',

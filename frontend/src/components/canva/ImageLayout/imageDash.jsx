@@ -39,7 +39,7 @@ const isTransparent = (color) => {
     );
 };
 
-const ImageThumbPreview = React.memo(({ image }) => {
+export const ImageThumbPreview = React.memo(({ image }) => {
 
     const layers = Array.isArray(image?.data)
         ? image.data

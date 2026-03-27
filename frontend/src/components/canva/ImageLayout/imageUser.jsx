@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import React, { useEffect, useState, memo } from 'react'
 import { Link } from 'react-router-dom'
+import { FiPlus, FiZap } from 'react-icons/fi'
+import { Sparkles } from 'lucide-react'
 
 const isTransparent = (color) => {
     if (!color) return true;
@@ -283,6 +285,100 @@ const ImageUser = () => {
     const ITEMS_PER_PAGE = 20
 
     useEffect(() => {
+        const style = document.createElement('style')
+        style.innerHTML = `
+            @keyframes borderTrace {
+                0% { background-position: 0% 0%; }
+                25% { background-position: 100% 0%; }
+                50% { background-position: 100% 100%; }
+                75% { background-position: 0% 100%; }
+                100% { background-position: 0% 0%; }
+            }
+            @keyframes glowPulse {
+                0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.08), 0 8px 32px rgba(0,0,0,0.04); }
+                50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.15), 0 8px 32px rgba(0,0,0,0.06); }
+            }
+            @keyframes shimmer {
+                0% { background-position: 100% 0 }
+                100% { background-position: -100% 0 }
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(4px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .glow-card {
+                background: rgba(255, 255, 255, 0.75);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border-radius: 24px;
+                border: 1px solid rgba(99, 102, 241, 0.1);
+                padding: 32px;
+                animation: glowPulse 4s ease-in-out infinite;
+                transition: box-shadow 0.3s ease, transform 0.3s ease;
+            }
+            .glow-card:hover {
+                box-shadow: 0 0 45px rgba(99, 102, 241, 0.2), 0 12px 40px rgba(0,0,0,0.08);
+                transform: translateY(-2px);
+            }
+            .fade-in {
+                animation: fadeIn 0.25s ease-in forwards;
+            }
+            .ai-btn-wrapper {
+                position: relative;
+                border-radius: 24px;
+                padding: 2px;
+                background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706, #fbbf24);
+                background-size: 300% 300%;
+                animation: borderTrace 4s linear infinite;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            }
+            .ai-btn-wrapper:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            }
+            .ai-btn-inner {
+                border-radius: 22px;
+                background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
+                padding: 24px 32px;
+                display: flex;
+                align-items: center;
+                gap: 24px;
+                position: relative;
+                overflow: hidden;
+            }
+            .fresh-btn-wrapper {
+                position: relative;
+                border-radius: 24px;
+                padding: 2px;
+                background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa, #0ea5e9, #1e40af);
+                background-size: 300% 300%;
+                animation: borderTrace 4s linear infinite;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            }
+            .fresh-btn-wrapper:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
+            }
+            .fresh-btn-inner {
+                border-radius: 22px;
+                background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+                padding: 24px 32px;
+                display: flex;
+                align-items: center;
+                gap: 24px;
+                position: relative;
+                overflow: hidden;
+            }
+        `
+        document.head.appendChild(style)
+        return () => { document.head.removeChild(style) }
+    }, [])
+
+    useEffect(() => {
         let mounted = true
         const fetchImages = async () => {
             try {
@@ -348,197 +444,353 @@ const ImageUser = () => {
         )
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-    const spinner = (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-    )
     return (
-        <div className=" bg-slate-50/50">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex flex-col md:flex-row md:items:center justify-between gap-6">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Your Saved Images</h1>
-                        <p className="text-slate-500 mt-1">Manage and edit your creative projects</p>
-                    </div>
+        <div style={{ background: '#e9f4ff', minHeight: '100vh' }}>
+            <div style={imgStyles.container}>
+                <div style={imgStyles.content}>
 
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative group">
+                    {/* Header */}
+                    <div style={imgStyles.header}>
+                        <div>
+                            <h1 style={imgStyles.title}>Your Saved Images</h1>
+                            <p style={imgStyles.subtitle}>Manage and edit your creative projects</p>
+                        </div>
+                        <div>
                             <input
                                 type="text"
                                 placeholder="Search projects..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl w-64 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                                style={imgStyles.searchInput}
                             />
                         </div>
-
-
-
-
                     </div>
 
-                </div>
-
-                {/* --- Button Container --- */}
-                <div className='flex flex-col  md:flex-row gap-6 py-8 w-full'>
-                    {/* Create with AI Button */}
-                    <Link
-                        to="/create/ai-design"
-                        className="flex-1 max-w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white p-6 rounded-2xl shadow-xl shadow-orange-200 transition-all flex items-center gap-4 active:scale-[0.98] group"
-                    >
-                        <div className="bg-white/20 p-3 rounded-xl group-hover:scale-110 transition-transform">
-                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2L14.85 8.65L21.5 11.5L14.85 14.35L12 21L9.15 14.35L2.5 11.5L9.15 8.65L12 2ZM12 5.37L10.38 9.12L6.63 10.75L10.38 12.38L12 16.13L13.62 12.38L17.37 10.75L13.62 9.12L12 5.37Z" />
-                            </svg>
-                        </div>
-                        <div className="text-left">
-                            <h2 className="text-xl font-bold">Create with AI</h2>
-                            <p className="text-orange-50 text-xs opacity-90">Let AI generate a complete presentation from your topic.</p>
-                        </div>
-                    </Link>
-
-                    {/* Create Fresh Button */}
-                    <a
-                        href="/canva-clone"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 max-w-full  bg-white border-2 border-blue-500/10 hover:border-blue-500 text-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex items-center gap-4 active:scale-[0.98] group relative overflow-hidden"
-                    >
-                        {/* Blue accent bar at bottom */}
-                        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-blue-500 opacity-80" />
-
-                        <div className="bg-blue-600 p-3 rounded-xl shadow-lg shadow-blue-200 group-hover:rotate-90 transition-transform">
-                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v12m6-6H6" />
-                            </svg>
-                        </div>
-                        <div className="text-left">
-                            <h2 className="text-xl font-bold">Create Fresh</h2>
-                            <p className="text-slate-500 text-xs">Open our advanced editor and start your story from scratch.</p>
-                        </div>
-                    </a>
-                </div>
-
-                {loading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                                <div className="aspect-[12/6.3] bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 relative overflow-hidden">
-                                    <div className="absolute inset-0 animate-pulse" />
+                    {/* Action Buttons */}
+                    <div style={imgStyles.actionGrid}>
+                        <div className="ai-btn-wrapper" onClick={() => window.open('/create/ai-design', '_blank')}>
+                            <div className="ai-btn-inner">
+                                <div style={imgStyles.iconContainer}>
+                                    <Sparkles size={32} color="#fff" />
                                 </div>
-                                <div className="p-5">
-                                    <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg mb-3 animate-pulse" />
-                                    <div className="flex items-center justify-between">
-                                        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-100 rounded w-20 animate-pulse" />
-                                        <div className="h-5 bg-slate-100 rounded-full w-16 animate-pulse" />
-                                    </div>
+                                <div>
+                                    <h2 style={{ ...imgStyles.actionTitle, color: '#fff' }}>Create with AI</h2>
+                                    <p style={{ ...imgStyles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
+                                        Let AI generate a complete design from your topic.
+                                    </p>
+                                </div>
+                                <div style={imgStyles.zapIcon}>
+                                    <FiZap size={24} color="rgba(255,255,255,0.2)" />
                                 </div>
                             </div>
-                        ))}
+                        </div>
+
+                        <div className="fresh-btn-wrapper" onClick={() => window.open('/canva-clone', '_blank')}>
+                            <div className="fresh-btn-inner">
+                                <div style={{
+                                    ...imgStyles.iconContainer,
+                                    background: 'linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)',
+                                    boxShadow: '0 10px 20px rgba(59,130,246,0.35)'
+                                }}>
+                                    <FiPlus size={28} color="#ffffff" />
+                                </div>
+                                <div>
+                                    <h2 style={imgStyles.actionTitle}>Create Fresh</h2>
+                                    <p style={imgStyles.actionDesc}>Open our advanced editor and start your story from scratch.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                )}
 
-                {error && (
-                    <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl flex items-center gap-3">{error}</div>
-                )}
+                    {/* Recent Images — Glowing Card */}
+                    <div className="glow-card">
+                        <div style={imgStyles.sectionHeader}>
+                            <h2 style={imgStyles.sectionTitle}>Recent Images</h2>
+                        </div>
 
-                {!loading && filteredImages.length > 0 ? (
-                    <div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                            {filteredImages.map(image => {
-                                const canvasSize = image.data?.canvasSize || { width: 1200, height: 630 };
-                                const aspectRatio = (canvasSize.height / canvasSize.width) * 100;
-                                return (
-                                    <a
-                                        key={image._id}
-                                        href={`/canva-clone/${image._id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-[320px]"
-                                    >
-                                        <div className="relative bg-slate-100 overflow-hidden h-[180px]">
-                                            <div
-                                                className="absolute inset-0"
-                                                style={{
-                                                    ['--thumb-scale']: `${Math.min(
-                                                        1,
-                                                        1
-                                                    )}`
-                                                }}
-                                                ref={(el) => {
-                                                    if (!el) return
-                                                    const rect = el.getBoundingClientRect()
-                                                    const cw = canvasSize?.width || 800
-                                                    const ch = canvasSize?.height || 600
-                                                    const scale = Math.min(rect.width / cw, rect.height / ch)
-                                                    el.style.setProperty('--thumb-scale', String(scale))
-                                                }}
-                                            >
-                                                <ImageThumbPreview image={image} />
-                                            </div>
+                        {error && (
+                            <div style={{ color: '#ef4444', marginBottom: '16px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{error}</div>
+                        )}
 
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
-
-                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(image._id); }} className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 shadow-lg cursor-pointer z-10" title="Delete Design">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                            </button>
-                                        </div>
-
-                                        <div className="p-5 flex flex-col justify-between flex-1">
-                                            <div className="flex items-start justify-between">
-                                                <h3 className="text-slate-800 font-bold group-hover:text-blue-600 transition-colors truncate">{image.title || 'Untitled Masterpiece'}</h3>
-                                            </div>
-                                            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-                                                <span className="flex items-center gap-1">{new Date(image.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full font-medium">{image.data?.canvasSize ? `${image.data.canvasSize.width}×${image.data.canvasSize.height}` : '—'}</span>
+                        <div style={imgStyles.scrollContainer}>
+                            {loading ? (
+                                <div style={imgStyles.grid}>
+                                    {[1, 2, 3, 4].map(i => (
+                                        <div key={i} style={imgStyles.card}>
+                                            <div style={{ ...imgStyles.cardPreview, background: 'linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 37%, #f0f0f0 63%)', backgroundSize: '400% 100%', animation: 'shimmer 1.4s ease infinite' }} />
+                                            <div style={imgStyles.cardInfo}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ height: '16px', background: '#f0f0f0', borderRadius: '8px', marginBottom: '8px', animation: 'shimmer 1.4s ease infinite', backgroundSize: '400% 100%' }} />
+                                                    <div style={{ height: '12px', background: '#f0f0f0', borderRadius: '8px', width: '60%', animation: 'shimmer 1.4s ease infinite', backgroundSize: '400% 100%' }} />
                                                 </div>
                                             </div>
                                         </div>
-                                    </a>
-                                )
-                            })}
+                                    ))}
+                                </div>
+                            ) : filteredImages.length === 0 ? (
+                                <div style={imgStyles.emptyCard}>
+                                    <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', margin: 0 }}>
+                                        {searchTerm ? 'No images match your search.' : 'No images yet. Start creating!'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div style={imgStyles.grid} className="fade-in">
+                                    {filteredImages.map(image => {
+                                        const canvasSize = image.data?.canvasSize || { width: 800, height: 600 }
+                                        return (
+                                            <div
+                                                key={image._id}
+                                                onClick={() => window.open(`/canva-clone/${image._id}`, '_blank')}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(-4px)'
+                                                    e.currentTarget.style.borderColor = '#6366f1'
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(0)'
+                                                    e.currentTarget.style.borderColor = '#e2e8f0'
+                                                }}
+                                                style={imgStyles.card}
+                                            >
+                                                <div style={{ ...imgStyles.cardPreview, position: 'relative', overflow: 'hidden' }}>
+                                                    <div
+                                                        style={{ position: 'absolute', inset: 0 }}
+                                                        ref={(el) => {
+                                                            if (!el) return
+                                                            const rect = el.getBoundingClientRect()
+                                                            const cw = canvasSize?.width || 800
+                                                            const ch = canvasSize?.height || 600
+                                                            const scale = Math.min(rect.width / cw, rect.height / ch)
+                                                            el.style.setProperty('--thumb-scale', String(scale))
+                                                        }}
+                                                    >
+                                                        <ImageThumbPreview image={image} />
+                                                    </div>
+                                                </div>
+                                                <div style={imgStyles.cardInfo}>
+                                                    <div style={imgStyles.cardText}>
+                                                        <h3 style={imgStyles.cardTitle}>{image.title || 'Untitled'}</h3>
+                                                        <p style={imgStyles.cardDate}>{new Date(image.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(image._id) }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                                                        style={imgStyles.deleteBtn}
+                                                        title="Delete Design"
+                                                    >
+                                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </div>
-                        {hasMore && !searchTerm && (
-                            <div className="flex justify-center mt-12">
+
+                        {hasMore && !searchTerm && !loading && (
+                            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
                                 <button
                                     onClick={loadMore}
                                     disabled={loadingMore}
-                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-200 flex items-center gap-2"
+                                    style={{
+                                        padding: '10px 32px',
+                                        background: loadingMore ? '#93c5fd' : '#2563eb',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                                        fontWeight: 700,
+                                        fontSize: '0.95rem',
+                                        cursor: loadingMore ? 'not-allowed' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        boxShadow: '0 4px 14px rgba(37,99,235,0.3)',
+                                    }}
                                 >
                                     {loadingMore ? (
                                         <>
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            <div style={{ width: '16px', height: '16px', border: '2px solid #fff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                                             Loading...
                                         </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                            </svg>
-                                            Load More
-                                        </>
-                                    )}
+                                    ) : 'Load More'}
                                 </button>
                             </div>
                         )}
                     </div>
-                ) : (!loading && (
-                    <div className="text-center py-8 bg-white rounded-3xl border border-dashed border-slate-200">
-                        <div className="max-w-xs mx-auto">
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">No designs yet</h3>
-                            <p className="text-slate-500 text-sm mb-8">Start your creative journey by creating your first digital masterpiece.</p>
-                            <a href="/canva-clone" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20">Start Creating</a>
-                        </div>
-                    </div>
-                ))}
+
+                </div>
             </div>
         </div>
     )
 }
 
+const imgStyles = {
+    container: {
+        minHeight: '100vh',
+        background: 'transparent',
+        padding: '40px 20px 40px',
+        position: 'relative',
+        zIndex: 1,
+    },
+    content: {
+        maxWidth: '1200px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '40px',
+    },
+    header: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+        marginBottom: '10px',
+    },
+    title: {
+        fontFamily: 'Georgia, "Times New Roman", serif',
+        fontSize: 'clamp(32px, 6vw, 52px)',
+        fontWeight: 400,
+        letterSpacing: '-0.02em',
+        lineHeight: 1.1,
+        color: '#0f172a',
+        margin: 0,
+    },
+    subtitle: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '1.05rem',
+        color: '#64748b',
+        marginTop: '8px',
+        fontWeight: 400,
+    },
+    searchInput: {
+        padding: '10px 16px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '12px',
+        background: '#fff',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '0.9rem',
+        color: '#0f172a',
+        outline: 'none',
+        width: '220px',
+    },
+    actionGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+        gap: '24px',
+    },
+    iconContainer: {
+        width: '64px',
+        height: '64px',
+        borderRadius: '16px',
+        background: 'rgba(255,255,255,0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+    actionTitle: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '1.5rem',
+        fontWeight: 700,
+        margin: 0,
+        color: '#0f172a',
+    },
+    actionDesc: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '1rem',
+        margin: '4px 0 0',
+        color: '#64748b',
+    },
+    zapIcon: {
+        position: 'absolute',
+        right: '-10px',
+        bottom: '-10px',
+        opacity: 0.5,
+    },
+    sectionHeader: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        color: '#0f172a',
+        marginBottom: '20px',
+    },
+    sectionTitle: {
+        fontFamily: 'Georgia, "Times New Roman", serif',
+        fontSize: '1.6rem',
+        fontWeight: 400,
+        margin: 0,
+        color: '#0f172a',
+        letterSpacing: '-0.01em',
+    },
+    scrollContainer: {
+        maxHeight: '480px',
+        overflowY: 'auto',
+        paddingRight: '10px',
+    },
+    grid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+        gap: '20px',
+    },
+    card: {
+        background: '#fff',
+        borderRadius: '16px',
+        border: '1px solid #e2e8f0',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'transform 0.2s, border-color 0.2s',
+    },
+    cardPreview: {
+        height: '140px',
+        background: '#f1f5f9',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cardInfo: {
+        padding: '16px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    cardText: {
+        overflow: 'hidden',
+    },
+    cardTitle: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '1rem',
+        fontWeight: 600,
+        margin: 0,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        color: '#0f172a',
+    },
+    cardDate: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '0.85rem',
+        color: '#64748b',
+        margin: '2px 0 0',
+    },
+    deleteBtn: {
+        background: 'none',
+        border: 'none',
+        color: '#ef4444',
+        cursor: 'pointer',
+        padding: '8px',
+        borderRadius: '8px',
+    },
+    emptyCard: {
+        padding: '60px',
+        background: '#fff',
+        borderRadius: '16px',
+        border: '2px dashed #e2e8f0',
+        textAlign: 'center',
+        color: '#64748b',
+    },
+}
+
 export default ImageUser
-
-
-

@@ -5,12 +5,15 @@ import api from "../services/api";
 import { Eye, EyeOff, XCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+
 const AuthPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+
   const [isSignup, setIsSignup] = useState(false);
+
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -19,6 +22,7 @@ const AuthPage = () => {
     password: "",
     username: ""
   });
+
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -30,17 +34,21 @@ const AuthPage = () => {
     password: ""
   });
 
+
   const processedTokenRef = useRef(null);
 
+
   const handleGoogleAuth = () => {
-  window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/auth/google?mode=${isSignup ? "signup" : "login"}`;
-};
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/auth/google?mode=${isSignup ? "signup" : "login"}`;
+  };
+
 
   const handleForgotPassword = async () => {
     if (!formData.email) {
       setForgotMsg("Please enter your email first");
       return;
     }
+
 
     try {
       setForgotLoading(true);
@@ -54,20 +62,25 @@ const AuthPage = () => {
     }
   };
 
+
   useEffect(() => {
     const token = searchParams.get("token");
     const googleToken = searchParams.get("googleToken");
     const authToken = token || googleToken;
 
+
     if (!authToken) return;
     if (processedTokenRef.current === authToken) return;
 
+
     processedTokenRef.current = authToken;
+
 
     const authenticate = async () => {
       try {
         setIsLoading(true);
         const response = await api.verifyToken(authToken);
+
 
         if (response.success && response.token) {
           await login(response.token);
@@ -97,15 +110,25 @@ const AuthPage = () => {
       password: "",
       username: ""
     });
+    setErrors({
+      email: "",
+      password: ""
+    });
+    setForgotMsg("");
+    setError(null);
   };
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+
     setFormData({ ...formData, [name]: value });
+
 
     if (name === "email") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 
       if (!emailRegex.test(value)) {
         setErrors((prev) => ({ ...prev, email: "Enter a valid email address" }));
@@ -113,6 +136,7 @@ const AuthPage = () => {
         setErrors((prev) => ({ ...prev, email: "" }));
       }
     }
+
 
     if (name === "password") {
       if (value.includes(" ")) {
@@ -125,48 +149,38 @@ const AuthPage = () => {
     }
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
 
     if (errors.email || errors.password) {
       return;
     }
 
+
     setIsLoading(true);
+
 
     try {
       let response;
 
+
       if (isSignup) {
         response = await api.register(formData);
-
         await api.sendOTP(formData.email);
         localStorage.setItem("email", formData.email);
         navigate("/verify", { state: { email: formData.email } });
         return;
-
       } else {
-
         response = await api.login(formData);
-        console.log("Login response:", response);
-        if (response.unverified) {
+        if (response?.unverified) {
           localStorage.setItem("email", formData.email);
           navigate("/verify", { state: { email: formData.email } });
           return;
         }
-
-
-        if (response?.unverified) {
-
-          localStorage.setItem("email", formData.email);
-
-          navigate("/verify", {
-            state: { email: formData.email }
-          });
-
-          return;
-        }
       }
+
 
       await login(response.token);
       navigate("/home");
@@ -181,23 +195,25 @@ const AuthPage = () => {
     }
   };
 
+
   if (searchParams.get("token") || searchParams.get("googleToken")) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600">
-        <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 px-4">
+        <div className="bg-white p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
           {isLoading && (
             <>
               <div className="w-16 h-16 border-4 border-gray-100 border-t-indigo-500 rounded-full mx-auto mb-5 animate-spin" />
-              <h2 className="text-xl font-semibold">Verifying session...</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">Verifying session...</h2>
             </>
           )}
+
 
           {error && (
             <>
               <div className="w-16 h-16 bg-red-500 rounded-full mx-auto flex items-center justify-center mb-5">
                 <XCircle className="text-white" />
               </div>
-              <p>{error}</p>
+              <p className="text-sm sm:text-base">{error}</p>
             </>
           )}
         </div>
@@ -205,9 +221,9 @@ const AuthPage = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(135deg,#0c4a6ecc,#1e40afcc,#0ea5e9cc)] p-6">
 
+  return (
+    <div className="min-h-screen bg-[linear-gradient(135deg,#0c4a6ecc,#1e40afcc,#0ea5e9cc)] px-4 py-6 sm:px-6 sm:py-8 md:p-6 flex items-center justify-center">
       <motion.div
         layout
         initial={{ opacity: 0, y: 40 }}
@@ -215,17 +231,15 @@ const AuthPage = () => {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="relative w-full pt-6 md:pt-0 max-w-[95%] sm:max-w-[650px] md:max-w-[780px] lg:max-w-[820px] min-h-[540px] md:min-h-[540px] h-auto bg-white rounded-[30px] shadow-2xl overflow-hidden"
       >
-
         {/* LOGIN PANEL */}
         <div className={`absolute top-0 left-0 h-auto md:h-full w-full pt-6 md:pt-0 md:w-1/2 flex items-center justify-center px-6 md:px-10 transition-all duration-700 ${isSignup ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
           <div className="w-full pt-6 md:pt-0">
-
             <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
               Welcome Back
             </h2>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <input
                 name="email"
                 placeholder="Email"
@@ -238,6 +252,7 @@ const AuthPage = () => {
                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
               )}
 
+
               <div className="relative">
                 <input
                   name="password"
@@ -248,10 +263,6 @@ const AuthPage = () => {
                   className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none pr-10 focus:ring-2 focus:ring-indigo-400"
                   required
                 />
-                {errors.password && (
-                  <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-                )}
-
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -260,6 +271,10 @@ const AuthPage = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
+
 
               <button
                 type="submit"
@@ -267,27 +282,17 @@ const AuthPage = () => {
               >
                 {isLoading ? <Loader2 className="animate-spin mx-auto" /> : "Sign In"}
               </button>
-
             </form>
 
-            <button
-              onClick={handleForgotPassword}
-              className="text-sm text-indigo-800 mt-4 w-full text-center hover:underline"
-            >
-              {forgotLoading ? "Sending..." : "Forgot Password?"}
-            </button>
 
-            {forgotMsg && <p className="text-sm text-center mt-2">{forgotMsg}</p>}
+            {forgotMsg && (
+              <p className="text-sm text-center mt-2 text-gray-700">{forgotMsg}</p>
+            )}
 
-            {/* GOOGLE BUTTON WITH ANIMATION */}
+
             <button
               onClick={handleGoogleAuth}
-              className="group mt-5 border px-6 py-3 rounded-full flex items-center gap-3 justify-center w-full
-              bg-white hover:bg-gray-50
-              transition-all duration-300
-              hover:shadow-lg
-              hover:scale-[1.04]
-              active:scale-[0.97]"
+              className="group mt-5 border px-6 py-3 rounded-full flex items-center gap-3 justify-center w-full bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-lg hover:scale-[1.04] active:scale-[0.97]"
             >
               <svg
                 className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12"
@@ -298,11 +303,12 @@ const AuthPage = () => {
                 <path fill="#FBBC05" d="M10.1 28.9c-.5-1.4-.8-2.9-.8-4.4s.3-3 .8-4.4l-7.4-5.7C1 17.7 0 20.8 0 24s1 6.3 2.7 9.6l7.4-4.7z" />
                 <path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-5.7l-8.5-6.6c-2.3 1.6-5.3 2.7-7.5 2.7-6.4 0-12-4.3-13.9-10.1l-7.4 5.7C6.6 42.6 14.6 48 24 48z" />
               </svg>
-
               <span className="font-medium text-gray-700">
                 Sign in with Google
               </span>
             </button>
+
+
             <p className="text-sm text-center mt-6 md:hidden">
               Don't have an account?{" "}
               <button
@@ -312,26 +318,23 @@ const AuthPage = () => {
                 Sign Up
               </button>
             </p>
-
           </div>
         </div>
 
+
         {/* SIGNUP PANEL */}
         <div className={`absolute top-0 left-0 h-auto md:h-full w-full pt-10 md:pt-0 md:w-1/2 flex items-center justify-center py-4 px-8 md:px-12 transition-all duration-700 ${isSignup ? "md:translate-x-full opacity-100" : "opacity-0 pointer-events-none"}`}>
-         <div className="w-full md:max-w-[660px]">
-
+          <div className="w-full md:max-w-md">
             <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
               Create Account
             </h2>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
 
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <input name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange}
                 className="w-full px-4 py-3 md:py-2.5 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400" required />
-
               <input name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange}
                 className="w-full px-4 py-3 md:py-2.5 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400" required />
-
               <input
                 name="email"
                 placeholder="Email"
@@ -340,10 +343,10 @@ const AuthPage = () => {
                 className="w-full px-4 py-3 md:py-2.5 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
                 required
               />
-
               {errors.email && (
-                <p className="text-red-500 text-sm ">{errors.email}</p>
+                <p className="text-red-500 text-sm">{errors.email}</p>
               )}
+
 
               <div className="relative">
                 <input
@@ -352,14 +355,9 @@ const AuthPage = () => {
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none pr-10 focus:ring-2 focus:ring-indigo-400"
+                  className="w-full px-4 py-3 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400"
                   required
                 />
-
-                {errors.password && (
-                  <p className="text-red-500 text-sm ">{errors.password}</p>
-                )}
-
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -368,29 +366,30 @@ const AuthPage = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm">{errors.password}</p>
+              )}
+
 
               <button
                 type="submit"
-                className="bg-[#fbbf24] text-black py-3 md:py-2.5 rounded-full font-semibold hover:bg-[#f59e0b] transition-all hover:scale-[1.03] active:scale-[0.98]"
+                className="bg-[#fbbf24] text-black py-3 mt-2 md:py-2.5 rounded-full font-semibold hover:bg-[#f59e0b] transition-all hover:scale-[1.03] active:scale-[0.98]"
               >
                 {isLoading ? <Loader2 className="animate-spin mx-auto" /> : "Sign Up"}
               </button>
-
             </form>
+
+
             <div className="flex items-center my-4">
               <div className="flex-grow border-t border-gray-300"></div>
               <span className="mx-3 text-gray-500 text-sm font-medium">OR</span>
               <div className="flex-grow border-t border-gray-300"></div>
             </div>
-            {/* GOOGLE BUTTON */}
+
+
             <button
               onClick={handleGoogleAuth}
-              className="group mt-5 border px-6 py-3 rounded-full flex items-center gap-3 justify-center w-full
-  bg-white hover:bg-gray-50
-  transition-all duration-300
-  hover:shadow-lg
-  hover:scale-[1.04]
-  active:scale-[0.97]"
+              className="group mt-2 border px-6 py-3 rounded-full flex items-center gap-3 justify-center w-full bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-lg hover:scale-[1.04] active:scale-[0.97]"
             >
               <svg
                 className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12"
@@ -401,31 +400,26 @@ const AuthPage = () => {
                 <path fill="#FBBC05" d="M10.1 28.9c-.5-1.4-.8-2.9-.8-4.4s.3-3 .8-4.4l-7.4-5.7C1 17.7 0 20.8 0 24s1 6.3 2.7 9.6l7.4-4.7z" />
                 <path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-5.7l-8.5-6.6c-2.3 1.6-5.3 2.7-7.5 2.7-6.4 0-12-4.3-13.9-10.1l-7.4 5.7C6.6 42.6 14.6 48 24 48z" />
               </svg>
-
-              <span className="font-medium text-gray-700">
-                Sign up with Google
-              </span>
+              <span className="font-medium text-gray-700">Sign up with Google</span>
             </button>
-            <p className="text-sm text-center mt-2 md:hidden">
+
+
+            <p className="text-sm text-center mt-6 md:hidden">
               Already have an account?{" "}
-              <button
-                onClick={toggleForm}
-                className="text-indigo-600 font-semibold hover:underline"
-              >
+              <button onClick={toggleForm} className="text-indigo-600 font-semibold hover:underline">
                 Sign In
               </button>
             </p>
-
           </div>
         </div>
 
-        {/* OVERLAY PANEL */}
-        <div className={`hidden md:flex absolute top-0 right-0 w-1/2 h-auto md:h-full bg-[linear-gradient(135deg,#2180b7,#798fda)] text-white flex-col items-center justify-center text-center px-10 transition-all duration-700 ${isSignup ? "-translate-x-full" : ""}`}>
 
+        {/* OVERLAY PANEL */}
+        <div className={`hidden md:flex absolute top-0 right-0 w-1/2 h-full bg-[linear-gradient(135deg,#2180b7,#798fda)] text-white flex-col items-center justify-center text-center px-8 lg:px-10 transition-all duration-700 ${isSignup ? "-translate-x-full" : ""}`}>
           {isSignup ? (
             <>
               <h2 className="text-3xl font-bold mb-4">Welcome Back!</h2>
-              <p className="mb-6">To keep connected with us please login</p>
+              <p className="mb-6 max-w-[280px]">To keep connected with us please login</p>
               <button onClick={toggleForm} className="border border-white px-8 py-2 rounded-full hover:bg-white hover:text-indigo-600 transition">
                 Sign In
               </button>
@@ -433,20 +427,17 @@ const AuthPage = () => {
           ) : (
             <>
               <h2 className="text-3xl font-bold mb-4">Hello, User!</h2>
-              <p className="mb-6">Enter your details and start journey with us</p>
+              <p className="mb-6 max-w-[280px]">Enter your details and start journey with us</p>
               <button onClick={toggleForm} className="border border-white px-8 py-2 rounded-full hover:bg-white hover:text-indigo-600 transition">
                 Sign Up
               </button>
-
             </>
           )}
-
         </div>
-
       </motion.div>
-
     </div>
   );
 };
+
 
 export default AuthPage;

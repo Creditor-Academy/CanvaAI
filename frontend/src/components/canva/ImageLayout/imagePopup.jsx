@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { X, Download, Image as ImageIcon, ZoomIn } from "lucide-react";
+import ReactDOM from "react-dom";
+import { X, Download, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { useAuth } from '../../../contexts/AuthContext'
 import { cloneImage } from '../../../services/imageEditor/imageApi'
 import { toast } from 'sonner'
@@ -160,142 +161,210 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
         return null;
     }
 
-    console.log('ImagePopup rendering with image:', image);
+    const portalTarget = document.getElementById('modal-root') || document.body;
 
-    return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            onClick={onClose}
-        >
-            {/* Modal content */}
-            <div
-                className="relative bg-white rounded-2xl max-w-2xl w-full mx-auto overflow-hidden shadow-2xl border border-slate-200"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header with gradient */}
-                <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/20 rounded-xl">
-                                <ImageIcon className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-white">
-                                    Template Preview
-                                </h2>
-                                <p className="text-sm text-blue-100">
-                                    Review your selected template
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 group"
-                            aria-label="Close"
-                        >
-                            <X className="w-5 h-5 text-white" />
-                        </button>
-                    </div>
+    return ReactDOM.createPortal(
+        <div style={popupStyles.overlay} onClick={onClose}>
+            <div style={popupStyles.modal} onClick={(e) => e.stopPropagation()}>
+
+                {/* Header */}
+                <div style={popupStyles.header}>
+                    <h2 style={popupStyles.title}>{image.title || 'Template Preview'}</h2>
+                    <button style={popupStyles.closeBtn} onClick={onClose} aria-label="Close">
+                        <X size={20} />
+                    </button>
                 </div>
 
-                {/* Image container with enhanced styling */}
-                <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8 min-h-[350px]">
-                    {thumbnail ? (
-                        <div className="relative group">
-                            <img
-                                src={thumbnail}
-                                alt={image.title}
-                                className="max-h-[300px] max-w-[90%] w-auto object-contain rounded-xl shadow-lg transition-all duration-300 group-hover:shadow-xl"
-                            />
-
-                            {/* Zoom indicator on hover */}
-                            <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <div className="bg-black/50 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                                    <ZoomIn className="w-3.5 h-3.5" />
-                                    <span>Preview</span>
-                                </div>
-                            </div>
-                        </div>
-                    ) : preview ? (
-                        <div className="w-full h-full flex items-center justify-center">
+                {/* Preview area */}
+                <div style={popupStyles.content}>
+                    {preview ? (
+                        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             {preview}
                         </div>
                     ) : (
-                        <div className="text-center py-12">
-                            <div className="w-20 h-20 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-                                <ImageIcon className="w-10 h-10 text-slate-400" />
+                        <div style={popupStyles.emptyPreview}>
+                            <div style={popupStyles.emptyIcon}>
+                                <ImageIcon size={40} color="#94a3b8" />
                             </div>
-                            <p className="text-slate-600 font-semibold mb-2">Preview Not Available</p>
-                            <p className="text-sm text-slate-500 mb-4">This template has no preview data</p>
-                            {image.title && (
-                                <div className="mt-4 pt-4 border-t border-slate-200">
-                                    <p className="text-sm font-medium text-slate-700">Template: {image.title}</p>
-                                </div>
-                            )}
+                            <p style={popupStyles.emptyText}>No preview available</p>
                         </div>
                     )}
                 </div>
 
-                {/* Enhanced footer with better styling */}
-                <div className="bg-white px-6 py-4 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-lg text-slate-900 truncate">
-                                {image.title || "Untitled Template"}
-                            </h3>
-                            {image.description && (
-                                <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">
-                                    {image.description}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex gap-3 ml-4">
-                            <button
-                                onClick={onClose}
-                                className="px-5 py-2.5 rounded-xl border-2 border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 focus:ring-4 focus:ring-slate-100"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                onClick={async () => {
-                                    // Always clone the template into the current user's account
-                                    const targetId = image.imageId || image._id
-                                    try {
-                                        setImporting(true)
-                                        const resp = await cloneImage(targetId)
-                                        const newId = resp?.data?._id || resp?.imageId || resp?.data?.imageId || resp?._id || targetId
-                                        try {
-                                            const payload = resp.data || resp
-                                            sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify(payload))
-                                            sessionStorage.setItem(`prefill_import_flag_${newId}`, '1')
-                                        } catch (err) {
-                                            console.warn('Failed to store cloned prefill project', err)
-                                        }
-                                        window.open(`/canva-clone/${newId}`, '_blank')
-                                        toast.success('Template imported to your account')
-                                    } catch (err) {
-                                        console.error('Clone/import failed', err)
-                                        toast.error('Failed to import template')
-                                    } finally {
-                                        setImporting(false)
-                                    }
-                                }}
-                                disabled={importing}
-                                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30 focus:ring-4 focus:ring-blue-200 flex items-center gap-2 group disabled:opacity-60"
-                            >
-                                <Download className="w-4 h-4 group-hover:animate-bounce" />
-                                {importing ? 'Importing...' : 'Import Template'}
-                            </button>
-                        </div>
-                    </div>
+                {/* Footer */}
+                <div style={popupStyles.footer}>
+                    <button style={popupStyles.cancelBtn} onClick={onClose}>Cancel</button>
+                    <button
+                        style={{ ...popupStyles.importBtn, opacity: importing ? 0.6 : 1 }}
+                        disabled={importing}
+                        onClick={async () => {
+                            // If the parent provided an onImport handler, delegate entirely to it
+                            if (onImport) {
+                                try {
+                                    setImporting(true)
+                                    await onImport(image)
+                                    onClose()
+                                } catch (err) {
+                                    console.error('Clone/import failed', err)
+                                    toast.error('Failed to import template')
+                                } finally {
+                                    setImporting(false)
+                                }
+                                return
+                            }
+                            const targetId = image.imageId || image._id
+                            try {
+                                setImporting(true)
+                                const resp = await cloneImage(targetId)
+                                const newId = resp?.data?._id || resp?.imageId || resp?.data?.imageId || resp?._id || targetId
+                                try {
+                                    const payload = resp.data || resp
+                                    sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify(payload))
+                                    sessionStorage.setItem(`prefill_import_flag_${newId}`, '1')
+                                } catch (err) {
+                                    console.warn('Failed to store cloned prefill project', err)
+                                }
+                                window.open(`/canva-clone/${newId}`, '_blank')
+                                toast.success('Template imported to your account')
+                                onClose()
+                            } catch (err) {
+                                console.error('Clone/import failed', err)
+                                toast.error('Failed to import template')
+                            } finally {
+                                setImporting(false)
+                            }
+                        }}
+                    >
+                        <ExternalLink size={16} style={{ marginRight: '8px' }} />
+                        {importing ? 'Importing...' : 'Import Template'}
+                    </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        portalTarget
     );
 };
 
-export default ImagePopup;
+const popupStyles = {
+    overlay: {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2147483647,
+        padding: '20px',
+        pointerEvents: 'all',
+        willChange: 'transform',
+        isolation: 'isolate',
+    },
+    modal: {
+        backgroundColor: '#fff',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '640px',
+        maxHeight: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        overflow: 'hidden',
+    },
+    header: {
+        padding: '20px 24px',
+        borderBottom: '1px solid #e2e8f0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    title: {
+        margin: 0,
+        fontSize: '1.25rem',
+        fontWeight: 600,
+        color: '#0f172a',
+        fontFamily: 'Georgia, "Times New Roman", serif',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+    },
+    closeBtn: {
+        background: 'none',
+        border: 'none',
+        color: '#64748b',
+        cursor: 'pointer',
+        padding: '6px',
+        borderRadius: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+    content: {
+        flex: 1,
+        overflowY: 'auto',
+        padding: '24px',
+        backgroundColor: '#f8fafc',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '260px',
+    },
+    emptyPreview: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '12px',
+    },
+    emptyIcon: {
+        width: '72px',
+        height: '72px',
+        background: '#e2e8f0',
+        borderRadius: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyText: {
+        color: '#64748b',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '0.95rem',
+    },
+    footer: {
+        padding: '20px 24px',
+        borderTop: '1px solid #e2e8f0',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: '12px',
+        flexShrink: 0,
+        backgroundColor: '#fff',
+    },
+    cancelBtn: {
+        padding: '10px 20px',
+        borderRadius: '10px',
+        border: '1px solid #e2e8f0',
+        backgroundColor: '#fff',
+        color: '#475569',
+        fontWeight: 500,
+        cursor: 'pointer',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '0.9rem',
+    },
+    importBtn: {
+        padding: '10px 24px',
+        borderRadius: '10px',
+        border: 'none',
+        backgroundColor: '#0a4cdb',
+        color: '#fff',
+        fontWeight: 600,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '0.9rem',
+        boxShadow: '0 4px 6px -1px rgba(99,102,241,0.2)',
+    },
+};
 
+export default ImagePopup;
 

@@ -1,177 +1,169 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ThemeCard from './ThemeCard';
 import ThemeBrowserModal from './ThemeBrowserModal';
 import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
+import './styles/PresentationStudio.css';
 
-// Modular Subcomponents
-// ... (rest of subcomponents)
+const FieldLabel = ({ children }) => (
+  <label className="ps-field-label">{children}</label>
+);
+
+const CustomSelect = ({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="ps-field-block">
+      <FieldLabel>{label}</FieldLabel>
+
+      <div
+        className={`ps-custom-select ${isOpen ? 'open' : ''}`}
+        ref={wrapperRef}
+      >
+        <button
+          type="button"
+          className="ps-custom-select-trigger"
+          onClick={() => setIsOpen((prev) => !prev)}
+        >
+          <span className={value ? 'selected' : 'placeholder'}>
+            {value || placeholder}
+          </span>
+          <span className="ps-custom-select-arrow" />
+        </button>
+
+        {isOpen && (
+          <div className="ps-custom-select-menu">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`ps-custom-select-option ${
+                  value === option.label ? 'active' : ''
+                }`}
+                onClick={() => {
+                  onChange(option.label);
+                  setIsOpen(false);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const TitleInput = ({ prompt, setPrompt }) => (
-  <div style={{ marginBottom: '24px' }}>
-    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-      Title
-    </label>
+  <div className="ps-field-block">
+    <div className="ps-field-info-row">
+      <FieldLabel>Title</FieldLabel>
+      <span className={`ps-char-counter ${prompt.length >= 60 ? 'limit' : ''}`}>
+        {prompt.length}/60
+      </span>
+    </div>
     <textarea
+      className="ps-textarea ps-title-input"
       value={prompt}
-      onChange={(e) => setPrompt(e.target.value)}
+      onChange={(e) => setPrompt(e.target.value.slice(0, 60))}
       placeholder="Write your presentation title..."
-      style={{
-        width: '100%',
-        border: '1px solid #e5e7eb',
-        borderRadius: '12px',
-        padding: '16px',
-        minHeight: '56px',
-        resize: 'none',
-        fontSize: '15px',
-        fontFamily: "'Inter', sans-serif",
-        outline: 'none',
-        transition: 'border-color 0.2s',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-      }}
-      onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+      maxLength={60}
     />
   </div>
 );
 
 const OutlineInput = ({ outlineText, setOutlineText }) => (
-  <div style={{ marginBottom: '32px' }}>
-    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-      Outline (Optional)
-    </label>
+  <div className="ps-field-block">
+    <div className="ps-field-info-row">
+      <FieldLabel>Outline (Optional)</FieldLabel>
+      <span className={`ps-char-counter ${(outlineText?.length || 0) >= 500 ? 'limit' : ''}`}>
+        {outlineText?.length || 0}/500
+      </span>
+    </div>
     <textarea
+      className="ps-textarea ps-outline-input"
       value={outlineText || ""}
-      onChange={(e) => setOutlineText(e.target.value)}
+      onChange={(e) => setOutlineText(e.target.value.slice(0, 500))}
       placeholder="Write bullet points or structured outline..."
-      style={{
-        width: '100%',
-        border: '1px solid #e5e7eb',
-        borderRadius: '12px',
-        padding: '16px',
-        minHeight: '120px',
-        resize: 'none',
-        fontSize: '15px',
-        fontFamily: "'Inter', sans-serif",
-        outline: 'none',
-        transition: 'border-color 0.2s',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-      }}
-      onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+      maxLength={500}
     />
   </div>
 );
 
 const ToneSelector = ({ tone, setTone }) => {
   const tones = ['Professional', 'Friendly', 'Creative', 'Corporate'];
+
+
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-        Tone
-      </label>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {tones.map(t => {
-          const isActive = tone === t;
-          return (
-            <button
-              key={t}
-              onClick={() => setTone(t)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
-                background: isActive ? '#6366f1' : 'white',
-                color: isActive ? 'white' : '#4b5563',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px',
-                fontFamily: "'Inter', sans-serif",
-                transition: 'all 0.2s',
-                boxShadow: isActive ? '0 2px 4px rgba(99,102,241,0.2)' : 'none'
-              }}
-            >
-              {t} {isActive && '●'}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  );
+    <CustomSelect
+    label="Tone"
+      value={tone}
+      onChange={setTone}
+      placeholder="Select tone"
+      options={tones.map((item) => ({
+        label: item,
+        value: item,
+      }))}
+    />
+  );  
 };
 
 const SlideSelector = ({ length, setLength }) => {
   const slides = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-        Slides
-      </label>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {slides.map(num => {
-          const s = String(num);
-          const isActive = length === s;
-          return (
-            <button
-              key={num}
-              onClick={() => setLength(s)}
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
-                background: isActive ? '#6366f1' : 'white',
-                color: isActive ? 'white' : '#4b5563',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '14px',
-                fontFamily: "'Inter', sans-serif",
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                boxShadow: isActive ? '0 2px 4px rgba(99,102,241,0.2)' : 'none'
-              }}
-            >
-              {num}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <CustomSelect
+      label="Slides"
+      value={length ? `${length} Slides` : ''}
+      onChange={(selectedLabel) => {
+        const numberOnly = selectedLabel.split(' ')[0];
+        setLength(numberOnly);
+      }}
+      placeholder="Select slide count"
+      options={slides.map((num) => ({
+        label: `${num} Slides`,
+        value: String(num),
+      }))}
+    />
   );
 };
 
 const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
-  const options = ['AI Images', 'No Media'];
+  const options = ['Ai-Images', 'No Media'];
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-        Media
-      </label>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {options.map(opt => {
+    <div className="ps-field-block">
+      <FieldLabel>Media</FieldLabel>
+      <div className="ps-chip-group">
+        {options.map((opt) => {
           const isActive = mediaStyle === opt;
           return (
             <button
               key={opt}
+              type="button"
               onClick={() => setMediaStyle(opt)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
-                background: isActive ? '#6366f1' : 'white',
-                color: isActive ? 'white' : '#4b5563',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px',
-                fontFamily: "'Inter', sans-serif",
-                transition: 'all 0.2s',
-                boxShadow: isActive ? '0 2px 4px rgba(99,102,241,0.2)' : 'none'
-              }}
+              className={`ps-chip ${isActive ? 'active' : ''}`}
             >
-              {opt} {isActive && '●'}
+              {opt}
             </button>
-          )
+          );
         })}
       </div>
     </div>
@@ -179,36 +171,65 @@ const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
 };
 
 const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
-  const styles = ['Realistic', 'Anime', 'Cartoon', 'Sketch', 'Painting'];
+  const styles = [
+    {
+      id: 'Realistic',
+      label: 'Realistic',
+      image:
+        'https://i.pinimg.com/736x/78/44/15/78441592d2823fb8e217fdc9abf87eb8.jpg',
+    },
+    {
+      id: 'Anime',
+      label: 'Anime',
+      image:
+        'https://i.pinimg.com/avif/736x/8c/9b/07/8c9b07e5f25b7776190bf9de4da60c47.avf',
+    },
+    {
+      id: 'Cartoon',
+      label: 'Cartoon',
+      image:
+        'https://i.pinimg.com/736x/37/8c/f4/378cf484b8202e3a2452b54145308bd3.jpg',
+    },
+    {
+      id: 'Sketch',
+      label: 'Sketch',
+      image:
+        'https://i.pinimg.com/736x/be/ae/c2/beaec2a95b96f2c669473b6c15f082b3.jpg',
+    },
+    {
+      id: 'Painting',
+      label: 'Painting',
+      image:
+        'https://i.pinimg.com/1200x/ad/f1/83/adf183d1cbd843bcfc778ee54c50d6f7.jpg',
+    },
+  ];
+
   return (
-    <div style={{ marginBottom: '24px', animation: 'fadeIn 0.3s ease-in-out' }}>
-      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-        Image Style
-      </label>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {styles.map(s => {
-          const isActive = imageStyle === s;
+    <div className="ps-field-block ps-fade-in ps-image-style-block">
+      <FieldLabel>Image Style</FieldLabel>
+
+      <div className="ps-image-style-strip">
+        {styles.map((style) => {
+          const isActive = imageStyle === style.id;
+
           return (
             <button
-              key={s}
-              onClick={() => setImageStyle(s)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '20px',
-                border: isActive ? '1px solid transparent' : '1px solid #e5e7eb',
-                background: isActive ? '#8b5cf6' : 'white',
-                color: isActive ? 'white' : '#4b5563',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '13px',
-                fontFamily: "'Inter', sans-serif",
-                transition: 'all 0.2s',
-                boxShadow: isActive ? '0 2px 4px rgba(139,92,246,0.2)' : 'none'
-              }}
+              key={style.id}
+              type="button"
+              onClick={() => setImageStyle(style.id)}
+              className={`ps-image-style-card ${isActive ? 'active' : ''}`}
+              title={style.label}
             >
-              {s} {isActive && '●'}
+              <img
+                src={style.image}
+                alt={style.label}
+                className="ps-image-style-thumb"
+              />
+              <div className="ps-image-style-overlay">
+                <span>{style.label}</span>
+              </div>
             </button>
-          )
+          );
         })}
       </div>
     </div>
@@ -216,22 +237,11 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
 };
 
 const ThemeGrid = ({ selectedTheme, onOpenModal }) => (
-  <div style={{ marginBottom: '40px' }}>
-    <label style={{ display: 'block', marginBottom: '16px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-      Theme
-    </label>
-    <div className="theme-scroll-container" style={{
-      maxHeight: '378px', /* (110px height * 3) + (16px gap * 2) + 16px bottom padding */
-      overflowY: 'auto',
-      paddingRight: '8px',
-      paddingBottom: '16px'
-    }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px'
-      }}>
-        {PRESENTATION_THEMES.map(theme => (
+  <div className="ps-field-block ps-theme-section">
+    <FieldLabel>Theme</FieldLabel>
+    <div className="ps-theme-scroll">
+      <div className="ps-theme-grid">
+        {PRESENTATION_THEMES.map((theme) => (
           <ThemeCard
             key={theme.id}
             theme={theme}
@@ -245,59 +255,33 @@ const ThemeGrid = ({ selectedTheme, onOpenModal }) => (
 );
 
 const GenerateButton = ({ canGenerate, isGenerating, handleGenerateClick }) => (
-  <div style={{ display: "flex", justifyContent: "center", marginTop: "16px", marginBottom: "48px" }}>
+  <div className="ps-generate-wrap">
     <button
+      type="button"
       onClick={handleGenerateClick}
       disabled={isGenerating || !canGenerate}
-      style={{
-        height: "52px",
-        width: "280px",
-        background: "#6366F1",
-        borderRadius: "12px",
-        fontWeight: "600",
-        color: "white",
-        border: "none",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "12px",
-        opacity: isGenerating || !canGenerate ? 0.5 : 1,
-        cursor: isGenerating || !canGenerate ? "not-allowed" : "pointer",
-        transition: "all 0.2s",
-        fontSize: "16px",
-        fontFamily: "'Inter', sans-serif",
-        boxShadow: canGenerate && !isGenerating ? "0 4px 12px rgba(99,102,241,0.3)" : "none"
-      }}
+      className="ps-generate-button"
     >
       <span>Generate Presentation</span>
       {isGenerating && (
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ animation: "spin 1s linear infinite" }}
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-        </div>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="ps-spin"
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
       )}
     </button>
-    <style>{`
-      @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-    `}</style>
   </div>
 );
 
-// MAIN COMPONENT
 const PromptSection = ({
   prompt,
   setPrompt,
@@ -315,18 +299,16 @@ const PromptSection = ({
   setOutlineText,
   handleGenerate,
   isGenerating,
-  generationStep,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [previewTheme, setPreviewTheme] = useState(null);
-
 
   const canGenerate =
     prompt.trim() &&
     tone &&
     length &&
     mediaStyle &&
-    (mediaStyle !== "AI Images" || imageStyle) &&
+    (mediaStyle !== "Ai-Images" || imageStyle) &&
     selectedTheme;
 
   const handleGenerateClick = () => {
@@ -334,95 +316,54 @@ const PromptSection = ({
     if (!topic || !selectedTheme) return;
 
     handleGenerate({
-      topic: topic,
-      outline: outlineText?.trim() || "",
+      topic,
+      outline: outlineText?.trim() || '',
       meta: {
-        tone: tone ? tone.toLowerCase() : "professional",
+        tone: tone ? tone.toLowerCase() : 'professional',
         slideCount: length ? Number(length) : 5,
-        mediaStyle: mediaStyle === "AI Images" ? "ai-image" : "no-media",
-        imageStyle: mediaStyle === "AI Images" ? imageStyle : undefined,
+        media: {
+          mediaType: mediaStyle,
+          mediaStyle: mediaStyle === "Ai-Images" ? imageStyle : undefined,
+        },
         theme: {
           name: selectedTheme.name,
           slideBackground: selectedTheme.slideBackground,
           titleColor: selectedTheme.titleColor,
           bodyColor: selectedTheme.bodyColor,
-          accentColor: selectedTheme.accentColor
-        }
-      }
+          accentColor: selectedTheme.accentColor,
+        },
+      },
     });
   };
 
-
   return (
-    <div
-      className="presentation-studio-creation-hub"
-      style={{
-        width: "100%",
-        minHeight: "100vh",
-        padding: "40px 20px"
-      }}
-    >
-      <div
-        className="presentation-studio-content"
-        style={{
-          width: "100%",
-          maxWidth: "1160px",
-          margin: "0 auto",
-        }}
-      >
-
-
-        {/* ===== TWO COLUMN LAYOUT ===== */}
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "32px"
-          }}
-        >
-
-          {/* LEFT COLUMN */}
-
-          <div style={{
-            background: "white",
-            padding: "32px",
-            borderRadius: "24px",
-            boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
-            display: "flex",
-            flexDirection: "column"
-          }}>
+    <div className="presentation-studio-creation-hub">
+      <div className="presentation-studio-content">
+        <div className="ps-layout-grid">
+          <div className="ps-panel">
+            <div className="ps-panel-header">
+              <h3>Presentation Details</h3>
+              <p>Set the title, outline, tone, and slide count.</p>
+            </div>
 
             <TitleInput prompt={prompt} setPrompt={setPrompt} />
+            <OutlineInput outlineText={outlineText} setOutlineText={setOutlineText} />
 
-            <OutlineInput
-              outlineText={outlineText}
-              setOutlineText={setOutlineText}
-            />
-
-            <ToneSelector tone={tone} setTone={setTone} />
-
-            <SlideSelector length={length} setLength={setLength} />
-
+            <div className="ps-row-two">
+              <ToneSelector tone={tone} setTone={setTone} />
+              <SlideSelector length={length} setLength={setLength} />
+            </div>
           </div>
 
-          {/* RIGHT COLUMN */}
+          <div className="ps-panel ps-panel-fixed">
+            <div className="ps-panel-header">
+              <h3>Visual Settings</h3>
+              <p>Choose media preferences, image style, and theme.</p>
+            </div>
 
-          <div style={{
-            background: "white",
-            padding: "32px",
-            borderRadius: "24px",
-            boxShadow: "0 10px 40px rgba(0,0,0,0.06)",
-            display: "flex",
-            flexDirection: "column"
-          }}>
+            <MediaSelector mediaStyle={mediaStyle} setMediaStyle={setMediaStyle} />
 
-            <MediaSelector
-              mediaStyle={mediaStyle}
-              setMediaStyle={setMediaStyle}
-            />
-
-            {mediaStyle === "AI Images" && (
+            {mediaStyle === "Ai-Images" && (
               <ImageStyleSelector
                 imageStyle={imageStyle}
                 setImageStyle={setImageStyle}
@@ -436,12 +377,8 @@ const PromptSection = ({
                 setIsModalOpen(true);
               }}
             />
-
           </div>
-
         </div>
-
-        {/* MODAL */}
 
         <ThemeBrowserModal
           isOpen={isModalOpen}
@@ -450,14 +387,11 @@ const PromptSection = ({
           onSelect={setSelectedTheme}
         />
 
-        {/* GENERATE BUTTON */}
-
         <GenerateButton
           canGenerate={canGenerate}
           isGenerating={isGenerating}
           handleGenerateClick={handleGenerateClick}
         />
-
       </div>
     </div>
   );
