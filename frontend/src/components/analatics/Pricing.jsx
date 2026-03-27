@@ -2,9 +2,6 @@ import React, { useState } from "react";
 import api from "../../services/api";
 
 const Pricing = () => {
-  const [openFaq, setOpenFaq] = useState(null);
-
-
   const plans = [
     {
       name: "Basic",
@@ -102,7 +99,12 @@ const Pricing = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] py-26 font-[Inter]">
+   <div className="min-h-screen bg-[#e9f4ff] 
+  pt-[100px] 
+  pl-[90px] 
+  pr-4 
+  pb-10 
+  font-[Inter]">
 
       {/* Header */}
       <div id="pricing-top" className="text-center max-w-3xl mx-auto">
