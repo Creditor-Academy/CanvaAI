@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import usePresentationStore from "../../store/usePresentationStore";
 import ShapeLayer from "../../layers/ShapeLayer";
 import TextLayer from "../../layers/TextLayer";
 import ImageLayer from "../../layers/ImageLayer";
 import TableLayer from "../../layers/TableLayer";
+import "./canvas.css";
 
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
 const HANDLE_SIZE = 8;
+const STACK_START_Y = 2;
+const STACK_GAP = 1.5;
 
 const CanvasShell = () => {
   const {
@@ -54,6 +57,79 @@ const CanvasShell = () => {
   // Position Readout & Smart Guides
   const [dragCoords, setDragCoords] = useState(null);
   const [activeGuides, setActiveGuides] = useState([]);
+  const layerRefs = useRef({});
+  const isApplyingAutoStackRef = useRef(false);
+  const manualLayoutLocksRef = useRef({});
+  const dragStartedRef = useRef(false);
+
+  const getLockedSetForSlide = useCallback((slideId) => {
+    if (!slideId) return new Set();
+    if (!manualLayoutLocksRef.current[slideId]) {
+      manualLayoutLocksRef.current[slideId] = new Set();
+    }
+    return manualLayoutLocksRef.current[slideId];
+  }, []);
+
+  const lockLayerFromAutoStack = useCallback(
+    (layerId) => {
+      if (!layerId || !activeSlideId) return;
+      const lockedSet = getLockedSetForSlide(activeSlideId);
+      lockedSet.add(layerId);
+    },
+    [activeSlideId, getLockedSetForSlide]
+  );
+
+  const isStackableLayer = useCallback((layer) => {
+    return layer?.type === "text" || layer?.type === "numbered-list";
+  }, []);
+
+  const shouldAutoStackLayer = useCallback(
+    (layer) => {
+      if (!isStackableLayer(layer)) return false;
+      const lockedSet = getLockedSetForSlide(activeSlideId);
+      return !lockedSet.has(layer.id);
+    },
+    [activeSlideId, getLockedSetForSlide, isStackableLayer]
+  );
+
+  const autoStackLayers = useCallback(
+    (layers) => {
+      let currentY = STACK_START_Y;
+
+      const updatedLayers = layers.map((layer) => {
+        if (!isStackableLayer(layer)) return layer;
+
+        if (!shouldAutoStackLayer(layer)) {
+          const layerBottom = (layer.y || 0) + (layer.height || 0);
+          currentY = Math.max(currentY, layerBottom + STACK_GAP);
+          return layer;
+        }
+
+        const el = layerRefs.current[layer.id];
+        if (!el) return layer;
+
+        const textContentEl = el.querySelector('[data-text-content="true"]');
+        const measuredContentHeight = textContentEl
+          ? Math.ceil(textContentEl.scrollHeight || textContentEl.getBoundingClientRect().height || 0)
+          : 0;
+        const actualHeight = measuredContentHeight > 0
+          ? Math.max(30, measuredContentHeight + 12)
+          : Math.max(30, Math.ceil(el.offsetHeight || layer.height || 30));
+
+        const updatedLayer = {
+          ...layer,
+          y: currentY,
+          height: actualHeight,
+        };
+
+        currentY += actualHeight + STACK_GAP;
+        return updatedLayer;
+      });
+
+      return updatedLayers;
+    },
+    [isStackableLayer, shouldAutoStackLayer]
+  );
 
 
   /* =========================
@@ -86,10 +162,58 @@ const CanvasShell = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [selectedLayerId, editingLayerId, deleteSelectedLayer, undo, redo]);
 
+  useEffect(() => {
+    if (!activeSlide?.layers?.length) return;
+    if (editingLayerId || editingCell || draggingId || resizingId || rotatingId) return;
+    if (isApplyingAutoStackRef.current) return;
+
+    const timer = setTimeout(() => {
+      const newLayers = autoStackLayers(activeSlide.layers);
+
+      const oldLayout = activeSlide.layers
+        .filter(shouldAutoStackLayer)
+        .map((layer) => ({ id: layer.id, y: layer.y, height: layer.height }));
+      const newLayout = newLayers
+        .filter(shouldAutoStackLayer)
+        .map((layer) => ({ id: layer.id, y: layer.y, height: layer.height }));
+
+      if (JSON.stringify(oldLayout) !== JSON.stringify(newLayout)) {
+        isApplyingAutoStackRef.current = true;
+
+        newLayers.forEach((layer) => {
+          if (!shouldAutoStackLayer(layer)) return;
+          const prev = activeSlide.layers.find((l) => l.id === layer.id);
+          if (!prev) return;
+
+          if (prev.y !== layer.y || prev.height !== layer.height) {
+            updateTextLayer(layer.id, { y: layer.y, height: layer.height }, false);
+          }
+        });
+
+        requestAnimationFrame(() => {
+          isApplyingAutoStackRef.current = false;
+        });
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [
+    activeSlide,
+    autoStackLayers,
+    shouldAutoStackLayer,
+    updateTextLayer,
+    editingLayerId,
+    editingCell,
+    draggingId,
+    resizingId,
+    rotatingId,
+  ]);
+
   const handleMouseMove = (e) => {
     const slideRect = e.currentTarget.getBoundingClientRect();
 
     if (draggingId) {
+      dragStartedRef.current = true;
       const scale = (slideRect.width / SLIDE_WIDTH); // This scale includes canvasZoom
       // Actually, slideRect.width is the VISUAL width, which is SLIDE_WIDTH * autoScale * canvasZoom
       // But we just need the ratio of screen pixels to slide pixels.
@@ -182,6 +306,14 @@ const CanvasShell = () => {
   };
 
   const stopAll = () => {
+    if (dragStartedRef.current && draggingId) {
+      const draggedLayer = activeSlide?.layers?.find((layer) => layer.id === draggingId);
+      if (draggedLayer && isStackableLayer(draggedLayer)) {
+        lockLayerFromAutoStack(draggingId);
+      }
+    }
+
+    dragStartedRef.current = false;
     setDraggingId(null);
     setResizingId(null);
     setRotatingId(null);
@@ -230,6 +362,10 @@ const CanvasShell = () => {
                   key={layer.id}
                   layer={layer}
                   selected={selected}
+                  layerRef={(el) => {
+                    if (el) layerRefs.current[layer.id] = el;
+                    else delete layerRefs.current[layer.id];
+                  }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     saveToHistory();
@@ -283,6 +419,10 @@ const CanvasShell = () => {
               return (
                 <div
                   key={layer.id}
+                  ref={(el) => {
+                    if (el) layerRefs.current[layer.id] = el;
+                    else delete layerRefs.current[layer.id];
+                  }}
                   style={{
                     position: "absolute",
                     left: layer.x,
@@ -359,6 +499,10 @@ const CanvasShell = () => {
               return (
                 <div
                   key={layer.id}
+                  ref={(el) => {
+                    if (el) layerRefs.current[layer.id] = el;
+                    else delete layerRefs.current[layer.id];
+                  }}
                   style={{
                     position: "absolute",
                     left: layer.x,
@@ -424,6 +568,10 @@ const CanvasShell = () => {
             return (
               <div
                 key={layer.id}
+                ref={(el) => {
+                  if (el) layerRefs.current[layer.id] = el;
+                  else delete layerRefs.current[layer.id];
+                }}
                 style={{
                   position: "absolute",
                   left: layer.x,
@@ -669,6 +817,7 @@ const styles = {
     maxWidth: "900px",   // canvas chhota ho jayega
     aspectRatio: "16 / 9",
     position: "relative",
+    overflow: "visible",
     boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
     flexShrink: 0,
   },

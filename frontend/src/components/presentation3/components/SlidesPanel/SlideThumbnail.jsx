@@ -4,8 +4,8 @@ import React from "react";
 import { SlateStaticRenderer } from "../../editors/slate/slateRenderer";
 import ShapeRenderer from "../shapes/ShapeRenderer";
 
-const THUMB_WIDTH = 100;
-const THUMB_HEIGHT = 56.25;
+const THUMB_WIDTH = 140;
+const THUMB_HEIGHT = 78.75;
 const SCALE = THUMB_WIDTH / 960;
 
 const SlideThumbnail = ({ slide, isActive, onClick }) => {
@@ -31,6 +31,7 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
           width: 960,
           height: 540,
           position: "relative",
+          overflow: "hidden",
         }}
       >
         {slide.layers?.map((layer) => {
@@ -52,9 +53,16 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   //textAlign is handled by Slate nodes
                   justifyContent: 'flex-start',
                   overflow: "hidden",
+                  fontFamily: layer.fontFamily,
+                  fontSize: `${layer.fontSize || 16}px`,
+                  color: layer.color || "#ffffff",
+                  lineHeight: 1.4,
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                  whiteSpace: "normal",
                 }}
               >
-                <SlateStaticRenderer value={layer.content} />
+                <SlateStaticRenderer value={layer.content} style={{ textAlign: layer.textAlign }} />
               </div>
             );
           }

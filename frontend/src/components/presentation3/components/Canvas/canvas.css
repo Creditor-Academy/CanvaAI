@@ -1,0 +1,24 @@
+.text-layer {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.text-layer-content {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
+
+.text-layer-content .slate-static-content {
+  width: 100%;
+}
+
+.numbered-list {
+  padding-left: 20px;
+}
+
+.list-item {
+  margin-bottom: 8px;
+}

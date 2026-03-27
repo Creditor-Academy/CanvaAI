@@ -10,6 +10,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const currentUserId = user?._id || user?.id;
+  const CONTENT_CHAR_LIMIT = 350;
 
   const [slides, setSlides] = useState(() => {
     if (!outlineData?.slides) return [];
@@ -238,7 +239,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                   <textarea
                     value={slide.content.rawText || ""}
                     onChange={(e) => {
-                      if (e.target.value.length <= 200) {
+                      if (e.target.value.length <= CONTENT_CHAR_LIMIT) {
                         handleContentChange(
                           index,
                           e.target.value
@@ -251,7 +252,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                     }
                     className="outline-editor-textarea"
                     placeholder="Enter slide content"
-                    maxLength={200}
+                    maxLength={CONTENT_CHAR_LIMIT}
                     rows={4}
                   />
                   <div
@@ -260,12 +261,12 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                       fontSize: "12px",
                       marginTop: "4px",
                       color:
-                        (slide.content.rawText || "").length >= 200
+                        (slide.content.rawText || "").length >= CONTENT_CHAR_LIMIT
                           ? "#e53e3e"
                           : "#888",
                     }}
                   >
-                    {(slide.content.rawText || "").length}/200
+                    {(slide.content.rawText || "").length}/{CONTENT_CHAR_LIMIT}
                   </div>
 
                   {slide.bullets && slide.bullets.length > 0 && (
