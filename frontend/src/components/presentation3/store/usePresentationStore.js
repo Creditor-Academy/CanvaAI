@@ -912,42 +912,54 @@ const usePresentationStore = create((set, get) => {
             let updatedLayer = { ...layer, ...style };
 
             if (layer.type === "text" && layer.content) {
-              let updatedContent = [...layer.content];
+              // Build a flat map of Slate-mark keys → values from the style object
+              const markUpdates = {};
               Object.entries(style).forEach(([key, value]) => {
-                let slateKey = key;
-                let slateValue = value;
-
                 if (key === "fontWeight") {
-                  slateKey = "bold";
-                  slateValue = value === "bold" ? true : undefined;
+                  markUpdates.bold = value === "bold" ? true : undefined;
                 } else if (key === "fontStyle") {
-                  slateKey = "italic";
-                  slateValue = value === "italic" ? true : undefined;
+                  markUpdates.italic = value === "italic" ? true : undefined;
                 } else if (key === "textDecoration") {
-                  slateKey = "underline";
-                  slateValue = value === "underline" ? true : undefined;
-                }
-
-                if (["bold", "italic", "underline", "fontSize", "color", "fontFamily"].includes(slateKey)) {
-                  updatedContent = updatedContent.map((block) => ({
-                    ...block,
-                    children: block.children
-                      ? block.children.map((child) => {
-                        const newChild = { ...child };
-                        if (slateValue === undefined) delete newChild[slateKey];
-                        else newChild[slateKey] = slateValue;
-                        return newChild;
-                      })
-                      : [],
-                  }));
-                } else if (slateKey === "textAlign") {
-                  updatedContent = updatedContent.map((block) => ({
-                    ...block,
-                    textAlign: slateValue,
-                  }));
+                  markUpdates.underline = value === "underline" ? true : undefined;
+                } else if (["color", "fontFamily", "fontSize"].includes(key)) {
+                  markUpdates[key] = value;
                 }
               });
-              updatedLayer.content = updatedContent;
+
+              const textAlign = style.textAlign;
+              const hasMarkUpdates = Object.keys(markUpdates).length > 0;
+
+              // Recursively walk every node in the Slate tree.
+              // - True leaf: has a "text" string property → apply inline marks.
+              // - Element: has a "children" array → recurse into children; set textAlign if needed.
+              // - Malformed AI node { text:"...", children:[] }: treat as leaf (text takes priority).
+              const applyToNode = (node) => {
+                // It's a leaf if it has a "text" string (even if it also has empty children)
+                if (typeof node.text === "string") {
+                  if (!hasMarkUpdates) return node;
+                  const newNode = { ...node };
+                  Object.entries(markUpdates).forEach(([k, v]) => {
+                    if (v === undefined) delete newNode[k];
+                    else newNode[k] = v;
+                  });
+                  return newNode;
+                }
+
+                // It's an element node with children to recurse into
+                if (Array.isArray(node.children)) {
+                  const newNode = {
+                    ...node,
+                    children: node.children.map(applyToNode),
+                  };
+                  if (textAlign !== undefined) newNode.textAlign = textAlign;
+                  return newNode;
+                }
+
+                // Unknown node shape — return as-is
+                return node;
+              };
+
+              updatedLayer.content = layer.content.map(applyToNode);
             }
             return updatedLayer;
           }),

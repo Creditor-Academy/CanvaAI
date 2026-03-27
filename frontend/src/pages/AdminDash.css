@@ -2,7 +2,7 @@
   min-height: 100vh;
   padding-top: 70px;
   padding-left: 58px;
- transform: scale(0.9);
+  transform: scale(0.9);
   transform-origin: top center;
 }
 
@@ -21,6 +21,36 @@
   gap: 32px;
   align-items: stretch;
   min-width: 0;
+}
+
+/* ================= SECTION CARD ================= */
+
+.admin-section-card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 24px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  padding: 28px 28px 24px;
+  box-shadow: 0 0 24px rgba(99, 102, 241, 0.07), 0 8px 32px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.admin-section-card:hover {
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.14), 0 12px 40px rgba(0, 0, 0, 0.07);
+}
+
+/* ================= IMAGE SECTION ================= */
+
+.admin-image-section {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 24px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  margin: 0 28px 32px 0;
+  box-shadow: 0 0 24px rgba(99, 102, 241, 0.07), 0 8px 32px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 
 /* ================= MODAL ================= */
@@ -167,41 +197,130 @@
   flex-wrap: wrap;
 }
 
+.admin-recents__title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .admin-recents__header h2 {
   color: #0c496e;
   font-size: 22px;
   font-weight: 700;
   margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.admin-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* ─── Controls row (search + selects) ─── */
+
+.admin-recents__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Search */
+
+.admin-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-search-icon {
+  position: absolute;
+  left: 11px;
+  color: #94a3b8;
+  pointer-events: none;
   flex-shrink: 0;
 }
 
+.admin-search-input {
+  padding: 9px 14px 9px 32px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13.5px;
+  width: 200px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  font-family: system-ui, sans-serif;
+}
+
+.admin-search-input:focus {
+  border-color: #0a5dbb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(10, 93, 187, 0.1);
+}
+
+.admin-search-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Selects */
+
 .admin-recents__filters {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   align-items: center;
   min-width: 0;
 }
 
 .admin-recents__filters select {
-  padding: 10px 14px;
+  padding: 9px 36px 9px 14px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  color: #455469;
-  font-size: 14px;
+  border: 1.5px solid #e2e8f0;
+  background-color: #f8fafc;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 15px;
+  color: #334155;
+  font-size: 13.5px;
   cursor: pointer;
-  transition: 0.2s;
-  min-width: 170px;
-  max-width: 100%;
-  flex: 0 1 190px;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+  outline: none;
+  font-family: system-ui, sans-serif;
 }
 
 .admin-recents__filters select:hover {
-  border-color: #0c496e;
+  border-color: #0a5dbb;
+  background-color: #fff;
+}
+
+.admin-recents__filters select:focus {
+  border-color: #0a5dbb;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(10, 93, 187, 0.1);
+}
+
+/* Empty state */
+.admin-empty-msg {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+  padding: 32px 0;
 }
 
 .admin-recents__grid {

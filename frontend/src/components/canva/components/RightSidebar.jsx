@@ -15,6 +15,8 @@ import {
   FiAlignRight,
   FiMove
 } from 'react-icons/fi'
+import { uploadTemporaryImage } from '@/services/imageEditor/imageApi';
+
 import {
   BrightnessControl,
   ContrastControl,
@@ -78,28 +80,50 @@ const RightSidebar = ({
 
   const shapeImgInputRef = useRef(null)
 
-  const handleShapeImageUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      handleShapeSettingsChange({
-        fillImageSrc: event.target.result,
-        fillType: 'image'
-      })
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
+  const handleShapeImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const base64 = event.target.result;
+
+        const payload = {
+          userId: 'shape-user',        // or pass real userId from props
+          base64Image: base64,
+          serviceId: `shape-${Date.now()}`
+        };
+
+        const json = await uploadTemporaryImage(payload);
+
+        if (json?.url) {
+          handleShapeSettingsChange({
+            fillImageSrc: json.url,   // ⭐ IMPORTANT (URL not base64)
+            fillType: 'image',
+            fillColor: null
+          });
+        }
+
+      } catch (err) {
+        console.error("Shape image upload error", err);
+      }
+    };
+
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleFillColorChange = (color) => {
     handleShapeSettingsChange({
       fillColor: color,
       fillType: 'color',
       fillImageSrc: null
-    })
-  }
+    });
+  };
+
 
   const handleStrokeColorChange = (color) => {
     handleShapeSettingsChange({
@@ -130,6 +154,7 @@ const RightSidebar = ({
             )}
           </button>
         </div>
+
 
         <div className="max-h-[40vh] overflow-y-auto">
           {!isRightSidebarCollapsed && (

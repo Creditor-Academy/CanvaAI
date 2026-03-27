@@ -158,7 +158,6 @@ export default function AIImageGenerator({ userId, serviceId, initialPrompt = ''
 }
 
 
-
 export const exportImage = async (imageId, format) => {
     try {
         const res = await api.get(`/api/images/export/${imageId}/${format}`, { responseType: 'blob' });
@@ -168,6 +167,7 @@ export const exportImage = async (imageId, format) => {
         throw error;
     }
 };
+
 
 export const uploadTemporaryImage = async (payload) => {
     try {
@@ -201,9 +201,4 @@ export const cloneImage = async (pptId) => {
         throw error;
     }
 };
-
-
-
-
-
 
