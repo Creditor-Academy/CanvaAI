@@ -2,13 +2,10 @@ import React, { useState } from "react";
 import api from "../../services/api";
 
 const Pricing = () => {
-  const [openFaq, setOpenFaq] = useState(null);
-
-
   const plans = [
     {
       name: "Basic",
-      price: 0,
+      price: 10,
       description: "Best for beginners",
       features: [
         "Manual Presentation Creation",
@@ -25,7 +22,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      price: 299,
+      price: 20,
       description: "Best for students & professionals",
       features: [
         "Unlimited Presentations",
@@ -43,7 +40,7 @@ const Pricing = () => {
     },
     {
       name: "Elite",
-      price: 799,
+      price: 30,
       description: "Best for teams & businesses",
       features: [
         "Everything in Pro",
@@ -102,7 +99,12 @@ const Pricing = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] py-26 font-[Inter]">
+   <div className="min-h-screen bg-[#e9f4ff] 
+  pt-[100px] 
+  pl-[90px] 
+  pr-4 
+  pb-10 
+  font-[Inter]">
 
       {/* Header */}
       <div id="pricing-top" className="text-center max-w-3xl mx-auto">

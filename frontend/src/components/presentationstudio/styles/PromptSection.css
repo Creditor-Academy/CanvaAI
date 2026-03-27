@@ -87,7 +87,7 @@
   line-height: 1.2;
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 50%, #2563eb 100%);
+  background: linear-gradient(135deg, #3a4fed 0%, #3886ca 45%, #25bdeb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -296,7 +296,7 @@
 }
 
 .ps-custom-select-option.active {
-  background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #466be5 0%, #2563eb 100%);
   color: #ffffff;
   font-weight: 600;
 }
@@ -490,7 +490,7 @@
   padding: 0 20px;
   border: none;
   border-radius: 15px;
-  background: linear-gradient(135deg, #7c3aed 0%, #4338ca 45%, #2563eb 100%);
+  background: linear-gradient(135deg, #3a4fed 0%, #3886ca 45%, #25bdeb 100%);
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -583,7 +583,7 @@
   padding: 3px 7px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.88);
-  color: #312e81;
+  color: #4356fc;
   font-size: 10px;
   font-weight: 700;
 }
@@ -907,7 +907,7 @@
 }
 
 .theme-modal-btn.primary {
-  background: linear-gradient(135deg, #7c3aed 0%, #4338ca 45%, #2563eb 100%);
+  background: linear-gradient(135deg, #3a4fed 0%, #3886ca 45%, #25bdeb 100%);
   color: #fff;
   box-shadow: 0 10px 22px rgba(67, 56, 202, 0.2);
 }

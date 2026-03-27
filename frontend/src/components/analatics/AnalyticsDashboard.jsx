@@ -16,7 +16,7 @@ export default function CreditsAnalytics() {
       slideExpand: 0,
       imagesInsidePPT: 0
     },
-    image: { aiGenerator: 0, editor: 0 },
+    image: { aiGenerator: 0, editor: 0, enhanceText: 0 },
     document: { aiGenerator: 0, editorImages: 0 }
   });
 
@@ -64,7 +64,9 @@ export default function CreditsAnalytics() {
           },
           image: {
             aiGenerator: data.image.aiImageGenerator,
-            editor: data.image.imageEditorUsage
+            editor: data.image.imageEditorUsage,
+             enhanceText: data.image.enhanceText,
+            
           },
           document: {
             aiGenerator: data.document.aiDocumentGenerator,
@@ -191,8 +193,8 @@ export default function CreditsAnalytics() {
     >
       <div className="mx-auto max-w-5xl">
         {/* HEADER */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5 mb-6 lg:mb-8">
-          <div className="lg:col-span-3 relative rounded-[22px] border border-slate-200 bg-white/80 backdrop-blur-md p-4 sm:p-5 lg:p-5 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 lg:gap-5 mb-6 lg:mb-8">
+          <div className="lg:col-span-4 relative rounded-[22px] border border-slate-200 bg-white/80 backdrop-blur-md p-4 sm:p-5 lg:p-5 shadow-sm overflow-hidden">
             <div className="absolute -top-20 -left-20 w-52 h-52 sm:w-64 sm:h-64 bg-blue-100/40 blur-3xl rounded-full"></div>
             <div className="absolute -bottom-24 right-10 w-52 h-52 sm:w-64 sm:h-64 bg-indigo-100/40 blur-3xl rounded-full"></div>
 
@@ -239,7 +241,7 @@ export default function CreditsAnalytics() {
           </div>
 
 
-          <div className="relative overflow-hidden rounded-[22px] p-4 sm:p-5 lg:p-5 flex flex-col justify-center text-white shadow-xl bg-gradient-to-br from-[#bdc8d8] via-[#62b2e1] to-[#1e40af] min-h-[170px] lg:min-h-[190px]">
+          <div className="lg:col-span-2 relative overflow-hidden rounded-[22px] p-4 sm:p-5 lg:p-5 flex flex-col justify-center text-white shadow-xl bg-gradient-to-br from-[#bdc8d8] via-[#62b2e1] to-[#1e40af] min-h-[170px] lg:min-h-[190px]">
             <img
               src="https://pngimg.com/uploads/hourglass/hourglass_PNG3.png"
               alt="credits"
@@ -316,8 +318,9 @@ export default function CreditsAnalytics() {
               </svg>
             }
           >
-            <Row label="AI Generator" value={`$${usage.image.aiGenerator}`} />
-            <Row label="Editor Usage" value={`$${usage.image.editor}`} />
+            <Row label="AI Image Generator" value={`$${usage.image.aiGenerator}`} />
+            <Row label="Image inside Image editor" value={`$${usage.image.editor}`} />
+            <Row label="Text Enhancement" value={`$${usage.image.enhanceText}`}/>
           </Section>
 
 

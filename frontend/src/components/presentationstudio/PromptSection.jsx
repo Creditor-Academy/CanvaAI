@@ -176,31 +176,31 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
       id: 'Realistic',
       label: 'Realistic',
       image:
-        'https://i.pinimg.com/736x/78/44/15/78441592d2823fb8e217fdc9abf87eb8.jpg',
+        'https://i.pinimg.com/736x/5c/b9/62/5cb9627a8d35ff42a96510c58fd68cd2.jpg',
     },
     {
       id: 'Anime',
       label: 'Anime',
       image:
-        'https://i.pinimg.com/avif/736x/8c/9b/07/8c9b07e5f25b7776190bf9de4da60c47.avf',
+        'https://i.pinimg.com/736x/92/bf/03/92bf03bfcd83247fab3b468fe560cfc7.jpg',
     },
     {
       id: 'Cartoon',
       label: 'Cartoon',
       image:
-        'https://i.pinimg.com/736x/37/8c/f4/378cf484b8202e3a2452b54145308bd3.jpg',
+        'https://i.pinimg.com/736x/69/a2/7e/69a27e12ec3e857c925abb47590dd928.jpg',
     },
     {
       id: 'Sketch',
       label: 'Sketch',
       image:
-        'https://i.pinimg.com/736x/be/ae/c2/beaec2a95b96f2c669473b6c15f082b3.jpg',
+        'https://i.pinimg.com/736x/98/18/3a/98183a4a3b3e8ea0dec2ff3fb3c33317.jpg',
     },
     {
       id: 'Painting',
       label: 'Painting',
       image:
-        'https://i.pinimg.com/1200x/ad/f1/83/adf183d1cbd843bcfc778ee54c50d6f7.jpg',
+        'https://i.pinimg.com/736x/ee/3d/9b/ee3d9bbd7bcba1287c2ba4f995423e8c.jpg',
     },
   ];
 

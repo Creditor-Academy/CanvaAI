@@ -19,11 +19,11 @@ export const AIDesign = () => {
   const [popupMessage, setPopupMessage] = useState("");
 
   const styles = [
-    { name: "Realistic", img: "https://i.pinimg.com/736x/19/b2/74/19b274d1f2cf1c2fc90a111c1093eb94.jpg" },
-    { name: "Anime", img: "https://i.pinimg.com/736x/58/19/d2/5819d2ed10ee0f8142341f08aa928cd3.jpg" },
-    { name: "Cartoon", img: "https://i.pinimg.com/736x/42/62/67/426267b169ac8c49155ee9abc071ae3e.jpg" },
-    { name: "Sketch", img: "https://i.pinimg.com/avif/736x/89/5c/93/895c931f7182dbc68efa4ee87254fc81.avf" },
-    { name: "Painting", img: "https://i.pinimg.com/1200x/e4/47/93/e44793bcfda653dd605c105308cf3a1a.jpg" },
+    { name: "Realistic", img: "https://i.pinimg.com/736x/5c/b9/62/5cb9627a8d35ff42a96510c58fd68cd2.jpg" },
+    { name: "Anime", img: "https://i.pinimg.com/736x/92/bf/03/92bf03bfcd83247fab3b468fe560cfc7.jpg" },
+    { name: "Cartoon", img: "https://i.pinimg.com/736x/69/a2/7e/69a27e12ec3e857c925abb47590dd928.jpg" },
+    { name: "Sketch", img: "https://i.pinimg.com/736x/98/18/3a/98183a4a3b3e8ea0dec2ff3fb3c33317.jpg" },
+    { name: "Painting", img: "https://i.pinimg.com/736x/ee/3d/9b/ee3d9bbd7bcba1287c2ba4f995423e8c.jpg" },
   ];
 
 
@@ -60,7 +60,7 @@ export const AIDesign = () => {
 
       const style = selectedStyle.toLowerCase();
       const res = await api.generateLogo(prompt, style);
-      
+
       console.log(res);
 
       const images = res?.data?.[0];
@@ -211,19 +211,11 @@ export const AIDesign = () => {
               </>
             )}
 
-            {isLoading && (
-              <div className="w-full max-w-[360px] text-center">
-                <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-yellow-400 transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-blue-900 font-semibold text-sm">
-                  {Math.floor(progress)}% Generating images
-                </p>
-              </div>
-            )}
+           {isLoading && (
+  <div className="flex flex-col items-center justify-center gap-4">
+    <div className="w-16 h-16 rounded-full border-4 border-transparent border-t-blue-700 border-r-yellow-400 animate-spin"></div>
+  </div>
+)}
 
             {generatedImages.length > 0 && (
               <>

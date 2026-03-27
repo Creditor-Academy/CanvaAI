@@ -357,7 +357,7 @@ export default function AllProjects() {
         )}
 
         {/* TEMPLATE SECTION */}
-        <div className="mt-16 border-t border-slate-100 pt-12">
+        {/* <div className="mt-16 border-t border-slate-100 pt-12">
           <h2 className="text-2xl font-bold text-slate-800 mb-8 text-center italic">
             Need inspiration? Start with a template
           </h2>
@@ -384,7 +384,7 @@ export default function AllProjects() {
               <p className="text-sm text-slate-600 mt-1 group-hover:text-indigo-100 transition-colors">Social & Creative Visuals</p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* CREATE MODAL */}
