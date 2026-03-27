@@ -497,7 +497,10 @@ const Help = () => {
               </p>
 
               <div className="support-actions">
-                <button className="support-primary">Submit a request</button>
+                <p className="support-email-text">
+                  Contact us on this Email:
+                  <span className="support-email">info@designova.com</span>
+                </p>
               </div>
             </div>
 

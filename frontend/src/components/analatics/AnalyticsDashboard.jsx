@@ -65,8 +65,8 @@ export default function CreditsAnalytics() {
           image: {
             aiGenerator: data.image.aiImageGenerator,
             editor: data.image.imageEditorUsage,
-             enhanceText: data.image.enhanceText,
-            
+            enhanceText: data.image.enhanceText,
+
           },
           document: {
             aiGenerator: data.document.aiDocumentGenerator,
@@ -131,8 +131,8 @@ export default function CreditsAnalytics() {
   // };
 
   const handleRenewPlan = () => {
-  navigate("/pricing");
-};
+    navigate("/pricing");
+  };
 
 
   const percent =
@@ -320,7 +320,7 @@ export default function CreditsAnalytics() {
           >
             <Row label="AI Image Generator" value={`$${usage.image.aiGenerator}`} />
             <Row label="Image inside Image editor" value={`$${usage.image.editor}`} />
-            <Row label="Text Enhancement" value={`$${usage.image.enhanceText}`}/>
+            <Row label="Text Enhancement" value={`$${usage.image.enhanceText}`} />
           </Section>
 
 
@@ -375,8 +375,8 @@ export default function CreditsAnalytics() {
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white z-10">
                       <tr className="border-b border-slate-100">
-                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Order ID</th>
-                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Plan</th>
+                        <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">S.no</th>
+
                         <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
                         <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                         <th className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Date</th>
@@ -385,23 +385,20 @@ export default function CreditsAnalytics() {
                     <tbody className="divide-y divide-slate-100">
                       {orders.map((order, idx) => (
                         <tr key={order._id || order.orderId || idx} className="hover:bg-slate-50/60 transition-colors duration-150">
-                          <td className="py-3 px-3 text-[12px] text-slate-500 font-mono">
-                            #{(order._id || order.orderId || "").toString().slice(-8).toUpperCase()}
+                          <td className="py-3 px-3 text-[12px] text-slate-500 font-semibold">
+                            {idx + 1}
                           </td>
-                          <td className="py-3 px-3 text-[13px] font-medium text-slate-700">
-                            {order.planName || order.plan || order.description || "—"}
-                          </td>
+
                           <td className="py-3 px-3 text-[13px] font-semibold text-slate-900">
                             ${Number(order.amount || order.price || 0).toFixed(2)}
                           </td>
                           <td className="py-3 px-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                              (order.status || "").toLowerCase() === "completed" || (order.status || "").toLowerCase() === "success" || (order.status || "").toLowerCase() === "succeeded" || (order.status || "").toLowerCase() === "paid"
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${(order.status || "").toLowerCase() === "completed" || (order.status || "").toLowerCase() === "success" || (order.status || "").toLowerCase() === "succeeded" || (order.status || "").toLowerCase() === "paid"
                                 ? "bg-green-100 text-green-700 border border-green-300"
                                 : (order.status || "").toLowerCase() === "pending"
-                                ? "bg-red-50 text-red-400 border border-red-200"
-                                : "bg-red-100 text-red-700 border border-red-300"
-                            }`}>
+                                  ? "bg-red-50 text-red-400 border border-red-200"
+                                  : "bg-red-100 text-red-700 border border-red-300"
+                              }`}>
                               {order.status || "Unknown"}
                             </span>
                           </td>

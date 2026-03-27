@@ -198,7 +198,7 @@ const AuthPage = () => {
 
   if (searchParams.get("token") || searchParams.get("googleToken")) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-blue-400 to-blue-300 px-4">
         <div className="bg-white p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
           {isLoading && (
             <>
