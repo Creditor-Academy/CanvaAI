@@ -11,8 +11,8 @@ export const AIDesign = () => {
   const [prompt, setPrompt] = useState("");
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [generatedImages, setGeneratedImages] = useState([]);
-  const [selectedImages, setSelectedImages] = useState([]);
-  const [activePreview, setActivePreview] = useState(null);
+  const [showPanel, setShowPanel] = useState(false);
+  const [panelIndex, setPanelIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showBalancePopup, setShowBalancePopup] = useState(false);
@@ -57,7 +57,8 @@ export const AIDesign = () => {
     try {
       setIsLoading(true);
       setGeneratedImages([]);
-      setSelectedImages([]);
+      setShowPanel(false);
+      setPanelIndex(0);
       setProgress(10);
 
       const style = selectedStyle.toLowerCase();
@@ -83,7 +84,7 @@ export const AIDesign = () => {
 
       if (message === "Not enough Balance for generate Image") {
         setGeneratedImages([]);
-        setSelectedImages([]);
+        setShowPanel(false);
         setPopupMessage(message);
         setShowBalancePopup(true);
       } else {
@@ -95,22 +96,24 @@ export const AIDesign = () => {
     }
   };
 
-  const toggleImageSelection = (img) => {
-    setSelectedImages((prev) =>
-      prev.includes(img)
-        ? prev.filter((i) => i !== img)
-        : [...prev, img]
+  const openPanel = () => {
+    if (!generatedImages.length) return;
+    setPanelIndex(0);
+    setShowPanel(true);
+  };
+
+  const goPrev = () => {
+    if (!generatedImages.length) return;
+    setPanelIndex((prev) =>
+      prev === 0 ? generatedImages.length - 1 : prev - 1
     );
   };
 
-
-  const handleImport = () => {
-    alert(`Importing ${selectedImages.length} images`);
-  };
-
-
-  const openEditor = () => {
-    navigate("/edito", { state: { image: activePreview } });
+  const goNext = () => {
+    if (!generatedImages.length) return;
+    setPanelIndex((prev) =>
+      prev === generatedImages.length - 1 ? 0 : prev + 1
+    );
   };
 
   const handleDownload = async (imgUrl) => {
@@ -278,58 +281,25 @@ export const AIDesign = () => {
               <>
                 <div className="grid w-full grid-cols-2 gap-2 sm:gap-3">
                   {generatedImages.map((img, idx) => {
-                    const selected = selectedImages.includes(img);
                     return (
                       <div
                         key={idx}
-                        onClick={() => toggleImageSelection(img)}
-                        className={`relative group rounded-lg overflow-hidden cursor-pointer
-                          ${selected
-                            ? "ring-4 ring-yellow-400"
-                            : "ring-1 ring-blue-700"
-                          }`}
+                        className="relative group rounded-lg overflow-hidden ring-1 ring-blue-700"
                       >
                         <img
                           src={img}
                           className="w-full h-[110px] sm:h-[130px] object-cover"
                           alt=""
                         />
-                        {!selected && (
-                          <>
-                            {/* Desktop hover overlay */}
-                            <div className="absolute inset-0 hidden sm:flex bg-black/35 items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActivePreview(img);
-                                }}
-                                className="bg-white px-3 py-1 rounded-full text-xs font-medium text-slate-800 shadow-sm"
-                              >
-                                Preview
-                              </button>
-                            </div>
-                            {/* Mobile bottom chip */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePreview(img);
-                              }}
-                              className="absolute bottom-2 right-2 sm:hidden bg-white/95 backdrop-blur px-3 py-1 rounded-full text-[11px] font-medium text-slate-800 shadow-md border border-slate-200"
-                            >
-                              Preview
-                            </button>
-                          </>
-                        )}
                       </div>
                     );
                   })}
                 </div>
                 <button
-                  onClick={handleImport}
-                  disabled={!selectedImages.length}
+                  onClick={openPanel}
                   className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-5 sm:px-6 py-2 rounded-full text-sm disabled:opacity-40"
                 >
-                  Import Selected ({selectedImages.length})
+                  Open Panel ({generatedImages.length} Images)
                 </button>
               </>
             )}
@@ -339,11 +309,11 @@ export const AIDesign = () => {
 
 
       {/* MODAL */}
-      {activePreview &&
+      {showPanel && generatedImages.length > 0 &&
         createPortal(
           <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-[999]">
             <button
-              onClick={() => setActivePreview(null)}
+              onClick={() => setShowPanel(false)}
               className="absolute top-4 right-4 sm:top-6 sm:right-8 text-white text-2xl sm:text-3xl"
             >
               ✕
@@ -352,14 +322,38 @@ export const AIDesign = () => {
 
             <div className="text-center">
               <img
-                src={activePreview}
+                src={generatedImages[panelIndex]}
                 className="max-h-[65vh] sm:max-h-[75vh] max-w-[92vw] rounded-xl"
                 alt=""
               />
 
+              <div className="flex justify-center items-center gap-3 mt-3">
+                <button
+                  onClick={goPrev}
+                  className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg"
+                >
+                  Prev
+                </button>
+                <span className="text-white text-sm font-semibold">
+                  {panelIndex + 1} / {generatedImages.length}
+                </span>
+                <button
+                  onClick={goNext}
+                  className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg"
+                >
+                  Next
+                </button>
+              </div>
+
               {/* Format selector */}
               <div className="flex gap-2 justify-center mt-4 flex-wrap">
-                {['png', 'jpg', 'webp', 'svg', 'pdf'].map((fmt) => (
+                {[
+                  'png',
+                  'jpg',
+                  'webp',
+                  // 'svg',
+                  // 'pdf',
+                ].map((fmt) => (
                   <button
                     key={fmt}
                     onClick={() => setDownloadFormat(fmt)}
@@ -376,7 +370,7 @@ export const AIDesign = () => {
 
               <div className="flex gap-4 justify-center mt-3 items-center">
                 <button
-                  onClick={() => handleDownload(activePreview)}
+                  onClick={() => handleDownload(generatedImages[panelIndex])}
                   disabled={isDownloading}
                   title={`Download as ${downloadFormat.toUpperCase()}`}
                   className="flex items-center gap-2 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white px-5 py-2 rounded-lg transition"
