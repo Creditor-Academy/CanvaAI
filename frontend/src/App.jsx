@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import { Toaster } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-
 import SideBar from "./components/SideBar";
 import Navbar from "./components/Navbar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
@@ -45,16 +44,15 @@ import BrandKitResult from "./pages/BrandKitResult";
 import DocumentGenerator from "./components/aigenerator/DocumentGenerator";
 import UiPhotoGenerator from "./components/aigenerator/UiPhotoGenerator";
 import SmartCrop from "./components/aigenerator/SmartCrop";
-
 import PresentationStudio from "./components/presentationstudio/PresentationStudio";
 import PresentationEditor2 from "./pages/PresentationEditor2";
 import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
-import PresentationTemplates from "./pages/presentationTemplates";
-import DocumentTemplates from "./pages/documentTemplates";
-import ImageTemplates from "./pages/imageTemplates";
+import PresentationTemplates from "./pages/PresentationTemplates";
+import DocumentTemplates from "./pages/DocumentTemplates";
+import ImageTemplates from "./pages/ImageTemplates";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 import Pricing from "./components/analatics/Pricing";
 
@@ -79,8 +77,10 @@ const AppContent = () => {
       <div
         style={{
           flex: 1,
-          width: "100%",
-          minheight: "100vh",
+          width:"100%",
+          minheight:"100vh",
+          
+         
         }}
       >
 
@@ -181,6 +181,3 @@ function App() {
 }
 
 export default App;
-
-
-
