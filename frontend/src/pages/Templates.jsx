@@ -14,7 +14,7 @@ const Templates = () => {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
         // Fetch all templates since there's no category
         const response = await fetch(`${API_BASE_URL}/api/templates`);
         if (!response.ok) {
