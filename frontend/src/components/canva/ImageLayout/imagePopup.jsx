@@ -10,7 +10,7 @@ const handleCloneImage = async (imageId) => {
     console.log('importing image', imageId);
     try {
         const token = localStorage.getItem("token");
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
         const response = await axios.get(
             `${API_BASE_URL}/api/images/clone/${imageId}`,
