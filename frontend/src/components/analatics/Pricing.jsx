@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import api from "../../services/api";
 
 const Pricing = () => {
+  const [loading, setLoading] = useState(false);
   const plans = [
     {
       name: "Basic",
@@ -68,38 +69,37 @@ const Pricing = () => {
     { name: "Priority Support", free: false, pro: true, team: true },
   ];
   const handlePayment = async (planName) => {
-  try {
-    // ✅ Blank tab open first
-    const newTab = window.open("", "_blank");
+    try {
+      setLoading(true);
 
-    const planMapping = {
-      Basic: "Basic_Test",
-      Pro: "Pro_Test",
-      Elite: "Elite_Test",
-    };
+      const planMapping = {
+        Basic: "Basic_Test",
+        Pro: "Pro_Test",
+        Elite: "Elite_Test",
+      };
 
-    const planId = planMapping[planName];
+      const planId = planMapping[planName];
 
-    const res = await api.createPayment(planId);
+      const res = await api.createPayment(planId);
 
-    console.log("res : ", res);
+      if (res.checkoutUrl) {
+        // Tab open AFTER API response
+        window.open(res.checkoutUrl, "_blank");
+        setLoading(false);
+      } else {
+        setLoading(false);
+        console.log("Checkout URL not found");
+      }
 
-    if (res.checkoutUrl) {
-      console.log("res checkout url : ", res.checkoutUrl);
-      newTab.location.href = res.checkoutUrl; // ✅ new tab redirect
-    } else {
-      newTab.close();
-      console.log("Checkout URL not found");
+    } catch (error) {
+      console.error("Payment error:", error);
+      setLoading(false);
     }
-
-  } catch (error) {
-    console.error("Payment error:", error);
-  }
-};
+  };
 
 
   return (
-   <div className="min-h-screen bg-[#e9f4ff] 
+    <div className="min-h-screen bg-[#e9f4ff] 
   pt-[100px] 
   pl-[90px] 
   pr-4 
@@ -151,10 +151,15 @@ const Pricing = () => {
 
             <button
               type="button"
+              disabled={loading}
               onClick={() => handlePayment(plan.name)}
               className={`w-full py-3 rounded-xl font-semibold shadow-md transition ${plan.button}`}
             >
-              Choose Plan
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+              ) : (
+                "Choose Plan"
+              )}
             </button>
           </div>
         ))}
@@ -198,7 +203,16 @@ const Pricing = () => {
           </tbody>
         </table>
       </div>
+      {loading && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col items-center gap-4">
 
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+
+            <p className="text-blue-900 font-semibold">Redirecting to secure checkout...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
