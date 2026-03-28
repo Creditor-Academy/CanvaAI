@@ -67,36 +67,36 @@ const Help = () => {
   const faqData = [
     {
       id: 1,
-      question: "How do I create my first AI design?",
-      answer: "Navigate to the AI Design Generator, enter a detailed prompt describing your vision, and let our AI create stunning designs for you. You can then refine and customize the results.",
+      question: "How do I create a new presentation?",
+      answer: "Go to the dashboard and click on “Create Presentation.” You can choose to create it manually or generate it using AI by entering a topic.",
       category: "Getting Started",
 
     },
     {
       id: 2,
-      question: "What file formats are supported?",
-      answer: "We support PNG, JPG, SVG, PDF for images, and MP4, MOV for videos. All exports maintain high quality for professional use.",
+      question: "How can I edit images on the platform?",
+      answer: "Open the image editor from the dashboard, upload your image, and use the available tools or AI features to edit and enhance your image.",
       category: "Getting Started",
 
     },
     {
       id: 3,
-      question: "How do I collaborate with my team?",
-      answer: "Use the Team workspace to invite members, share projects, and work together in real-time. You can assign roles, leave comments, and track changes.",
+      question: "How do I save my work?",
+      answer: "Your work is automatically saved on the platform. You can also manually save your presentation or image using the save button.",
       category: "Team & Collaboration",
 
     },
     {
       id: 4,
-      question: "Can I customize AI-generated content?",
-      answer: "Absolutely! All AI-generated content can be edited, refined, and customized using our built-in tools. You have full control over the final output.",
+      question: "Can I download my presentation or image?",
+      answer: "Yes, open your project and click on the download button to download your presentation or edited image.",
       category: "AI Tools",
 
     },
     {
       id: 5,
-      question: "How do I export my projects?",
-      answer: "Click the export button in any project, choose your preferred format and quality settings, then download directly to your device or save to cloud storage.",
+      question: "What should I do if something is not working?",
+      answer: "If you face any issue, try refreshing the page. If the problem continues, contact support through the Help & Support section.",
       category: "Getting Started",
 
     },
@@ -312,47 +312,47 @@ const Help = () => {
     /*-------------------HEADER----------------------- */
     <div className="help-container ">
       <div className="help-inner">
-      <div className="help-hero">
-        <div className="hero-left">
+        <div className="help-hero">
+          <div className="hero-left">
 
-          <h1 className="hero-title">How can we help you today?</h1>
+            <h1 className="hero-title">How can we help you today?</h1>
 
-          <p className="hero-sub">
-            Search our knowledge base for answers to common questions
-          </p>
-          <button
-            className="hero-card-btn hero-start-btn"
-            onClick={() =>
-              document.querySelector(".faq-section")
-                .scrollIntoView({ behavior: "smooth" })
-            }
-          >
-            Get started →
-          </button>
-        </div>
-        <div className="hero-right" aria-hidden="true">
-          <img src="https://images.unsplash.com/vector-1761384690980-b218fa986838?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGJ1c2luZXNzfGVufDB8MHwwfHx8Mg%3D%3D" />
-        </div>
+            <p className="hero-sub">
+              Search our knowledge base for answers to common questions
+            </p>
+            <button
+              className="hero-card-btn hero-start-btn"
+              onClick={() =>
+                document.getElementById("faq-section")
+                  .scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Get started →
+            </button>
+          </div>
+          <div className="hero-right" aria-hidden="true">
+            <img src="https://images.unsplash.com/vector-1761384690980-b218fa986838?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGJ1c2luZXNzfGVufDB8MHwwfHx8Mg%3D%3D" />
+          </div>
 
-        <div className="hero-search">
-          <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
-            <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" />
-          </svg>
+          <div className="hero-search">
+            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" />
+            </svg>
 
-          <input
-            type="text"
-            placeholder="Search our articles"
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
+            <input
+              type="text"
+              placeholder="Search our articles"
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+            />
 
-          <button className="hero-search-btn">Search</button>
-        </div>
+            <button className="hero-search-btn">Search</button>
+          </div>
 
 
 
-        {/* <div className="hero-right">
+          {/* <div className="hero-right">
           <div className="hero-card">
             <h3>Getting Started</h3>
             <p>Learn everything you need to know to get started</p>
@@ -367,9 +367,9 @@ const Help = () => {
             </button>
           </div>
         </div> */}
-      </div>
+        </div>
 
-      {/* <div className="filters-section">
+        {/* <div className="filters-section">
         <div className="filters-container">
           <div className="quick-filters">
             {quickFilters.map((filter) => (
@@ -384,7 +384,7 @@ const Help = () => {
           </div>
 
           {/* 👇 Hide category filters when Contact or Feedback is selected */}
-      {/* {selectedFilter !== 'Contact' && selectedFilter !== 'Feedback' && (
+        {/* {selectedFilter !== 'Contact' && selectedFilter !== 'Feedback' && (
             <div
               className={`category-filters ${selectedFilter === 'Contact' || selectedFilter === 'Feedback' ? 'hidden' : ''
                 }`}
@@ -405,107 +405,109 @@ const Help = () => {
         </div>
       </div> */}
 
-      {/*-------------------FAQ SECTION----------------------- */}
-      <div className="faq-wrapper">
+        {/*-------------------FAQ SECTION----------------------- */}
+        <div className="faq-wrapper" id="faq-section">
 
-        <div className="faq-intro">
+          <div className="faq-intro">
 
-          <h2 className="faq-heading">
-            Frequently Asked <span>Questions</span>
-          </h2>
+            <h2 className="faq-heading">
+              Frequently Asked <span>Questions</span>
+            </h2>
 
-          <p className="faq-desc">
-            Optiv is a cloud-based platform that helps you manage projects,
-            track sales, design easily and automate workflows.
-          </p>
+            <p className="faq-desc">
+              Create presentations, edit images, and generate designs faster with our AI-powered tools.
+            </p>
 
-          <div className="faq-cta">
+            <div className="faq-cta">
 
-            <img
-              src={animateGif}
-              alt="FAQ Illustration"
-              className="faq-gif"
-            />
+              <img
+                src={animateGif}
+                alt="FAQ Illustration"
+                className="faq-gif"
+              />
 
-          </div>
-        </div>
-
-
-        {/* RIGHT QUESTIONS */}
-        <div className="faq-cards">
-          {filteredFAQs.map((faq) => (
-            <div
-              key={faq.id}
-              className={`faq-card ${expandedFAQ === faq.id ? "open" : ""}`}
-              onClick={() => toggleFAQ(faq.id)}
-            >
-              <div className="faq-card-head">
-                <span>{faq.question}</span>
-                <div className="faq-arrow">
-                  {expandedFAQ === faq.id ? "▲" : "▼"}
-                </div>
-              </div>
-
-              <div className="faq-card-body">
-                <p>{faq.answer}</p>
-              </div>
             </div>
-          ))}
-        </div>
-
-      </div>
-      {/* ---------------- Tutorials Section ---------------- */}
+          </div>
 
 
-      <div className="tutorial-wrapper">
-        <div className="tutorial-section">
-          <h2 className="section-title">Tutorials</h2>
+          {/* RIGHT QUESTIONS */}
+          <div className="faq-cards">
+            {filteredFAQs.map((faq) => (
+              <div
+                key={faq.id}
+                className={`faq-card ${expandedFAQ === faq.id ? "open" : ""}`}
+                onClick={() => toggleFAQ(faq.id)}
+              >
+                <div className="faq-card-head">
+                  <span>{faq.question}</span>
+                  <div className="faq-arrow">
+                    {expandedFAQ === faq.id ? "▲" : "▼"}
+                  </div>
+                </div>
 
-          <div className="tutorial-grid">
-            {filteredTutorials.map((tutorial) => (
-              <div key={tutorial.id} className="tutorial-card">
-                <div className="tutorial-icon">📘</div>
-
-                <h3>{tutorial.title}</h3>
-                <p>{tutorial.description}</p>
-
-                <div className="tutorial-footer">
-                  <span>{tutorial.duration}</span>
-                  <button>Learn more →</button>
+                <div className="faq-card-body">
+                  <p>{faq.answer}</p>
                 </div>
               </div>
             ))}
           </div>
+
         </div>
-      </div>
+        {/* ---------------- Tutorials Section ---------------- */}
 
-      {/* ================= Support CTA Section ================= */}
-      <div className="support-cta">
-        <div className="support-cta-inner">
 
-          <div className="support-icon">
-            <img
-              src="https://cdn-icons-png.flaticon.com/128/14865/14865140.png"
-              alt="Support Illustration"
-            />
-          </div>
+        <div className="tutorial-wrapper">
+          <div className="tutorial-section">
+            <h2 className="section-title">Tutorials</h2>
 
-          <div className="support-content">
-            <h2>Still have questions?</h2>
-            <p>
-              Our Customer Experience Team is here for you!
-              Looking for help with a project? We can match you with the right certified partner.
-            </p>
+            <div className="tutorial-grid">
+              {filteredTutorials.map((tutorial) => (
+                <div key={tutorial.id} className="tutorial-card">
+                  <div className="tutorial-icon">📘</div>
 
-            <div className="support-actions">
-              <button className="support-primary">Submit a request</button>
+                  <h3>{tutorial.title}</h3>
+                  <p>{tutorial.description}</p>
+
+                  <div className="tutorial-footer">
+                    <span>{tutorial.duration}</span>
+                    <button>Learn more →</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-
         </div>
-      </div>
 
-      {/* {isModalOpen && (
+        {/* ================= Support CTA Section ================= */}
+        <div className="support-cta">
+          <div className="support-cta-inner">
+
+            <div className="support-icon">
+              <img
+                src="https://cdn-icons-png.flaticon.com/128/14865/14865140.png"
+                alt="Support Illustration"
+              />
+            </div>
+
+            <div className="support-content">
+              <h2>Still have questions?</h2>
+              <p>
+                Our Customer Experience Team is here for you!
+                Looking for help with a project? We can match you with the right certified partner.
+              </p>
+
+              <div className="support-actions">
+                <p className="support-email-text">
+                  Contact us on this Email:
+                  <span className="support-email">info@designova.com</span>
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* {isModalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

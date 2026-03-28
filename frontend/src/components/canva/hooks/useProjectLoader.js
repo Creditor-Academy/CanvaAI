@@ -3,6 +3,30 @@ import { useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { getImageById } from '../../../services/imageEditor/imageApi';
 
+const normalizePrefillProject = (rawProject) => {
+  if (!rawProject || typeof rawProject !== 'object') return null;
+
+  if (rawProject.data && typeof rawProject.data === 'object') {
+    return rawProject;
+  }
+
+  if (rawProject.layer || rawProject.layers || rawProject.canvasSize) {
+    return {
+      title: rawProject.title,
+      data: {
+        layer: rawProject.layer || rawProject.layers || [],
+        canvasSize: rawProject.canvasSize,
+        canvasBgColor: rawProject.canvasBgColor,
+        canvasBgImage: rawProject.canvasBgImage,
+        zoom: rawProject.zoom,
+        pan: rawProject.pan,
+      },
+    };
+  }
+
+  return null;
+};
+
 /**
  * Custom hook for loading project data
  */
@@ -19,47 +43,65 @@ export const useProjectLoader = (
 
   useEffect(() => {
     if (projectId) {
+      let shouldLoadFromApi = true;
+      let isCloneImportFlow = false;
+
+      try {
+        isCloneImportFlow = !!sessionStorage.getItem(`prefill_import_flag_${projectId}`);
+      } catch (e) {
+        isCloneImportFlow = false;
+      }
+
       // If a prefill payload was stored (from template/admin), use it first
       try {
         const key = `prefill_project_${projectId}`
         const raw = sessionStorage.getItem(key)
         if (raw) {
-          const imageProject = JSON.parse(raw)
-          const layers = imageProject.data?.layer || []
-          setLayers(layers)
-          if (imageProject.title) setProjectName(imageProject.title)
-          if (imageProject.data?.canvasSize) {
-            setCanvasSize(imageProject.data.canvasSize)
-            setZoom(imageProject.data.zoom || 80)
-            setPan(imageProject.data.pan || { x: 0, y: 0 })
+          const parsedProject = JSON.parse(raw)
+          const imageProject = normalizePrefillProject(parsedProject)
+          const layers = imageProject?.data?.layer || []
+
+          if (!imageProject) {
+            console.warn('Invalid prefill project payload, falling back to API load')
+          } else {
+            setLayers(layers)
+            if (imageProject.title) setProjectName(imageProject.title)
+            if (imageProject.data?.canvasSize) {
+              setCanvasSize(imageProject.data.canvasSize)
+              setZoom(imageProject.data.zoom || 80)
+              setPan(imageProject.data.pan || { x: 0, y: 0 })
+            }
+            setCanvasBgColor(imageProject.data?.canvasBgColor || '#ffffff')
+            setCanvasBgImage(imageProject.data?.canvasBgImage || null)
+            // remove the prefill so it doesn't persist
+            sessionStorage.removeItem(key)
+            // remove the import flag if present
+            try { sessionStorage.removeItem(`prefill_import_flag_${projectId}`) } catch (e) { }
+            shouldLoadFromApi = true
           }
-          if (imageProject.data?.canvasBgColor) setCanvasBgColor(imageProject.data.canvasBgColor)
-          if (imageProject.data?.canvasBgImage) setCanvasBgImage(imageProject.data.canvasBgImage)
-          // remove the prefill so it doesn't persist
-          sessionStorage.removeItem(key)
-          // remove the import flag if present
-          try { sessionStorage.removeItem(`prefill_import_flag_${projectId}`) } catch (e) { }
-          return
         }
       } catch (err) {
         console.warn('Failed to apply prefill project from sessionStorage', err)
       }
+
       const loadData = async () => {
-        try {
-          // Try loading from regular project API first
-          const project = await api.getProject(projectId);
-          if (project && project.design) {
-            setLayers(project.design.layers || []);
-            setCanvasSize(project.design.canvasSize || { width: 800, height: 600 });
-            setZoom(project.design.zoom || 100);
-            setPan(project.design.pan || { x: 0, y: 0 });
-            if (project.design.canvasBgColor) setCanvasBgColor(project.design.canvasBgColor);
-            if (project.design.canvasBgImage) setCanvasBgImage(project.design.canvasBgImage);
-            if (project.title) setProjectName(project.title);
-            return;
+        if (!isCloneImportFlow) {
+          try {
+            // Try loading from regular project API first for non-import flow
+            const project = await api.getProject(projectId);
+            if (project && project.design) {
+              setLayers(project.design.layers || []);
+              setCanvasSize(project.design.canvasSize || { width: 800, height: 600 });
+              setZoom(project.design.zoom || 100);
+              setPan(project.design.pan || { x: 0, y: 0 });
+              if (project.design.canvasBgColor) setCanvasBgColor(project.design.canvasBgColor);
+              if (project.design.canvasBgImage) setCanvasBgImage(project.design.canvasBgImage);
+              if (project.title) setProjectName(project.title);
+              return;
+            }
+          } catch (error) {
+            console.log("Project not found in regular projects, trying images API...");
           }
-        } catch (error) {
-          console.log("Project not found in regular projects, trying images API...");
         }
 
         try {
@@ -129,7 +171,9 @@ export const useProjectLoader = (
         }
       };
 
-      loadData();
+      if (shouldLoadFromApi) {
+        loadData();
+      }
     }
   }, [projectId, setLayers, setCanvasSize, setZoom, setPan, setCanvasBgColor, setCanvasBgImage, setProjectName]);
 };

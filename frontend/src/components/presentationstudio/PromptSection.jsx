@@ -111,9 +111,10 @@ const OutlineInput = ({ outlineText, setOutlineText }) => (
 const ToneSelector = ({ tone, setTone }) => {
   const tones = ['Professional', 'Friendly', 'Creative', 'Corporate'];
 
+
   return (
     <CustomSelect
-      label="Tone"
+    label="Tone"
       value={tone}
       onChange={setTone}
       placeholder="Select tone"
@@ -122,7 +123,7 @@ const ToneSelector = ({ tone, setTone }) => {
         value: item,
       }))}
     />
-  );
+  );  
 };
 
 const SlideSelector = ({ length, setLength }) => {
@@ -175,31 +176,31 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
       id: 'Realistic',
       label: 'Realistic',
       image:
-        'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/5c/b9/62/5cb9627a8d35ff42a96510c58fd68cd2.jpg',
     },
     {
       id: 'Anime',
       label: 'Anime',
       image:
-        'https://images.unsplash.com/photo-1618331833071-ce81bd50d300?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/92/bf/03/92bf03bfcd83247fab3b468fe560cfc7.jpg',
     },
     {
       id: 'Cartoon',
       label: 'Cartoon',
       image:
-        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/69/a2/7e/69a27e12ec3e857c925abb47590dd928.jpg',
     },
     {
       id: 'Sketch',
       label: 'Sketch',
       image:
-        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/98/18/3a/98183a4a3b3e8ea0dec2ff3fb3c33317.jpg',
     },
     {
       id: 'Painting',
       label: 'Painting',
       image:
-        'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=500&q=80',
+        'https://i.pinimg.com/736x/ee/3d/9b/ee3d9bbd7bcba1287c2ba4f995423e8c.jpg',
     },
   ];
 

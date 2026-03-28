@@ -43,24 +43,24 @@ const TextStyleButton = ({
 
   const style = variant === 'floating' ? floatingStyle : inlineStyle;
 
-  return (
-    <button
-      title="Generate text styles with AI"
-      style={style}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (!disabled && onClick) {
-          onClick();
-        }
-      }}
-      disabled={disabled}
-    >
-      <FiStar size={size} color="#ffffff" />
-      {variant === 'inline' && (
-        <span>Text Styles</span>
-      )}
-    </button>
-  );
+  // return (
+  //   // <button
+  //   //   title="Generate text styles with AI"
+  //   //   style={style}
+  //   //   onClick={(e) => {
+  //   //     e.stopPropagation();
+  //   //     if (!disabled && onClick) {
+  //   //       onClick();
+  //   //     }
+  //   //   }}
+  //   //   disabled={disabled}
+  //   // >
+  //   //   <FiStar size={size} color="#ffffff" />
+  //   //   {variant === 'inline' && (
+  //   //     <span>Text Styles</span>
+  //   //   )}
+  //   // </button>
+  // );
 };
 
 export default TextStyleButton;

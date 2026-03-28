@@ -47,7 +47,7 @@ const CanvaEditor = () => {
   const { id: projectId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
+  
   // Core state
   const [selectedTool, setSelectedTool] = useState('select');
   const [layers, setLayers] = useState([]);
@@ -60,7 +60,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(true);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState('#82c787ff');
+  const [canvasBgColor, setCanvasBgColor] = useState(projectId ? '#ffffff' : 'linear-gradient(135deg, #00F260 0%, #0575E6 100%)');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -289,6 +289,16 @@ const CanvaEditor = () => {
   }, [layers]);
 
   useEffect(() => {
+    // For existing/imported projects, never inject default heading or gradient placeholders.
+    if (projectId) {
+      if (!hasInitializedRef.current && layers.length === 0) {
+        hasInitializedRef.current = true;
+        resetHistory([]);
+        setHasUnsavedChanges(false);
+      }
+      return;
+    }
+
     // Only add default heading if:
     // 1. We haven't initialized yet
     // 2. There are no layers
@@ -300,11 +310,8 @@ const CanvaEditor = () => {
       }
 
       // Wait a bit to ensure project loader has finished (if loading a project)
-      // If no projectId, this will still work for new projects
       projectLoadTimeoutRef.current = setTimeout(() => {
-        // Check current layers state (not closure value)
         if (layersRef.current.length === 0 && !hasInitializedRef.current) {
-          // Create a default heading at center-top of canvas
           const centerX = Math.max(100, (canvasSize.width - 300) / 2);
           const centerY = 100;
 
@@ -341,7 +348,7 @@ const CanvaEditor = () => {
       // If layers exist, mark as initialized so we don't add heading
       hasInitializedRef.current = true;
     }
-  }, [layers.length, handleAddElement, resetHistory, textSettings, canvasSize, projectId]);
+  }, [layers.length, handleAddElement, resetHistory, textSettings, canvasSize, projectId, saveToHistory]);
 
   // Keep right sidebar open when text layer is selected (only on selection, not on every state change)
   useEffect(() => {
@@ -556,7 +563,6 @@ const CanvaEditor = () => {
         }
       };
 
-      console.log("Saving design JSON:", JSON.stringify(updatePayload, null, 2));
 
       if (projectId) {
         await updateImage(projectId, updatePayload);
@@ -602,85 +608,35 @@ const CanvaEditor = () => {
     return await exportCanvasAsImage(layers, canvasSize, format, quality, canvasBgColor, canvasBgImage);
   };
 
-  const handleDownloadExport = async (format) => {
+  const handleDownloadExport = async (format, fileName) => {
     if (isExporting) return;
     setIsExporting(true);
+
     try {
       const fmt = format || exportFormat;
 
-      // If project is saved (has an id), call backend export endpoint to get server-generated file
-      if (projectId) {
-        try {
-          const blob = await exportImage(projectId, fmt);
-
-          // If server returned JSON (error), blob.type will be application/json — handle gracefully
-          if (blob && blob.type && blob.type.includes('application/json')) {
-            const text = await blob.text();
-            let msg = 'Export failed';
-            try {
-              const parsed = JSON.parse(text);
-              msg = parsed.message || parsed.error || JSON.stringify(parsed);
-            } catch (e) {
-              msg = text;
-            }
-            toast.error(msg);
-          } else {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const ext = fmt === 'jpeg' ? 'jpg' : fmt;
-            link.href = url;
-            link.download = `design-${timestamp}.${ext}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }
-          return;
-        } catch (err) {
-          console.error('Backend export failed, falling back to client export:', err);
-          // fallthrough to client-side export
-        }
-      }
-
-      // Fallback: client-side export (works for unsaved/new projects)
+      // ⭐ 1. EXPORT IMAGE FROM CANVAS
       const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
       if (!dataUrl) return;
-      const link = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const ext = fmt === 'jpeg' ? 'jpg' : (fmt === 'webp' ? 'webp' : fmt === 'jpg' ? 'jpg' : fmt);
-      link.download = `design-${timestamp}.${ext}`;
+
+      // ⭐ 2. DOWNLOAD IMAGE
+      const link = document.createElement("a");
+      const safeName = fileName || `design-${Date.now()}`;
+      const ext = fmt === "jpeg" ? "jpg" : fmt;
+
+      link.download = `${safeName}.${ext}`;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      // Optionally persist and download project file (worksheet)
-      try {
-        const layersWithCanvasMeta = layers.map(l => ({
-          ...l,
-          canvasBgColor,
-          canvasBgImage,
-          zoom: 100,
-          pan: { x: 0, y: 0 },
-          canvasSize
-        }));
-        const design = { layers: layersWithCanvasMeta, canvasSize, savedAt: Date.now() };
-        localStorage.setItem('canvaDesign', JSON.stringify(design));
-        if (includeProjectFile) {
-          const blob = new Blob([JSON.stringify(design, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const jsonLink = document.createElement('a');
-          jsonLink.href = url;
-          jsonLink.download = `design-${timestamp}.json`;
-          document.body.appendChild(jsonLink);
-          jsonLink.click();
-          document.body.removeChild(jsonLink);
-          URL.revokeObjectURL(url);
-        }
-      } catch { }
+
+      toast.success("Image downloaded successfully");
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to export image");
     } finally {
       setIsExporting(false);
-      setIsSaveModalOpen(false);
     }
   };
 
@@ -1171,12 +1127,24 @@ const CanvaEditor = () => {
       updates = { [propertyOrUpdates]: value };
     }
 
+    // If setting image fill, ensure fillType is set to 'image'
+    if (updates.fillImageSrc) {
+      updates.fillType = 'image';
+    }
+
+    // If setting fill color, ensure fillType is set to 'color' and clear image
+    if (updates.fillColor && !updates.fillType) {
+      updates.fillType = 'color';
+      updates.fillImageSrc = null;
+    }
+
     const newLayers = layers.map(l =>
       l.id === selectedLayer ? { ...l, ...updates } : l
     );
 
     setLayers(newLayers);
 
+    // Update shapeSettings state
     setShapeSettings(prev => ({
       ...prev,
       ...updates
@@ -1184,6 +1152,8 @@ const CanvaEditor = () => {
 
     saveToHistory(newLayers);
   }, [selectedLayer, layers, setLayers, saveToHistory, setShapeSettings]);
+
+
   // Image upload handler
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -1824,7 +1794,7 @@ const CanvaEditor = () => {
         {/* Canvas Area - scrollable container with all pages */}
         <div
           onClick={handleOutsideClick}
-          className="flex-1 flex flex-col justify-center items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
+          className="flex-1 flex flex-col justify-start items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
         >
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
@@ -1832,7 +1802,7 @@ const CanvaEditor = () => {
             const pageLayers = isActivePage ? layers : (page.layers || []);
 
             return (
-              <div key={page.id} className="w-full flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
+              <div key={page.id} className="w-full mt-8 flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
                 <div className="flex justify-center items-center mr-40">
                   <CanvasArea
                     canvasAreaRef={pageRefs.canvasAreaRef}

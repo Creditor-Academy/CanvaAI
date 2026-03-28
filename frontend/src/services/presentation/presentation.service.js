@@ -205,13 +205,20 @@ export const generateAIImage = async ({ userId, pptId, userPrompt, activeSlideDa
 
     // Inject activeSlide JSON inside the prompt string as context
     const finalPrompt = `
-Generate an image for the slide.
+You are generating a visual image for a presentation slide.
 
-Instruction:
+Your goal is to create a high-quality, meaningful image that:
+1. Directly reflects the user's instruction below.
+2. Is contextually aligned with the slide content (title, text, and layout).
+3. Enhances the slide visually — avoid generic or unrelated imagery.
+
+User Instruction:
 ${userPrompt}
 
-Slide Context:
+Slide Context (use this to make the image relevant and coherent with the slide):
 ${safeStringify(activeSlideData)}
+
+Generate an image that a viewer would immediately associate with this slide's message.
 `;
 
     const res = await axios.post(apiUrl, { prompt: finalPrompt }, getAuthHeaders());

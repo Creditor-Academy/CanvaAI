@@ -4,7 +4,7 @@ import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
 import api from "../services/api";
 import logo from "../assets/logo.png";
 import { FiMenu } from "react-icons/fi";
-import userService from "../services/UserDash/User.service";
+
 
 
 const TopNavbar = () => {
@@ -16,10 +16,7 @@ const TopNavbar = () => {
   const profileRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
-  const [wallet, setWallet] = useState({
-    totalTokens: 0,
-    remainingTokens: 0
-  });
+  
 
 
   const [openMenu, setOpenMenu] = useState(false);
@@ -62,18 +59,6 @@ const TopNavbar = () => {
       try {
         const profileData = await api.getProfile();
         if (mounted) setProfile(profileData || null);
-
-
-        const walletRes = await userService.getWalletDashboard();
-        const data = walletRes.data;
-
-
-        if (mounted) {
-          setWallet({
-            totalTokens: data.totalTokens,
-            remainingTokens: data.remainingTokens
-          });
-        }
 
 
       } catch (err) {
@@ -249,19 +234,7 @@ const TopNavbar = () => {
               </div>
 
 
-              {/* credits */}
-
-
-              <div className="px-4 pb-2 text-xs text-slate-500 flex justify-between">
-                <span>Tokens</span>
-                <span>
-                  {Number(wallet.remainingTokens || 0).toFixed(3)} /{" "}
-                  {Number(wallet.totalTokens || 0).toFixed(3)}
-                </span>
-              </div>
-
-
-              <div className="h-px bg-slate-200"></div>
+             
 
 
               {/* actions */}

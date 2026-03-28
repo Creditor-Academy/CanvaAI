@@ -56,6 +56,26 @@ class UserService {
   return data;
 }
 
+  // ================= GET ALL ORDERS =================
+  async getAllOrders() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/payment/get-all-orders`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch orders");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Get All Orders API Error:", error);
+      throw error;
+    }
+  }
+
 }
 
 export default new UserService();

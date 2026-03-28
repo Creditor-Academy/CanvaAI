@@ -1,12 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import userService from "../../services/UserDash/User.service";
+import { getAdminTemplates, getPublicTemplateById } from "../../services/presentation";
+import { getPublicTemplateImages, saveImage } from "../../services/imageEditor/imageApi";
+import { useAuth } from "../../contexts/AuthContext";
+import TemplatePreviewModal from "../presentation3/TemplatePreviewModal";
+import ImagePopup from "../canva/ImageLayout/imagePopup";
+import { ImageThumbPreview } from "../canva/ImageLayout/ImageLayout";
+import PresentationThumbnail from "../PresentationThumbnail";
+import { toast } from "sonner";
 
 
 import {
   HiOutlinePresentationChartLine,
-  HiOutlineDocumentText
 } from "react-icons/hi2";
 
 
@@ -18,7 +25,8 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiX,
-  FiZap
+  FiZap,
+  FiLayout
 } from "react-icons/fi";
 
 
@@ -39,12 +47,6 @@ const TOOLS = [
     route: "/canva-clone",
     color: "bg-yellow-400 text-black"
   },
-  // {
-  //   name: "Doc",
-  //   icon: HiOutlineDocumentText,
-  //   route: "/editor",
-  //   color: "bg-blue-500 text-white"
-  // },
   {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
@@ -57,14 +59,7 @@ const TOOLS = [
     route: "/create/ai-design",
     color: "bg-yellow-300 text-black"
   },
-  // {
-  //   name: "AI Doc",
-  //   icon: HiOutlineDocumentText,
-  //   route: "/create/content-writer",
-  //   color: "bg-blue-800 text-white"
-  // }
 ];
-
 
 const toolImages = [
   "https://i.pinimg.com/736x/96/52/26/965226daa2d2a6aab40d6458646f34f4.jpg",
@@ -76,21 +71,54 @@ const toolImages = [
 ];
 
 
+// Lazy-loaded template card — renders content only when it enters the viewport
+function LazyCard({ children, className = "", style = {} }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "120px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={className} style={style}>
+      {visible ? children : <div className="dash-skeleton" />}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const scrollRef = React.useRef(null);
-
+  const { user } = useAuth();
 
   const [profile, setProfile] = useState(null);
-  const [page, setPage] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [tab, setTab] = useState("manual");
   const [tokens, setTokens] = useState(0);
 
-
-  const templates = Array.from({ length: 24 }, (_, i) => i + 1);
-  const perPage = 8;
-
+  // Template states
+  const [pptTemplates, setPptTemplates] = useState([]);
+  const [imgTemplates, setImgTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templateTab, setTemplateTab] = useState("all");
+  const [templatePage, setTemplatePage] = useState(0);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const scrollLeft = () => {
     if (scrollRef.current) {
@@ -98,47 +126,58 @@ export default function Dashboard() {
     }
   };
 
-
   const scrollRight = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollBy({ left: 260, behavior: "smooth" });
     }
   };
 
-
   useEffect(() => {
     let mounted = true;
 
-
     const fetchData = async () => {
+      // Profile
       try {
         const profileData = await api.getProfile();
         if (mounted) setProfile(profileData || null);
+      } catch (e) {
+        console.error("Profile fetch error:", e);
+      }
 
-
+      // Wallet
+      try {
         const walletRes = await userService.getWalletDashboard();
         const data = walletRes.data || walletRes;
+        if (mounted) setTokens(Number(data.totalBalance || 0) - Number(data.usedBalance || 0));
+      } catch (e) {
+        console.error("Wallet fetch error:", e);
+      }
 
-
+      // Templates — independent of profile/wallet
+      if (mounted) setTemplatesLoading(true);
+      try {
+        const [pptRes, imgRes] = await Promise.all([
+          getAdminTemplates(),
+          getPublicTemplateImages(),
+        ]);
         if (mounted) {
-          setTokens(Number(data.totalBalance || 0) - Number(data.usedBalance || 0));
+          setTemplatesLoading(false);
+          setPptTemplates(Array.isArray(pptRes?.data) ? pptRes.data : Array.isArray(pptRes) ? pptRes : []);
+          setImgTemplates(Array.isArray(imgRes?.data) ? imgRes.data : Array.isArray(imgRes) ? imgRes : []);
         }
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
+      } catch (e) {
+        console.error("Templates fetch error:", e);
+        if (mounted) setTemplatesLoading(false);
       }
     };
 
-
     fetchData();
-
 
     return () => (mounted = false);
   }, []);
 
-
   useEffect(() => {
     const style = document.createElement("style");
-
 
     style.innerHTML = `
       @keyframes borderTrace {
@@ -148,7 +187,6 @@ export default function Dashboard() {
         75% { background-position: 0% 100%; }
         100% { background-position: 0% 0%; }
       }
-
 
       .ai-tool-wrapper {
         position: relative;
@@ -171,14 +209,12 @@ export default function Dashboard() {
         transition: transform .2s ease, box-shadow .2s ease;
       }
 
-
       .ai-tool-wrapper:hover {
         transform: translateY(-4px);
         box-shadow:
           0 20px 25px -5px rgba(230, 246, 59, 0.35),
           0 10px 10px -5px rgba(246, 221, 59, 0.15);
       }
-
 
       .ai-tool-inner {
         border-radius: 22px;
@@ -190,56 +226,192 @@ export default function Dashboard() {
         overflow: hidden;
       }
 
-
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
       }
-
 
       .hide-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
 
-
       @media (hover: none), (pointer: coarse), (max-width: 1024px) {
         .ai-tool-wrapper:hover {
           transform: none;
         }
       }
-    `;
 
+      @keyframes viewBtnPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(10,93,187,0.4); }
+        50%       { box-shadow: 0 0 0 6px rgba(10,93,187,0); }
+      }
+      @keyframes dashSkeletonShimmer {
+        0%   { background-position: -400px 0; }
+        100% { background-position: 400px 0; }
+      }
+      .dash-skeleton {
+        width: 100%;
+        height: 100%;
+        min-height: 160px;
+        border-radius: 16px;
+        background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+        background-size: 800px 100%;
+        animation: dashSkeletonShimmer 1.4s infinite linear;
+      }
+      .dash-view-btn {
+        padding: 5px 13px;
+        border-radius: 8px;
+        border: 1.5px solid #0a5dbb;
+        background: transparent;
+        color: #0a5dbb;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+        transition: color 0.22s, background 0.22s, border-color 0.22s, box-shadow 0.22s, transform 0.15s;
+        letter-spacing: 0.01em;
+      }
+      .dash-view-btn:hover {
+        background: linear-gradient(135deg, #0a5dbb 0%, #1d7bff 100%);
+        border-color: transparent;
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(10,93,187,0.35), 0 1px 4px rgba(10,93,187,0.2);
+      }
+      .dash-view-btn:active {
+        transform: translateY(0px) scale(0.97);
+        box-shadow: 0 2px 6px rgba(10,93,187,0.3);
+        animation: viewBtnPulse 0.4s ease-out;
+      }
+      .dash-tab-pill {
+        display: inline-flex;
+        background: rgba(255,255,255,0.75);
+        backdrop-filter: blur(10px);
+        border-radius: 999px;
+        padding: 3px;
+        gap: 2px;
+        border: 1px solid rgba(99,102,241,0.18);
+        box-shadow: 0 2px 10px rgba(99,102,241,0.1);
+      }
+      .dash-tab-btn {
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        transition: color 0.18s, background 0.18s, box-shadow 0.18s;
+      }
+      .dash-tab-btn.active {
+        background: #facc15;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+      }
+      .dash-tab-btn:not(.active):hover {
+        background: rgba(99,102,241,0.08);
+        color: #312e81;
+      }
+      .dash-tpl-card {
+        border-radius: 16px;
+      }
+      .dash-tpl-inner {
+        transition: border-color 0.18s, box-shadow 0.18s;
+      }
+      .dash-tpl-inner:hover {
+        border-color: #6366f1;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+      }
+    `;
 
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
   }, []);
-
 
   const fullName =
     profile?.firstName
       ? `${profile.firstName} ${profile.lastName || ""}`
       : profile?.email?.split("@")[0] || "User";
 
+  const handleRenewPlan = () => {
+    navigate("/pricing");
+  };
 
-  const handleRenewPlan = async () => {
+  // Template helpers
+  const getSlideData = (item) => {
+    if (!item?.data) return null;
+    let data = item.data;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (e) { return null; }
+    }
+    return data.slides?.[0] || (data.layers ? data : null);
+  };
+
+  const handleViewPPT = async (tpl) => {
+    const tplId = tpl._id || tpl.id;
     try {
-      const amount = Number(500);
-      await userService.creditWallet(amount);
-
-
-      const data = await userService.getWalletDashboard();
-      const wallet = data.data || data;
-
-
-      setTokens(Number(wallet.totalBalance || 0) - Number(wallet.usedBalance || 0));
-    } catch (error) {
-      console.error("Renew plan failed:", error.message);
+      const data = await getPublicTemplateById(tplId);
+      setPreviewData(data.data || data);
+      setSelectedTemplateId(tplId);
+      setIsPreviewOpen(true);
+    } catch (err) {
+      console.error("Error fetching template preview:", err);
+      alert("Failed to load template preview.");
     }
   };
 
+  const handleImportImage = async (image) => {
+    try {
+      const userId = user?._id || user?.id;
+      const resp = await saveImage({
+        userId,
+        title: (image.title || 'Untitled Template') + '_copy',
+        data: image.data,
+      });
+      const newId = resp?.imageId || resp?.data?._id || resp?._id;
+      if (newId) {
+        try {
+          sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify({
+            title: (image.title || 'Untitled Template') + '_copy',
+            data: image.data,
+          }));
+          sessionStorage.setItem(`prefill_import_flag_${newId}`, '1');
+        } catch (e) {}
+        window.open(`/canva-clone/${newId}`, '_blank');
+      }
+      toast.success('Template imported to your account');
+    } catch (err) {
+      console.error('Import failed', err);
+      toast.error('Failed to import template');
+    }
+  };
 
-  const visibleTemplates = templates.slice(page * perPage, page * perPage + perPage);
+  const perPage = 12;
 
+  const combinedTemplates = React.useMemo(() => {
+    if (templateTab === "ppt") {
+      return pptTemplates.map(t => ({ ...t, _type: 'ppt' }));
+    }
+    if (templateTab === "images") {
+      return imgTemplates.map(t => ({ ...t, _type: 'image' }));
+    }
+    // "all" — interleave randomly using Fisher-Yates shuffle
+    const merged = [
+      ...pptTemplates.map(t => ({ ...t, _type: 'ppt' })),
+      ...imgTemplates.map(t => ({ ...t, _type: 'image' })),
+    ];
+    for (let i = merged.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [merged[i], merged[j]] = [merged[j], merged[i]];
+    }
+    return merged;
+  }, [pptTemplates, imgTemplates, templateTab]);
+
+  const totalTemplatePages = Math.ceil(combinedTemplates.length / perPage);
+  const visibleTemplates = combinedTemplates.slice(templatePage * perPage, (templatePage + 1) * perPage);
 
   const manualTools = [
     {
@@ -251,14 +423,8 @@ export default function Dashboard() {
       icon: FaRegImage,
       title: "Image",
       route: "/canva-clone"
-    },
-    // {
-    //   icon: HiOutlineDocumentText,
-    //   title: "Document",
-    //   route: "/editor"
-    // }
+    }
   ];
-
 
   const aiTools = [
     {
@@ -270,12 +436,7 @@ export default function Dashboard() {
       icon: FaRegImage,
       title: "AI Image",
       route: "/create/ai-design"
-    },
-    // {
-    //   icon: HiOutlineDocumentText,
-    //   title: "AI Doc",
-    //   route: "/create/content-writer"
-    // }
+    }
   ];
 
 
@@ -286,14 +447,13 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative mt-2 mb-4 rounded-[22px] sm:rounded-[28px] overflow-hidden px-4 py-5 sm:px-6 sm:py-7 lg:px-10 lg:py-8"
+          className="relative mt-2 mb-3 py-8 px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-[28px] overflow-hidden"
         >
           <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] bg-gradient-to-r from-white via-sky-200 to-white opacity-70 pointer-events-none" />
           <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] border border-sky-200 pointer-events-none" />
           <div className="absolute top-0 left-0 w-full h-[120px] sm:h-[150px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none rounded-t-[22px] sm:rounded-t-[28px]" />
 
-
-          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 w-full">
             {/* LEFT */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
               <img
@@ -302,13 +462,11 @@ export default function Dashboard() {
                 className="h-12 xs:h-13 sm:h-16 md:h-18 lg:h-20 w-auto max-w-[110px] sm:max-w-[130px] lg:max-w-[160px] object-contain drop-shadow-lg shrink-0"
               />
 
-
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   Ready to create
                 </div>
-
 
                 <h1 className="mt-2 text-2xl sm:text-3xl lg:text-[34px] leading-tight font-extrabold text-slate-900 break-words">
                   Welcome,
@@ -317,16 +475,13 @@ export default function Dashboard() {
                   </span>
                 </h1>
 
-
                 <p className="text-sm sm:text-[15px] text-slate-600 mt-2 max-w-xl leading-6">
                   Create <span className="font-semibold text-slate-700">presentations</span>,{" "}
                   <span className="font-semibold text-slate-700">images</span> and{" "}
-                  {/* <span className="font-semibold text-slate-700">documents</span> with */}
                   AI-powered templates in minutes.
                 </p>
               </div>
             </div>
-
 
             {/* RIGHT */}
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 xl:justify-end">
@@ -339,7 +494,6 @@ export default function Dashboard() {
                   Renew anytime to keep generating.
                 </p>
               </div>
-
 
               <button
                 onClick={handleRenewPlan}
@@ -356,7 +510,6 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-8 sm:mt-10">
           <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Explore Tools</h2>
 
-
           <button
             onClick={() => setShowCreate(true)}
             className="w-full sm:w-auto min-w-[130px] flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black text-sm sm:text-[15px] font-semibold shadow transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
@@ -369,9 +522,6 @@ export default function Dashboard() {
 
         {/* TOOLS */}
         <div className="mt-3 relative">
-         
-
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 py-4">
             {TOOLS.map((tool, i) => {
               const colors = [
@@ -409,15 +559,12 @@ export default function Dashboard() {
               );
             })}
           </div>
-
-
-         
         </div>
 
 
         {/* TEMPLATES */}
         <div className="mt-10 pb-20 sm:pb-24">
-          <div className="flex items-end justify-between mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8 flex-wrap gap-3">
             <div>
               <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
                 Ready Templates
@@ -426,50 +573,134 @@ export default function Dashboard() {
                 Pick a layout and start editing instantly.
               </p>
             </div>
+            {/* Slider-switch tab */}
+            <div className="dash-tab-pill">
+              <button
+                className={`dash-tab-btn${templateTab === "all" ? " active" : ""}`}
+                onClick={() => { setTemplateTab("all"); setTemplatePage(0); }}
+              >All</button>
+              <button
+                className={`dash-tab-btn${templateTab === "ppt" ? " active" : ""}`}
+                onClick={() => { setTemplateTab("ppt"); setTemplatePage(0); }}
+              >PPT</button>
+              <button
+                className={`dash-tab-btn${templateTab === "images" ? " active" : ""}`}
+                onClick={() => { setTemplateTab("images"); setTemplatePage(0); }}
+              >Images</button>
+            </div>
           </div>
 
-
-          <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
-            {visibleTemplates.map((i) => (
-              <motion.div
-                key={i}
-                whileHover={{ y: -4 }}
-                transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-white/70 shadow-[0_16px_40px_rgba(15,23,42,0.10)] overflow-hidden"
-              >
-                <div className="relative">
-                  <img
-                    src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&sig=${i}`}
-                    alt={`Template ${i}`}
-                    className="h-40 w-full object-cover"
-                  />
-                  <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-900/10 via-transparent to-white/10 opacity-80" />
-                </div>
-
-
-                <div className="p-4">
-                  <h3 className="font-semibold text-slate-900 text-sm">Template {i}</h3>
-                  <p className="text-xs text-slate-500 mt-1">Editable layout</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
+          {templatesLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="dash-skeleton" style={{ minHeight: 180, borderRadius: 16 }} />
+              ))}
+            </div>
+          ) : visibleTemplates.length === 0 ? (
+            <div className="text-center py-16 text-slate-400 text-sm">No templates available yet.</div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+              {visibleTemplates.map((tpl) => {
+                const isPPT = tpl._type === 'ppt';
+                const slideData = isPPT ? getSlideData(tpl) : null;
+                return (
+                  <LazyCard
+                    key={`${tpl._type}-${tpl._id || tpl.id}`}
+                    className="dash-tpl-card"
+                  >
+                    <div
+                      onClick={() => isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl)}
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative h-36 bg-[#eef2ff] flex items-center justify-center overflow-hidden">
+                        {isPPT ? (
+                          slideData
+                            ? <PresentationThumbnail slide={slideData} width="100%" height="100%" />
+                            : <FiLayout size={36} color="#6366f1" />
+                        ) : (
+                          <div
+                            className="absolute inset-0"
+                            ref={el => {
+                              if (!el) return;
+                              const cs = tpl.data?.canvasSize || { width: 800, height: 600 };
+                              const setScale = () => {
+                                const w = el.offsetWidth || el.clientWidth;
+                                const h = el.offsetHeight || el.clientHeight;
+                                if (!w || !h) return;
+                                el.style.setProperty('--thumb-scale', String(Math.min(w / (cs.width || 800), h / (cs.height || 600))));
+                              };
+                              setScale();
+                              const ro = new ResizeObserver(() => { setScale(); ro.disconnect(); });
+                              ro.observe(el);
+                            }}
+                          >
+                            <ImageThumbPreview image={tpl} />
+                          </div>
+                        )}
+                        {/* Type indicator badge */}
+                        <div style={{
+                          position: 'absolute', top: 8, left: 8,
+                          background: isPPT ? 'rgba(37,99,235,0.12)' : 'rgba(99,102,241,0.12)',
+                          borderRadius: 8, padding: '4px 7px',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          backdropFilter: 'blur(6px)',
+                          border: `1px solid ${isPPT ? 'rgba(37,99,235,0.18)' : 'rgba(99,102,241,0.18)'}`,
+                        }}>
+                          {isPPT ? (
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
+                              <path d="M18 1 L18 6 L23 6" />
+                              <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
+                            </svg>
+                          ) : (
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.7">
+                              <rect x="3" y="3" width="18" height="18" rx="3" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <path d="M21 15l-5-5-4 4-3-3-6 6" />
+                            </svg>
+                          )}
+                          <span style={{ fontSize: 10, fontWeight: 700, color: isPPT ? '#2563eb' : '#6366f1', letterSpacing: '0.02em' }}>
+                            {isPPT ? 'PPT' : 'Image'}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Card info */}
+                      <div className="p-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-slate-900 text-sm truncate">
+                            {tpl.title || 'Untitled Template'}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {isPPT ? 'Presentation' : 'Image'} template
+                          </p>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl); }}
+                          className="dash-view-btn"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </div>
+                  </LazyCard>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row justify-center gap-3 mt-8 sm:mt-10">
             <button
-              disabled={page === 0}
-              onClick={() => setPage(page - 1)}
+              disabled={templatePage === 0}
+              onClick={() => setTemplatePage(p => p - 1)}
               className="px-4 py-2 rounded-xl flex items-center justify-center gap-2 bg-white/80 backdrop-blur-xl border border-white/70 text-slate-800 shadow-sm hover:shadow-md disabled:opacity-40 disabled:hover:shadow-sm"
             >
               <FiChevronLeft />
               Prev
             </button>
-
-
             <button
-              disabled={(page + 1) * perPage >= templates.length}
-              onClick={() => setPage(page + 1)}
+              disabled={templatePage >= totalTemplatePages - 1}
+              onClick={() => setTemplatePage(p => p + 1)}
               className="px-4 py-2 rounded-xl flex items-center justify-center gap-2 bg-gradient-to-r from-amber-300 to-amber-400 hover:from-amber-400 hover:to-amber-500 text-slate-900 shadow-sm disabled:opacity-50"
             >
               Next
@@ -479,6 +710,29 @@ export default function Dashboard() {
         </div>
       </div>
 
+
+      {/* PPT TEMPLATE PREVIEW MODAL */}
+      <TemplatePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        templateData={previewData}
+        onImport={() => {
+          setIsPreviewOpen(false);
+          if (selectedTemplateId) {
+            window.open(`/presentation-editor-v3/${selectedTemplateId}?template=true`, '_blank');
+          }
+        }}
+      />
+
+      {/* IMAGE POPUP */}
+      {selectedImage && (
+        <ImagePopup
+          image={selectedImage}
+          thumbnail={null}
+          onClose={() => setSelectedImage(null)}
+          onImport={handleImportImage}
+        />
+      )}
 
       {/* CREATE MODAL */}
       <AnimatePresence>
@@ -501,7 +755,6 @@ export default function Dashboard() {
               >
                 <FiX size={22} />
               </button>
-
 
               <h2 className="text-xl sm:text-2xl font-bold text-blue-900 mb-5 sm:mb-6">
                 Quick Start

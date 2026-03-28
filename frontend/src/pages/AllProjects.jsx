@@ -218,7 +218,7 @@ export default function AllProjects() {
   );
 
   return (
-    <div className="w-full min-h-screen p-8 bg-[#e9f4ff]">
+    <div className="w-full min-h-screen px-30 py-26 bg-[#e9f4ff]">
       <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-sm border border-white/40">
         
         {/* HEADER */}
@@ -357,7 +357,7 @@ export default function AllProjects() {
         )}
 
         {/* TEMPLATE SECTION */}
-        <div className="mt-16 border-t border-slate-100 pt-12">
+        {/* <div className="mt-16 border-t border-slate-100 pt-12">
           <h2 className="text-2xl font-bold text-slate-800 mb-8 text-center italic">
             Need inspiration? Start with a template
           </h2>
@@ -384,7 +384,7 @@ export default function AllProjects() {
               <p className="text-sm text-slate-600 mt-1 group-hover:text-indigo-100 transition-colors">Social & Creative Visuals</p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* CREATE MODAL */}
@@ -412,7 +412,7 @@ export default function AllProjects() {
               </div>
 
               <div
-                onClick={() => window.open('/editor', '_blank')}
+                onClick={() => window.open('/create-image', '_blank')}
                 className="group cursor-pointer p-8 rounded-3xl bg-slate-50 border-2 border-transparent hover:border-indigo-500 hover:bg-white hover:shadow-xl transition-all text-center"
               >
                 <div className="w-16 h-16 flex items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 mb-4 mx-auto group-hover:scale-110 transition-transform">

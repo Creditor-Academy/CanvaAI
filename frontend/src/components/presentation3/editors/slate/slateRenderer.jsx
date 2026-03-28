@@ -39,6 +39,7 @@ const Element = ({ attributes, children, element }) => {
       return (
         <ul
           {...attributes}
+          className="bulleted-list"
           style={{
             ...style,
             listStyleType: "disc",
@@ -53,6 +54,7 @@ const Element = ({ attributes, children, element }) => {
       return (
         <ol
           {...attributes}
+          className="numbered-list"
           style={{
             ...style,
             listStyleType: "decimal",
@@ -65,7 +67,7 @@ const Element = ({ attributes, children, element }) => {
 
     case "list-item":
       return (
-        <li {...attributes} style={style}>
+        <li {...attributes} className="list-item" style={style}>
           {children}
         </li>
       );

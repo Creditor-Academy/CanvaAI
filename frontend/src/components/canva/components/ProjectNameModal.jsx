@@ -20,11 +20,6 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
             return;
         }
 
-        if (name.trim().length < 3) {
-            setError('Project name must be at least 3 characters');
-            return;
-        }
-
         if (name.trim().length > 50) {
             setError('Project name must be less than 50 characters');
             return;
@@ -109,11 +104,9 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
                                     <span className={`
                                         text-xs font-medium px-2 py-1 rounded-full
                                         ${name.length > 0
-                                            ? name.length < 3
-                                                ? 'bg-yellow-100 text-yellow-700'
-                                                : name.length > 50
-                                                    ? 'bg-red-100 text-red-700'
-                                                    : 'bg-green-100 text-green-700'
+                                            ? name.length > 50
+                                                ? 'bg-red-100 text-red-700'
+                                                : 'bg-green-100 text-green-700'
                                             : 'bg-gray-100 text-gray-500'
                                         }
                                     `}>
@@ -153,14 +146,14 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
 
                     <button
                         onClick={handleConfirm}
-                        disabled={!name.trim() || name.length < 3 || name.length > 50}
+                        disabled={!name.trim() || name.length > 50}
                         className={`
                             px-6 py-2.5 rounded-xl 
                             font-semibold 
                             flex items-center gap-2 
                             transition-all duration-200
                             focus:ring-4 focus:ring-blue-200
-                            ${!name.trim() || name.length < 3 || name.length > 50
+                            ${!name.trim() || name.length > 50
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30'
                             }
