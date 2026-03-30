@@ -1,9 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Allura&family=Imperial+Script&family=Luxurious+Script&display=swap');
 @import "tailwindcss";
 @import "./styles/athena-variables.css";
 
 /* Hide native scrollbars for the canvas working area only */
 * {
   -webkit-user-select: none;
+  user-select: none;
 }
 html, body{
 overflow-x:hidden;
@@ -148,6 +150,8 @@ body {
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 .hide-scrollbar {

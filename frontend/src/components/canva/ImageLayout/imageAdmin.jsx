@@ -1,23 +1,127 @@
 import React, { useEffect, useState } from 'react'
 import { getPublicTemplateImages, deleteImage, cloneImage } from '../../../services/imageEditor/imageApi'
-import { exportCanvasAsImage } from '../export/exportCanvasAsImage'
 import { toast } from 'sonner'
 import { useAuth } from '../../../contexts/AuthContext'
 import ImagePopup from './imagePopup'
+
+const isTransparent = (color) => {
+    if (!color) return true;
+    const c = color.replace(/\s/g, '').toLowerCase();
+    return (
+        c === 'transparent' ||
+        c === 'rgba(0,0,0,0)' ||
+        c === 'rgba(0,0,0,0.0)'
+    );
+};
+
+const ImageThumbPreview = ({ image }) => {
+    const layers = Array.isArray(image?.data)
+        ? image.data
+        : (image?.data?.layer || image?.data?.layers || [])
+
+    const canvasSize = image?.data?.canvasSize || layers?.[0]?.canvasSize || { width: 800, height: 600 }
+    const bgColor = image?.data?.canvasBgColor || layers?.[0]?.canvasBgColor || '#ffffff'
+    const bgImage = image?.data?.canvasBgImage || layers?.[0]?.canvasBgImage || null
+
+    return (
+        <div
+            className="absolute inset-0 overflow-hidden pointer-events-none"
+            style={{
+                backgroundColor: isTransparent(bgColor) ? '#f8fafc' : bgColor,
+                backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+            }}
+        >
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: canvasSize.width,
+                    height: canvasSize.height,
+                    transformOrigin: 'top left',
+                    transform: 'scale(var(--thumb-scale, 1))',
+                }}
+            >
+                {layers?.map((layer) => {
+                    if (!layer || layer.visible === false) return null
+
+                    const commonStyle = {
+                        position: 'absolute',
+                        left: layer.x || 0,
+                        top: layer.y || 0,
+                        width: layer.width || 0,
+                        height: layer.height || 0,
+                        transform: `rotate(${layer.rotation || 0}deg)`,
+                        transformOrigin: 'center center',
+                    }
+
+                    if (layer.type === 'text') {
+                        return (
+                            <div
+                                key={layer.id}
+                                style={{
+                                    ...commonStyle,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'flex-start',
+                                    padding: 4,
+                                    overflow: 'hidden',
+                                    fontSize: layer.fontSize || 16,
+                                    fontFamily: layer.fontFamily || 'Arial',
+                                    fontWeight: layer.fontWeight || 400,
+                                    fontStyle: layer.fontStyle || 'normal',
+                                    textDecoration: layer.textDecoration || 'none',
+                                    color: layer.color || '#111827',
+                                    textAlign: layer.textAlign || 'left',
+                                    whiteSpace: 'pre-wrap',
+                                    lineHeight: 1.1,
+                                }}
+                            >
+                                {layer.text}
+                            </div>
+                        )
+                    }
+
+                    if (layer.type === 'image') {
+                        const src = layer.imageUrl || layer.url || layer.src
+                        if (!src) return null
+                        return (
+                            <img
+                                key={layer.id}
+                                src={src}
+                                alt={layer.name || ''}
+                                draggable={false}
+                                style={{
+                                    ...commonStyle,
+                                    objectFit: 'cover',
+                                    opacity: ((layer.opacity ?? 100) / 100),
+                                    borderRadius: layer.cornerRadius || 0,
+                                    filter: `brightness(${layer.brightness || 100}%) contrast(${layer.contrast || 100}%) blur(${layer.blur || 0}px)`,
+                                }}
+                            />
+                        )
+                    }
+
+                    return null
+                })}
+            </div>
+        </div>
+    )
+}
+
 const ImageAdmin = () => {
     const [images, setImages] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
-    const [thumbnails, setThumbnails] = useState({})
     const { isAdmin } = useAuth()
     const [selectedImage, setSelectedImage] = useState(null)
 
-
     const handleImport = async (image) => {
         const targetId = image.imageId || image._id;
-
-        // Admins open the template directly (existing template metadata)
         if (isAdmin) {
             try {
                 sessionStorage.setItem(`prefill_project_${targetId}`, JSON.stringify(image));
@@ -82,68 +186,11 @@ const ImageAdmin = () => {
         fetchData()
     }, [])
 
-    // Generate thumbnails incrementally (only for missing entries)
-    useEffect(() => {
-        let mounted = true
-
-        const gen = async () => {
-            const map = {}
-
-            for (const image of images) {
-                if (!mounted) break
-                if (thumbnails[image._id]) continue
-
-                try {
-                    const layers = image.data?.layer || []
-                    const canvasSize = image.data?.canvasSize || { width: 800, height: 600 }
-
-                    // Use saved canvas-wide background when available
-                    const bgColor = image.data?.canvasBgColor || layers[0]?.canvasBgColor || '#ffffff'
-                    const bgImage = image.data?.canvasBgImage || layers[0]?.canvasBgImage || null
-
-                    let dataUrl = null
-                    try {
-                        dataUrl = await exportCanvasAsImage(
-                            layers,
-                            canvasSize,
-                            'png',
-                            1,
-                            bgColor,
-                            bgImage
-                        )
-                    } catch (err) {
-                        console.warn('exportCanvasAsImage failed for', image._id, err)
-                    }
-
-                    // Fallback: if export failed (CORS/remote images), use the first image layer src
-                    if (!dataUrl) {
-                        const firstImgLayer = (layers || []).find(l => l && l.type === 'image' && l.src)
-                        if (firstImgLayer && firstImgLayer.src) {
-                            dataUrl = firstImgLayer.src
-                        }
-                    }
-
-                    if (mounted && dataUrl) map[image._id] = dataUrl
-                } catch (err) {
-                    console.warn('Thumbnail error for', image._id, err)
-                }
-            }
-
-            if (mounted && Object.keys(map).length) {
-                setThumbnails(prev => ({ ...prev, ...map }))
-            }
-        }
-
-        if (images.length) gen()
-        return () => { mounted = false }
-    }, [images, thumbnails])
-
     const handleDelete = async (imageId) => {
         if (!window.confirm('Are you sure you want to delete this template?')) return
         try {
             await deleteImage(imageId)
             setImages(prev => prev.filter(img => img._id !== imageId))
-            setThumbnails(prev => { const copy = { ...prev }; delete copy[imageId]; return copy })
             toast.success('Template deleted successfully')
         } catch (err) {
             console.error('Delete error', err)
@@ -164,9 +211,20 @@ const ImageAdmin = () => {
                 </div>
 
                 {loading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                            <div key={i} className="bg-white border border-slate-100 rounded-2xl h-64 animate-pulse" />
+                            <div key={i} className="bg-white rounded-2xl border border-slate-300 overflow-hidden">
+                                <div className="aspect-[16/10] bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 relative overflow-hidden">
+                                    <div className="absolute inset-0 animate-pulse" />
+                                </div>
+                                <div className="p-5">
+                                    <div className="h-5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg mb-3 animate-pulse" />
+                                    <div className="flex items-center justify-between">
+                                        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-100 rounded w-20 animate-pulse" />
+                                        <div className="h-5 bg-blue-100 rounded-full w-16 animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -183,24 +241,32 @@ const ImageAdmin = () => {
                 {!loading && filteredImages.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {filteredImages.map(image => {
-                            const previewSrc = thumbnails[image._id];
+                            const layers = Array.isArray(image?.data)
+                                ? image.data
+                                : (image?.data?.layer || image?.data?.layers || [])
+                            const canvasSize = image?.data?.canvasSize || layers?.[0]?.canvasSize || { width: 800, height: 600 }
                             return (
                                 <div
-                                    key={image._id || image.imageId}
+                                    onClick={() => setSelectedImage(image)}
                                     className="group bg-white rounded-2xl border border-slate-300 overflow-hidden transition-all duration-300 block"
                                 >
                                     <div className="aspect-[16/10] bg-slate-100 relative overflow-hidden">
-                                        {previewSrc ? (
-                                            <img
-                                                src={previewSrc}
-                                                alt={image.title}
-                                                className="w-full h-full object-cover transition-transform duration-500"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-slate-100">
-                                                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                            </div>
-                                        )}
+                                        <div
+                                            className="absolute inset-0"
+                                            style={{
+                                                ['--thumb-scale']: '1',
+                                            }}
+                                            ref={(el) => {
+                                                if (!el) return
+                                                const rect = el.getBoundingClientRect()
+                                                const cw = canvasSize?.width || 800
+                                                const ch = canvasSize?.height || 600
+                                                const scale = Math.min(rect.width / cw, rect.height / ch)
+                                                el.style.setProperty('--thumb-scale', String(scale))
+                                            }}
+                                        >
+                                            <ImageThumbPreview image={image} />
+                                        </div>
 
                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
 
@@ -228,7 +294,10 @@ const ImageAdmin = () => {
                                                 {image.title || 'Untitled Template'}
                                             </h3>
                                             <button
-                                                onClick={() => setSelectedImage(image)}
+                                                onClick={() => {
+                                                    console.log('View button clicked, setting image:', image);
+                                                    setSelectedImage(image);
+                                                }}
                                                 className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition cursor-pointer"
                                             >
                                                 View
@@ -274,7 +343,7 @@ const ImageAdmin = () => {
             </div>
             <ImagePopup
                 image={selectedImage}
-                thumbnail={selectedImage ? thumbnails[selectedImage._id] : null}
+                thumbnail={null}
                 onClose={() => setSelectedImage(null)}
                 onImport={handleImport}
             />
@@ -282,4 +351,4 @@ const ImageAdmin = () => {
     )
 }
 
-export default ImageAdmin
+export default ImageAdmin;

@@ -1,11 +1,11 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
-
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import SideBar from "./components/SideBar";
 import Navbar from "./components/Navbar";
 import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
-
 import { Home } from './pages/Home';
 import { Create } from './pages/Create';
 import AISuggestTemp from './components/homepage/AISuggestTemp';
@@ -34,7 +34,6 @@ import CanvaClone from './pages/CanvaClone';
 import Brandkit from './pages/Brandkit';
 import BrandKitDetail from './pages/BrandKitDetail';
 import Presentation from './pages/Presentation';
-
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
@@ -45,7 +44,6 @@ import BrandKitResult from "./pages/BrandKitResult";
 import DocumentGenerator from "./components/aigenerator/DocumentGenerator";
 import UiPhotoGenerator from "./components/aigenerator/UiPhotoGenerator";
 import SmartCrop from "./components/aigenerator/SmartCrop";
-
 import PresentationStudio from "./components/presentationstudio/PresentationStudio";
 import PresentationEditor2 from "./pages/PresentationEditor2";
 import LandingPage from "./pages/LandingPage";
@@ -56,6 +54,7 @@ import PresentationTemplates from "./pages/PresentationTemplates";
 import DocumentTemplates from "./pages/DocumentTemplates";
 import ImageTemplates from "./pages/ImageTemplates";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
+import Pricing from "./components/analatics/Pricing";
 
 const AppContent = () => {
   const location = useLocation();
@@ -71,9 +70,7 @@ const AppContent = () => {
       {!isFullScreenRoute && <SideBar />}
 
       {/* Navbar */}
-      <Navbar />
-
-
+      {!isFullScreenRoute && <Navbar />}
 
 
       {/* Page Content */}
@@ -81,7 +78,7 @@ const AppContent = () => {
         style={{
           flex: 1,
           width:"100%",
-          minheight: "100vh",
+          minheight:"100vh",
           
          
         }}
@@ -97,7 +94,6 @@ const AppContent = () => {
           <Route path="/create/code-generator" element={<CodeGenerator />} />
           <Route path="/create/video-producer" element={<VideoProducer />} />
           <Route path="/create/brand-builder" element={<BrandBuilder />} />
-
           <Route path="/projects/:folder?" element={<Project />} />
           <Route path="/projects" element={<Project />} />
           <Route path="/projects/all" element={<AllProjects />} />
@@ -113,7 +109,6 @@ const AppContent = () => {
           <Route path="/analytics" element={<Analatics />} />
           <Route path="/settings" element={<Setting />} />
           <Route path="/help-support" element={<Help />} />
-
           <Route path="/team" element={<Team />} />
           <Route path="/team/accept" element={<AcceptInvite />} />
           <Route path="/artisticiamge" element={<ArtisticImageGenerator />} />
@@ -129,7 +124,6 @@ const AppContent = () => {
           <Route path="/editor" element={<EditorTabPage />} />
           <Route path="/uiphoto" element={<UiPhotoGenerator />} />
           <Route path="/smartcrop" element={<SmartCrop />} />
-
           <Route
             path="/admin-dash"
             element={
@@ -143,6 +137,7 @@ const AppContent = () => {
           <Route path="/PresentationTemplates" element={<PresentationTemplates />} />
           <Route path="/documentTemplates" element={<DocumentTemplates />} />
           <Route path="/imageTemplates" element={<ImageTemplates />} />
+          <Route path="/pricing" element={<Pricing />} />
         </Routes>
 
       </div>
@@ -153,35 +148,36 @@ const AppContent = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <SidebarProvider>
-        <Router>
-          <Toaster position="top-right" richColors />
+    <DndProvider backend={HTML5Backend}>
+      <AuthProvider>
+        <SidebarProvider>
+          <Router>
+            <Toaster position="top-right" richColors />
 
-          <Routes>
+            <Routes>
 
-            {/* PUBLIC */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/signup" element={<AuthPage />} />
-            <Route path="/verify" element={<VerifyUserPage />} />
-            <Route path="/forget-password" element={<ForgetPassword />} />
+              {/* PUBLIC */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/signup" element={<AuthPage />} />
+              <Route path="/verify" element={<VerifyUserPage />} />
+              <Route path="/forget-password" element={<ForgetPassword />} />
 
-            {/* FULLSCREEN EDITORS */}
-            <Route path="/presentation-editor" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
-            <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
-            <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
-            <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
+              {/* FULLSCREEN EDITORS */}
+              <Route path="/presentation-editor" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+              <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
+              <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
+              <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
 
-            {/* MAIN APP */}
-            <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
+              {/* MAIN APP */}
+              <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
 
-          </Routes>
-        </Router>
-      </SidebarProvider>
-    </AuthProvider>
+            </Routes>
+          </Router>
+        </SidebarProvider>
+      </AuthProvider>
+    </DndProvider>
   );
 }
 
 export default App;
-

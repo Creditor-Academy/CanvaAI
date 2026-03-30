@@ -167,12 +167,118 @@ const LayerComponent = memo(({
         {
           const strokeW = (layer.strokeWidth == null) ? 1 : Math.max(1, layer.strokeWidth);
           const strokeC = layer.strokeColor || '#000000';
-
           const baseBoxShadow = getShadowCSS(layer.shadows) || 'none';
 
-          // If a clipPath is present (polygon/path), CSS border may not follow
-          // the clipped shape. Render an SVG overlay with the same polygon/path
-          // and stroke so the border is always visible.
+          // Check if this is a path-based shape (like heart or cloud)
+          const isPathShape = displayProps?.isPathShape;
+          const pathData = displayProps?.pathData;
+          const isLineShape = displayProps?.isLineShape;
+
+          // Handle line shapes
+          if (isLineShape) {
+            const lineColor = layer.fillColor || layer.strokeColor || '#000000';
+            const lineWidth = (layer.strokeWidth == null) ? 2 : Math.max(1, layer.strokeWidth);
+
+            return (
+              <div className="w-full h-full relative" style={{ ...commonStyle }}>
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${layer.width} ${layer.height}`}
+                  preserveAspectRatio="none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible'
+                  }}
+                >
+                  <line
+                    x1="0"
+                    y1={layer.height / 2}
+                    x2={layer.width}
+                    y2={layer.height / 2}
+                    stroke={lineColor}
+                    strokeWidth={lineWidth}
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            );
+          }
+
+          // Handle path-based shapes (heart, cloud)
+          if (isPathShape && pathData) {
+            // Generate a unique ID for patterns
+            const patternId = `pattern-${layer.id}-${Date.now()}`;
+
+            return (
+              <div className="w-full h-full relative" style={{ ...commonStyle }}>
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 24 24"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible'
+                  }}
+                >
+                  {/* Define patterns for image fills */}
+                  {layer.fillType === 'image' && layer.fillImageSrc && (
+                    <defs>
+                      <pattern
+                        id={patternId}
+                        patternUnits="objectBoundingBox"
+                        width="1"
+                        height="1"
+                        viewBox="0 0 24 24"
+                        preserveAspectRatio="xMidYMid slice"
+                      >
+                        <image
+                          href={layer.fillImageSrc}
+                          width="24"
+                          height="24"
+                          preserveAspectRatio="xMidYMid slice"
+                        />
+                      </pattern>
+                    </defs>
+                  )}
+
+                  {/* Fill path - use pattern if image fill, otherwise use fill color */}
+                  <path
+                    d={pathData}
+                    fill={
+                      layer.fillType === 'image' && layer.fillImageSrc
+                        ? `url(#${patternId})`
+                        : (layer.fillColor || '#3182ce')
+                    }
+                    stroke="none"
+                  />
+
+                  {/* Stroke path (if stroke width > 0) */}
+                  {strokeW > 0 && (
+                    <path
+                      d={pathData}
+                      fill="none"
+                      stroke={strokeC}
+                      strokeWidth={strokeW / (24 / Math.min(layer.width, layer.height) * 2)}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                </svg>
+              </div>
+            );
+          }
+
+
+          // Original clip-path based rendering for other shapes
           const clip = displayProps?.clipPath;
 
           const renderClipStroke = () => {
@@ -226,14 +332,21 @@ const LayerComponent = memo(({
                   backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
                   backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
                   borderRadius: displayProps?.borderRadius,
-                  clipPath: displayProps?.clipPath,
+                  clipPath: clip,
                   boxShadow: baseBoxShadow,
                 }}
               />
 
               {showSvgStroke && renderClipStroke()}
-              {!showSvgStroke && (
-                <div style={{ position: 'absolute', inset: 0, border: `${strokeW}px solid ${strokeC}`, borderRadius: displayProps?.borderRadius, pointerEvents: 'none' }} />
+              {!showSvgStroke && strokeW > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  border: `${strokeW}px solid ${strokeC}`,
+                  borderRadius: displayProps?.borderRadius,
+                  pointerEvents: 'none',
+                  clipPath: clip // Apply same clip path to border
+                }} />
               )}
             </div>
           );
@@ -420,7 +533,7 @@ const CanvasArea = ({
   return (
     <div
       ref={canvasAreaRef}
-      className="flex-1 relative overflow-visible bg-[#f0f2f5] flex items-center justify-center"
+      className="flex-1 relative overflow-visible  flex items-center justify-center"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -453,8 +566,8 @@ const CanvasArea = ({
             width: `${canvasSize.width}px`,
             height: `${canvasSize.height}px`,
             transform: `scale(${zoom / 100})`,
-            background: canvasBgColor,
-            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : 'none',
+            background: canvasBgImage ? 'none' : canvasBgColor,
+            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : (canvasBgColor.includes('gradient') ? canvasBgColor : 'none'),
             backgroundSize: canvasBgImage ? '100% 100%' : 'auto',
             backgroundRepeat: canvasBgImage ? 'no-repeat' : 'repeat',
             backgroundPosition: 'center',

@@ -2,6 +2,7 @@ import React from "react";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from "react-icons/fa";
 import "./Footer.css";
+import logo from "../../assets/logo.png";
 
 const Footer = () => {
   return (
@@ -19,13 +20,12 @@ const Footer = () => {
           <div className="footer-col logo-section">
 
             <div className="logo">
-              <div className="logo-circle">D</div>
+             <img src={logo} alt="Designova AI" className="logo-circle" />
               <h3>Designova</h3>
             </div>
 
             <p>
-              Designova AI helps creators generate presentations,
-              documents and visuals instantly with powerful AI tools.
+              Designova helps creators generate presentations and visuals instantly with powerful AI tools.
             </p>
 
             <div className="social-icons">

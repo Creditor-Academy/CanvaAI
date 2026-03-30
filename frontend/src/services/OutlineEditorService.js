@@ -1,6 +1,8 @@
 //import { title } from "node:process";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = `${BASE_URL}/api/pp`;
 
-const API_BASE_URL = '/api/pp';
+// const API_BASE_URL = '/api/pp';
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -153,7 +155,7 @@ export const finalizePresentation = async (outlineData) => {
     body: JSON.stringify(requestBody)
   });
 
-  if (!response.ok) {
+  if (!response.ok) { 
     let errorData;
     try {
       errorData = await response.json();

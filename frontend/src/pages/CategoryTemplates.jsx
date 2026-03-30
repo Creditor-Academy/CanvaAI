@@ -16,7 +16,7 @@ const CategoryTemplates = () => {
     const fetchTemplates = async () => {
       try {
         const formattedCategory = category.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
         const response = await fetch(`${API_BASE_URL}/api/templates?category=${formattedCategory}`);
         if (!response.ok) {
           throw new Error('Failed to fetch templates');

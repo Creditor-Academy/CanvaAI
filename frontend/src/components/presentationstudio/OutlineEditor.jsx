@@ -10,6 +10,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const currentUserId = user?._id || user?.id;
+  const CONTENT_CHAR_LIMIT = 350;
 
   const [slides, setSlides] = useState(() => {
     if (!outlineData?.slides) return [];
@@ -238,19 +239,35 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                   <textarea
                     value={slide.content.rawText || ""}
                     onChange={(e) => {
-                      handleContentChange(
-                        index,
-                        e.target.value
-                      );
-                      autoResizeTextarea(e.target);
+                      if (e.target.value.length <= CONTENT_CHAR_LIMIT) {
+                        handleContentChange(
+                          index,
+                          e.target.value
+                        );
+                        autoResizeTextarea(e.target);
+                      }
                     }}
                     onKeyDown={(e) =>
                       handleKeyDown(e, index)
                     }
                     className="outline-editor-textarea"
                     placeholder="Enter slide content"
+                    maxLength={CONTENT_CHAR_LIMIT}
                     rows={4}
                   />
+                  <div
+                    style={{
+                      textAlign: "right",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      color:
+                        (slide.content.rawText || "").length >= CONTENT_CHAR_LIMIT
+                          ? "#e53e3e"
+                          : "#888",
+                    }}
+                  >
+                    {(slide.content.rawText || "").length}/{CONTENT_CHAR_LIMIT}
+                  </div>
 
                   {slide.bullets && slide.bullets.length > 0 && (
                     <div className="outline-editor-bullets-container">
@@ -309,6 +326,21 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                 : ""
                 }`}
             >
+              {isFinalizing && (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="outline-editor-spin"
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              )}
               {isFinalizing
                 ? "Generating Final Presentation..."
                 : "Generate Final Presentation"}

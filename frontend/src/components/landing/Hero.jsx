@@ -27,11 +27,11 @@ const Hero = () => {
 
           <h1>
             Design <span> Projects</span><br />
-            With Our Designova AI
+            With Our Designova
           </h1>
 
           <p>
-            Generate presentations, documents and visuals instantly
+            Generate presentations and visuals instantly
             using powerful AI technology.
           </p>
 

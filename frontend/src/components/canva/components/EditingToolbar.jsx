@@ -56,6 +56,9 @@ const EditingToolbar = ({
     const [exportDropdownPos, setExportDropdownPos] = useState(null);
     const [activeMenu, setActiveMenu] = useState(null);
     const [showExportDropdown, setShowExportDropdown] = useState(false);
+    const [showNamePrompt, setShowNamePrompt] = useState(false);
+    const [pendingFormat, setPendingFormat] = useState(null);
+    const [pendingName, setPendingName] = useState('');
     const [showSaveTooltip, setShowSaveTooltip] = useState(false);
     const [showProjectNameModal, setShowProjectNameModal] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -451,33 +454,59 @@ const EditingToolbar = ({
                                         position: 'absolute',
                                         top: exportDropdownPos.top,
                                         left: exportDropdownPos.left,
-                                        width: exportDropdownPos.width,
                                         zIndex: 99999
                                     }}
-                                    className="bg-white border border-gray-200 rounded-lg shadow-xl py-1"
+                                    className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100 animate-in fade-in zoom-in-95 duration-200 mr-4"
                                     onMouseDown={(e) => e.stopPropagation()}
                                 >
-                                    {['png', 'jpg', 'pdf', 'svg'].map((format) => (
+
+                                    {/* Header */}
+                                    <div className="px-4 py-2 border-b border-gray-100">
+                                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Export as</p>
+                                    </div>
+
+                                    {/* Format Options */}
+                                    {[
+                                        {
+                                            format: 'png',
+                                            label: 'PNG',
+                                        },
+                                        {
+                                            format: 'jpg',
+                                            label: 'JPG',
+                                        },
+                                        {
+                                            format: 'webp',
+                                            label: 'WEBP',
+                                        },
+                                    ].map((item, index) => (
                                         <button
-                                            key={format}
+                                            key={item.format}
                                             onClick={() => {
-                                                onDownload(format);
+                                                // ask for filename before downloading
+                                                setPendingFormat(item.format);
+                                                setPendingName((projectName || 'design').toString().replace(/\s+/g, '-'));
+                                                setShowNamePrompt(true);
                                                 setShowExportDropdown(false);
                                             }}
-                                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                            className="w-full px-4 py-3 text-left hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-150 flex items-center gap-3 group border-b last:border-b-0 border-gray-50"
                                         >
-                                            <span className="w-16">.{format}</span>
-                                            <span className="text-xs text-gray-400">
-                                                {format === 'png' ? 'High quality' :
-                                                    format === 'jpg' ? 'Smaller' :
-                                                        format === 'pdf' ? 'Document' : 'Vector'}
-                                            </span>
+
+
+                                            {/* Content */}
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-semibold text-gray-700">.{item.format}</span>
+                                                </div>
+
+                                            </div>
                                         </button>
                                     ))}
+                                    {/* Filename prompt modal moved to top-level portal for full-screen centering */}
+                                    
                                 </div>, document.body)
                             }
                         </div>
-
 
                         {/* Save Button */}
                         <div className="relative" ref={saveButtonRef}>
@@ -511,6 +540,38 @@ const EditingToolbar = ({
                 onConfirm={handleProjectNameConfirm}
                 initialName={projectName}
             />
+            {/* Filename prompt modal rendered as a top-level portal to center on whole screen */}
+            {showNamePrompt && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/30" onMouseDown={() => setShowNamePrompt(false)} />
+                    <div className="relative bg-white rounded-xl p-4 shadow-xl w-80">
+                        <h4 className="text-sm font-semibold mb-2">Save image as</h4>
+                        <input
+                            autoFocus
+                            value={pendingName}
+                            onChange={(e) => setPendingName(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md mb-3"
+                            placeholder="filename without extension"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button className="px-3 py-1 text-sm rounded-md" onClick={() => setShowNamePrompt(false)}>Cancel</button>
+                            <button
+                                className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                                onClick={() => {
+                                    const name = pendingName || undefined;
+                                    if (pendingFormat) onDownload(pendingFormat, name);
+                                    setShowNamePrompt(false);
+                                    setPendingFormat(null);
+                                    setPendingName('');
+                                }}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </>
     );
 };

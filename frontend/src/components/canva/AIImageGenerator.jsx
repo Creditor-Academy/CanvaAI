@@ -15,6 +15,7 @@ const AIImageGenerator = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('realistic');
 
+
   const handleAIGenerateImage = async () => {
     if (!aiPrompt.trim()) {
       setErrorMessage('Please enter a prompt to generate an image');
@@ -31,6 +32,11 @@ const AIImageGenerator = ({
       const userId = user?._id || user?.id;
       const imageId = Date.now().toString();
       const data = await generateImage(userId, imageId, aiPrompt, selectedFilter);
+
+      if (data && data.success === false) {
+        setErrorMessage(data.message || 'Image generation failed.');
+        return;
+      }
 
       let respItem = null;
       if (Array.isArray(data) && data.length > 0) respItem = data[0];
@@ -83,9 +89,8 @@ const AIImageGenerator = ({
       }
     } catch (error) {
       console.error('Error generating image:', error);
-      if (!errorMessage) {
-        setErrorMessage(error.message || 'Failed to generate image. Please try again.');
-      }
+      const backendMsg = error.response?.data?.message;
+      setErrorMessage(backendMsg || error.message || 'Failed to generate image. Please try again.');
     } finally {
       setIsGeneratingAI(false);
     }

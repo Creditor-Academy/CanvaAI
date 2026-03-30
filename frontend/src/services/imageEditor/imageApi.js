@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -158,7 +158,6 @@ export default function AIImageGenerator({ userId, serviceId, initialPrompt = ''
 }
 
 
-
 export const exportImage = async (imageId, format) => {
     try {
         const res = await api.get(`/api/images/export/${imageId}/${format}`, { responseType: 'blob' });
@@ -168,6 +167,7 @@ export const exportImage = async (imageId, format) => {
         throw error;
     }
 };
+
 
 export const uploadTemporaryImage = async (payload) => {
     try {
@@ -201,9 +201,4 @@ export const cloneImage = async (pptId) => {
         throw error;
     }
 };
-
-
-
-
-
 

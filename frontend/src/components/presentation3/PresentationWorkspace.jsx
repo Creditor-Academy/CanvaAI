@@ -16,6 +16,8 @@ import usePresentationStore from "./store/usePresentationStore";
 import { getPresentationById } from "../../services/presentation";
 import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
+import { useAutoSave } from "./hooks/useAutoSave";
+import { useUIStore } from "./store/useUIStore";
 
 const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
@@ -31,6 +33,19 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
 
   const { setPresentation, resetPresentation } = usePresentationStore();
   const hasCloned = React.useRef(false);
+
+  const autoSaveState = useAutoSave();
+  const presentationId = usePresentationStore((state) => state.presentationId);
+
+  useEffect(() => {
+    if (presentationId) {
+      const key = `ppt-${presentationId}-visited`;
+      if (!localStorage.getItem(key)) {
+        useUIStore.getState().addNotification("Changes are saved automatically. Click Save to save instantly.", "info");
+        localStorage.setItem(key, "true");
+      }
+    }
+  }, [presentationId]);
 
   useEffect(() => {
     if (initialData) {
@@ -111,6 +126,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
         <TopBar
           onPresent={() => setIsPresenting(true)}
           onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
+          autoSaveState={autoSaveState}
         />
 
         <div style={styles.body}>

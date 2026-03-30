@@ -31,9 +31,10 @@ const TextLayer = ({ layer, isEditing }) => {
     width: "100%",
     height: "100%",
     outline: "none",
+    overflowWrap: "anywhere",
     wordBreak: "break-word",
-    whiteSpace: "pre-wrap",
-    lineHeight: 1.2,
+    whiteSpace: isEditing ? "pre-wrap" : "normal",
+    lineHeight: 1.4,
     cursor: isEditing ? "text" : "move",
   };
 
@@ -47,7 +48,7 @@ const TextLayer = ({ layer, isEditing }) => {
 
   if (isEditing) {
     return (
-      <div style={containerStyle}>
+      <div className="text-layer" style={containerStyle}>
         <SlateTextEditor
           value={
             layer.content || [
@@ -62,14 +63,16 @@ const TextLayer = ({ layer, isEditing }) => {
   }
 
   return (
-    <div style={{ ...containerStyle, ...textBlockStyle }}>
-      {isPlaceholderVisible ? (
-        <span style={{ color: "#94a3b8" }}>
-          {layer.placeholder || "Click to add text"}
-        </span>
-      ) : (
-        <SlateStaticRenderer value={layer.content} />
-      )}
+    <div className="text-layer" style={{ ...containerStyle, ...textBlockStyle }}>
+      <div className="text-layer-content" data-text-content="true">
+        {isPlaceholderVisible ? (
+          <span style={{ color: "#94a3b8" }}>
+            {layer.placeholder || "Click to add text"}
+          </span>
+        ) : (
+          <SlateStaticRenderer value={layer.content} />
+        )}
+      </div>
     </div>
   );
 };

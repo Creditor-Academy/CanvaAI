@@ -76,7 +76,7 @@
 }
 
 /* From Uiverse.io by elijahgummer */ 
-.navv-btn {
+.login-btn {
   font: inherit;
   background-color: #f0f0f0;
   border: 0;
@@ -93,33 +93,15 @@
   cursor: pointer;
   margin-right: 30px;
 }
-.navv-btn:active {
+.login-btn:active {
   translate: 0 0.225em;
   box-shadow: inset 0 0.03em 0 0 #f4f4f4, 0 0.03em 0 0 #efefef,
     0 0.0625em 0 0 #ececec, 0 0.125em 0 0 #e0e0e0, 0 0.125em 0 0 #dedede,
     0 0.2em 0 0 #dcdcdc, 0 0.225em 0 0 #cacaca, 0 0.225em 0.375em 0 #cecece;
 }
 
-.theme-btn{ 
-  width:36px; 
-  height:36px; 
-  border-radius:10px; 
-  border:1px solid rgba(0,0,0,0.06); 
-  background:rgba(255,255,255,0.9); 
-  display:flex; 
-  align-items:center; 
-  justify-content:center; 
-  cursor:pointer; 
-  color:var(--text) 
-}
-.theme-btn:hover{ 
-  box-shadow:0 8px 24px rgba(20,18,40,0.08) 
-}
-.landing-page.dark .theme-btn{ 
-  background: rgba(28,30,44,0.85); 
-  border-color: rgba(255,255,255,0.12); 
-  color:#eaeaf3 
-}
+
+
 
 /* hamburger (mobile) */
 .hamburger{ 

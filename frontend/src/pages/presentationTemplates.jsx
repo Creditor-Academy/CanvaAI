@@ -27,7 +27,7 @@ export default function PresentationTemplates(){
 
 return(
 
-<div className="max-w-7xl mx-auto px-6 py-10">
+<div className="max-w-7xl mx-auto px-16 py-28 ">
 
 <h1 className="text-3xl font-bold mb-8">
 Presentation Templates

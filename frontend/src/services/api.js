@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -559,6 +559,43 @@ class ApiService {
       body: JSON.stringify({ userId, serviceId, base64Image }),
     });
   }
+
+  // ============= Logo generation =============
+  async generateLogo(prompt, style = "realistic") {
+    return this.request(
+      `/api/generate-logo?style=${encodeURIComponent(style)}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ prompt }),
+      }
+    );
+  }
+
+  // ============= EXPORT / DOWNLOAD =============
+  // Returns a Blob (binary response), NOT JSON — do not use this.request()
+  async exportS3Image(s3Url, format = 'png') {
+    const token = localStorage.getItem('token');
+    const url = `${API_BASE_URL}/api/export/s3/images?s3Url=${encodeURIComponent(s3Url)}&format=${encodeURIComponent(format)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(msg || 'Download failed');
+    }
+    return response.blob();
+  }
+
+  // ============= PAYMENT API =============
+async createPayment(planName) {
+  return this.request(`/api/payment/create-payment/${planName}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+}
+  
 }
 
 export default new ApiService();

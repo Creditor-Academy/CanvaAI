@@ -171,6 +171,60 @@ const normalizeCells = (cells, rows, cols) => {
    NORMALIZATION HELPERS
 ========================= */
 
+/**
+ * Normalizes an AI-generated layer to remove invalid absolute positioning
+ * from list item children and text nodes, ensuring flow layout works correctly.
+ */
+export function normalizeAILayer(layer) {
+  if (!layer || layer.type !== "text" || !Array.isArray(layer?.content)) {
+    return layer;
+  }
+
+  const hasList = layer.content.some(
+    (node) => node?.type === "bulleted-list" || node?.type === "numbered-list"
+  );
+
+  if (!hasList) {
+    return layer;
+  }
+
+  const cleanNode = (node) => {
+    if (node === null || node === undefined) return null;
+
+    if (typeof node.text === "string") {
+      if (node.text.trim() === "") return null;
+
+      const validTextNode = { text: node.text };
+      if (node.color !== undefined) validTextNode.color = node.color;
+      if (node.fontSize !== undefined) validTextNode.fontSize = node.fontSize;
+      if (node.fontFamily !== undefined) validTextNode.fontFamily = node.fontFamily;
+      if (node.fontWeight !== undefined) validTextNode.fontWeight = node.fontWeight;
+      if (node.fontStyle !== undefined) validTextNode.fontStyle = node.fontStyle;
+      if (node.textDecoration !== undefined) validTextNode.textDecoration = node.textDecoration;
+
+      return validTextNode;
+    }
+
+    if (Array.isArray(node.children)) {
+      const cleanedChildren = node.children.map(cleanNode).filter((child) => child !== null);
+      if (cleanedChildren.length === 0) return null;
+
+      const { x, y, width, height, rotation, ...safeProps } = node;
+      return { ...safeProps, children: cleanedChildren };
+    }
+
+    const { x, y, width, height, rotation, ...safeProps } = node;
+    if (Object.keys(safeProps).length === 0) return null;
+
+    return safeProps;
+  };
+
+  return {
+    ...layer,
+    content: layer.content.map(cleanNode).filter((node) => node !== null),
+  };
+}
+
 const normalizeLayer = (layer, forceNewId = false) => {
   if (!layer) return layer;
 
@@ -252,6 +306,19 @@ const normalizeLayer = (layer, forceNewId = false) => {
     if (normalizedLayer.strokeColor === undefined) {
       normalizedLayer.strokeColor = "#1e40af";
     }
+  }
+
+  // APPLY AI LIST NORMALIZATION
+  if (normalizedLayer.type === "text") {
+    normalizedLayer = normalizeAILayer(normalizedLayer);
+
+    // Safeguard: Force width and height to be strictly numbers. 
+    // AI often sends 'auto', '100%', or leaves it undefined which breaks drag rendering completely.
+    const safeWidth = Number(normalizedLayer.width);
+    const safeHeight = Number(normalizedLayer.height);
+
+    normalizedLayer.width = isNaN(safeWidth) || safeWidth < 200 ? 700 : safeWidth;
+    normalizedLayer.height = isNaN(safeHeight) || safeHeight < 40 ? 100 : safeHeight;
   }
 
   return normalizedLayer;
@@ -598,6 +665,26 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
+    moveSlide: (dragIndex, hoverIndex, saveHistory = false) => {
+      if (saveHistory) get().saveToHistory();
+      const { slides } = get();
+      if (
+        dragIndex < 0 ||
+        dragIndex >= slides.length ||
+        hoverIndex < 0 ||
+        hoverIndex >= slides.length
+      ) {
+        return;
+      }
+
+      const draggedSlide = slides[dragIndex];
+      const updatedSlides = [...slides];
+      updatedSlides.splice(dragIndex, 1);
+      updatedSlides.splice(hoverIndex, 0, draggedSlide);
+
+      set({ slides: updatedSlides });
+    },
+
     updateSlideBackground: (slideId, color, saveHistory = true) => {
       if (saveHistory) get().saveToHistory();
       set((state) => ({
@@ -825,42 +912,54 @@ const usePresentationStore = create((set, get) => {
             let updatedLayer = { ...layer, ...style };
 
             if (layer.type === "text" && layer.content) {
-              let updatedContent = [...layer.content];
+              // Build a flat map of Slate-mark keys → values from the style object
+              const markUpdates = {};
               Object.entries(style).forEach(([key, value]) => {
-                let slateKey = key;
-                let slateValue = value;
-
                 if (key === "fontWeight") {
-                  slateKey = "bold";
-                  slateValue = value === "bold" ? true : undefined;
+                  markUpdates.bold = value === "bold" ? true : undefined;
                 } else if (key === "fontStyle") {
-                  slateKey = "italic";
-                  slateValue = value === "italic" ? true : undefined;
+                  markUpdates.italic = value === "italic" ? true : undefined;
                 } else if (key === "textDecoration") {
-                  slateKey = "underline";
-                  slateValue = value === "underline" ? true : undefined;
-                }
-
-                if (["bold", "italic", "underline", "fontSize", "color", "fontFamily"].includes(slateKey)) {
-                  updatedContent = updatedContent.map((block) => ({
-                    ...block,
-                    children: block.children
-                      ? block.children.map((child) => {
-                        const newChild = { ...child };
-                        if (slateValue === undefined) delete newChild[slateKey];
-                        else newChild[slateKey] = slateValue;
-                        return newChild;
-                      })
-                      : [],
-                  }));
-                } else if (slateKey === "textAlign") {
-                  updatedContent = updatedContent.map((block) => ({
-                    ...block,
-                    textAlign: slateValue,
-                  }));
+                  markUpdates.underline = value === "underline" ? true : undefined;
+                } else if (["color", "fontFamily", "fontSize"].includes(key)) {
+                  markUpdates[key] = value;
                 }
               });
-              updatedLayer.content = updatedContent;
+
+              const textAlign = style.textAlign;
+              const hasMarkUpdates = Object.keys(markUpdates).length > 0;
+
+              // Recursively walk every node in the Slate tree.
+              // - True leaf: has a "text" string property → apply inline marks.
+              // - Element: has a "children" array → recurse into children; set textAlign if needed.
+              // - Malformed AI node { text:"...", children:[] }: treat as leaf (text takes priority).
+              const applyToNode = (node) => {
+                // It's a leaf if it has a "text" string (even if it also has empty children)
+                if (typeof node.text === "string") {
+                  if (!hasMarkUpdates) return node;
+                  const newNode = { ...node };
+                  Object.entries(markUpdates).forEach(([k, v]) => {
+                    if (v === undefined) delete newNode[k];
+                    else newNode[k] = v;
+                  });
+                  return newNode;
+                }
+
+                // It's an element node with children to recurse into
+                if (Array.isArray(node.children)) {
+                  const newNode = {
+                    ...node,
+                    children: node.children.map(applyToNode),
+                  };
+                  if (textAlign !== undefined) newNode.textAlign = textAlign;
+                  return newNode;
+                }
+
+                // Unknown node shape — return as-is
+                return node;
+              };
+
+              updatedLayer.content = layer.content.map(applyToNode);
             }
             return updatedLayer;
           }),

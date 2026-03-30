@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { listPresentations, deletePresentation, getAdminTemplates, savePresentation, getPublicTemplateById } from '../services/presentation';
 import PresentationThumbnail from '../components/PresentationThumbnail';
 import TemplatePreviewModal from '../components/presentation3/TemplatePreviewModal';
+import SkeletonCard from '../components/SkeletonCard';
 
 const Presentation = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const Presentation = () => {
 
   const [presentations, setPresentations] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [isCloning, setIsCloning] = useState(false);
@@ -96,7 +98,7 @@ const Presentation = () => {
 
       .ai-btn-inner {
         border-radius: 22px;
-        background: linear-gradient(135deg, #1968df 0%, #0ea5e9 50%, #1965df 100%);
+        background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
         padding: 32px;
         display: flex;
         align-items: center;
@@ -148,6 +150,77 @@ const Presentation = () => {
       .glow-card:hover {
         box-shadow: 0 0 45px rgba(99, 102, 241, 0.2), 0 12px 40px rgba(0,0,0,0.08);
         transform: translateY(-2px);
+      }
+
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e4e4e4 37%,
+          #f0f0f0 63%
+        );
+        background-size: 400% 100%;
+        animation: shimmer 1.4s ease infinite;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: 100% 0 }
+        100% { background-position: -100% 0 }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.25s ease-in forwards;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes viewBtnPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(10,93,187,0.4); }
+        50%       { box-shadow: 0 0 0 6px rgba(10,93,187,0); }
+      }
+      .view-btn {
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1.5px solid #0a5dbb;
+        background: transparent;
+        color: #0a5dbb;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+        transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.15s ease;
+        letter-spacing: 0.01em;
+      }
+      .view-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 20%, rgba(255,255,255,0.45) 50%, transparent 80%);
+        background-size: 200% 100%;
+        background-position: 200% center;
+        transition: background-position 0s;
+        pointer-events: none;
+      }
+      .view-btn:hover {
+        background: linear-gradient(135deg, #0a5dbb 0%, #1d7bff 100%);
+        border-color: transparent;
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(10,93,187,0.35), 0 1px 4px rgba(10,93,187,0.2);
+      }
+      .view-btn:hover::before {
+        background-position: -200% center;
+        transition: background-position 0.6s ease;
+      }
+      .view-btn:active {
+        transform: translateY(0px) scale(0.97);
+        box-shadow: 0 2px 6px rgba(10,93,187,0.3);
+        animation: viewBtnPulse 0.4s ease-out;
       }
     `;
     document.head.appendChild(style);
@@ -231,6 +304,10 @@ const Presentation = () => {
     }
   };
 
+  const filteredPresentations = presentations.filter(p =>
+    (p.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const handleUseTemplate = async (template) => {
     const tplId = template._id || template.id;
     window.open(`/presentation-editor-v3/${tplId}?template=true`, '_blank');
@@ -251,6 +328,7 @@ const Presentation = () => {
 
   return (
     <>
+    <div style={{ background: "#e9f4ff", minHeight: "100vh" }}>
       {/* Wave Animation Background */}
       <div className="wave-bg">
         <div className="wave"></div>
@@ -263,8 +341,8 @@ const Presentation = () => {
           {/* Header Section */}
           <div style={styles.header}>
             <div>
-              <h1 style={styles.title}>Create Stunning Presentations</h1>
-              <p style={styles.subtitle}> ""Create professional presentations in seconds with AI or start from scratch""</p>
+              <h1 style={styles.title}>Create Stunning Presentation's</h1>
+              <p style={styles.subtitle}> "Create professional presentations in seconds with AI or start from scratch"</p>
             </div>
           </div>
 
@@ -327,21 +405,34 @@ const Presentation = () => {
 
           {/* Recent Work Section — Glowing Card */}
           <div className="glow-card">
-            <div style={styles.sectionHeader}>
-
-              <h2 style={styles.sectionTitle}>Recent Presentations</h2>
+            <div style={{ ...styles.sectionHeader, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 style={styles.sectionTitle}>Recent Presentations</h2>
+                {!loading && (
+                  <span style={styles.countBadge}>{filteredPresentations.length} {filteredPresentations.length === 1 ? 'presentation' : 'presentations'}</span>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder="Search presentations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={styles.searchInput}
+              />
             </div>
 
             <div style={styles.scrollContainer}>
               {loading ? (
-                <div style={styles.emptyState}>Loading your work...</div>
-              ) : presentations.length === 0 ? (
+                <div style={styles.grid}>
+                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                </div>
+              ) : filteredPresentations.length === 0 ? (
                 <div style={styles.emptyCard}>
-                  <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>No presentations yet. Start creating!</p>
+                  <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{searchTerm ? 'No presentations match your search.' : 'No presentations yet. Start creating!'}</p>
                 </div>
               ) : (
-                <div style={styles.grid}>
-                  {presentations.map((ppt) => (
+                <div style={styles.grid} className="fade-in">
+                  {filteredPresentations.map((ppt) => (
                     <div
                       key={ppt._id}
                       onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
@@ -416,9 +507,11 @@ const Presentation = () => {
 
             <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
               {templatesLoading ? (
-                <div style={styles.emptyState}>Loading templates...</div>
-              ) : (
                 <div style={styles.grid}>
+                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                </div>
+              ) : (
+                <div style={styles.grid} className="fade-in">
                   {templates.map((tpl) => (
                     <div
                       key={tpl._id}
@@ -456,7 +549,7 @@ const Presentation = () => {
                               e.stopPropagation();
                               handleViewTemplate(tpl);
                             }}
-                            style={styles.viewBtn}
+                            className="view-btn"
                           >
                             View
                           </button>
@@ -481,18 +574,21 @@ const Presentation = () => {
 
         </div>
       </div>
+      </div>
     </>
   );
 };
 
 const styles = {
   container: {
-    minHeight: '100vh',
-    background: 'transparent',
-    padding: '40px 20px',
-    position: 'relative',
-    zIndex: 1,
-  },
+  minHeight: '100vh',
+  background: 'transparent',
+  padding: '120px 20px 40px',
+  position: 'relative',
+  zIndex: 1,
+  transform: 'scale(0.9)',
+  transformOrigin: 'top center',
+},
   content: {
     maxWidth: '1200px',
     margin: '0 auto',
@@ -651,6 +747,27 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  countBadge: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    color: '#6366f1',
+    background: '#eef2ff',
+    padding: '3px 10px',
+    borderRadius: '20px',
+    whiteSpace: 'nowrap',
+  },
+  searchInput: {
+    padding: '10px 16px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    background: '#fff',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: '0.9rem',
+    color: '#0f172a',
+    outline: 'none',
+    width: '220px',
   },
   emptyState: {
     textAlign: 'center',

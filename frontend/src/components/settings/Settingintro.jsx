@@ -154,15 +154,20 @@ const Settingintro = () => {
     const fetchProfile = async () => {
       try {
         const data = await api.getProfile();
-        console.log('Profile data received:', data);
         setProfileData({
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || ''
         });
+
+        // ADD THIS
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+
       } catch (error) {
-        console.error('Error fetching profile:', error);
-        // Show user-friendly error message
         alert('Failed to load profile. Please refresh the page.');
       } finally {
         setLoading(false);
@@ -487,7 +492,7 @@ const Settingintro = () => {
                   <input
                     type={showPasswords.current ? "text" : "password"}
                     name="current-password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     id="current-password"
                     value={passwordData.currentPassword}
                     onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
