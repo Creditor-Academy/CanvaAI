@@ -10,11 +10,11 @@ import ReactDOM, { createPortal } from 'react-dom';
 // SOLUTION: Replace all debug logs with a conditional helper that's a no-op in production
 const log = process.env.NODE_ENV === 'development'
   ? (...args) => console.log(...args)
-  : () => {};
+  : () => { };
 
 const warn = process.env.NODE_ENV === 'development'
   ? (...args) => console.warn(...args)
-  : () => {};
+  : () => { };
 
 const error = process.env.NODE_ENV === 'development'
   ? (...args) => console.error(...args)
@@ -251,7 +251,7 @@ import { WordCountDialog as _WordCountDialog } from './editor/WordCountDialog';
 // SOLUTION: Require structural markdown signals at line start, with minimum threshold
 const looksLikeMarkdown = (text) => {
   if (!text) return false;
-  
+
   const lines = text.split('\n');
   const mdLines = lines.filter(l =>
     /^#{1,6}\s/.test(l) ||   // headings (# to ######)
@@ -260,7 +260,7 @@ const looksLikeMarkdown = (text) => {
     /^>\s/.test(l) ||        // blockquote (>)
     /^```/.test(l)           // code fence (```)
   );
-  
+
   // Require at least 2 structural lines to be confident it's markdown
   // This prevents single-line false positives like "Press **Ctrl+B** for bold"
   return mdLines.length >= 2;
@@ -291,7 +291,7 @@ const normalizeParagraphs = (jsonContent) => {
     if (node.type !== 'paragraph') {
       return [{ ...node, content: node.content?.map ? node.content.flatMap(splitNode) : node.content }];
     }
-    
+
     // Gather full text of this paragraph
     const fullText = node.content?.map(c => c.text || '').join('') || '';
     if (!fullText.includes('\n')) return [node];
@@ -306,7 +306,7 @@ const normalizeParagraphs = (jsonContent) => {
     // The proper fix is to save clean JSON without embedded \n in the first place.
     // This prevents data loss while we fix the source of the problem.
     return [node]; // safe no-op until source is fixed
-    
+
     // OLD BROKEN CODE (discards all marks):
     // return fullText.split('\n').map(line => ({
     //   type: 'paragraph',
@@ -346,7 +346,7 @@ const normalizeParagraphs = (jsonContent) => {
  */
 const normalizeInlineStyles = (html) => {
   if (!html || typeof html !== 'string') return html;
-  
+
   try {
     // 🔥 Regex-based replacement - NO DOM parsing, much faster!
     // Replace inline text-align styles with data-text-align attributes
@@ -355,7 +355,7 @@ const normalizeInlineStyles = (html) => {
       (_, style, align) => {
         // Remove text-align from style attribute
         const cleaned = style.replace(/text-align:\s*[^;]+;?\s*/gi, '').trim();
-        
+
         // Return data-text-align attribute + remaining styles (if any)
         return `data-text-align="${align.toLowerCase()}"${cleaned ? ` style="${cleaned}"` : ''}`;
       }
@@ -507,64 +507,27 @@ export const EditorToolbar = ({
   exportLoading,
   // Blockquote function
   toggleBlockquote,
+  // AI Assistant opener — drives the panel in TextEditorContent
+  setShowAIAssistant,
   // Content inert function for accessibility
   setContentInertProp,
+  // Legacy alias accepted from parent via onSetContentInert prop
+  onSetContentInert,
   className
 }) => {
-  // 🔥 CRITICAL FIX: Early return MUST be before any hooks to satisfy Rules of Hooks
-  // PROBLEM: React detected a change in hook order. The early return was after hooks,
-  // causing different hook counts when editor is null vs defined.
-  if (!editor) return null;
+  // Resolve setContentInert from whichever prop name the parent passes.
+  // Fallback to no-op so calls never throw even if neither is provided.
+  const setContentInert = React.useCallback((open) => {
+    if (typeof onSetContentInert === 'function') onSetContentInert(open);
+    else if (typeof setContentInertProp === 'function') setContentInertProp(open);
+  }, [onSetContentInert, setContentInertProp]);
 
-  // Removed debug log to prevent console spam
-
-  // Setup keyboard shortcuts
-  useKeyboardShortcuts(editor, {
-    onSave,
-    onPrint: () => {
-      setTimeout(() => {
-        if (onPrint && typeof onPrint === 'function') {
-          const content = editor && typeof editor.getHTML === 'function' ? editor.getHTML() : '';
-          onPrint(content);
-        } else {
-          handlePrint(); // Use the fallback print function
-        }
-      }, 100);
-    },
-    onSearch: () => setShowSearch(prev => !prev),
-    onHelp: () => setShowShortcutsDialog(true),
-    onNewDocument: () => setShowNewDocConfirm(true),
-  });
-
-  // Check if cursor is inside a table - moved to top to avoid initialization issues
-  const isInsideTable = () => {
-    if (!editor) return false;
-
-    try {
-      const { state } = editor;
-      const { selection } = state;
-      const { $from } = selection;
-
-      // Check if selection is inside a table
-      for (let depth = $from.depth; depth > 0; depth--) {
-        const node = $from.node(depth);
-        if (node && (node.type.name === 'table' || node.type.name === 'tableRow' || node.type.name === 'tableCell' || node.type.name === 'customTable')) {
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Error checking table position:', error);
-      return false;
-    }
-  };
-
+  // 🔥 Hook states moved above early return (Rules of Hooks)
   const [linkUrl, setLinkUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
   const [showNewDocConfirm, setShowNewDocConfirm] = useState(false);
-  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   // 🔥 Dialog states for replacing window.prompt/confirm
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -585,30 +548,24 @@ export const EditorToolbar = ({
   const [showGrid, setShowGrid] = useState(false);
   const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
 
-  // Zoom helper functions
-  const effectiveZoom = zoom || 100;
+  // Setup keyboard shortcuts - moved above early return
+  useKeyboardShortcuts(editor, {
+    onSave,
+    onPrint: () => {
+      setTimeout(() => {
+        if (onPrint && typeof onPrint === 'function') {
+          const content = editor && typeof editor.getHTML === 'function' ? editor.getHTML() : '';
+          onPrint(content);
+        } else {
+          handlePrint(); // Use the fallback print function
+        }
+      }, 100);
+    },
+    onSearch: () => setShowSearch(prev => !prev),
+    onHelp: () => setShowShortcutsDialog(true),
+    onNewDocument: () => setShowNewDocConfirm(true),
+  });
 
-  const onZoomChangeWithFeedback = (newZoom) => {
-    // Round zoom to the nearest multiple of 10
-    const roundedZoom = Math.round(newZoom / 10) * 10;
-    // Ensure zoom stays within valid bounds (50-200)
-    const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
-    if (onZoomChange && typeof onZoomChange === 'function') {
-      onZoomChange(clampedZoom);
-      // 🔥 CRITICAL FIX: Use stable ID to replace previous toast instead of stacking
-      // PROBLEM: toast.success() fires on every slider input event. Dragging zoom from
-      // 100% to 150% fires ~5 toasts per second, stacking them in the corner and requiring
-      // the user to dismiss them.
-      // 
-      // SOLUTION: Use toast with stable id - replaces previous zoom toast in place
-      toast.success(`Zoom: ${clampedZoom}%`, {
-        id: 'zoom-toast',
-        duration: 1500,
-      });
-    } else {
-      toast.error('Zoom function not available');
-    }
-  };
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
@@ -639,6 +596,55 @@ export const EditorToolbar = ({
 
   // File upload ref
   const fileInputRef = useRef(null);
+
+
+  // Check if cursor is inside a table - moved to top to avoid initialization issues
+  const isInsideTable = () => {
+    if (!editor) return false;
+
+    try {
+      const { state } = editor;
+      const { selection } = state;
+      const { $from } = selection;
+
+      // Check if selection is inside a table
+      for (let depth = $from.depth; depth > 0; depth--) {
+        const node = $from.node(depth);
+        if (node && (node.type.name === 'table' || node.type.name === 'tableRow' || node.type.name === 'tableCell' || node.type.name === 'customTable')) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking table position:', error);
+      return false;
+    }
+  };
+
+  // Zoom helper functions
+  const effectiveZoom = zoom || 100;
+
+  const onZoomChangeWithFeedback = (newZoom) => {
+    // Round zoom to the nearest multiple of 10
+    const roundedZoom = Math.round(newZoom / 10) * 10;
+    // Ensure zoom stays within valid bounds (50-200)
+    const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
+    if (onZoomChange && typeof onZoomChange === 'function') {
+      onZoomChange(clampedZoom);
+      // 🔥 CRITICAL FIX: Use stable ID to replace previous toast instead of stacking
+      // PROBLEM: toast.success() fires on every slider input event. Dragging zoom from
+      // 100% to 150% fires ~5 toasts per second, stacking them in the corner and requiring
+      // the user to dismiss them.
+      // 
+      // SOLUTION: Use toast with stable id - replaces previous zoom toast in place
+      toast.success(`Zoom: ${clampedZoom}%`, {
+        id: 'zoom-toast',
+        duration: 1500,
+      });
+    } else {
+      toast.error('Zoom function not available');
+    }
+  };
   const aiDocControllerRef = useRef(null);
   const aiInlineControllerRef = useRef(null);
 
@@ -920,7 +926,7 @@ export const EditorToolbar = ({
   // and stored as a live XSS vector in the document JSON.
   //
   // SOLUTION: Add URL scheme validation before any setLink call, use dialog instead of prompt
-  
+
   /**
    * Validate URL scheme and safely insert link
    * @param {string} href - The URL to validate and insert
@@ -930,43 +936,43 @@ export const EditorToolbar = ({
       toast.error('Please enter a URL');
       return;
     }
-    
+
     try {
       // Handle protocol-relative URLs (//example.com)
       const urlToValidate = href.startsWith('//') ? 'https:' + href : href;
       const url = new URL(urlToValidate);
-      
+
       // 🔥 Only allow safe protocols
       if (!['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)) {
         toast.error('Only http, https, mailto, and tel links are allowed');
         console.warn('❌ Blocked unsafe URL protocol:', url.protocol, href);
         return;
       }
-      
+
       // ✅ Valid URL - insert it
       runWithSavedSelection(editor, (chain) => chain.setLink({ href: url.href }));
       toast.success('Link inserted');
-      
+
     } catch (error) {
       console.error('❌ Invalid URL:', error);
       toast.error('Invalid URL format. Please enter a valid URL like https://example.com');
     }
   };
-  
+
   const addLink = () => {
     // 🔥 Open dialog instead of using window.prompt
     const previousUrl = editor?.getAttributes('link').href || 'https://';
     setLinkUrlValue(previousUrl);
     setLinkDialogOpen(true);
   };
-  
+
   const handleLinkDialogConfirm = () => {
     if (linkUrlValue && editor) {
       validateAndSetLink(linkUrlValue);
       setLinkDialogOpen(false);
     }
   };
-  
+
   const handleSymbolDialogConfirm = () => {
     if (symbolValue && editor) {
       runWithSavedSelection(editor, (chain) => chain.insertContent(symbolValue));
@@ -974,7 +980,7 @@ export const EditorToolbar = ({
       setSymbolDialogOpen(false);
     }
   };
-  
+
   const handleDeleteTableDialogConfirm = () => {
     if (editor && editor.can().deleteTable) {
       runWithSavedSelection(editor, (chain) => chain.deleteTable());
@@ -982,7 +988,7 @@ export const EditorToolbar = ({
       setDeleteTableDialogOpen(false);
     }
   };
-  
+
   const handleRenameDialogConfirm = async () => {
     if (renameValue && renameValue.trim()) {
       try {
@@ -991,11 +997,11 @@ export const EditorToolbar = ({
           toast.error('Cannot rename - document not saved yet');
           return;
         }
-        
+
         await TextEditorService.updateDocument(docId, {
           title: renameValue.trim()
         });
-        
+
         setDocumentTitle(renameValue.trim());
         toast.success(`Document renamed to "${renameValue.trim()}"`);
         setRenameDialogOpen(false);
@@ -1086,8 +1092,8 @@ export const EditorToolbar = ({
           <div
             key={`${row}-${col}`}
             className={`w-5 h-5 border border-gray-300 rounded-sm ${isSelected
-                ? 'bg-blue-500 border-blue-600 shadow-sm'
-                : 'bg-white hover:bg-blue-100'
+              ? 'bg-blue-500 border-blue-600 shadow-sm'
+              : 'bg-white hover:bg-blue-100'
               } cursor-pointer transition-all duration-150 transform hover:scale-110`}
             onMouseEnter={() => handleTablePickerHover(row, col)}
             onMouseDown={(e) => {
@@ -1227,31 +1233,78 @@ export const EditorToolbar = ({
   // SOLUTION: Upload to backend first, insert the returned URL instead of base64
   const handleLocalImageUpload = async (e) => {
     const file = e.target.files?.[0];
+    if (!file) return;
+    handleImageUpload(file);
+    e.target.value = ''; // Reset file input
+  };
+
+  const handleImageUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
-    
+
     try {
       setIsImageUploading(true);
-      
-      // 🔥 Upload to backend first
+      setUploadProgress(0);
+
+      // Simulate upload progress
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(interval);
+            return 95;
+          }
+          return prev + 5;
+        });
+      }, 100);
+
       const formData = new FormData();
       formData.append('image', file);
-      
+
       const { url } = await TextEditorService.uploadImage(formData);
-      
+      clearInterval(interval);
+      setUploadProgress(100);
+
       // ✅ Insert URL (not base64) - keeps document size small
-      editor.chain().focus().setImage({ src: url, alt: file.name }).run();
-      
+      editor.chain().focus().setResizableImage({
+        src: url,
+        alt: file.name,
+        width: 600,
+        align: 'center'
+      }).run();
+
       toast.success('Image uploaded successfully');
-      setShowImageDialog(false);
+      setShowImageModal(false);
+      setImageUrl('');
     } catch (error) {
       console.error('Image upload failed:', error);
       toast.error('Image upload failed: ' + error.message);
     } finally {
       setIsImageUploading(false);
-      e.target.value = ''; // Reset file input
+    }
+  };
+
+  const handleImageUrlSubmit = () => {
+    if (!imageUrl || !editor) return;
+
+    try {
+      // Validate URL
+      new URL(imageUrl);
+
+      editor.chain().focus().setResizableImage({
+        src: imageUrl,
+        alt: selectedImageAlt || 'Image from URL',
+        width: 600,
+        align: 'center'
+      }).run();
+
+      toast.success('Image inserted from URL');
+      setShowImageModal(false);
+      setImageUrl('');
+      setSelectedImageAlt('');
+    } catch (error) {
+      toast.error('Invalid image URL');
     }
   };
 
@@ -1355,19 +1408,19 @@ export const EditorToolbar = ({
   // normal typing — visibly contributing to input lag on large documents.
   //
   // SOLUTION: Compute only when selection changes, not on every render
-  
+
   const [canIndent, setCanIndent] = useState(false);
   const [canOutdent, setCanOutdent] = useState(false);
-  
+
   useEffect(() => {
     if (!editor) return;
-    
+
     // Compute indentation capability based on current selection
     const updateIndentState = () => {
       try {
         // Check if currently in a list item
         const isInList = editor.isActive('listItem');
-        
+
         if (isInList) {
           // For list items, check if we can sink (indent) or lift (outdent)
           setCanIndent(editor.can().sinkListItem('listItem'));
@@ -1384,14 +1437,14 @@ export const EditorToolbar = ({
         setCanOutdent(true);
       }
     };
-    
+
     // Initial state computation
     updateIndentState();
-    
+
     // 🔥 Update only when selection changes (not on every render)
     editor.on('selectionUpdate', updateIndentState);
     editor.on('update', updateIndentState);
-    
+
     // Cleanup event listeners
     return () => {
       editor.off('selectionUpdate', updateIndentState);
@@ -1419,7 +1472,7 @@ export const EditorToolbar = ({
       .focus()
       .toggleCodeBlock({ language })  // language set in same transaction
       .run();
-    
+
     setSelectedCodeLanguage(language);
     setShowCodeBlockMenu(false);
     toast.success(`${language} code block inserted`);
@@ -1569,10 +1622,10 @@ export const EditorToolbar = ({
     // the user sees a spinner that never resolves and the dialog stays open.
     //
     // SOLUTION: Set crossOrigin BEFORE img.src, add proper error handling
-    
+
     // Must be set BEFORE img.src to work
     img.crossOrigin = 'anonymous';
-    
+
     img.onerror = () => {
       console.error('❌ Failed to load image for cropping:', selectedImage);
       toast.error('Cannot crop this image — it may be from a cross-origin server without CORS support. Try downloading and re-uploading the image first.');
@@ -2011,7 +2064,7 @@ export const EditorToolbar = ({
     }
 
     const { from, to } = editor.state.selection;
-    
+
     // 🔥 CRITICAL FIX: Validate selection first
     if (from === to) {
       toast.error('Select some text first');
@@ -2120,15 +2173,15 @@ export const EditorToolbar = ({
   // to count matches in actual text nodes, wrap in try-catch for invalid input
   const performFind = (term, replaceWith = null) => {
     if (!editor || !term) return;
-    
+
     // 🔥 Safely escape all special regex characters
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
+
     let count = 0;
     try {
       // Create case-insensitive regex from escaped term
       const re = new RegExp(escaped, 'gi');
-      
+
       // 🔥 Traverse actual ProseMirror document structure
       // This counts matches in real text nodes, not a flattened string
       editor.state.doc.descendants((node) => {
@@ -2144,7 +2197,7 @@ export const EditorToolbar = ({
       toast.error('Invalid search term. Please try different text.');
       return;
     }
-    
+
     if (replaceWith !== null) {
       // 🔥 Replace All using ProseMirror transaction
       // Note: Full replace-all implementation would require tracking positions
@@ -2158,25 +2211,25 @@ export const EditorToolbar = ({
       }
     }
   };
-  
+
   // 🔥 Helper: Replace all occurrences using ProseMirror transactions
   const replaceAll = (editor, searchTerm, replacement) => {
     if (!editor || !searchTerm || !replacement) return;
-    
+
     try {
       const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(escaped, 'gi');
-      
+
       // Collect all replacement positions first (don't modify during traversal)
       const replacements = [];
       let offset = 0;
-      
+
       editor.state.doc.descendants((node, pos) => {
         if (node.isText && node.text) {
           let match;
           // Reset regex lastIndex for each node
           re.lastIndex = 0;
-          
+
           while ((match = re.exec(node.text)) !== null) {
             replacements.push({
               from: pos + match.index,
@@ -2186,20 +2239,20 @@ export const EditorToolbar = ({
           }
         }
       });
-      
+
       // Apply replacements in reverse order to preserve positions
       if (replacements.length > 0) {
         const transaction = editor.state.tr;
-        
+
         replacements
           .sort((a, b) => b.from - a.from) // Reverse order
           .forEach(({ from, to, text }) => {
             transaction.replaceWith(from, to, editor.schema.text(text));
           });
-        
+
         // CRITICAL: Mark as single history step for clean Ctrl+Z behavior
         transaction.setMeta('addToHistory', true);
-        
+
         editor.view.dispatch(transaction);
         toast.success(`Replaced ${replacements.length} occurrence(s)`);
       } else {
@@ -2248,18 +2301,18 @@ export const EditorToolbar = ({
   // SOLUTION: Fetch content from backend, use Dialog for confirmation, preserve undo history
   const restoreVersion = async (version) => {
     if (!editor || !version?.id) return;
-    
+
     try {
       // 🔥 Fetch full content from backend (not stored in React state anymore)
       const versionData = await TextEditorService.getVersionById(docIdRef.current, version.id);
-      
+
       // Merge metadata with fetched content
       const versionWithContent = {
         ...version,
         content: versionData.content || versionData.data?.content,
         title: versionData.title || version.title,
       };
-      
+
       // Show confirmation dialog before overwriting current work
       setRestoreTarget(versionWithContent);
     } catch (error) {
@@ -2267,42 +2320,42 @@ export const EditorToolbar = ({
       toast.error('Failed to load version: ' + error.message);
     }
   };
-  
-    const confirmRestore = async () => {
+
+  const confirmRestore = async () => {
     if (!editor || !restoreTarget?.content) return;
-    
+
     try {
       // 🔥 CRITICAL FIX: Actually save current state before restoring (no false promises!)
       // Step 1: Auto-save current content as a new version
       const currentContent = editor.getHTML();
       const currentTimestamp = new Date();
-      
+
       // Create a snapshot version before restore
-      await saveCurrentVersion({ 
+      await saveCurrentVersion({
         autoSave: true,
         reason: `Auto-saved before restoring "${restoreTarget.title}"`
       });
-      
+
       toast.success('Current version saved');
-      
+
       // Wait a moment to ensure save completes
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Step 2: Now restore the selected version with proper undo history
       // Capture current state again (in case it changed during save)
       const snapshotBeforeRestore = editor.getHTML();
-      
+
       // Set target content WITHOUT adding to history initially
       editor.commands.setContent(restoreTarget.content, false);
-      
+
       // Push the pre-restore state as a history step so Ctrl+Z works
       editor.commands.setContent(snapshotBeforeRestore, false);
-      
+
       // Now set the target content WITH history - creates clean undo point
       editor.commands.setContent(restoreTarget.content, true);
-      
+
       toast.success(`✅ Restored version "${restoreTarget.title}" from ${restoreTarget.timestamp?.toLocaleString()}`);
-      
+
       // Clear restore target and close history dialog
       setRestoreTarget(null);
       setShowVersionHistory(false);
@@ -2312,11 +2365,11 @@ export const EditorToolbar = ({
       setRestoreTarget(null);
     }
   };
-  
+
   const cancelRestore = () => {
     setRestoreTarget(null);
   };
-  
+
   // 🔥 CRITICAL FIX: Document deletion with confirmation and backend sync
   // 
   // PROBLEM: editor.commands.clearContent() empties editor locally but document remains in MongoDB.
@@ -2330,11 +2383,11 @@ export const EditorToolbar = ({
       toast.error('Document has not been saved yet');
       return;
     }
-    
+
     // Show confirmation dialog before deleting
     setShowDeleteConfirm(true);
   };
-  
+
   // 🔥 CRITICAL FIX: Duplicate document via backend API
   // 
   // PROBLEM: The duplicate action opens /editor in a new tab and shows a toast
@@ -2349,21 +2402,21 @@ export const EditorToolbar = ({
       toast.error('Save the document first before duplicating');
       return;
     }
-    
+
     try {
       // 🔥 Clone document on backend - copies all content, metadata, versions
       const { newId } = await TextEditorService.cloneDocument(id);
-      
+
       // ✅ Open the newly cloned document in a new tab
       window.open(`/editor/${newId}`, '_blank', 'noopener,noreferrer');
-      
+
       toast.success('Document duplicated — opened in new tab');
     } catch (error) {
       console.error('Failed to duplicate document:', error);
       toast.error('Failed to duplicate: ' + error.message);
     }
   };
-  
+
   const confirmDelete = async () => {
     const id = docIdRef.current;
     if (!id) {
@@ -2371,21 +2424,21 @@ export const EditorToolbar = ({
       setShowDeleteConfirm(false);
       return;
     }
-    
+
     try {
       // Delete from backend
       await TextEditorService.deleteDocument(id);
-      
+
       toast.success('Document deleted successfully');
-      
+
       // Clear editor and navigate back to home/new document
       editor.commands.clearContent();
-      
+
       // Navigate to new document page (clean state)
       setTimeout(() => {
         navigate('/editor');
       }, 500);
-      
+
       setShowDeleteConfirm(false);
     } catch (error) {
       console.error('❌ Failed to delete document:', error);
@@ -2393,7 +2446,7 @@ export const EditorToolbar = ({
       setShowDeleteConfirm(false);
     }
   };
-  
+
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
   };
@@ -2974,6 +3027,11 @@ export const EditorToolbar = ({
       }}
     />
   );
+
+  // 🔥 CRITICAL FIX: Early return MUST be AFTER all hooks to satisfy Rules of Hooks
+  // PROBLEM: If editor is null on first render, hooks are not called, then on second render
+  // they are. This causes React Internal Error: Expected static flag was missing.
+  if (!editor) return null;
 
   return (
     <motion.div
@@ -3944,195 +4002,20 @@ export const EditorToolbar = ({
         <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* AI Assistant Button - Rectangular with Sparkle Icon */}
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              onMouseDown={(e) => {
-                preventEditorBlur(e);
-                try { saveSelection(editor); } catch { }
-                window.isToolbarInteraction = true;
-                setTimeout(() => { window.isToolbarInteraction = false; }, 300);
-              }}
-              className="h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 border border-purple-300 shadow-md hover:shadow-lg text-white"
-            >
-              <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-xs font-semibold">AI Assist</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            onCloseAutoFocus={(e) => e.preventDefault()}
-            className="w-96 p-0 rounded-2xl shadow-2xl border border-purple-200 bg-white overflow-hidden"
-            align="end"
-            side="bottom"
-          >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-4 text-white">
-              <h3 className="text-base font-bold flex items-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                AI Assistant
-              </h3>
-              <p className="text-xs text-purple-100 mt-1">Generate, transform, and enhance content with AI</p>
-            </div>
-
-            {/* Content */}
-            <div className="p-4 max-h-[600px] overflow-y-auto custom-scrollbar">
-              {/* Quick Actions - Always Available */}
-              <div className="mb-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                  Quick Actions
-                </h4>
-                <div className="grid grid-cols-1 gap-2">
-                  <button
-                    onClick={() => {
-                      setShowAIAssistant(true);
-                      onMenuClose(editor);
-                      // Force focus on image generation by ensuring no text is selected
-                      if (editor) {
-                        editor.chain().focus().run();
-                      }
-                    }}
-                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-blue-50 to-cyan-50 text-blue-800 hover:from-blue-100 hover:to-cyan-100 transition-all duration-200 border border-blue-200 hover:border-blue-300 hover:shadow-md font-medium"
-                  >
-                    <Image className="w-4 h-4 inline mr-2" />
-                    Generate Image with AI
-                  </button>
-                </div>
-              </div>
-
-              {/* Transform & Enhance Section - Always Visible */}
-              <div className="mb-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  Transform Selected Text
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    disabled={!editor || editor.state.selection.from === editor.state.selection.to}
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('summarize', text);
-                        onMenuClose(editor);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                    }}
-                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${!editor || editor.state.selection.from === editor.state.selection.to
-                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                        : 'bg-linear-to-br from-orange-50 to-orange-100 text-orange-800 hover:from-orange-100 hover:to-orange-200 border-orange-200 hover:border-orange-300'
-                      }`}
-                  >
-                    <Minus className="w-4 h-4 inline mr-2" />
-                    Summarize
-                  </button>
-                  <button
-                    disabled={!editor || editor.state.selection.from === editor.state.selection.to}
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('expand', text);
-                        onMenuClose(editor);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                    }}
-                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium ${!editor || editor.state.selection.from === editor.state.selection.to
-                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                        : 'bg-linear-to-br from-green-50 to-green-100 text-green-800 hover:from-green-100 hover:to-green-200 border-green-200 hover:border-green-300'
-                      }`}
-                  >
-                    <Plus className="w-4 h-4 inline mr-2" />
-                    Expand Content
-                  </button>
-                  <button
-                    disabled={!editor || editor.state.selection.from === editor.state.selection.to}
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('rewrite', text);
-                        onMenuClose(editor);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                    }}
-                    className={`text-sm px-3 py-2.5 rounded-xl transition-all duration-200 border text-left font-medium col-span-2 ${!editor || editor.state.selection.from === editor.state.selection.to
-                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                        : 'bg-linear-to-br from-blue-50 to-blue-100 text-blue-800 hover:from-blue-100 hover:to-blue-200 border-blue-200 hover:border-blue-300'
-                      }`}
-                  >
-                    <Wand2 className="w-4 h-4 inline mr-2" />
-                    Enhance Content
-                  </button>
-                </div>
-              </div>
-
-              {/* AI Agent Inline Changes Section */}
-              <div className="mb-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                  AI Agent Inline Changes
-                </h4>
-                <div className="space-y-2">
-                  <button
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('change_tone', text);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                      onMenuClose(editor);
-                    }}
-                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-purple-50 to-indigo-50 text-purple-800 hover:from-purple-100 hover:to-indigo-100 transition-all duration-200 border border-purple-200 hover:border-purple-300 hover:shadow-md font-medium"
-                  >
-                    <Smile className="w-4 h-4 inline mr-2" />
-                    Change Tone
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('paraphrase', text);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                      onMenuClose(editor);
-                    }}
-                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-amber-50 to-yellow-50 text-amber-800 hover:from-amber-100 hover:to-yellow-100 transition-all duration-200 border border-amber-200 hover:border-amber-300 hover:shadow-md font-medium"
-                  >
-                    <RefreshCw className="w-4 h-4 inline mr-2" />
-                    Paraphrase
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
-                      if (text) {
-                        await handleAIInlineAction('improve_readability', text);
-                      } else {
-                        toast.error('Please select text first');
-                      }
-                      onMenuClose(editor);
-                    }}
-                    className="w-full text-left text-sm px-4 py-2.5 rounded-xl bg-linear-to-r from-emerald-50 to-green-50 text-emerald-800 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 border border-emerald-200 hover:border-emerald-300 hover:shadow-md font-medium"
-                  >
-                    <BookOpen className="w-4 h-4 inline mr-2" />
-                    Improve Readability
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-purple-200 px-5 py-3 bg-purple-50">
-              <p className="text-xs text-purple-700 text-center font-medium">
-                <Sparkles className="w-3.5 h-3.5 inline mr-1.5" />
-                Powered by Athena AI
-              </p>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="ghost"
+          onClick={() => setShowAIAssistant(true)}
+          onMouseDown={(e) => {
+            preventEditorBlur(e);
+            try { saveSelection(editor); } catch { }
+            window.isToolbarInteraction = true;
+            setTimeout(() => { window.isToolbarInteraction = false; }, 300);
+          }}
+          className="h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 border border-purple-300 shadow-md hover:shadow-lg text-white"
+        >
+          <Sparkles className="w-4 h-4 text-white" />
+          <span className="text-xs font-semibold">AI Assist</span>
+        </Button>
 
         <Separator orientation="vertical" className="mx-2 h-5" />
       </div >
@@ -4301,7 +4184,7 @@ export const EditorToolbar = ({
                 <Button
                   onClick={() => {
                     if (!linkUrl || !editor) return;
-                    
+
                     // 🔥 CRITICAL FIX: Validate image URL to prevent XSS attacks
                     // 
                     // PROBLEM: The "Insert from Web" dialog passes linkUrl directly to
@@ -4326,7 +4209,7 @@ export const EditorToolbar = ({
                         return null;
                       }
                     };
-                    
+
                     const safeUrl = sanitizeImageUrl(linkUrl);
                     if (safeUrl) {
                       editor
@@ -4456,16 +4339,16 @@ export const EditorToolbar = ({
             {/* Language Selection */}
             <div className="space-y-2">
               <Label htmlFor="codeLanguage">Default Language</Label>
-              <Select value={selectedCodeLanguage} onValueChange={setSelectedCodeLanguage}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select language..." />
-                </SelectTrigger>
-                <SelectContent onCloseAutoFocus={(e) => e.preventDefault()}>
-                  {CODE_LANGUAGES.map((lang) => (
-                    <SelectItem key={lang} value={lang}>
-                      {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                    </SelectItem>
-                  ))}
+                  <Select value={selectedCodeLanguage} onValueChange={setSelectedCodeLanguage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select language..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CODE_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang} value={lang}>
+                          {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                        </SelectItem>
+                      ))}
                 </SelectContent>
               </Select>
             </div>
@@ -4832,118 +4715,6 @@ export const EditorToolbar = ({
         </div>
       )}
 
-      {/* AI Assistant Dialog */}
-      <AIAssistant
-        open={showAIAssistant}
-        onOpenChange={setShowAIAssistant}
-        onGenerateDocument={(data) => {
-          console.log('📝 AI Generate document:', data);
-
-          if (!editor) return;
-
-          // ✅ FIX: Properly insert AI-generated HTML content into editor
-          const insertGeneratedContent = async () => {
-            try {
-              // Clear current content and show loading state
-              editor.commands.clearContent();
-              editor.commands.insertContent(
-                '<div style="text-align: center; padding: 40px;">' +
-                  '<h1 style="color: #3b82f6; font-size: 28px; margin-bottom: 16px;">✨ Forging your document...</h1>' +
-                  '<p style="color: #6b7280; font-size: 16px;">Please wait while the AI generates your content.</p>' +
-                '</div>'
-              );
-
-              // If content is provided, parse and insert it with professional formatting
-              if (data.html) {
-                console.log('📄 Raw AI content received:', data.html.substring(0, 200) + '...');
-                console.log('📄 Content type:', typeof data.html);
-                console.log('📄 Starts with markdown code block?', data.html.startsWith('```'));
-
-                // Clean markdown code blocks if present
-                let cleanContent = data.html;
-                if (cleanContent.startsWith('```html') || cleanContent.startsWith('```markdown') || cleanContent.startsWith('```')) {
-                  console.log('🧹 Removing markdown code block wrappers...');
-                  cleanContent = cleanContent.replace(/^```\w*\s*/i, '').replace(/```\s*$/i, '').trim();
-                }
-
-                console.log('📄 Clean content length:', cleanContent.length);
-                console.log('📄 First 100 chars after cleaning:', cleanContent.substring(0, 100));
-
-                // ✅ CRITICAL: Convert markdown to HTML with proper formatting
-                console.log('🔄 Converting markdown to HTML...');
-                const htmlContent = parseMarkdownToHtml(cleanContent);
-                console.log('✅ HTML conversion complete. Output length:', htmlContent.length);
-                console.log('📄 HTML preview:', htmlContent.substring(0, 200) + '...');
-
-                // ✅ Add professional styling wrapper
-                const styledContent = `
-                  <div class="professional-document">
-                    ${htmlContent}
-                  </div>
-                `;
-
-                console.log('🎨 Styled content created, inserting into editor...');
-
-                setTimeout(() => {
-                  // Sanitize and insert
-                  const sanitized = DOMPurify.sanitize(styledContent);
-                  console.log('🔒 Sanitized content length:', sanitized.length);
-
-                  editor.commands.setContent(sanitized);
-                  console.log('✅ Content inserted successfully!');
-
-                  toast.success(`Document generated — ${data.pages} page${data.pages > 1 ? 's' : ''}!`);
-
-                  // Force pagination to properly distribute content
-                  import('../utils/paginationEngine.js').then(({ paginateDocument }) => {
-                    setTimeout(() => {
-                      console.log('📑 Running pagination...');
-                      paginateDocument(editor, { force: true });
-                    }, 50); // Small delay for DOM to settle
-                  });
-                }, 150); // Slightly longer delay for better UX
-              }
-
-              setShowAIAssistant(false);
-            } catch (error) {
-              console.error('Failed to insert generated content:', error);
-              toast.error('Failed to display generated document');
-            }
-          };
-
-          insertGeneratedContent();
-        }}
-        onInlineAction={(behavior, content) => {
-          if (!editor) return;
-          // ✅ BUG 1 FIX: Parse markdown to HTML before inserting
-          const html = parseMarkdownToHtml(content);
-          if (behavior === 'replace') {
-            editor.chain().focus().deleteSelection().insertContent(html).run();
-          } else if (behavior === 'append') {
-            editor.chain().focus().insertContent(html).run();
-          }
-          toast.success('AI action applied');
-        }}
-        onImageInsert={(imageUrl, altText) => {
-          if (!editor) return;
-          try {
-            editor.chain().focus().setResizableImage({
-              src: imageUrl,
-              alt: altText,
-              title: altText || 'AI Generated Image',
-              width: 400,
-              height: 300,
-              align: 'left'
-            }).run();
-            toast.success('AI image inserted successfully');
-          } catch (error) {
-            editor.chain().focus().setImage({ src: imageUrl, alt: altText }).run();
-            toast.success('AI image inserted');
-          }
-        }}
-        selectedText={editor ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') : ''}
-      />
-
     </motion.div >
   );
 };
@@ -4976,7 +4747,7 @@ const TextEditorContent = ({
 }) => {
   // Note: Use canonical constants from utils/pagination/constants.js
   // A4_HEIGHT_PX = 1123, A4_WIDTH_PX = 794
-  
+
   const { state: editorState = {}, actions: editorActions = {} } = useEditorContext() || {};
   const { state: imageState = {}, actions: imageActions = {} } = useImageContext() || {};
   const { exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
@@ -5005,11 +4776,11 @@ const TextEditorContent = ({
   // SOLUTION: Read volatile values from refs inside the callback - always fresh, stable deps
   const documentTitleRef = useRef(documentTitle);
   const zoomRef = useRef(zoom);
-  
+
   useEffect(() => {
     documentTitleRef.current = documentTitle;
   }, [documentTitle]);
-  
+
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -5107,10 +4878,14 @@ const TextEditorContent = ({
 
   const isPastingRef = useRef(false);
   const pasteTimerRef = useRef(null);
-  
+
   // 🔥 CRITICAL FIX: Use plain ref for selection change tracking - not extension storage
   // Extension storage can be cleared/re-initialized by other extensions, breaking pagination timing
   const lastSelectionChangeRef = useRef(0);
+  const isInsertingRef = useRef(false);
+  const lastFingerprintRef = useRef('');
+  const lastPasteTimeRef = useRef(0);
+  const docIdRef = useRef(null);
 
   // 🔥 CRITICAL FIX: Use React Router hooks for SSR-safe, navigation-aware docId retrieval
   // 
@@ -5123,7 +4898,7 @@ const TextEditorContent = ({
   const navigate = useNavigate();
   const { mongoId: urlMongoId } = useParams();
   const [searchParams] = useSearchParams();
-  
+
   const docId = useMemo(() => {
     const qp = searchParams.get('docId');
     if (qp && /^[0-9a-fA-F]{24}$/.test(qp)) {
@@ -5137,6 +4912,11 @@ const TextEditorContent = ({
     console.log('[docId] No valid docId found');
     return null;
   }, [urlMongoId, searchParams]);
+
+  // Sync docIdRef whenever docId changes for safe use in debounced callbacks
+  useEffect(() => {
+    docIdRef.current = docId;
+  }, [docId]);
 
   // 🚀 OPTIMIZATION: Get document from sessionStorage instead of API call
   // EditorIntro already fetched it, so we don't need to call GET API again
@@ -5179,14 +4959,14 @@ const TextEditorContent = ({
   //
   // SOLUTION: Use a ref to always read the latest docId and editor state
   const saveRef = useRef(null);
-  
+
   // Initialize debounced save function once (on mount)
   if (!saveRef.current) {
     saveRef.current = debounce(async () => {
       // Always read latest values from refs
       const id = docIdRef.current;
       const ed = editorRef.current;
-      
+
       if (!id || !ed || ed.isDestroyed) {
         console.log('⏭️ Skipping save - no document ID or editor not ready');
         return;
@@ -5247,7 +5027,7 @@ const TextEditorContent = ({
       if (!editorRef.current || editorRef.current.isDestroyed) {
         return;
       }
-      
+
       const newWordCount = wordCountRef.current;
       const newCharCount = characterCountRef.current;
       const newReadingTime = readingTimeRef.current;
@@ -5755,7 +5535,7 @@ const TextEditorContent = ({
       for (let depth = $from.depth; depth > 0; depth--) {
         const node = $from.node(depth);
         if (node && (node.type.name === 'table' || node.type.name === 'tableRow' ||
-            node.type.name === 'tableCell' || node.type.name === 'customTable')) {
+          node.type.name === 'tableCell' || node.type.name === 'customTable')) {
           console.log('[TextEditor] Skipping pagination - cursor inside table');
           return;
         }
@@ -5976,7 +5756,7 @@ const TextEditorContent = ({
         const tablesData = [];
         const imagesData = [];
         const links = [];
-        
+
         editorInstance.state.doc.descendants((node, pos) => {
           const type = node.type.name;
           if (type === 'heading') {
@@ -6003,7 +5783,7 @@ const TextEditorContent = ({
               position: pos
             });
           }
-          
+
           // Extract links from marks
           node.marks.forEach(mark => {
             if (mark.type.name === 'link') {
@@ -6015,7 +5795,7 @@ const TextEditorContent = ({
             }
           });
         });
-        
+
         headingsRef.current = newHeadings;
         paragraphsRef.current = paragraphs;
         imagesRef.current = images;
@@ -6366,7 +6146,7 @@ const TextEditorContent = ({
       }
       // Italic: *text* or _text_
       else if ((part.startsWith('*') && part.endsWith('*')) ||
-               (part.startsWith('_') && part.endsWith('_'))) {
+        (part.startsWith('_') && part.endsWith('_'))) {
         const marks = [schema.marks.em.create()];
         content.push(schema.text(part.slice(1, -1), marks));
       }
@@ -6399,7 +6179,7 @@ const TextEditorContent = ({
     if (process.env.NODE_ENV !== 'development') {
       return;
     }
-    
+
     if (editor) {
       // ✅ Use namespaced name with __ prefix to indicate internal/debug API
       window.__athenaPaginationDebug = () => {
@@ -6430,7 +6210,7 @@ const TextEditorContent = ({
 
       console.log('💡 [Athena Debug] Run window.__athenaPaginationDebug() in console to debug pagination');
     }
-    
+
     // ✅ CLEANUP: Remove debug function on unmount or editor change
     return () => {
       if (window.__athenaPaginationDebug) {
@@ -6480,20 +6260,20 @@ const TextEditorContent = ({
   // 🔥 CRITICAL FIX: Store only metadata in React state — full content stays on backend
   const saveCurrentVersion = useCallback(async (options = {}) => {
     if (!editor) return;
-    
+
     const id = docIdRef.current;
     if (!id) {
       toast.error('Save document before creating a version');
       return;
     }
-    
+
     try {
       // 🔥 Create version on backend - content is already auto-saved
       const result = await TextEditorService.createVersion(id, {
         title: options.reason || `Version ${documentVersions.length + 1}`,
         author: 'You',
       });
-      
+
       // ✅ Only store metadata in state — no HTML blob!
       setDocumentVersions(prev => [{
         id: result.versionId || result.id || Date.now(),
@@ -6502,7 +6282,7 @@ const TextEditorContent = ({
         wordCount: wordCountRef.current,
         author: result.author || 'You',
       }, ...prev].slice(0, 50)); // Cap at 50 versions to prevent unbounded growth
-      
+
       toast.success('Version saved to backend');
     } catch (error) {
       console.error('Failed to save version:', error);
@@ -6519,7 +6299,7 @@ const TextEditorContent = ({
       // 🔥 CRITICAL FIX: Read volatile values from refs (always fresh, stable closure)
       const title = documentTitleRef.current;
       const currentZoom = zoomRef.current;
-      
+
       // 🔥 CRITICAL FIX: Use already-computed refs from onUpdate stats collector
       // PROBLEM: editor.state.doc.descendants() is O(n) and was being called twice - once
       // in onUpdate stats and again here in save path. This doubles main-thread work.
@@ -6625,7 +6405,7 @@ const TextEditorContent = ({
         console.log('📝 Updating existing document with ID:', docIdToUpdate);
         console.log('🔍 Document ID source:', {
           from_mongoId_prop: !!mongoId,
-          from_url_path: !!(function() {
+          from_url_path: !!(function () {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
             const lastPart = pathParts[pathParts.length - 1];
             return /^[0-9a-fA-F]{24}$/.test(lastPart) ? lastPart : null;
@@ -6762,7 +6542,7 @@ const TextEditorContent = ({
       let targetPos = null;
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading' &&
-            (node.attrs.id === headingId || `${pos}` === headingId.replace('heading-', '').split('-')[0])) {
+          (node.attrs.id === headingId || `${pos}` === headingId.replace('heading-', '').split('-')[0])) {
           targetPos = pos;
           return false; // Stop searching
         }
@@ -6977,18 +6757,18 @@ const TextEditorContent = ({
   // 🔥 CRITICAL FIX: Version restore function - fetches content from backend
   const restoreVersion = useCallback(async (version) => {
     if (!editor || !version?.id) return;
-    
+
     try {
       // 🔥 Fetch full content from backend (not stored in React state anymore)
       const versionData = await TextEditorService.getVersionById(docIdRef.current, version.id);
-      
+
       // Merge metadata with fetched content
       const versionWithContent = {
         ...version,
         content: versionData.content || versionData.data?.content,
         title: versionData.title || version.title,
       };
-      
+
       // Show confirmation dialog before overwriting current work
       setRestoreTarget(versionWithContent);
     } catch (error) {
@@ -7009,38 +6789,38 @@ const TextEditorContent = ({
   // These handle the version restore confirmation dialog
   const confirmRestore = useCallback(async () => {
     if (!editor || !restoreTarget?.content) return;
-    
+
     try {
       // 🔥 CRITICAL FIX: Actually save current state before restoring (no false promises!)
       // Step 1: Auto-save current content as a new version
       const currentContent = editor.getHTML();
-      
+
       // Create a snapshot version before restore
-      await saveCurrentVersion({ 
+      await saveCurrentVersion({
         autoSave: true,
         reason: `Auto-saved before restoring "${restoreTarget.title}"`
       });
-      
+
       toast.success('Current version saved');
-      
+
       // Wait a moment to ensure save completes
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Step 2: Now restore the selected version with proper undo history
       // Capture current state again (in case it changed during save)
       const snapshotBeforeRestore = editor.getHTML();
-      
+
       // Set target content WITHOUT adding to history initially
       editor.commands.setContent(restoreTarget.content, false);
-      
+
       // Push the pre-restore state as a history step so Ctrl+Z works
       editor.commands.setContent(snapshotBeforeRestore, false);
-      
+
       // Now set the target content WITH history - creates clean undo point
       editor.commands.setContent(restoreTarget.content, true);
-      
+
       toast.success(`✅ Restored version "${restoreTarget.title}" from ${restoreTarget.timestamp?.toLocaleString()}`);
-      
+
       // Clear restore target and close history dialog
       setRestoreTarget(null);
       setShowVersionHistory(false);
@@ -7068,21 +6848,21 @@ const TextEditorContent = ({
       setShowDeleteConfirm(false);
       return;
     }
-    
+
     try {
       // Delete from backend
       await TextEditorService.deleteDocument(id);
-      
+
       toast.success('Document deleted successfully');
-      
+
       // Clear editor and navigate back to home/new document
       editor.commands.clearContent();
-      
+
       // Navigate to new document page (clean state)
       setTimeout(() => {
         navigate('/editor');
       }, 500);
-      
+
       setShowDeleteConfirm(false);
     } catch (error) {
       console.error('❌ Failed to delete document:', error);
@@ -7119,7 +6899,7 @@ const TextEditorContent = ({
   useEffect(() => {
     return () => {
       console.log('🧹 Cleaning up all timeouts and timers on unmount');
-      
+
       // Clear ALL pending timeouts
       [
         statsTimeoutRef,
@@ -7133,16 +6913,16 @@ const TextEditorContent = ({
           ref.current = null;
         }
       });
-      
+
       // Cancel lodash debounce (if active)
       if (saveRef.current?.cancel) {
         saveRef.current.cancel();
         console.log('🧹 Cancelled debounced save');
       }
-      
+
       // Nullify editor ref to prevent stale references
       editorRef.current = null;
-      
+
       console.log('✅ All timers cleaned up, editor ref nulled');
     };
   }, []);
@@ -7175,6 +6955,7 @@ const TextEditorContent = ({
               onPrint={handlePrint}
               onDelete={handleDeleteDocument}
               onFindReplace={handleFindReplace}
+              onOpenAIAssistant={() => setShowAIAssistant(true)}
               editor={editor}
               zoom={zoom}
               onZoomChange={handleZoomChange}
@@ -7619,14 +7400,14 @@ const TextEditorContent = ({
                           </div>
                           {imageUrl && (
                             <div className="rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center relative group">
-                              <img 
-                                src={imageUrl} 
-                                alt="Preview" 
-                                className="w-full h-full object-contain" 
+                              <img
+                                src={imageUrl}
+                                alt="Preview"
+                                className="w-full h-full object-contain"
                                 onError={(e) => {
-                                  e.currentTarget.onerror = null; // prevent infinite loop
-                                  e.currentTarget.src = '/placeholder-image.svg'; // real asset path
-                                }} 
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://placehold.co/600x400?text=Invalid+Image+URL';
+                                }}
                               />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <span className="text-white text-xs font-medium">Image Preview</span>
@@ -7699,7 +7480,7 @@ const TextEditorContent = ({
                 // and paginateDocument runs before the setContent DOM update has been committed.
                 //
                 // SOLUTION: Use requestAnimationFrame for guaranteed post-DOM-commit execution
-                
+
                 // If content is provided, parse and insert it with professional formatting
                 if (data.html) {
                   console.log('📄 Inserting generated content...');
@@ -7773,7 +7554,7 @@ const TextEditorContent = ({
               toast.success('AI image inserted');
             }
           }}
-          selectedText={editor?.state?.doc?.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || ''}
+          selectedText={editor?.state?.selection ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') : ''}
         />
       </div>
     </TooltipProvider>

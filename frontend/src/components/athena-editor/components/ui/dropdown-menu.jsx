@@ -37,7 +37,7 @@ const DropdownMenuSubTrigger = React.forwardRef(({ className, inset, children, .
 DropdownMenuSubTrigger.displayName =
   DropdownMenuPrimitive.SubTrigger.displayName
 
-const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) => {
+const DropdownMenuSubContent = React.forwardRef(({ className, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when submenu opens
   const handleOpenAutoFocus = useCallback((e) => {
     e.preventDefault();
@@ -59,8 +59,8 @@ const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) =
       window.wasToolbarInteractionRecent = false;
     }, 1000);
     
-    props.onOpenAutoFocus?.(e);
-  }, []);
+    onOpenAutoFocus?.(e);
+  }, [onOpenAutoFocus]);
   
   return (
     <DropdownMenuPrimitive.SubContent
@@ -72,7 +72,7 @@ const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) =
       onOpenAutoFocus={handleOpenAutoFocus}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
-        props.onCloseAutoFocus?.(e);
+        onCloseAutoFocus?.(e);
       }}
       {...props}
     />
@@ -81,7 +81,7 @@ const DropdownMenuSubContent = React.forwardRef(({ className, ...props }, ref) =
 DropdownMenuSubContent.displayName =
   DropdownMenuPrimitive.SubContent.displayName
 
-const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => {
+const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when dropdown opens
   const handleOpenAutoFocus = useCallback((e) => {
     e.preventDefault();
@@ -103,8 +103,8 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...pr
       window.wasToolbarInteractionRecent = false;
     }, 1000);
     
-    props.onOpenAutoFocus?.(e);
-  }, []);
+    onOpenAutoFocus?.(e);
+  }, [onOpenAutoFocus]);
   
   return (
     <DropdownMenuPrimitive.Portal>
@@ -118,7 +118,7 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...pr
         onOpenAutoFocus={handleOpenAutoFocus}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          props.onCloseAutoFocus?.(e);
+          onCloseAutoFocus?.(e);
         }}
         {...props}
       />

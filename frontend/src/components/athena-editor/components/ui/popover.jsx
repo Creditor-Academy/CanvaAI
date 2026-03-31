@@ -7,7 +7,7 @@ const Popover = PopoverPrimitive.Root
 
 const PopoverTrigger = PopoverPrimitive.Trigger
 
-const PopoverContent = React.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => {
+const PopoverContent = React.forwardRef(({ className, align = "center", sideOffset = 4, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when popover opens
   const handleOpenAutoFocus = (e) => {
     e.preventDefault();
@@ -29,7 +29,7 @@ const PopoverContent = React.forwardRef(({ className, align = "center", sideOffs
       window.wasToolbarInteractionRecent = false;
     }, 1000);
     
-    props.onOpenAutoFocus?.(e);
+    onOpenAutoFocus?.(e);
   };
   
   return (
@@ -45,7 +45,7 @@ const PopoverContent = React.forwardRef(({ className, align = "center", sideOffs
         onOpenAutoFocus={handleOpenAutoFocus}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          props.onCloseAutoFocus?.(e);
+          onCloseAutoFocus?.(e);
         }}
         {...props}
       />

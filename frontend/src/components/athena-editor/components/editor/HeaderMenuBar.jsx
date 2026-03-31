@@ -117,8 +117,11 @@ const HeaderMenuBar = React.memo(({
 
   // AI Document Analysis - Opens unified AI Assistant
   const analyzeDocument = () => {
-    // The unified AI Assistant is now accessed via the toolbar button
-    toast.info('Click the AI Assistant button (✨) in the toolbar for advanced AI features');
+    if (onOpenAIAssistant) {
+      onOpenAIAssistant();
+    } else {
+      toast.info('Click the AI Assistant button (✨) in the toolbar for advanced AI features');
+    }
   };
 
   // AI Quick Improve

@@ -48,7 +48,7 @@ const SelectScrollDownButton = React.forwardRef(({ className, ...props }, ref) =
 ))
 SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName
 
-const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => {
+const SelectContent = React.forwardRef(({ className, children, position = "popper", onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when select dropdown opens
   const handleOpenAutoFocus = (e) => {
     e.preventDefault();
@@ -70,7 +70,7 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
       window.wasToolbarInteractionRecent = false;
     }, 1000);
     
-    props.onOpenAutoFocus?.(e);
+    onOpenAutoFocus?.(e);
   };
   
   return (
@@ -87,7 +87,7 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
         onOpenAutoFocus={handleOpenAutoFocus}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          props.onCloseAutoFocus?.(e);
+          onCloseAutoFocus?.(e);
         }}
         {...props}
       >
