@@ -4,7 +4,7 @@ import {
   FiType, FiImage, FiSquare, FiCircle, FiTriangle, FiEdit3,
   FiUpload, FiGrid, FiMaximize, FiStar, FiHeart, FiX,
   FiArrowUp, FiArrowDown, FiArrowLeft, FiArrowRight,
-  FiChevronDown, FiChevronRight, FiCloud, FiMousePointer, FiLayers
+  FiCloud, FiMousePointer, FiLayers
 } from 'react-icons/fi'
 import AIImageGenerator from '../AIImageGenerator'
 import { uploadTemporaryImage } from '@/services/imageEditor/imageApi'
@@ -38,11 +38,12 @@ const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, on
   return (
     <div className="relative">
       <button
+        type="button"
         ref={buttonRef}
         className={`${buttonStyle(isActive)} parent-nav-btn`}
         onMouseEnter={(e) => onMouseEnter(sectionKey, e.currentTarget)}
         onMouseLeave={onMouseLeave}
-        onClick={(e) => onClick(sectionKey, e.currentTarget)}
+        onMouseDown={(e) => { e.preventDefault(); onClick(sectionKey, e.currentTarget); }}
       >
         <span className="text-slate-700 group-hover:text-slate-900">{icon}</span>
         <span className="text-[8px] font-medium uppercase tracking-wider text-slate-600 group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
@@ -122,7 +123,6 @@ const LeftCanvasSidebar = memo(({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [expandedSection, setExpandedSection] = useState(null);
   const [expandedSectionPosition, setExpandedSectionPosition] = useState({ x: 0, y: 0, width: 0 });
-  const [expandedTemplateId, setExpandedTemplateId] = useState(null);
   const [referencePosition, setReferencePosition] = useState(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState(null);
@@ -700,28 +700,13 @@ const LeftCanvasSidebar = memo(({
             {templates.map(template => (
               <div key={template.id} className="flex flex-col gap-2">
                 <button
-                  className={`flex flex-col p-4 rounded-xl border transition-all text-left group ${expandedTemplateId === template.id ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/40 border-slate-700 hover:border-slate-500'}`}
+                  className={`flex flex-col p-4 rounded-xl border transition-all text-left group ${activeTemplateId === template.id ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/40 border-slate-700 hover:border-slate-500'}`}
                   onClick={() => {
-                    const isClosing = expandedTemplateId === template.id;
-                    const isAlreadyActive = activeTemplateId === template.id;
-
-                    if (isClosing) {
-                      setExpandedTemplateId(null);
-                      return;
-                    }
-
-                    if (isAlreadyActive) {
-                      // Just toggle accordion for current active layout
-                      setExpandedTemplateId(template.id);
-                      return;
-                    }
-
                     if (hasUnsavedChanges) {
                       setPendingTemplate(template);
                       setShowSaveConfirm(true);
                     } else {
                       handleTemplateSelect(template);
-                      setExpandedTemplateId(template.id);
                     }
                   }}
                 >
@@ -730,37 +715,8 @@ const LeftCanvasSidebar = memo(({
                       <p className="text-sm font-bold text-white">{template.name}</p>
                       <p className="text-[10px] text-slate-400 capitalize">{template.category} • {template.width} × {template.height}</p>
                     </div>
-                    {expandedTemplateId === template.id ? <FiChevronDown className="text-white" /> : <FiChevronRight className="text-slate-400" />}
                   </div>
                 </button>
-
-                {expandedTemplateId === template.id && (
-                  <div className="grid grid-cols-2 gap-2 mt-2 px-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {designTemplates
-                      .filter(dt => dt.width === template.width && dt.height === template.height)
-                      .map(dt => (
-                        <div
-                          key={dt.id}
-                          onClick={() => handleApplyDesignTemplate(dt)}
-                          className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer border border-slate-700 hover:border-blue-500 transition-all bg-slate-800"
-                        >
-                          <img
-                            src={dt.preview}
-                            alt={dt.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                            <p className="text-[9px] font-bold text-white truncate">{dt.name}</p>
-                          </div>
-                        </div>
-                      ))}
-                    {designTemplates.filter(dt => dt.width === template.width && dt.height === template.height).length === 0 && (
-                      <div className="col-span-2 py-4 text-center">
-                        <p className="text-slate-500 text-[10px]">No templates for this size yet</p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -862,7 +818,6 @@ const LeftCanvasSidebar = memo(({
                   setShowSaveConfirm(false);
                   if (pendingTemplate) {
                     handleTemplateSelect(pendingTemplate);
-                    setExpandedTemplateId(pendingTemplate.id);
                   }
                   setPendingTemplate(null);
                 }}
@@ -875,7 +830,6 @@ const LeftCanvasSidebar = memo(({
                   setShowSaveConfirm(false);
                   if (pendingTemplate) {
                     handleTemplateSelect(pendingTemplate);
-                    setExpandedTemplateId(pendingTemplate.id);
                   }
                   setPendingTemplate(null);
                 }}

@@ -35,6 +35,8 @@ const RightSidebar = ({
   handleLayerToggleVisibility,
   handleLayerDuplicate,
   handleLayerDelete,
+  handleLayerMoveUp,
+  handleLayerMoveDown,
   textSettings,
   handleTextContentChange,
   handleTextSettingsChange,
@@ -131,6 +133,8 @@ const RightSidebar = ({
     })
   }
 
+  const selectedIndex = layers.findIndex(l => l.id === selectedLayer);
+
   return (
     <div>
       <div className={`fixed right-0 top-10 bg-white overflow-y-auto h-[calc(100vh-100px)] z-10 transition-all duration-300 custom-scrollbar ${isRightSidebarCollapsed ? 'w-[60px] pt-10 pb-20 px-2' : 'w-[320px] pt-10 pb-20 px-5'}`}>
@@ -226,8 +230,20 @@ const RightSidebar = ({
         {selectedLayer && !isRightSidebarCollapsed && (
           <div className="mt-5 p-4 bg-gray-50 rounded-lg">
             <div className="flex gap-4 mb-4">
-              <button className='bg-blue-500 text-white px-4 py-2 rounded cursor-pointer'>Forward</button>
-              <button className='bg-blue-500 text-white px-4 py-2 rounded cursor-pointer'>Backward</button>
+              <button
+                className={`px-4 py-2 rounded ${selectedIndex >= layers.length - 1 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 text-white cursor-pointer'}`}
+                onClick={() => handleLayerMoveUp && selectedLayer && handleLayerMoveUp(selectedLayer)}
+                disabled={selectedIndex >= layers.length - 1}
+              >
+                Forward
+              </button>
+              <button
+                className={`px-4 py-2 rounded ${selectedIndex <= 0 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 text-white cursor-pointer'}`}
+                onClick={() => handleLayerMoveDown && selectedLayer && handleLayerMoveDown(selectedLayer)}
+                disabled={selectedIndex <= 0}
+              >
+                Backward
+              </button>
             </div>
             <h4 className="mb-4 text-base">Properties</h4>
 

@@ -47,7 +47,7 @@ const CanvaEditor = () => {
   const { id: projectId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   // Core state
   const [selectedTool, setSelectedTool] = useState('select');
   const [layers, setLayers] = useState([]);
@@ -210,7 +210,8 @@ const CanvaEditor = () => {
     handleCanvasMouseMove: handleCanvasMouseMoveBase,
     handleCanvasMouseLeave,
     handleCanvasClick: handleCanvasClickBase,
-    alignmentGuides
+    alignmentGuides,
+    rotateGuide
   } = useCanvasInteractions(
     layers,
     setLayers,
@@ -615,26 +616,83 @@ const CanvaEditor = () => {
     try {
       const fmt = format || exportFormat;
 
-      // ⭐ 1. EXPORT IMAGE FROM CANVAS
+      // 1) Export image from canvas (data URL)
       const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
       if (!dataUrl) return;
 
-      // ⭐ 2. DOWNLOAD IMAGE
-      const link = document.createElement("a");
       const safeName = fileName || `design-${Date.now()}`;
       const ext = fmt === "jpeg" ? "jpg" : fmt;
 
-      link.download = `${safeName}.${ext}`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // 2) If we have a saved project/image id, ask backend to export the stored image
+      // otherwise upload temporary image and ask backend to export the S3 URL
+      const hasValidImageId = projectId || false;
 
-      toast.success("Image downloaded successfully");
+      if (hasValidImageId) {
+        try {
+          const blob = await exportImage(projectId, ext);
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${safeName}.${ext}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          toast.success('Image downloaded successfully');
+          return;
+        } catch (e) {
+          console.warn('Backend export by projectId failed, falling back to temporary upload', e);
+        }
+      }
+
+      // 3) Fallback: upload temporary image and ask api.exportS3Image to generate requested format
+      // convert dataUrl to base64 payload expected by uploadTemporaryImage
+      try {
+        const payload = {
+          userId: user?._id || user?.id || '',
+          base64Image: dataUrl,
+          serviceId: `tmp-${Date.now()}`,
+        };
+
+        const resp = await uploadTemporaryImage(payload);
+        // resp may contain { url: 'https://s3...'}
+        const s3Url = resp?.url || resp?.data?.url;
+        if (s3Url) {
+          const blob = await api.exportS3Image(s3Url, ext);
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${safeName}.${ext}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          toast.success('Image downloaded successfully');
+          return;
+        }
+
+        // if server didn't return an S3 url, fallback to client-side download
+        const link = document.createElement('a');
+        link.download = `${safeName}.${ext}`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Image downloaded successfully (local)');
+      } catch (e) {
+        console.error('Temporary upload / backend export failed, falling back to local download', e);
+        const link = document.createElement('a');
+        link.download = `${safeName}.${ext}`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Image downloaded successfully (local)');
+      }
 
     } catch (error) {
       console.error(error);
-      toast.error("Failed to export image");
+      toast.error('Failed to export image');
     } finally {
       setIsExporting(false);
     }
@@ -1739,6 +1797,7 @@ const CanvaEditor = () => {
         {/* Toolbar Section - Sticky positioned, always shows */}
         {/* Editing Toolbar - Contains Selection, Effects, and Layer-specific controls */}
         <EditingToolbar
+          imageId={projectId}
           selectedLayer={selectedLayer}
           layer={selectedLayer ? layers.find(l => l.id === selectedLayer) : null}
           textSettings={textSettings}
@@ -1854,6 +1913,7 @@ const CanvaEditor = () => {
                     onPageRemove={handlePageRemove}
                     canRemovePage={pages.length > 1}
                     alignmentGuides={isActivePage ? alignmentGuides : { x: [], y: [] }}
+                    rotateGuide={isActivePage ? rotateGuide : null}
                     cropState={isActivePage ? cropState : null}
                     onApplyCrop={isActivePage ? handleApplyCrop : () => { }}
                     onCancelCrop={isActivePage ? handleCancelCrop : () => { }}
@@ -1928,6 +1988,8 @@ const CanvaEditor = () => {
               handleLayerToggleVisibility={handleLayerToggleVisibility}
               handleLayerDuplicate={handleLayerDuplicate}
               handleLayerDelete={handleLayerDelete}
+              handleLayerMoveUp={handleLayerMoveUp}
+              handleLayerMoveDown={handleLayerMoveDown}
               textSettings={textSettings}
               handleTextContentChange={handleTextContentChange}
               handleTextSettingsChange={handleTextSettingsChange}

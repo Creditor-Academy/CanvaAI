@@ -6,10 +6,24 @@ import { MdDeleteOutline } from "react-icons/md";
 import CropOverlay from './CropOverlay';
 
 const LayerComponent = memo(({
-  layer, isSelected, selectedTool, getShapeDisplayProps, onLayerSelect,
-  onMouseDown, onResizeMouseDown, onRotateMouseDown, onTextContentChange,
-  setSelectedLayer, getLayerPrimaryColor, onQuickColorChange, onDuplicate,
-  onDelete, onEnhanceText, isEnhancingText, renderLayerUIOnly = false
+  layer,
+  zoom = 100,
+  isSelected,
+  selectedTool,
+  getShapeDisplayProps,
+  onLayerSelect,
+  onMouseDown,
+  onResizeMouseDown,
+  onRotateMouseDown,
+  onTextContentChange,
+  setSelectedLayer,
+  getLayerPrimaryColor,
+  onQuickColorChange,
+  onDuplicate,
+  onDelete,
+  onEnhanceText,
+  isEnhancingText,
+  renderLayerUIOnly = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localText, setLocalText] = useState(layer.text || '');
@@ -430,6 +444,7 @@ const LayerComponent = memo(({
         <>
           {/* Enable pointer events for handles so they can be clicked */}
           <div style={{ pointerEvents: 'auto' }}>
+            {/* Inline FloatingToolbar (counter-scaled by zoom) so it remains fixed size when canvas zooms */}
             <FloatingToolbar
               layer={layer}
               onColorChange={onQuickColorChange}
@@ -438,6 +453,7 @@ const LayerComponent = memo(({
               onEnhance={onEnhanceText}
               isEnhancing={isEnhancingText}
               getLayerPrimaryColor={getLayerPrimaryColor}
+              zoom={zoom}
             />
 
             {/* 🔵 Corner Resize Handles */}
@@ -482,12 +498,12 @@ const LayerComponent = memo(({
               className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
             />
 
-            {/* 🔄 Rotate Handle */}
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
+            {/* 🔄 Rotate Handle (moved below) */}
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
 
             <div
               onMouseDown={(e) => onRotateMouseDown(e, layer)}
-              className="absolute -top-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
+              className="absolute -bottom-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
             >
               <FiRotateCw size={12} color="#3182ce" />
             </div>
@@ -508,7 +524,7 @@ const CanvasArea = ({
   getShapeDisplayProps, handleQuickColorChange, handleLayerDuplicate, handleLayerDelete,
   handleEnhanceText, isEnhancingText, getLayerPrimaryColor, setSelectedLayer,
   canvasBgColor = '#ffffff', canvasBgImage = null, handleUndo, handleRedo,
-  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] },
+  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] }, rotateGuide = null,
   cropState = null, onApplyCrop, onCancelCrop
 }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -529,6 +545,22 @@ const CanvasArea = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
+
+  // Compute diagonal rotate line endpoints when a rotateGuide is present
+  const rotateLine = (() => {
+    if (!rotateGuide) return null;
+    const { angle, cx, cy } = rotateGuide;
+    const rad = (angle * Math.PI) / 180;
+    const L = Math.hypot(canvasSize.width, canvasSize.height) * 1.2;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+    return {
+      x1: cx - dx * L,
+      y1: cy - dy * L,
+      x2: cx + dx * L,
+      y2: cy + dy * L,
+    };
+  })();
 
   return (
     <div
@@ -610,6 +642,7 @@ const CanvasArea = ({
                 <LayerComponent
                   key={layer.id}
                   layer={layer}
+                  zoom={zoom}
                   isSelected={false} // 🔴 Don't render UI here
                   selectedTool={selectedTool}
                   getShapeDisplayProps={getShapeDisplayProps}
@@ -630,6 +663,8 @@ const CanvasArea = ({
               ))}
             </div>
           </div>
+
+          {/* Floating toolbar is rendered inline inside the selected layer's UI component. */}
 
 
           {/* 🔴 Current Drawing Path Rendering (Inside Content Layer? Or on top?) 
@@ -669,6 +704,7 @@ const CanvasArea = ({
               <LayerComponent
                 key={`ui-${layer.id}`}
                 layer={layer}
+                zoom={zoom}
                 isSelected={true} // 🔴 Render UI here
                 selectedTool={selectedTool}
                 getShapeDisplayProps={getShapeDisplayProps}
@@ -705,6 +741,20 @@ const CanvasArea = ({
                 style={{ top: val, height: '1px' }}
               />
             ))}
+            {rotateLine && (
+              <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1501 }}>
+                <line
+                  x1={rotateLine.x1}
+                  y1={rotateLine.y1}
+                  x2={rotateLine.x2}
+                  y2={rotateLine.y2}
+                  stroke="#ef476f"
+                  strokeWidth={2}
+                  strokeDasharray="6 6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
           </div>
 
           {selectedTool === 'eraser' && isMouseOverCanvas && (
