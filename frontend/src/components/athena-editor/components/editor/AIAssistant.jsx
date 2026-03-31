@@ -121,6 +121,11 @@ const INLINE_CATEGORIES = [
   { id: 'advanced', label: 'Advanced' },
 ];
 
+// Fix: Move TABS constant outside component to prevent recreation on every render
+const TABS = [
+  { id: 'image', label: 'Image Generator', icon: ImageIcon },
+];
+
 const CHAT_SUGGESTIONS = [
   { icon: '✍️', label: 'Write an introduction paragraph' },
   { icon: '📝', label: 'Create a bullet point summary' },
@@ -240,11 +245,15 @@ export const AIAssistant = ({
   const [copied, setCopied] = useState(false);
 
   // ── Floating panel position & size ──────────────────────────────────────────────
-  const [panelPosition, setPanelPosition] = useState(() => ({ 
-    x: Math.max(50, window.innerWidth - 380), 
-    y: Math.max(60, (window.innerHeight - 550) / 2) 
-  }));
-  const [panelSize, setPanelSize] = useState({ width: 350, height: 550 });
+  const [panelPosition, setPanelPosition] = useState(() => {
+    // SSR-safe initialization: guard against missing window object
+    if (typeof window === 'undefined') return { x: 50, y: 60 };
+    return {
+      x: Math.max(50, window.innerWidth - 350),
+      y: Math.max(60, (window.innerHeight - 400) / 2),
+    };
+  });
+  const [panelSize, setPanelSize] = useState({ width: 320, height: 380 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
@@ -282,28 +291,33 @@ export const AIAssistant = ({
     });
   }, [selectedText, inlineResult]);
 
-  const abort = () => {
+  // Fix: Centralized abort controller management to prevent race conditions
+  const cancelPendingRequest = () => {
     abortRef.current?.abort();
-    abortRef.current = new AbortController();
   };
 
   // ── Floating panel drag handlers ─────────────────────────────────────────
+  // Use refs for drag state to avoid stale closures in event listeners
+  const isDraggingRef = useRef(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  
   const handleDragStart = useCallback((e) => {
+    isDraggingRef.current = true;
     setIsDragging(true);
     const rect = panelRef.current?.getBoundingClientRect();
     if (rect) {
-      setDragOffset({
+      dragOffsetRef.current = {
         x: e.clientX - rect.left,
         y: e.clientY - rect.top
-      });
+      };
     }
   }, []);
 
   const handleDragMove = useCallback((e) => {
-    if (!isDragging) return;
+    if (!isDraggingRef.current) return;
     
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
+    const newX = e.clientX - dragOffsetRef.current.x;
+    const newY = e.clientY - dragOffsetRef.current.y;
     
     // Keep panel within viewport with better boundaries
     const currentWidth = panelRef.current?.offsetWidth || 350;
@@ -315,21 +329,27 @@ export const AIAssistant = ({
       x: Math.max(10, Math.min(newX, maxX)),
       y: Math.max(60, Math.min(newY, maxY))
     });
-  }, [isDragging, dragOffset]);
+  }, []);
 
   const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
     setIsDragging(false);
   }, []);
 
+  // Fix: Always register listeners when dragging, cleanup properly on unmount
   useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('mouseup', handleDragEnd);
-      return () => {
-        window.removeEventListener('mousemove', handleDragMove);
-        window.removeEventListener('mouseup', handleDragEnd);
-      };
-    }
+    if (!isDragging) return;
+    
+    const onMove = (e) => handleDragMove(e);
+    const onUp = () => handleDragEnd();
+    
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -341,7 +361,11 @@ export const AIAssistant = ({
     setIsGenerating(true);
     setGenProgress('Preparing…');
     setGenWordCount(0);
+    
+    // Cancel any pending request and create new controller
+    cancelPendingRequest();
     abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
 
     try {
       let html = '';
@@ -351,7 +375,7 @@ export const AIAssistant = ({
         tone,
         pages,
         creativity: creativity[0],
-        signal: abortRef.current.signal,
+        signal,
         onChunk: (text) => {
           html = text;
           const words = text.split(/\s+/).filter(Boolean).length;
@@ -390,7 +414,11 @@ export const AIAssistant = ({
     setGeneratedImageUrl('');
     setEnhancedPrompt('');
     setImageInserted(false);
+    
+    // Cancel any pending request and create new controller
+    cancelPendingRequest();
     abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
 
     try {
       // Use the service to generate image with prompt enhancement
@@ -398,7 +426,7 @@ export const AIAssistant = ({
         prompt: imagePrompt.trim(),
         style: imageStyle,
         enhancePrompt: true,
-        signal: abortRef.current.signal,
+        signal,
       });
 
       setGeneratedImageUrl(url);
@@ -443,12 +471,16 @@ export const AIAssistant = ({
     setChatMessages([...history, { role: 'assistant', content: '' }]);
     setChatInput('');
     setIsChatLoading(true);
+    
+    // Cancel any pending request and create new controller
+    cancelPendingRequest();
     abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
     try {
       await TextEditorService.chatWithAI({
         messages: history,
         creativity: chatCreativity[0],
-        signal: abortRef.current.signal,
+        signal,
         onChunk: (full) => {
           setChatMessages((prev) => {
             const next = [...prev];
@@ -482,13 +514,17 @@ export const AIAssistant = ({
     setLastAction(actionId);
     setActionResult('');
     setActionError('');
+    
+    // Cancel any pending request and create new controller
+    cancelPendingRequest();
     abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
     try {
       await TextEditorService.callAI({
         systemPrompt,
         userPrompt: selectedText,
         temperature: ACTION_TEMPERATURE[actionId] ?? 0.6,
-        signal: abortRef.current.signal,
+        signal,
       }).then(setActionResult);
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -537,7 +573,11 @@ export const AIAssistant = ({
     setInlineLoading(true);
     setInlineResult('');
     setInlineError('');
+    
+    // Cancel any pending request and create new controller
+    cancelPendingRequest();
     abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
 
     try {
       let result = '';
@@ -548,7 +588,7 @@ export const AIAssistant = ({
         tone: inlineSelectedTone,
         language: inlineTargetLang,
         creativity: ACTION_TEMPERATURE[inlineActionType] ?? inlineCreativity[0],
-        signal: abortRef.current.signal,
+        signal,
       };
       
       await TextEditorService.transformText(transformOptions).then((transformed) => {
@@ -589,13 +629,43 @@ export const AIAssistant = ({
     toast.success(labels[behavior] || 'Applied to document');
   }, [inlineResult, onInlineAction]);
 
-  const handleInlineCopy = useCallback(() => {
+  const handleInlineCopy = useCallback(async () => {
     if (!inlineResult) return;
-    navigator.clipboard.writeText(inlineResult).then(() => {
+    
+    try {
+      // Primary method: Clipboard API (requires HTTPS or user gesture)
+      await navigator.clipboard.writeText(inlineResult);
       setInlineCopied(true);
       setTimeout(() => setInlineCopied(false), 2000);
       toast.success('Copied to clipboard');
-    });
+    } catch (error) {
+      console.warn('Clipboard API failed, using fallback:', error?.message || error);
+      
+      // Fallback: execCommand for non-HTTPS contexts or permission denied
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = inlineResult;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length); // For mobile
+        
+        const success = document.execCommand('copy');
+        document.body.removeChild(ta);
+        
+        if (success) {
+          setInlineCopied(true);
+          setTimeout(() => setInlineCopied(false), 2000);
+          toast.success('Copied to clipboard (fallback)');
+        } else {
+          toast.error('Failed to copy');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError);
+        toast.error('Failed to copy');
+      }
+    }
   }, [inlineResult]);
 
   const handleInlineDownload = useCallback(() => {
@@ -610,10 +680,43 @@ export const AIAssistant = ({
     toast.success('Downloaded');
   }, [inlineResult, inlineActionType]);
 
-  const copyText = useCallback((text) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyText = useCallback(async (text) => {
+    if (!text) return;
+    
+    try {
+      // Primary method: Clipboard API (requires HTTPS or user gesture)
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('Copied to clipboard');
+    } catch (error) {
+      console.warn('Clipboard API failed, using fallback:', error?.message || error);
+      
+      // Fallback: execCommand for non-HTTPS contexts or permission denied
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length); // For mobile
+        
+        const success = document.execCommand('copy');
+        document.body.removeChild(ta);
+        
+        if (success) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+          toast.success('Copied to clipboard (fallback)');
+        } else {
+          toast.error('Failed to copy');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError);
+        toast.error('Failed to copy');
+      }
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -624,9 +727,6 @@ export const AIAssistant = ({
   const wordDeltaLabel = wordDelta === 0 ? '±0' : wordDelta > 0 ? `+${wordDelta}` : `${wordDelta}`;
   const wordDeltaColor = wordDelta > 0 ? 'text-orange-500' : wordDelta < 0 ? 'text-blue-500' : 'text-gray-400';
 
-  const TABS = [
-    { id: 'image', label: 'Image Generator', icon: ImageIcon },
-  ];
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -647,8 +747,8 @@ export const AIAssistant = ({
           left: panelPosition.x,
           top: panelPosition.y,
           width: panelSize.width,
-          minHeight: 500,
-          maxHeight: '85vh',
+          height: panelSize.height,
+          maxHeight: '85vh', // Increased from 70vh to use more of screen height
           cursor: isDragging ? 'grabbing' : 'default',
           resize: 'both',
           overflow: 'auto'
@@ -656,40 +756,40 @@ export const AIAssistant = ({
       >
         {/* ── Drag Handle / Header ─────────────────────────────────────── */}
         <div 
-          className="bg-gradient-to-r from-[#0a3d5c] via-[#0c496e] to-[#1a3fa3] px-4 py-3 text-white shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className="bg-gradient-to-r from-[#0a3d5c] via-[#0c496e] to-[#1a3fa3] px-2.5 py-1.5 text-white shrink-0 cursor-grab active:cursor-grabbing select-none"
           onMouseDown={handleDragStart}
           title="Drag to move • Corner to resize"
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1 bg-white/15 rounded-lg">
-                <GripVertical className="w-4 h-4 text-white/60" />
+            <div className="flex items-center gap-1.5">
+              <div className="p-0.5 bg-white/15 rounded-md">
+                <GripVertical className="w-3.5 h-3.5 text-white/60" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="p-1 bg-white/15 rounded-lg">
-                  <Sparkles className="w-4 h-4" style={{ color: '#fbbf24' }} />
+              <div className="flex items-center gap-1.5">
+                <div className="p-0.5 bg-white/15 rounded-md">
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#fbbf24' }} />
                 </div>
-                <span className="text-sm font-bold tracking-tight">Athena AI</span>
-                <span className="text-[9px] font-semibold text-white/50 bg-white/10 px-1.5 py-0.5 rounded-full uppercase">Pro</span>
+                <span className="text-xs font-bold tracking-tight">Athena AI</span>
+                <span className="text-[8px] font-semibold text-white/50 bg-white/10 px-1 py-0.5 rounded-full uppercase">Pro</span>
               </div>
             </div>
             <button 
               onClick={() => onOpenChange(false)}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-1 hover:bg-white/10 rounded-md transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Tab bar */}
-          <div className="flex gap-1 bg-black/20 rounded-xl p-1 mt-3">
+          <div className="flex gap-0.5 bg-black/20 rounded-lg p-0.5 mt-2">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button key={id} onClick={() => setMode(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all flex-1 justify-center
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-semibold transition-all flex-1 justify-center
                   ${mode === id
-                    ? 'bg-white text-[#0c496e] shadow-md'
+                    ? 'bg-white text-[#0c496e] shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <Icon className="w-3 h-3" />
+                <Icon className="w-2.5 h-2.5" />
                 {label}
               </button>
             ))}
@@ -699,11 +799,11 @@ export const AIAssistant = ({
         {/* ── Content ─────────────────────────────────────────────────── */}
         <div ref={contentRef} className="flex-1 overflow-y-auto custom-scrollbar">
           {mode === 'document' && (
-            <div className="p-5 space-y-5">
+            <div className="p-2 space-y-2">
 
               {/* Topic */}
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-[#0c496e] uppercase tracking-wider flex items-center gap-1">
+              <div className="space-y-1">
+                <Label className="text-[9px] font-bold text-[#0c496e] uppercase tracking-wider flex items-center gap-1">
                   Document Topic <span className="text-red-400">*</span>
                 </Label>
                 <Textarea
@@ -712,41 +812,41 @@ export const AIAssistant = ({
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) handleGenerate(); }}
-                  className="min-h-[80px] resize-none bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 focus:bg-white transition-all"
+                  className="min-h-[50px] max-h-[100px] resize-none bg-slate-50 border-2 border-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 focus:bg-white transition-all"
                 />
                 <div className="flex justify-between items-center px-0.5">
-                  <p className="text-[10px] text-slate-400">Ctrl+Enter to generate quickly</p>
-                  <p className="text-[10px] text-slate-400">{topic.length} chars</p>
+                  <p className="text-[9px] text-slate-400">Ctrl+Enter to generate</p>
+                  <p className="text-[9px] text-slate-400">{topic.length} chars</p>
                 </div>
               </div>
 
               {/* Document Type grid */}
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold text-[#0c496e] uppercase tracking-wider">Document Type</Label>
-                <div className="grid grid-cols-4 gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-[9px] font-bold text-[#0c496e] uppercase tracking-wider">Document Type</Label>
+                <div className="grid grid-cols-4 gap-1.5">
                   {DOCUMENT_TYPES.map(({ value, label, icon: Icon, desc }) => (
                     <button key={value} onClick={() => setDocType(value)}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-center transition-all
+                      className={`flex flex-col items-center gap-0.5 p-1.5 rounded-lg border-2 text-center transition-all
                         ${docType === value
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
                           : 'border-slate-100 bg-white hover:border-blue-200 hover:bg-slate-50 text-slate-600'}`}>
-                      <Icon className={`w-4 h-4 ${docType === value ? 'text-blue-600' : 'text-slate-400'}`} />
-                      <span className="text-[10px] font-bold leading-tight">{label}</span>
-                      <span className="text-[9px] text-slate-400 leading-tight hidden sm:block">{desc}</span>
+                      <Icon className={`w-3 h-3 ${docType === value ? 'text-blue-600' : 'text-slate-400'}`} />
+                      <span className="text-[8px] font-bold leading-tight">{label}</span>
+                      <span className="text-[7px] text-slate-400 leading-tight hidden sm:block">{desc}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Tone + Length row */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 {/* Tone selector */}
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-[#0c496e] uppercase tracking-wider">Tone</Label>
-                  <div className="grid grid-cols-3 gap-1.5">
+                <div className="space-y-1">
+                  <Label className="text-[8px] font-bold text-[#0c496e] uppercase tracking-wider">Tone</Label>
+                  <div className="grid grid-cols-3 gap-0.5">
                     {TONES.map(({ value, label, emoji }) => (
                       <button key={value} onClick={() => setTone(value)}
-                        className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-semibold transition-all
+                        className={`flex items-center gap-0.5 px-1 py-0.5 rounded border text-[8px] font-semibold transition-all
                           ${tone === value
                             ? 'border-blue-500 bg-blue-50 text-blue-700'
                             : 'border-slate-200 bg-slate-50 hover:border-blue-200 text-slate-600'}`}>
@@ -758,26 +858,26 @@ export const AIAssistant = ({
                 </div>
 
                 {/* Length selector */}
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-[#0c496e] uppercase tracking-wider">Length</Label>
-                  <div className="space-y-1.5">
+                <div className="space-y-1">
+                  <Label className="text-[8px] font-bold text-[#0c496e] uppercase tracking-wider">Length</Label>
+                  <div className="space-y-0.5">
                     {LENGTH_OPTIONS.map(({ value, label, desc }) => (
                       <button key={value} onClick={() => setPages(value)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border-2 transition-all
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md border transition-all
                           ${pages === value
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-slate-100 bg-white hover:border-blue-200'}`}>
-                        <span className={`text-xs font-bold ${pages === value ? 'text-blue-700' : 'text-slate-700'}`}>{label}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{desc}</span>
+                        <span className={`text-[9px] font-bold ${pages === value ? 'text-blue-700' : 'text-slate-700'}`}>{label}</span>
+                        <span className="text-[8px] text-slate-400 font-mono">{desc}</span>
                       </button>
                     ))}
                   </div>
 
                   {/* Creativity */}
-                  <div className="pt-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-bold text-[#0c496e] uppercase tracking-wider">Creativity</span>
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{Math.round(creativity[0] * 100)}%</span>
+                  <div className="pt-0.5">
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span className="text-[9px] font-bold text-[#0c496e] uppercase tracking-wider">Creativity</span>
+                      <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded">{Math.round(creativity[0] * 100)}%</span>
                     </div>
                     <Slider value={creativity} onValueChange={setCreativity} max={1} step={0.1} className="w-full" />
                   </div>
@@ -805,14 +905,14 @@ export const AIAssistant = ({
               </AnimatePresence>
 
               {/* Generate button */}
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-0.5">
                 <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}
-                  className="h-10 px-5 border-2 border-slate-200 text-slate-600 font-semibold text-xs">Cancel</Button>
+                  className="h-9 px-4 border-2 border-slate-200 text-slate-600 font-semibold text-xs">Cancel</Button>
                 <Button onClick={handleGenerate} disabled={!topic.trim() || isGenerating}
-                  className="flex-1 h-11 bg-gradient-to-r from-[#0c496e] to-[#1a3fa3] hover:opacity-90 text-white font-bold text-sm rounded-xl shadow-lg transition-all hover:scale-[1.01] disabled:opacity-50">
+                  className="flex-1 h-10 bg-gradient-to-r from-[#0c496e] to-[#1a3fa3] hover:opacity-90 text-white font-bold text-sm rounded-xl shadow-lg transition-all hover:scale-[1.01] disabled:opacity-50">
                   {isGenerating
-                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating…</>
-                    : <><Sparkles className="w-4 h-4 mr-2" />Generate {docType}</>}
+                    ? <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />Generating…</>
+                    : <><Sparkles className="w-3.5 h-3.5 mr-2" />Generate {docType}</>}
                 </Button>
               </div>
             </div>
@@ -1061,7 +1161,7 @@ export const AIAssistant = ({
                           placeholder="e.g., 'Rewrite in the style of Ernest Hemingway', 'Add scientific citations', 'Convert to bullet points'…"
                           value={inlineCustomPrompt}
                           onChange={(e) => setInlineCustomPrompt(e.target.value)}
-                          className="min-h-[80px] resize-none bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-sm focus:border-blue-400 focus:bg-white transition-all"
+                          className="min-h-[60px] max-h-[120px] resize-none bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-sm focus:border-blue-400 focus:bg-white transition-all"
                         />
                       </motion.div>
                     )}
@@ -1278,7 +1378,7 @@ export const AIAssistant = ({
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
-                    className="min-h-[72px] max-h-[140px] resize-none text-sm bg-slate-50 border-slate-200 rounded-2xl p-4 pr-12 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                    className="min-h-[60px] max-h-[120px] resize-none text-sm bg-slate-50 border-slate-200 rounded-2xl p-4 pr-12 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
                   />
                   <button
                     onClick={isChatLoading ? abort : handleChatSend}

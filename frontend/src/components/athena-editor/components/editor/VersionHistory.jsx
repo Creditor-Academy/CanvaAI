@@ -7,8 +7,9 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { toast } from 'sonner';
+import { TextEditorService } from '../../../../services/Text-Editor/text.service.js';
 
-const VersionHistory = ({ isOpen, onClose, editor, versions, onSaveVersion, onRestoreVersion }) => {
+const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersion, onRestoreVersion }) => {
     const [previewVersion, setPreviewVersion] = useState(null);
     const [namingId, setNamingId] = useState(null);
     const [tempName, setTempName] = useState('');
@@ -22,31 +23,42 @@ const VersionHistory = ({ isOpen, onClose, editor, versions, onSaveVersion, onRe
         return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    const handleRestore = (version) => {
-        if (window.confirm(`Restore to version "${version.title}"? Current changes will be saved as a new version.`)) {
-            if (onRestoreVersion) {
-                onRestoreVersion(version);
-            } else if (editor) {
-                requestAnimationFrame(() => {
-                    editor.commands.setContent(version.content || '');
-                });
-                toast.success(`Restored to "${version.title}"`);
-                onClose();
-            }
+    const handleRestore = async (version) => {
+        // Set restore target to trigger confirmation Dialog in parent component
+        // This replaces window.confirm which is blocked on iOS Safari and in iframes
+        setPreviewVersion(version);
+        
+        // Notify parent to show restore confirmation dialog
+        // Parent will handle the actual restore after user confirms
+        if (onRestoreVersion) {
+            onRestoreVersion(version);
         }
     };
 
-    const handleNameVersion = (version) => {
+    const handleNameVersion = async (version) => {
         setNamingId(version.id);
         setTempName(version.title || '');
     };
 
-    const saveVersionName = (version) => {
-        if (onSaveVersion) {
-            onSaveVersion({ ...version, title: tempName || version.title });
+    const saveVersionName = async (version) => {
+        try {
+            // Update the version title via API
+            await TextEditorService.createVersion(docId, { 
+                content: version.content, 
+                title: tempName || version.title 
+            });
+            
+            // Update local state with new metadata
+            if (onSaveVersion) {
+                onSaveVersion({ ...version, title: tempName || version.title });
+            }
+            toast.success('Version named');
+        } catch (error) {
+            console.error('Failed to update version name:', error);
+            toast.error('Failed to update version name');
+        } finally {
+            setNamingId(null);
         }
-        toast.success('Version named');
-        setNamingId(null);
     };
 
     const toggleCompare = (version) => {
@@ -61,7 +73,7 @@ const VersionHistory = ({ isOpen, onClose, editor, versions, onSaveVersion, onRe
     };
 
     const safeVersions = versions && versions.length > 0 ? versions : [
-        { id: Date.now(), title: 'Current Version', timestamp: new Date(), author: 'You', content: '', isAutoSave: false }
+        { id: 'current', title: 'Current Version', timestamp: new Date(), author: 'You', content: '', isAutoSave: false }
     ];
 
     return (
@@ -95,18 +107,32 @@ const VersionHistory = ({ isOpen, onClose, editor, versions, onSaveVersion, onRe
                 <Button
                     size="sm"
                     className="w-full text-xs bg-blue-500 hover:bg-blue-600 text-white"
-                    onClick={() => {
-                        if (onSaveVersion && editor) {
-                            onSaveVersion({
-                                id: Date.now(),
-                                title: `Version ${safeVersions.length + 1}`,
+                    onClick={async () => {
+                        if (!editor || !docId) {
+                            toast.error('No document or editor available');
+                            return;
+                        }
+                        
+                        try {
+                            // Persist to backend — store ONLY metadata in React state
+                            const { versionId, title } = await TextEditorService.createVersion(docId, {
                                 content: editor.getHTML(),
-                                timestamp: new Date(),
-                                author: 'You',
+                                title: `Version ${safeVersions.length + 1}`,
                             });
-                            toast.success('Version saved');
-                        } else {
-                            toast.info('Version saved locally');
+                            
+                            // Only metadata in React state — no HTML blob
+                            if (onSaveVersion) {
+                                onSaveVersion({ 
+                                    id: versionId, 
+                                    title, 
+                                    timestamp: new Date(), 
+                                    author: 'You' 
+                                });
+                            }
+                            toast.success('Version saved to backend');
+                        } catch (error) {
+                            console.error('Failed to save version:', error);
+                            toast.error('Failed to save version');
                         }
                     }}
                 >
@@ -215,7 +241,15 @@ const VersionHistory = ({ isOpen, onClose, editor, versions, onSaveVersion, onRe
                     </div>
                     <div
                         className="flex-1 overflow-auto p-4 prose prose-sm max-w-none text-xs"
-                        dangerouslySetInnerHTML={{ __html: previewVersion.content || '<p><em>No content in this version</em></p>' }}
+                        dangerouslySetInnerHTML={{ 
+                          __html: DOMPurify.sanitize(
+                            previewVersion.content || '<p><em>No content in this version</em></p>',
+                            {
+                              ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 's', 'code', 'pre', 'a', 'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'span', 'br', 'div'],
+                              ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'style', 'colspan', 'rowspan', 'width', 'height']
+                            }
+                          ) 
+                        }}
                     />
                 </div>
             )}

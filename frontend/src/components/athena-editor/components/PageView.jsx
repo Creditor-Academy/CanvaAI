@@ -1,57 +1,56 @@
 import React from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 
+/**
+ * PageView (NodeView renderer for the "page" ProseMirror node)
+ *
+ * Fix 1: Removed console.warn / console.log from the render path.
+ *         These fire on every re-render, producing thousands of lines of noise
+ *         in production DevTools and measurable GC pressure.
+ * Fix 2: pageNumber < 1 guard now returns a recoverable fallback label instead
+ *         of just logging and continuing with broken output.
+ * Fix 3: Removed inline styles that duplicated CSS rules already defined in
+ *         AthenaEditor.css (isolation, zIndex, overflow, display). A single
+ *         source of truth prevents specificity conflicts.
+ * Fix 4: Added aria-label so screen readers can identify page regions.
+ */
 const PageComponent = ({ node }) => {
-  const pageNumber = node.attrs.pageNumber;
+  const pageNumber = node.attrs?.pageNumber;
 
-  if (pageNumber === undefined) {
-    // This means Page.js schema doesn't have `default: 1` on pageNumber attr,
-    // OR the editor was not restarted after updating Page.js.
-    // Fix: ensure Page.js addAttributes() has `pageNumber: { default: 1, ... }`
-    // then do a FULL page reload (Ctrl+Shift+R), not just HMR.
-    console.warn('[PageView] pageNumber attr is undefined — check Page.js schema attrs.pageNumber.default');
-  } else {
-    console.log('[PageView] Rendering page:', pageNumber, 'with attrs:', node.attrs);
-    
-    // 🔥 CRITICAL FIX: Detect and warn about page overlay issues
-    if (pageNumber < 1) {
-      console.error('[PageView] ⚠️ INVALID page number:', pageNumber, '- This may cause rendering issues!');
-    }
-  }
+  // Derive a safe display label — never shows "Page 0" or "Page undefined".
+  const pageLabel =
+    typeof pageNumber === 'number' && pageNumber >= 1
+      ? `Page ${pageNumber}`
+      : null;
 
   return (
     <NodeViewWrapper
       className="page"
-      style={{ 
-        position: 'relative', 
-        breakInside: 'avoid',
-        // ✅ FIX 4: Match CSS exactly - fixed height and overflow hidden
-        display: 'block',       // ensures block flow, not inline
-        overflow: 'hidden',     // clip content that overflows height
-        isolation: 'isolate',   // Create new stacking context
-        zIndex: 0,              // Explicit z-index for proper stacking
-      }}
+      aria-label={pageLabel ?? 'Editor page'}
     >
-      {/* Page number label */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: '12px',
-          color: '#94a3b8',
-          fontWeight: 500,
-          userSelect: 'none',
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {pageNumber !== undefined ? `Page ${pageNumber}` : ''}
-      </div>
+      {/* Page number label — conditionally rendered, purely decorative */}
+      {pageLabel && (
+        <div
+          className="page-number-label"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '-24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '12px',
+            color: '#94a3b8',
+            fontWeight: 500,
+            userSelect: 'none',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {pageLabel}
+        </div>
+      )}
 
-      {/* 🔥 CRITICAL FIX: Removed inline styles that caused CSS overlay issues
-          Let CSS handle all styling - no inline height/min-height inheritance */}
+      {/* Page content — TipTap injects child nodes here */}
       <NodeViewContent className="page-content" />
     </NodeViewWrapper>
   );

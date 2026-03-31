@@ -6,13 +6,19 @@ import { TextEditorService } from '../services/Text-Editor/text.service';
  * Production-grade with React Query caching
  */
 export function useDocuments(userId = null) {
+  // Check if user is authenticated (has token)
+  const isAuthenticated = typeof window !== 'undefined' && !!localStorage.getItem('token');
+  
   return useQuery({
-    queryKey: ['documents', userId || 'all'],
+    queryKey: ['documents', userId || 'authenticated'],
     queryFn: async () => {
-      const result = await TextEditorService.getAllDocuments(userId);
+      const result = await TextEditorService.getAllDocuments();
       return result.documents || [];
     },
-    enabled: !!userId,
+    
+    // 🚀 FIXED: Only fetch when user is authenticated
+    // The backend will filter by JWT token automatically via auth header
+    enabled: isAuthenticated,
     
     // 🚀 OPTIMIZED: Aggressive caching for instant loading
     staleTime: 10 * 60 * 1000, // Cache for 10 minutes (increased from 5)

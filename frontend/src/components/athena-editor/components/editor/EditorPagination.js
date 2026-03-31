@@ -9,14 +9,8 @@ import {
   USABLE_WIDTH_PX 
 } from '../../../../utils/pagination/constants';
 
-export const PAGE_HEIGHT = A4_HEIGHT_PX;
-export const PAGE_WIDTH = A4_WIDTH_PX;
-export const TOP_MARGIN = PAGE_MARGIN_TOP_PX;
-export const BOTTOM_MARGIN = PAGE_MARGIN_BOTTOM_PX;
-export const LEFT_MARGIN = PAGE_MARGIN_LEFT_PX;
-export const RIGHT_MARGIN = PAGE_MARGIN_RIGHT_PX;
-export const USABLE_HEIGHT = USABLE_HEIGHT_PX;
-export const USABLE_WIDTH = USABLE_WIDTH_PX;
+// Note: Don't re-export constants - import them directly from the source
+// This file should only export utility functions
 
 export const initializePagination = (editorInstance) => {
   if (!editorInstance || editorInstance.isDestroyed) return;
@@ -92,42 +86,53 @@ export const initializePagination = (editorInstance) => {
   }
 };
 
+/**
+ * Update heading styles via CSS custom properties.
+ * This allows runtime customization without !important injection.
+ * 
+ * @param {Object} options - Custom heading style options
+ * @param {string} [options.h1Size] - H1 font size (e.g., '2rem')
+ * @param {string} [options.h1Weight] - H1 font weight (e.g., '700')
+ * @param {string} [options.h2Size] - H2 font size
+ * @param {string} [options.h2Weight] - H2 font weight
+ * @param {string} [options.h3Size] - H3 font size
+ * @param {string} [options.h3Weight] - H3 font weight
+ * @param {string} [options.h4Size] - H4 font size
+ * @param {string} [options.h4Weight] - H4 font weight
+ * @param {string} [options.h5Size] - H5 font size
+ * @param {string} [options.h5Weight] - H5 font weight
+ * @param {string} [options.h6Size] - H6 font size
+ * @param {string} [options.h6Weight] - H6 font weight
+ * @param {string} [options.pSize] - Paragraph font size
+ * @param {string} [options.headingFontFamily] - Heading font family
+ * @param {string} [options.textFontFamily] - Text font family
+ */
+export const updateHeadingStyles = (options = {}) => {
+  const root = document.documentElement;
+  
+  if (options.h1Size) root.style.setProperty('--editor-h1-size', options.h1Size);
+  if (options.h1Weight) root.style.setProperty('--editor-h1-weight', options.h1Weight);
+  if (options.h2Size) root.style.setProperty('--editor-h2-size', options.h2Size);
+  if (options.h2Weight) root.style.setProperty('--editor-h2-weight', options.h2Weight);
+  if (options.h3Size) root.style.setProperty('--editor-h3-size', options.h3Size);
+  if (options.h3Weight) root.style.setProperty('--editor-h3-weight', options.h3Weight);
+  if (options.h4Size) root.style.setProperty('--editor-h4-size', options.h4Size);
+  if (options.h4Weight) root.style.setProperty('--editor-h4-weight', options.h4Weight);
+  if (options.h5Size) root.style.setProperty('--editor-h5-size', options.h5Size);
+  if (options.h5Weight) root.style.setProperty('--editor-h5-weight', options.h5Weight);
+  if (options.h6Size) root.style.setProperty('--editor-h6-size', options.h6Size);
+  if (options.h6Weight) root.style.setProperty('--editor-h6-weight', options.h6Weight);
+  if (options.pSize) root.style.setProperty('--editor-p-size', options.pSize);
+  if (options.headingFontFamily) root.style.setProperty('--editor-heading-font-family', options.headingFontFamily);
+  if (options.textFontFamily) root.style.setProperty('--editor-text-font-family', options.textFontFamily);
+};
+
+/**
+ * Legacy function - now a no-op for backward compatibility.
+ * Styles are now in AthenaEditor.css using CSS custom properties.
+ * Use updateHeadingStyles() instead for runtime customization.
+ */
 export const addHeadingStyles = () => {
-  const styleId = 'athena-heading-styles';
-  if (document.getElementById(styleId)) return;
-  const style = document.createElement('style');
-  style.id = styleId;
-  style.textContent = `
-    .content-area {
-      flex: 1 !important;
-      display: flex !important;
-      flex-direction: column !important;
-      min-height: 0 !important; /* Allow content to fill available space */
-    }
-    .ProseMirror {
-      background: transparent !important;
-      padding: 0 !important;
-      min-height: 100% !important;
-      flex: 1 !important;
-      display: block !important;
-    }
-    .editor-scroll-container {
-      background-color: #f3f4f6 !important; /* Slightly darker gray to make pages pop */
-      min-height: 100vh !important;
-    }
-    .document-container {
-      padding: 40px 0 100px 0 !important;
-      background-color: #f3f4f6 !important;
-      min-height: 100% !important;
-    }
-    .ProseMirror h1, .prose .ProseMirror h1, .prose-lg .ProseMirror h1 { font-size: 2.5rem; font-weight: 800 !important; line-height: 1.15 !important; margin-top: 0.75rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h2, .prose .ProseMirror h2, .prose-lg .ProseMirror h2 { font-size: 2rem; font-weight: 700 !important; line-height: 1.15 !important; margin-top: 0.75rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h3, .prose .ProseMirror h3, .prose-lg .ProseMirror h3 { font-size: 1.75rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.625rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h4, .prose .ProseMirror h4, .prose-lg .ProseMirror h4 { font-size: 1.5rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h5, .prose .ProseMirror h5, .prose-lg .ProseMirror h5 { font-size: 1.25rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror h6, .prose .ProseMirror h6, .prose-lg .ProseMirror h6 { font-size: 1.1rem; font-weight: 600 !important; line-height: 1.15 !important; margin-top: 0.5rem !important; margin-bottom: 0.25rem !important; color: #1f2937 !important; display: block !important; font-family: Georgia, serif !important; }
-    .ProseMirror p, .prose .ProseMirror p, .prose-lg .ProseMirror p { font-size: 1rem; line-height: 1.2 !important; margin-top: 0 !important; margin-bottom: 0 !important; color: #374151 !important; display: block !important; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
-    .ProseMirror [data-type="heading"] { font-family: Georgia, serif !important; }
-  `;
-  document.head.appendChild(style);
+  // No-op: styles are loaded via AthenaEditor.css
+  // For runtime customization, use updateHeadingStyles(options)
 };

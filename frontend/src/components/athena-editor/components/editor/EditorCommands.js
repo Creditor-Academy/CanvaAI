@@ -40,11 +40,11 @@ export const createEditorCommands = ({ toast, runWithSavedSelection }) => {
         toast?.success?.('Zoom set to 50%');
         break;
       case 'zoom_75':
-        editorActions.setZoom(80);
-        toast?.success?.('Zoom set to 80%');
+        editorActions.setZoom(75); // Fix: Changed from 80 to 75
+        toast?.success?.('Zoom set to 75%'); // Fix: Updated message
         break;
       case 'zoom_125':
-        editorActions.setZoom(130);
+        editorActions.setZoom(125); // Fix: Changed from 130 to 125
         break;
       case 'zoom_150':
         editorActions.setZoom(150);

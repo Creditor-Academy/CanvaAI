@@ -1,5 +1,18 @@
 // src/components/athena-editor/components/editor/EditorToolbar.jsx
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+
+// 🔥 CRITICAL FIX: Conditional logging helper - removes all debug logs in production
+const log = process.env.NODE_ENV === 'development'
+  ? (...args) => console.log(...args)
+  : () => {};
+
+const warn = process.env.NODE_ENV === 'development'
+  ? (...args) => console.warn(...args)
+  : () => {};
+
+const error = process.env.NODE_ENV === 'development'
+  ? (...args) => console.error(...args)
+  : (...args) => console.error(...args);
 import ReactDOM, { createPortal } from 'react-dom';
 import Portal from '../ui/Portal';
 import { useNavigate } from 'react-router-dom';
@@ -136,7 +149,10 @@ import { Switch } from '../ui/switch';
 import { Slider } from '../ui/slider';
 import { cn } from '../utils';
 import { scrollLockManager } from '../../utils/scrollLockManager';
-import { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSelection, onMenuOpen, onMenuClose } from './focusUtils';
+import focusUtils from './focusUtils';
+
+// Destructure functions from default export for backward compatibility
+const { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSelection, onMenuOpen, onMenuClose } = focusUtils;
 
 // AI Assistant Components
 import { AIAssistant as _AIAssistant } from './AIAssistant';
@@ -215,9 +231,11 @@ const EXPORT_FORMATS = [
   { label: "HTML", value: "html", icon: FileText },
   { label: "Plain Text", value: "txt", icon: FileText },
   { label: "JSON", value: "json", icon: FileText },
-  { label: "XML", value: "xml", icon: FileText },
-  { label: "CSV", value: "csv", icon: FileText },
-  { label: "RTF", value: "rtf", icon: FileText }
+  // Hidden until implemented:
+  // { label: "EPUB", value: "epub", icon: FileText },
+  // { label: "XML", value: "xml", icon: FileText },
+  // { label: "CSV", value: "csv", icon: FileText },
+  // { label: "RTF", value: "rtf", icon: FileText }
 ];
 
 const CODE_LANGUAGES = [
@@ -298,6 +316,8 @@ export const EditorToolbar = ({
   // Called after every render with the current menuItems array so that
   // Callback: receives named editor-handler functions for HeaderMenuBar
   onToolbarHandlers,
+  // Content inert setter (renamed from setContentInertProp to avoid React static flag conflicts)
+  onSetContentInert,
 }) => {
   // Removed debug log to prevent console spam
 
@@ -316,11 +336,7 @@ export const EditorToolbar = ({
     },
     onSearch: () => setShowSearch(prev => !prev),
     onHelp: () => setShowShortcutsDialog(true),
-    onNewDocument: () => {
-      if (window.confirm('Create new document? Current changes will be lost.')) {
-        editor.commands.clearContent();
-      }
-    }
+    onNewDocument: () => setShowNewDocConfirm(true),
   });
 
   // Check if cursor is inside a table - moved to top to avoid initialization issues
@@ -350,6 +366,7 @@ export const EditorToolbar = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+  const [showNewDocConfirm, setShowNewDocConfirm] = useState(false);
 
   const [currentFontSize, setCurrentFontSizeState] = useState(11);
   const [currentFont, setCurrentFont] = useState("Arial");
@@ -371,7 +388,16 @@ export const EditorToolbar = ({
     const clampedZoom = Math.max(50, Math.min(200, roundedZoom));
     if (onZoomChange && typeof onZoomChange === 'function') {
       onZoomChange(clampedZoom);
-      toast.success(`Zoom set to ${clampedZoom}%`);
+      // 🔥 CRITICAL FIX: Use stable ID to replace previous toast instead of stacking
+      // PROBLEM: toast.success() fires on every slider input event. Dragging zoom from
+      // 100% to 150% fires ~5 toasts per second, stacking them in the corner and requiring
+      // the user to dismiss them.
+      // 
+      // SOLUTION: Use toast with stable id - replaces previous zoom toast in place
+      toast.success(`Zoom: ${clampedZoom}%`, {
+        id: 'zoom-toast',
+        duration: 1500,
+      });
     } else {
       toast.error('Zoom function not available');
     }
@@ -436,7 +462,7 @@ export const EditorToolbar = ({
       setToolbarState(prev => {
         const hasChanged = JSON.stringify(prev) !== JSON.stringify(newState);
         if (hasChanged) {
-          console.log('✅ TOOLBAR UPDATE:', {
+          log('✅ TOOLBAR UPDATE:', {
             selection: `[${editor.state.selection.from}-${editor.state.selection.to}]`,
             selectedText: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '').substring(0, 30),
             formatting: {
@@ -531,6 +557,7 @@ export const EditorToolbar = ({
   const fileInputRef = useRef(null);
   const aiDocControllerRef = useRef(null);
   const aiInlineControllerRef = useRef(null);
+  const editorContainerRef = useRef(null);
 
   // New feature panel states
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
@@ -626,21 +653,13 @@ export const EditorToolbar = ({
   // FORMATTING FUNCTIONS
   // ========================
 
-  // Manage inert on the editor content while menus are open to satisfy ARIA guidance
-  const setContentInert = (inert) => {
-    try {
-      const container = document.querySelector('.document-container')?.parentElement
-        || document.querySelector('.content-container')
-        || document.querySelector('.ProseMirror')?.closest('.document-container')?.parentElement;
-      if (!container) return;
-      if (inert) {
-        if (window.isToolbarInteraction) return;
-        container.setAttribute('inert', '');
-      } else {
-        container.removeAttribute('inert');
-      }
-    } catch { }
-  };
+  // 🔥 CRITICAL FIX: Accept onSetContentInert as prop from parent component
+  // The actual editor container ref is managed by TextEditor.jsx parent component
+  // This component receives the setter function as a prop to avoid cross-component ref issues
+  const handleSetContentInert = onSetContentInert || ((inert) => {
+    // Fallback only - should not be used in normal operation
+    console.warn('[EditorToolbar] setContentInert called but no prop provided');
+  });
 
   // Focus helpers for ARIA-safe menu interactions
   const blurEditor = () => {
@@ -708,18 +727,49 @@ export const EditorToolbar = ({
     toast.success('Task list toggled');
   };
 
+  // 🔥 CRITICAL FIX: Handle custom sizes and provide user feedback at boundaries
+  // PROBLEM: FONT_SIZES.indexOf(currentFontSize) returns -1 if the user typed a custom
+  // size (e.g. 13) not in the preset array, causing -1 + 1 = 0 (always jumps to 8pt).
+  // Also, when at min/max, function returns silently with no feedback.
+  // 
+  // SOLUTION: Handle custom sizes intelligently and show toast at boundaries
   const increaseFontSize = () => {
-    const currentIndex = FONT_SIZES.indexOf(currentFontSize);
-    if (currentIndex < FONT_SIZES.length - 1) {
-      setCurrentFontSize(FONT_SIZES[currentIndex + 1]);
+    const idx = FONT_SIZES.indexOf(currentFontSize);
+    if (idx === -1) {
+      // Custom size: find the next preset above it
+      const next = FONT_SIZES.find(s => s > currentFontSize);
+      if (next) {
+        setCurrentFontSize(next);
+      } else {
+        toast.info('Already at maximum size');
+      }
+      return;
     }
+    if (idx >= FONT_SIZES.length - 1) {
+      toast.info('Already at maximum size');
+      return;
+    }
+    setCurrentFontSize(FONT_SIZES[idx + 1]);
   };
 
+  // 🔥 CRITICAL FIX: Handle custom sizes and provide user feedback at boundaries
   const decreaseFontSize = () => {
-    const currentIndex = FONT_SIZES.indexOf(currentFontSize);
-    if (currentIndex > 0) {
-      setCurrentFontSize(FONT_SIZES[currentIndex - 1]);
+    const idx = FONT_SIZES.indexOf(currentFontSize);
+    if (idx === -1) {
+      // Custom size: find the next preset below it
+      const prev = FONT_SIZES.slice().reverse().find(s => s < currentFontSize);
+      if (prev) {
+        setCurrentFontSize(prev);
+      } else {
+        toast.info('Already at minimum size');
+      }
+      return;
     }
+    if (idx <= 0) {
+      toast.info('Already at minimum size');
+      return;
+    }
+    setCurrentFontSize(FONT_SIZES[idx - 1]);
   };
 
   const addLink = () => {
@@ -755,10 +805,23 @@ export const EditorToolbar = ({
       const buttonRect = tableButtonRef.current.getBoundingClientRect();
       const pickerElement = tablePickerRef.current;
 
-      // Position the dropdown below the button
+      // 🔥 CRITICAL FIX: Use position: fixed consistently — no scroll offset needed
+      // PROBLEM: Viewport-relative values set as position: fixed offsets drift when
+      // user scrolls between opening the picker and hovering over cells.
+      // 
+      // SOLUTION: Use position: fixed consistently and add scroll listener to close picker
+      pickerElement.style.position = 'fixed';
       pickerElement.style.left = `${buttonRect.left}px`;
-      pickerElement.style.top = `${buttonRect.bottom + 8}px`; // 8px margin
+      pickerElement.style.top = `${buttonRect.bottom + 8}px`;
     }
+  }, [showTablePicker]);
+
+  // 🔥 Close table picker on scroll to prevent drift
+  useEffect(() => {
+    if (!showTablePicker) return;
+    const close = () => setShowTablePicker(false);
+    window.addEventListener('scroll', close, { passive: true });
+    return () => window.removeEventListener('scroll', close);
   }, [showTablePicker]);
 
   // Close table picker when clicking outside
@@ -1017,12 +1080,20 @@ export const EditorToolbar = ({
     e.target.value = "";
   };
 
+  // 🔥 CRITICAL FIX: Apply via CSS variable — one source of truth, affects all block types
+  // PROBLEM: chain.updateAttributes('paragraph', { lineHeight: value }) sets the attribute only
+  // on paragraph nodes within the current selection. Headings, list items, blockquotes, and existing
+  // paragraphs outside the selection are not affected. Users see inconsistent line spacing across
+  // the document, and the stored JSON has per-paragraph lineHeight attributes that conflict with
+  // the document-level CSS variable approach used elsewhere.
+  // 
+  // SOLUTION: Use CSS variable on editor container - cascade handles all block types uniformly
   const setLineSpacingValue = (spacing) => {
-    if (editor) {
-      runWithSavedSelection(editor, (chain) => chain.updateAttributes('paragraph', { lineHeight: spacing }));
-      setLineSpacing(spacing);
-      toast.success(`Line spacing set to ${spacing}`);
-    }
+    setLineSpacing(spacing);
+    // Update the CSS variable on the editor container
+    document.documentElement.style.setProperty('--editor-line-height', String(spacing));
+    toast.success(`Line spacing set to ${spacing}`);
+    // No per-node attribute update needed — CSS cascade handles it
   };
 
   // Document Structure Functions
@@ -1067,60 +1138,36 @@ export const EditorToolbar = ({
 
 
   const indent = () => {
-    console.log('Indent button clicked');
-    console.log('Editor available:', !!editor);
-    if (editor) {
-      console.log('Editor commands:', Object.keys(editor.commands));
-      console.log('Is active listItem:', editor.isActive('listItem'));
-      console.log('Can indent:', editor.can().indent());
-
-      try {
-        // If we're in a list item, increase the list item indent (Google Docs style)
-        if (editor.isActive('listItem')) {
-          console.log('Indenting list item');
-          runWithSavedSelection(editor, (chain) => chain.sinkListItem('listItem'));
-          toast.success('List item indented');
-        } else {
-          // For regular paragraphs/headers, use the standard indent
-          console.log('Indenting regular text');
-          runWithSavedSelection(editor, (chain) => chain.indent());
-          toast.success('Text indented');
-        }
-      } catch (error) {
-        console.error('Indent error:', error);
-        toast.error('Failed to indent text');
+    if (!editor) return;
+    try {
+      // If we're in a list item, increase the list item indent (Google Docs style)
+      if (editor.isActive('listItem')) {
+        runWithSavedSelection(editor, (chain) => chain.sinkListItem('listItem'));
+        toast.success('List item indented');
+      } else {
+        // For regular paragraphs/headers, use the standard indent
+        runWithSavedSelection(editor, (chain) => chain.indent());
+        toast.success('Text indented');
       }
-    } else {
-      console.log('No editor available');
+    } catch (error) {
+      toast.error('Failed to indent text');
     }
   };
 
   const outdent = () => {
-    console.log('Outdent button clicked');
-    console.log('Editor available:', !!editor);
-    if (editor) {
-      console.log('Editor commands:', Object.keys(editor.commands));
-      console.log('Is active listItem:', editor.isActive('listItem'));
-      console.log('Can outdent:', editor.can().outdent());
-
-      try {
-        // If we're in a list item, decrease the list item indent (Google Docs style)
-        if (editor.isActive('listItem')) {
-          console.log('Outdenting list item');
-          runWithSavedSelection(editor, (chain) => chain.liftListItem('listItem'));
-          toast.success('List item outdented');
-        } else {
-          // For regular paragraphs/headers, use the standard outdent
-          console.log('Outdenting regular text');
-          runWithSavedSelection(editor, (chain) => chain.outdent());
-          toast.success('Text outdented');
-        }
-      } catch (error) {
-        console.error('Outdent error:', error);
-        toast.error('Failed to outdent text');
+    if (!editor) return;
+    try {
+      // If we're in a list item, decrease the list item indent (Google Docs style)
+      if (editor.isActive('listItem')) {
+        runWithSavedSelection(editor, (chain) => chain.liftListItem('listItem'));
+        toast.success('List item outdented');
+      } else {
+        // For regular paragraphs/headers, use the standard outdent
+        runWithSavedSelection(editor, (chain) => chain.outdent());
+        toast.success('Text outdented');
       }
-    } else {
-      console.log('No editor available');
+    } catch (error) {
+      toast.error('Failed to outdent text');
     }
   };
 
@@ -1164,14 +1211,12 @@ export const EditorToolbar = ({
       return;
     }
 
-    // Set the language and insert code block
-    runWithSavedSelection(editor, (chain) => chain.toggleCodeBlock());
-
-    // Update the code block attributes with language
-    if (editor.isActive('codeBlock')) {
-      editor.commands.updateAttributes('codeBlock', { language });
-    }
-
+    // Use a single chain to toggle AND set language atomically
+    editor.chain()
+      .focus()
+      .toggleCodeBlock({ language })  // language set in same transaction
+      .run();
+    
     setSelectedCodeLanguage(language);
     setShowCodeBlockMenu(false);
     toast.success(`${language} code block inserted`);
@@ -1298,32 +1343,10 @@ export const EditorToolbar = ({
     });
 
     if (!foundImage) {
-      editor.state.doc.descendants(node => {
-        if (node.type.name === 'image') {
-          const imgSrc = node.attrs.src;
-          setSelectedImage(imgSrc);
-          setIsCropDialogOpen(true);
-
-          const img = new Image();
-          img.onload = () => {
-            setImageDimensions({ width: img.width, height: img.height });
-            setCropArea({
-              x: img.width * 0.25,
-              y: img.height * 0.25,
-              width: img.width * 0.5,
-              height: img.height * 0.5
-            });
-          };
-          img.src = imgSrc;
-          foundImage = true;
-          return false;
-        }
-        return true;
-      });
-    }
-
-    if (!foundImage) {
-      toast.error('Please insert an image to crop');
+      toast.error(
+        'Select an image first — click on the image in the document, then click Crop.'
+      );
+      return;
     }
   };
 
@@ -1534,7 +1557,14 @@ export const EditorToolbar = ({
             temperature: documentCreativity[0]
           },
           (full) => {
-            runWithSavedSelection(editor, (chain) => chain.setContent(full));
+            // 🔥 CRITICAL FIX: Sanitize AI output before setting as editor content
+            // PROBLEM: The streaming callback sets raw AI output (likely markdown) directly
+            // as editor content with no DOMPurify sanitization and no markdown→HTML conversion.
+            // This is a security risk (XSS) and can break the editor with invalid HTML.
+            // 
+            // SOLUTION: Convert markdown to HTML with marked, then sanitize with DOMPurify
+            const html = DOMPurify.sanitize(marked.parse(full));
+            runWithSavedSelection(editor, (chain) => chain.setContent(html));
           },
           { signal: controller.signal }
         );
@@ -1590,7 +1620,7 @@ export const EditorToolbar = ({
           case 'rewrite': result = await rewriteText(textOrResult, options); break;
           case 'expand': result = await expandText(textOrResult, options); break;
           case 'summarize': result = await summarizeText(textOrResult, options); break;
-          case 'change_tone': result = await changeTone(textOrResult, 'professional', options); break;
+          case 'change_tone': result = await changeTone(textOrResult, options.tone || 'professional', options); break;
           case 'bullets_to_paragraph': result = await bulletToParagraph(textOrResult, options); break;
           default: return;
         }
@@ -1805,11 +1835,13 @@ export const EditorToolbar = ({
   // ========================
   // LINE SPACING
   // ========================
+  // 🔥 CRITICAL FIX: Apply via CSS variable — one source of truth, affects all block types
   const applyLineSpacing = (value) => {
     setLineSpacing(value);
-    if (!editor) return;
-    runWithSavedSelection(editor, (chain) => chain.updateAttributes('paragraph', { lineHeight: value }));
+    // Update the CSS variable on the editor container
+    document.documentElement.style.setProperty('--editor-line-height', String(value));
     toast.success(`Line spacing set to ${value}`);
+    // No per-node attribute update needed — CSS cascade handles it
   };
 
   // ========================
@@ -1852,12 +1884,7 @@ export const EditorToolbar = ({
       label: 'File',
       items: [
         {
-          label: 'New', icon: FilePlus2, shortcut: 'Ctrl+N', action: () => {
-            if (window.confirm('Create new document? Current changes will be lost.')) {
-              editor.commands.clearContent();
-              toast.success('New document created');
-            }
-          }
+          label: 'New', icon: FilePlus2, shortcut: 'Ctrl+N', action: () => setShowNewDocConfirm(true)
         },
         {
           label: 'Open...', icon: FolderOpen, shortcut: 'Ctrl+O', action: () => {
@@ -1939,12 +1966,9 @@ export const EditorToolbar = ({
         { label: 'Undo', icon: Undo, shortcut: 'Ctrl+Z', action: () => editor.chain().focus().undo().run() },
         { label: 'Redo', icon: Redo, shortcut: 'Ctrl+Y', action: () => editor.chain().focus().redo().run() },
         { type: 'separator' },
-        { label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X', action: () => document.execCommand('cut') },
+        { label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X', action: () => handleEditAction('cut', editor, null, handleCopy, handlePaste) },
         {
-          label: 'Copy', icon: Copy, shortcut: 'Ctrl+C', action: () => {
-            document.execCommand('copy');
-            toast.success('Copied to clipboard');
-          }
+          label: 'Copy', icon: Copy, shortcut: 'Ctrl+C', action: () => handleCopy()
         },
         { label: 'Paste', icon: Copy, shortcut: 'Ctrl+V', action: () => handleEditAction('paste', editor, null, handleCopy, handlePaste) },
         { label: 'Paste Without Formatting', icon: Clipboard, shortcut: 'Ctrl+Shift+V', action: () => handleEditAction('paste_plain', editor, null, handleCopy, handlePaste) },
@@ -2203,8 +2227,8 @@ export const EditorToolbar = ({
                     const spacingValue = parseFloat(selectedSpacing);
                     setLineSpacing(spacingValue);
 
-                    // Apply line height to current paragraph
-                    runWithSavedSelection(editor, (chain) => chain.updateAttributes('paragraph', { lineHeight: spacingValue }));
+                    // 🔥 CRITICAL FIX: Apply via CSS variable instead of per-node attribute
+                    document.documentElement.style.setProperty('--editor-line-height', String(spacingValue));
                     toast.success(`Line spacing set to ${spacingValue}`);
                   }
                 }
@@ -2347,7 +2371,27 @@ export const EditorToolbar = ({
       onSelectAll:            () => editor?.chain().focus().selectAll().run(),
       // Clipboard
       onCut:                  () => document.execCommand('cut'),
-      onCopy:                 () => { document.execCommand('copy'); toast.success('Copied to clipboard'); },
+      onCopy:                 () => {
+        // Fallback: use execCommand with a temp textarea
+        try {
+          const textContent = editor.state.doc.textBetween(
+            editor.state.selection.from,
+            editor.state.selection.to,
+            '\n'
+          );
+          const ta = document.createElement('textarea');
+          ta.value = textContent;
+          ta.style.cssText = 'position:fixed;top:-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          toast.success('Copied as plain text (formatting unavailable in this browser)');
+        } catch (error) {
+          toast.error('Failed to copy content');
+          console.error('[Toolbar onCopy] Failed:', error);
+        }
+      },
       onPaste: async () => {
         try {
           const text = await navigator.clipboard.readText();
@@ -2378,9 +2422,9 @@ export const EditorToolbar = ({
           <DropdownMenu modal={false} key={item.label} onOpenChange={(open) => {
             if (open) {
               onMenuOpen(editor);
-              setContentInert(open);
+              onSetContentInert(open);
             } else {
-              setContentInert(open);
+              onSetContentInert(open);
               onMenuClose(editor);
             }
           }}>
@@ -2554,9 +2598,9 @@ export const EditorToolbar = ({
           onOpenChange={(open) => {
             if (open) {
               onMenuOpen(editor);
-              setContentInert(open);
+              onSetContentInert(open);
             } else {
-              setContentInert(open);
+              onSetContentInert(open);
               onMenuClose(editor);
             }
           }}
@@ -2580,9 +2624,9 @@ export const EditorToolbar = ({
           onOpenChange={(open) => {
             if (open) {
               onMenuOpen(editor);
-              setContentInert(open);
+              onSetContentInert(open);
             } else {
-              setContentInert(open);
+              onSetContentInert(open);
               onMenuClose(editor);
             }
           }}
@@ -2612,9 +2656,9 @@ export const EditorToolbar = ({
             onOpenChange={(open) => {
               if (open) {
                 onMenuOpen(editor);
-                setContentInert(open);
+                onSetContentInert(open);
               } else {
-                setContentInert(open);
+                onSetContentInert(open);
                 onMenuClose(editor);
               }
             }}
@@ -2683,9 +2727,9 @@ export const EditorToolbar = ({
         <DropdownMenu modal={false} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
-            setContentInert(open);
+            onSetContentInert(open);
           } else {
-            setContentInert(open);
+            onSetContentInert(open);
             onMenuClose(editor);
           }
         }}>
@@ -2875,9 +2919,9 @@ export const EditorToolbar = ({
         <DropdownMenu modal={false} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
-            setContentInert(open);
+            onSetContentInert(open);
           } else {
-            setContentInert(open);
+            onSetContentInert(open);
             onMenuClose(editor);
           }
         }}>
@@ -3045,9 +3089,9 @@ export const EditorToolbar = ({
         <DropdownMenu modal={false} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
-            setContentInert(open);
+            onSetContentInert(open);
           } else {
-            setContentInert(open);
+            onSetContentInert(open);
             onMenuClose(editor);
           }
         }}>
@@ -3132,9 +3176,9 @@ export const EditorToolbar = ({
         <DropdownMenu modal={false} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
-            setContentInert(open);
+            onSetContentInert(open);
           } else {
-            setContentInert(open);
+            onSetContentInert(open);
             onMenuClose(editor);
           }
         }}>
@@ -3950,6 +3994,38 @@ export const EditorToolbar = ({
       <PageSetupDialog open={showPageSetup} onOpenChange={setShowPageSetup} onApply={(cfg) => { if (cfg.margins) updatePageMargins(cfg.margins); }} />
       <KeyboardShortcutsDialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog} />
       <WordCountDialog open={showWordCount} onOpenChange={setShowWordCount} editor={editor} />
+
+      {/* New Document Confirmation Dialog */}
+      <Dialog open={showNewDocConfirm} onOpenChange={setShowNewDocConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Document</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to create a new document? All current changes will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setShowNewDocConfirm(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (editor) {
+                  editor.commands.clearContent();
+                  toast.success('New document created');
+                }
+                setShowNewDocConfirm(false);
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Create New Document
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Find & Replace Inline Dialog */}
       {showFindReplace && (

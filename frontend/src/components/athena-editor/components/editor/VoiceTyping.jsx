@@ -25,9 +25,9 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
     const [interimTranscript, setInterimTranscript] = useState('');
     const [error, setError] = useState(null);
     const [language, setLanguage] = useState('en-US');
-    const [volume, setVolume] = useState(0);
     const recognitionRef = useRef(null);
-    const animationRef = useRef(null);
+    // Fix: Use ref for isListening flag to avoid stale closure in onend handler
+    const isListeningRef = useRef(false);
 
     const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 
@@ -94,24 +94,34 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
             if (event.error === 'no-speech') return;
             setError(`Speech recognition error: ${event.error}`);
             setIsListening(false);
+            isListeningRef.current = false;
         };
 
+        // Fix: Use ref instead of state to avoid stale closure
         recognition.onend = () => {
-            if (isListening) recognition.start(); // keep listening
+            if (isListeningRef.current) {
+                recognition.start();
+            }
         };
 
         recognitionRef.current = recognition;
         recognition.start();
         setIsListening(true);
+        isListeningRef.current = true;
         toast.success('Voice typing started. Speak now!');
     }, [isSupported, language, editor, processCommand]);
 
     const stopListening = useCallback(() => {
+        // CRITICAL FIX: Set ref to false BEFORE stopping to prevent onend from restarting
+        // This ensures the closure in onend always sees the current value
+        isListeningRef.current = false;
+        setIsListening(false);
+        
         if (recognitionRef.current) {
             recognitionRef.current.stop();
             recognitionRef.current = null;
         }
-        setIsListening(false);
+        
         setInterimTranscript('');
         toast.info('Voice typing stopped');
     }, []);
@@ -122,7 +132,14 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
     };
 
     useEffect(() => {
-        return () => { if (recognitionRef.current) recognitionRef.current.stop(); };
+        // Cleanup on unmount - prevent infinite loops
+        return () => {
+            isListeningRef.current = false;  // Set ref false first to block onend restart
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+                recognitionRef.current = null;
+            }
+        };
     }, []);
 
     useEffect(() => {

@@ -37,257 +37,313 @@
  *
  * USAGE
  * -----
+ * // Create per-instance utils to avoid conflicts with multiple editors:
+ * const focusUtils = useMemo(() => createFocusUtils(), []);
+ *
  * // In every toolbar <button>:
- * <button onMouseDown={preventBlur} onClick={doSomething} />
+ * <button onMouseDown={focusUtils.preventBlur} onClick={doSomething} />
  *
  * // Wrap every <DropdownMenuTrigger>, <PopoverTrigger>, <SelectTrigger>:
- * <span onMouseDown={preventBlur}>
+ * <span onMouseDown={focusUtils.preventBlur}>
  *   <DropdownMenuTrigger asChild>...</DropdownMenuTrigger>
  * </span>
  *
  * // Inside every <DropdownMenuItem> handler that runs a command:
- * <DropdownMenuItem onSelect={() => { runWithSavedSelection(editor, c => c.toggleBold()); }}>
+ * <DropdownMenuItem onSelect={() => { focusUtils.runWithSavedSelection(editor, c => c.toggleBold()); }}>
  *
  * // On toolbar row and header row:
- * <div onMouseDown={(e) => guardToolbarMouseDown(e, editor)}>
+ * <div onMouseDown={(e) => focusUtils.guardToolbarMouseDown(e)}>
  */
 
 import { TextSelection } from 'prosemirror-state';
 
-// ─── Module-level selection snapshot ─────────────────────────────────────────
-let _savedSelection = null;
-let _isToolbarInteraction = false;
-let _toolbarInteractionTimer = null;
-let _recentInteractionTimer = null;
-
 /**
- * Call this as `onMouseDown={preventBlur}` on any toolbar element.
- * Prevents the browser from moving focus away from the editor on mousedown.
+ * Create per-instance focus utils to avoid conflicts when multiple
+ * editor instances are mounted simultaneously (e.g., diff view, side-by-side).
+ * 
+ * @returns {Object} Focus utilities instance
  */
-export function preventBlur(e) {
-  if (e && typeof e.preventDefault === 'function') {
-    e.preventDefault();
-  }
-}
+export function createFocusUtils() {
+  // Per-instance state - NOT shared across editors
+  let _savedSelection = null;
+  let _isToolbarInteraction = false;
+  let _toolbarInteractionTimer = null;
+  let _recentInteractionTimer = null;
 
-/**
- * Snapshot the editor's current ProseMirror selection into _savedSelection.
- */
-export function saveSelection(editor) {
-  if (!editor || editor.isDestroyed) return false;
-
-  try {
-    const { selection } = editor.state;
-    _savedSelection = {
-      from: selection.from,
-      to: selection.to,
-      anchor: selection.anchor,
-      head: selection.head,
-      type: selection.constructor.name,
-    };
-    return selection.from !== selection.to;
-  } catch {
-    _savedSelection = null;
-    return false;
-  }
-}
-
-/**
- * Restore the previously saved ProseMirror selection and re-focus the editor.
- */
-export function restoreSelection(editor, opts = {}) {
-  if (!editor || editor.isDestroyed || !_savedSelection) return;
-
-  const { focus = true } = opts;
-
-  try {
-    const { state, view } = editor;
-    const { doc } = state;
-    const maxPos = doc.content.size;
-
-    const anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
-    const head = Math.min(Math.max(0, _savedSelection.head), maxPos);
-
-    const sel = TextSelection.create(doc, anchor, head);
-    const tr = state.tr.setSelection(sel);
-    view.dispatch(tr);
-
-    if (focus) {
-      Promise.resolve().then(() => {
-        if (!editor.isDestroyed) {
-          view.focus();
-        }
-      });
+  /**
+   * Call this as `onMouseDown={preventBlur}` on any toolbar element.
+   * Prevents the browser from moving focus away from the editor on mousedown.
+   */
+  function preventBlur(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
     }
-  } catch (err) {
-    if (focus && !editor.isDestroyed) {
+  }
+
+  /**
+   * Snapshot the editor's current ProseMirror selection into _savedSelection.
+   */
+  function saveSelection(editor) {
+    if (!editor || editor.isDestroyed) return false;
+
+    try {
+      const { selection } = editor.state;
+      _savedSelection = {
+        from: selection.from,
+        to: selection.to,
+        anchor: selection.anchor,
+        head: selection.head,
+        type: selection.constructor.name,
+      };
+      return selection.from !== selection.to;
+    } catch {
+      _savedSelection = null;
+      return false;
+    }
+  }
+
+  /**
+   * Restore the previously saved ProseMirror selection and re-focus the editor.
+   * 
+   * @param {Object} editor - TipTap editor instance
+   * @param {Object} opts - Options object
+   * @param {boolean} opts.focus - Whether to focus the editor after restoring (default: true)
+   * @param {Function} opts.remapPositions - Optional function to remap positions (e.g., for pagination)
+   *                                         Takes (from, to) and returns { from, to }
+   */
+  function restoreSelection(editor, opts = {}) {
+    if (!editor || editor.isDestroyed || !_savedSelection) return;
+
+    const { focus = true, remapPositions } = opts;
+
+    try {
+      const { state, view } = editor;
+      const { doc } = state;
+      const maxPos = doc.content.size;
+
+      let anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
+      let head = Math.min(Math.max(0, _savedSelection.head), maxPos);
+
+      // Allow custom position remapping (e.g., for pagination adjustments)
+      if (remapPositions && typeof remapPositions === 'function') {
+        const remapped = remapPositions(anchor, head);
+        anchor = Math.min(Math.max(0, remapped.from), maxPos);
+        head = Math.min(Math.max(0, remapped.to), maxPos);
+      }
+
+      const sel = TextSelection.create(doc, anchor, head);
+      const tr = state.tr.setSelection(sel);
+      view.dispatch(tr);
+
+      if (focus) {
+        Promise.resolve().then(() => {
+          if (!editor.isDestroyed) {
+            view.focus();
+          }
+        });
+      }
+    } catch (err) {
+      if (focus && !editor.isDestroyed) {
+        try { editor.commands.focus(); } catch { void 0; }
+      }
+    }
+  }
+
+  function getSavedSelection() {
+    return _savedSelection ? { ..._savedSelection } : null;
+  }
+
+  function clearSavedSelection() {
+    _savedSelection = null;
+  }
+
+  /**
+   * Attach this as `onMouseDown` on BOTH the header row AND the toolbar row.
+   */
+  function guardToolbarMouseDown(e) {
+    // Note: editor is captured via closure in the calling context
+    // This function should be bound to a specific editor instance
+    markToolbarInteraction();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+  }
+
+  /**
+   * Guard specifically for editor-associated toolbar interactions.
+   * Saves selection for the specific editor instance.
+   */
+  function guardEditorToolbarMouseDown(editor) {
+    if (editor && !editor.isDestroyed) {
+      saveSelection(editor);
+    }
+    guardToolbarMouseDown();
+  }
+
+  /**
+   * The recommended way to run a Tiptap chain command from a toolbar element.
+   * 
+   * @param {Editor} editor - TipTap editor instance
+   * @param {Function} commandFn - Function that takes a chain and returns a chain
+   * @param {Object} options - Additional options
+   * @param {boolean} options.skipRestore - Skip selection restoration (useful for copy/paste)
+   * @param {boolean} options.preserveFocus - Preserve current focus state
+   * @param {boolean} options.forceRestore - Force restore even if no saved selection exists
+   */
+  function runWithSavedSelection(editor, commandFn, options = {}) {
+    if (!editor || editor.isDestroyed) return false;
+
+    const { skipRestore = false, preserveFocus = false, forceRestore = false } = options;
+
+    try {
+      let chain = editor.chain();
+
+      // Only restore selection if it was previously saved and we're not skipping restore
+      if (_savedSelection && !skipRestore) {
+        const { state } = editor;
+        const maxPos = state.doc.content.size;
+        const anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
+        const head = Math.min(Math.max(0, _savedSelection.head), maxPos);
+
+        if (anchor !== head) {
+          chain = chain.setTextSelection({ from: Math.min(anchor, head), to: Math.max(anchor, head) });
+        } else {
+          chain = chain.setTextSelection(anchor);
+        }
+      } else if (forceRestore && !skipRestore) {
+        // If no saved selection but forceRestore is true, use current selection
+        const { selection } = editor.state;
+        chain = chain.setTextSelection(selection);
+      }
+
+      // Only focus if not preserving focus
+      if (!preserveFocus) {
+        chain = chain.focus();
+      }
+      
+      const resultChain = commandFn(chain);
+
+      let result = false;
+      if (resultChain && typeof resultChain.run === 'function') {
+        result = resultChain.run();
+      } else {
+        result = true;
+      }
+
+      // Focus restoration with scroll prevention
+      if (!preserveFocus && !skipRestore) {
+        const view = editor.view;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!editor.isDestroyed && view && view.dom) {
+              view.dom.focus({ preventScroll: true });
+            }
+          });
+        });
+      }
+
+      return result;
+    } catch (err) {
+      console.error('[focusUtils] runWithSavedSelection error:', err);
+      return false;
+    }
+  }
+
+  /**
+   * Focus the editor without triggering a scroll jump.
+   */
+  function focusEditorSafely(editor) {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      const view = editor.view;
+      if (view && view.dom) {
+        view.dom.focus({ preventScroll: true });
+      }
+    } catch {
       try { editor.commands.focus(); } catch { void 0; }
     }
   }
-}
 
-export function getSavedSelection() {
-  return _savedSelection ? { ..._savedSelection } : null;
-}
+  /**
+   * Mark that a toolbar interaction is in progress.
+   */
+  function markToolbarInteraction() {
+    _isToolbarInteraction = true;
+    window.isToolbarInteraction = true;
 
-export function clearSavedSelection() {
-  _savedSelection = null;
-}
+    if (_toolbarInteractionTimer) clearTimeout(_toolbarInteractionTimer);
+    _toolbarInteractionTimer = setTimeout(() => {
+      _isToolbarInteraction = false;
+      window.isToolbarInteraction = false;
+    }, 200);
 
-/**
- * Attach this as `onMouseDown` on BOTH the header row AND the toolbar row.
- */
-export function guardToolbarMouseDown(e, editor) {
-  if (editor && !editor.isDestroyed) {
-    saveSelection(editor);
-  }
-  markToolbarInteraction();
-  if (e && typeof e.preventDefault === 'function') {
-    e.preventDefault();
-  }
-}
-
-/**
- * The recommended way to run a Tiptap chain command from a toolbar element.
- * 
- * @param {Editor} editor - TipTap editor instance
- * @param {Function} commandFn - Function that takes a chain and returns a chain
- * @param {Object} options - Additional options
- * @param {boolean} options.skipRestore - Skip selection restoration (useful for copy/paste)
- * @param {boolean} options.preserveFocus - Preserve current focus state
- * @param {boolean} options.forceRestore - Force restore even if no saved selection exists
- */
-export function runWithSavedSelection(editor, commandFn, options = {}) {
-  if (!editor || editor.isDestroyed) return false;
-
-  const { skipRestore = false, preserveFocus = false, forceRestore = false } = options;
-
-  try {
-    let chain = editor.chain();
-
-    // Only restore selection if it was previously saved and we're not skipping restore
-    if (_savedSelection && !skipRestore) {
-      const { state } = editor;
-      const maxPos = state.doc.content.size;
-      const anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
-      const head = Math.min(Math.max(0, _savedSelection.head), maxPos);
-
-      if (anchor !== head) {
-        chain = chain.setTextSelection({ from: Math.min(anchor, head), to: Math.max(anchor, head) });
-      } else {
-        chain = chain.setTextSelection(anchor);
-      }
-    } else if (forceRestore && !skipRestore) {
-      // If no saved selection but forceRestore is true, use current selection
-      const { selection } = editor.state;
-      chain = chain.setTextSelection(selection);
-    }
-
-    // Only focus if not preserving focus
-    if (!preserveFocus) {
-      chain = chain.focus();
-    }
-    
-    const resultChain = commandFn(chain);
-
-    let result = false;
-    if (resultChain && typeof resultChain.run === 'function') {
-      result = resultChain.run();
-    } else {
-      result = true;
-    }
-
-    // Focus restoration with scroll prevention
-    if (!preserveFocus && !skipRestore) {
-      const view = editor.view;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (!editor.isDestroyed && view && view.dom) {
-            view.dom.focus({ preventScroll: true });
-          }
-        });
-      });
-    }
-
-    return result;
-  } catch (err) {
-    console.error('[focusUtils] runWithSavedSelection error:', err);
-    return false;
-  }
-}
-
-/**
- * Focus the editor without triggering a scroll jump.
- */
-export function focusEditorSafely(editor) {
-  if (!editor || editor.isDestroyed) return;
-  try {
-    const view = editor.view;
-    if (view && view.dom) {
-      view.dom.focus({ preventScroll: true });
-    }
-  } catch {
-    try { editor.commands.focus(); } catch { void 0; }
-  }
-}
-
-/**
- * Mark that a toolbar interaction is in progress.
- */
-export function markToolbarInteraction() {
-  _isToolbarInteraction = true;
-  window.isToolbarInteraction = true;
-
-  if (_toolbarInteractionTimer) clearTimeout(_toolbarInteractionTimer);
-  _toolbarInteractionTimer = setTimeout(() => {
-    _isToolbarInteraction = false;
-    window.isToolbarInteraction = false;
-  }, 200);
-
-  window.wasToolbarInteractionRecent = true;
-  if (_recentInteractionTimer) clearTimeout(_recentInteractionTimer);
-  _recentInteractionTimer = setTimeout(() => {
-    window.wasToolbarInteractionRecent = false;
-  }, 600);
-}
-
-export function isToolbarInteractionActive() {
-  return _isToolbarInteraction || Boolean(window.isToolbarInteraction);
-}
-
-export function useToolbarMouseDown(editor) {
-  return function handleToolbarMouseDown(e) {
-    guardToolbarMouseDown(e, editor);
-  };
-}
-
-export function useDropdownGuard(editor) {
-  function onMouseDown(e) {
-    if (editor && !editor.isDestroyed) saveSelection(editor);
-    markToolbarInteraction();
-    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    window.wasToolbarInteractionRecent = true;
+    if (_recentInteractionTimer) clearTimeout(_recentInteractionTimer);
+    _recentInteractionTimer = setTimeout(() => {
+      window.wasToolbarInteractionRecent = false;
+    }, 600);
   }
 
-  function onOpenChange(open) {
-    if (open) {
+  function isToolbarInteractionActive() {
+    return _isToolbarInteraction || Boolean(window.isToolbarInteraction);
+  }
+
+  function useToolbarMouseDown(editor) {
+    return function handleToolbarMouseDown(e) {
+      guardEditorToolbarMouseDown(editor);
+    };
+  }
+
+  function useDropdownGuard(editor) {
+    function onMouseDown(e) {
       if (editor && !editor.isDestroyed) saveSelection(editor);
       markToolbarInteraction();
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
     }
+
+    function onOpenChange(open) {
+      if (open) {
+        if (editor && !editor.isDestroyed) saveSelection(editor);
+        markToolbarInteraction();
+      }
+    }
+
+    return {
+      triggerProps: { onMouseDown },
+      onOpenChange,
+    };
   }
 
+  function onMenuOpen(editor) {
+    if (editor && !editor.isDestroyed) saveSelection(editor);
+    markToolbarInteraction();
+  }
+
+  function onMenuClose(_editor) {
+    // Intentional no-op
+  }
+
+  // Return all utilities bound to this instance's state
   return {
-    triggerProps: { onMouseDown },
-    onOpenChange,
+    preventBlur,
+    saveSelection,
+    restoreSelection,
+    getSavedSelection,
+    clearSavedSelection,
+    guardToolbarMouseDown,
+    guardEditorToolbarMouseDown,
+    runWithSavedSelection,
+    focusEditorSafely,
+    markToolbarInteraction,
+    isToolbarInteractionActive,
+    useToolbarMouseDown,
+    useDropdownGuard,
+    onMenuOpen,
+    onMenuClose,
   };
 }
 
-export const preventEditorBlur = preventBlur;
-
-export function onMenuOpen(editor) {
-  if (editor && !editor.isDestroyed) saveSelection(editor);
-  markToolbarInteraction();
-}
-
-export function onMenuClose(_editor) {
-  // Intentional no-op
-}
+// Backward compatibility: export a default instance for existing code
+// BUT NOTE: This will have the same multi-editor conflict issue
+const defaultInstance = createFocusUtils();
+export default defaultInstance;

@@ -145,10 +145,23 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
       const buttonRect = tableButtonRef.current.getBoundingClientRect();
       const pickerElement = tablePickerRef.current;
 
-      // Position the dropdown below the button
+      // 🔥 CRITICAL FIX: Use position: fixed consistently — no scroll offset needed
+      // PROBLEM: Viewport-relative values set as position: fixed offsets drift when
+      // user scrolls between opening the picker and hovering over cells.
+      // 
+      // SOLUTION: Use position: fixed consistently and add scroll listener to close picker
+      pickerElement.style.position = 'fixed';
       pickerElement.style.left = `${buttonRect.left}px`;
-      pickerElement.style.top = `${buttonRect.bottom + 8}px`; // 8px margin
+      pickerElement.style.top = `${buttonRect.bottom + 8}px`;
     }
+  }, [showTablePicker]);
+
+  // 🔥 Close table picker on scroll to prevent drift
+  useEffect(() => {
+    if (!showTablePicker) return;
+    const close = () => setShowTablePicker(false);
+    window.addEventListener('scroll', close, { passive: true });
+    return () => window.removeEventListener('scroll', close);
   }, [showTablePicker]);
 
   // Close table picker when clicking outside

@@ -36,18 +36,44 @@ export const FontControls = ({
 }) => {
   if (!editor) return null;
 
+  // 🔥 CRITICAL FIX: Handle custom sizes and provide user feedback at boundaries
   const increaseFontSize = () => {
-    const currentIndex = FONT_SIZES.indexOf(currentFontSize);
-    if (currentIndex < FONT_SIZES.length - 1) {
-      setFontSize(FONT_SIZES[currentIndex + 1]);
+    const idx = FONT_SIZES.indexOf(currentFontSize);
+    if (idx === -1) {
+      // Custom size: find the next preset above it
+      const next = FONT_SIZES.find(s => s > currentFontSize);
+      if (next) {
+        setFontSize(next);
+      } else {
+        toast.info('Already at maximum size');
+      }
+      return;
     }
+    if (idx >= FONT_SIZES.length - 1) {
+      toast.info('Already at maximum size');
+      return;
+    }
+    setFontSize(FONT_SIZES[idx + 1]);
   };
 
+  // 🔥 CRITICAL FIX: Handle custom sizes and provide user feedback at boundaries
   const decreaseFontSize = () => {
-    const currentIndex = FONT_SIZES.indexOf(currentFontSize);
-    if (currentIndex > 0) {
-      setFontSize(FONT_SIZES[currentIndex - 1]);
+    const idx = FONT_SIZES.indexOf(currentFontSize);
+    if (idx === -1) {
+      // Custom size: find the next preset below it
+      const prev = FONT_SIZES.slice().reverse().find(s => s < currentFontSize);
+      if (prev) {
+        setFontSize(prev);
+      } else {
+        toast.info('Already at minimum size');
+      }
+      return;
     }
+    if (idx <= 0) {
+      toast.info('Already at minimum size');
+      return;
+    }
+    setFontSize(FONT_SIZES[idx - 1]);
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { X, ChevronRight, FileText, Search, Hash, AlignLeft } from 'lucide-react';
 
 // ── Design tokens — light blue theme ────────────────────────────────────────
@@ -92,6 +92,23 @@ export const DocumentOutline = ({
     ? headings.filter(h => h.text?.toLowerCase().includes(search.toLowerCase()))
     : headings;
 
+  // Fix: Optimize hasChildren from O(n²) to O(1) lookup after O(n) precomputation
+  const childrenMap = useMemo(() => {
+    const map = new Map();
+    for (let i = 0; i < headings.length; i++) {
+      const heading = headings[i];
+      let hasChild = false;
+      
+      // Check if next heading is a child (deeper level)
+      if (i + 1 < headings.length && headings[i + 1].level > heading.level) {
+        hasChild = true;
+      }
+      
+      map.set(heading.id, hasChild);
+    }
+    return map;
+  }, [headings]);
+
   const isVisible = useCallback((heading, index) => {
     if (!collapsedSections) return true;
     for (let i = index - 1; i >= 0; i--) {
@@ -103,12 +120,8 @@ export const DocumentOutline = ({
   }, [headings, collapsedSections]);
 
   const hasChildren = useCallback((heading) => {
-    const idx = headings.indexOf(heading);
-    return headings.slice(idx + 1).some(h =>
-      h.level > heading.level &&
-      !headings.slice(idx + 1, headings.indexOf(h)).some(b => b.level <= heading.level)
-    );
-  }, [headings]);
+    return childrenMap.get(heading.id) || false;
+  }, [childrenMap]);
 
   if (!isOpen) return null;
 

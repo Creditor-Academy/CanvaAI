@@ -290,19 +290,185 @@ async function deleteDocument(documentId) {
 }
 
 /**
- * Get all documents from backend (for Recent Documents list)
- * @param {string} [userId] - User ID to filter documents (optional)
- * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string, ownerId: string}>}>}
+ * Get all documents for the authenticated user
+ * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string}>}>}
+ * 
+ * Using deprecated /all/documents endpoint as /my-documents returns 404
  */
-async function getAllDocuments(userId) {
-  // Only use the specific endpoint if a valid userId string is provided
-  const url = (userId && userId !== 'undefined' && userId !== 'null') 
-    ? `${API_BASE_URL}/api/text-editor/all/documents/${userId}`
-    : `${API_BASE_URL}/api/text-editor/all/documents`;
+async function getAllDocuments() {
+  // Use the deprecated but working endpoint
+  const url = `${API_BASE_URL}/api/text-editor/all/documents`;
   
   const response = await axios.get(url, getAuthConfig());
   
   return response.data;
+}
+
+/**
+ * Upload an image to the backend and return the URL
+ * @param {FormData} formData - FormData containing the image file
+ * @returns {Promise<{url: string}>} - The uploaded image URL
+ */
+async function uploadImage(formData) {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/text-editor/upload-image`,
+      formData,
+      {
+        ...getAuthConfig(),
+        headers: {
+          ...getAuthConfig().headers,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Image upload error:", error);
+    throw new Error(error.response?.data?.message || "Image upload failed");
+  }
+}
+
+/**
+ * Create a new version of a document on the backend
+ * @param {string} documentId - The document ID
+ * @param {Object} versionData - Version metadata (title, author, etc.)
+ * @returns {Promise<{versionId: string, title: string, timestamp: string}>} - Version info
+ */
+async function createVersion(documentId, versionData) {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/text-editor/${documentId}/versions`,
+      versionData,
+      getAuthConfig()
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Create version error:", error);
+    throw new Error(error.response?.data?.message || "Failed to create version");
+  }
+}
+
+/**
+ * Get a specific version's content from the backend
+ * @param {string} documentId - The document ID
+ * @param {string} versionId - The version ID
+ * @returns {Promise<{content: Object, title: string, timestamp: string}>} - Version content and metadata
+ */
+async function getVersionById(documentId, versionId) {
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/text-editor/${documentId}/versions/${versionId}`,
+      getAuthConfig()
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Get version error:", error);
+    throw new Error(error.response?.data?.message || "Failed to get version");
+  }
+}
+
+/**
+ * Clone/duplicate a document on the backend
+ * @param {string} documentId - The source document ID to clone
+ * @returns {Promise<{newId: string, title: string}>} - The new cloned document info
+ */
+async function cloneDocument(documentId) {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/text-editor/${documentId}/clone`,
+      {},
+      getAuthConfig()
+    );
+    
+    return response.data; // { newId, title, ... }
+  } catch (error) {
+    console.error("Clone document error:", error);
+    throw new Error(error.response?.data?.message || "Failed to duplicate document");
+  }
+}
+
+/**
+ * Add a comment to a document
+ * @param {string} documentId - The document ID
+ * @param {Object} commentData - Comment data { text, selectedText, author, resolved }
+ * @returns {Promise<Object>} - The saved comment with metadata
+ */
+async function addComment(documentId, commentData) {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/text-editor/${documentId}/comments`,
+      commentData,
+      getAuthConfig()
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Add comment error:", error);
+    throw new Error(error.response?.data?.message || "Failed to add comment");
+  }
+}
+
+/**
+ * Get all comments for a document
+ * @param {string} documentId - The document ID
+ * @returns {Promise<Array>} - Array of comments with metadata
+ */
+async function getComments(documentId) {
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/text-editor/${documentId}/comments`,
+      getAuthConfig()
+    );
+    
+    return response.data || [];
+  } catch (error) {
+    console.error("Get comments error:", error);
+    throw new Error(error.response?.data?.message || "Failed to get comments");
+  }
+}
+
+/**
+ * Update a comment
+ * @param {string} documentId - The document ID
+ * @param {string} commentId - The comment ID
+ * @param {Object} updateData - Updated comment data
+ * @returns {Promise<Object>} - The updated comment
+ */
+async function updateComment(documentId, commentId, updateData) {
+  try {
+    const response = await axios.put(
+      `${API_BASE_URL}/api/text-editor/${documentId}/comments/${commentId}`,
+      updateData,
+      getAuthConfig()
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Update comment error:", error);
+    throw new Error(error.response?.data?.message || "Failed to update comment");
+  }
+}
+
+/**
+ * Delete a comment
+ * @param {string} documentId - The document ID
+ * @param {string} commentId - The comment ID
+ * @returns {Promise<void>}
+ */
+async function deleteComment(documentId, commentId) {
+  try {
+    await axios.delete(
+      `${API_BASE_URL}/api/text-editor/${documentId}/comments/${commentId}`,
+      getAuthConfig()
+    );
+  } catch (error) {
+    console.error("Delete comment error:", error);
+    throw new Error(error.response?.data?.message || "Failed to delete comment");
+  }
 }
 
 // Export all service functions
@@ -322,4 +488,20 @@ export const TextEditorService = {
   updateDocument,
   deleteDocument,
   getAllDocuments,
+  
+  // Image Upload
+  uploadImage,
+  
+  // Version Management
+  createVersion,
+  getVersionById,
+  
+  // Document Cloning
+  cloneDocument,
+  
+  // Comments Management
+  addComment,
+  getComments,
+  updateComment,
+  deleteComment,
 };

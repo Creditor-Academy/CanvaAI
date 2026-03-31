@@ -1,39 +1,55 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 /**
  * Custom hook to handle keyboard shortcuts for the editor
+ * 
+ * Uses refs to store handlers, preventing constant re-registration of event listeners
+ * when parent component passes inline arrow functions as props.
+ * 
  * @param {Object} editor - The Tiptap editor instance
  * @param {Object} handlers - Dictionary of handler functions
  */
 export const useKeyboardShortcuts = (editor, handlers = {}) => {
-    const {
-        onSave,
-        onPrint,
-        onSearch,
-        onHelp,
-        onNewDocument,
-        onOpenDocument
-    } = handlers;
+    // Store handlers in ref — never stale, never causes re-registration
+    const handlersRef = useRef(handlers);
+    
+    // Sync handlers on every render (no dependencies)
+    useEffect(() => {
+        handlersRef.current = handlers;
+    });
 
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // Get latest handlers from ref (always fresh)
+            const { 
+                onSave, 
+                onPrint, 
+                onSearch, 
+                onHelp, 
+                onNewDocument, 
+                onOpenDocument 
+            } = handlersRef.current;
+            
             // Check for modifier keys (Ctrl or Command on Mac)
             const isMod = e.ctrlKey || e.metaKey;
             const isShift = e.shiftKey;
             const isAlt = e.altKey;
 
             // Undo / Redo fallbacks to ensure reliability across platforms
+            // Fix: Only prevent default if event target is inside editor
+            const isInsideEditor = e.target?.closest?.('.ProseMirror');
+            
             if (isMod && !isShift && e.key.toLowerCase() === 'z') {
-                if (editor) {
+                if (editor && isInsideEditor) {
                     e.preventDefault();
                     editor.chain().focus().undo().run();
                 }
                 return;
             }
             if ((isMod && isShift && e.key.toLowerCase() === 'z') || (isMod && e.key.toLowerCase() === 'y')) {
-                if (editor) {
+                if (editor && isInsideEditor) {
                     e.preventDefault();
                     editor.chain().focus().redo().run();
                 }
@@ -93,5 +109,5 @@ export const useKeyboardShortcuts = (editor, handlers = {}) => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [editor, onSave, onPrint, onSearch, onHelp, onNewDocument, onOpenDocument]);
+    }, [editor]); // Only re-register when editor identity changes
 };

@@ -8,22 +8,19 @@ import {
 import { toast } from 'sonner';
 
 // ─── ProseMirror Plugin ──────────────────────────────────────────────────────
-// One shared plugin key so Tiptap never duplicates it across renders.
-const FIND_REPLACE_KEY = new PluginKey('athena-find-replace');
-
 /**
  * Build a ProseMirror plugin that decorates all match ranges in the document.
- * Returns the plugin instance (created once, not per render).
+ * Each editor instance gets its own unique plugin key to avoid HMR and multi-instance conflicts.
  */
-function buildFindReplacePlugin() {
+function buildFindReplacePlugin(pluginKey) {
   return new Plugin({
-    key: FIND_REPLACE_KEY,
+    key: pluginKey,
     state: {
       // Plugin state: { matches, currentIndex }
       init() { return { matches: [], currentIndex: -1 }; },
       apply(tr, old) {
         // Plugin state is updated via setMeta
-        const meta = tr.getMeta(FIND_REPLACE_KEY);
+        const meta = tr.getMeta(pluginKey);
         if (meta !== undefined) return meta;
         // Remap positions when doc changes
         if (tr.docChanged && old.matches.length > 0) {
@@ -40,7 +37,7 @@ function buildFindReplacePlugin() {
     },
     props: {
       decorations(state) {
-        const { matches, currentIndex } = FIND_REPLACE_KEY.getState(state);
+        const { matches, currentIndex } = pluginKey.getState(state);
         if (!matches.length) return DecorationSet.empty;
 
         const decorations = matches.map((m, i) =>
@@ -54,13 +51,6 @@ function buildFindReplacePlugin() {
       },
     },
   });
-}
-
-// Singleton plugin instance — created once per module load
-let _pluginInstance = null;
-function getFindReplacePlugin() {
-  if (!_pluginInstance) _pluginInstance = buildFindReplacePlugin();
-  return _pluginInstance;
 }
 
 // ─── Match Finder ────────────────────────────────────────────────────────────
@@ -140,6 +130,34 @@ const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) =>
 
   const searchInputRef  = useRef(null);
   const replaceInputRef = useRef(null);
+  
+  // ✅ CRITICAL FIX: Plugin instance per editor mount (not module singleton)
+  // This prevents HMR issues and multi-tab state conflicts
+  const pluginKeyRef = useRef(null);
+  const pluginInstanceRef = useRef(null);
+  
+  // Create fresh plugin key and instance on first render for this editor instance
+  if (!pluginKeyRef.current && editor) {
+    pluginKeyRef.current = new PluginKey(`athena-find-replace-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+    pluginInstanceRef.current = buildFindReplacePlugin(pluginKeyRef.current);
+  }
+
+  // ── Register plugin with editor on mount, cleanup on unmount ─────────────
+  useEffect(() => {
+    if (!editor || !pluginInstanceRef.current) return;
+    
+    // Register plugin with this specific editor instance
+    editor.registerPlugin(pluginInstanceRef.current);
+    
+    // Cleanup: unregister plugin when editor unmounts or component unmounts
+    return () => {
+      if (pluginKeyRef.current) {
+        editor.unregisterPlugin(pluginKeyRef.current);
+      }
+      pluginKeyRef.current = null;
+      pluginInstanceRef.current = null;
+    };
+  }, [editor]);
 
   // ── Sync replace panel with prop ─────────────────────────────────────────
   useEffect(() => {
@@ -158,7 +176,7 @@ const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) =>
 
   // ── Core: update decorations whenever search params change ───────────────
   const updateDecorations = useCallback((term, idx, opts) => {
-    if (!editor) return [];
+    if (!editor || !pluginKeyRef.current) return [];
     setRegexError('');
 
     if (!term) {
@@ -184,7 +202,7 @@ const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) =>
 
     // Push into ProseMirror plugin via a meta transaction
     const tr = editor.state.tr;
-    tr.setMeta(FIND_REPLACE_KEY, { matches: found, currentIndex: safeIdx });
+    tr.setMeta(pluginKeyRef.current, { matches: found, currentIndex: safeIdx });
     editor.view.dispatch(tr);
 
     setMatches(found);
@@ -199,10 +217,10 @@ const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) =>
   }, [editor]);
 
   const clearDecorations = useCallback(() => {
-    if (!editor) return;
+    if (!editor || !pluginKeyRef.current) return;
     try {
       const tr = editor.state.tr;
-      tr.setMeta(FIND_REPLACE_KEY, { matches: [], currentIndex: -1 });
+      tr.setMeta(pluginKeyRef.current, { matches: [], currentIndex: -1 });
       editor.view.dispatch(tr);
     } catch {}
   }, [editor]);
@@ -224,13 +242,13 @@ const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) =>
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const goToIndex = useCallback((idx) => {
-    if (!matches.length) return;
+    if (!matches.length || !pluginKeyRef.current) return;
     const safeIdx = ((idx % matches.length) + matches.length) % matches.length;
     setCurrentIndex(safeIdx);
     scrollToMatch(matches[safeIdx]);
 
     const tr = editor.state.tr;
-    tr.setMeta(FIND_REPLACE_KEY, { matches, currentIndex: safeIdx });
+    tr.setMeta(pluginKeyRef.current, { matches, currentIndex: safeIdx });
     editor.view.dispatch(tr);
   }, [matches, editor]);
 
@@ -260,21 +278,28 @@ const FindReplaceModal = ({ isOpen, onClose, editor, isReplaceMode = false }) =>
   const replaceAll = useCallback(() => {
     if (!editor || !matches.length) return;
     try {
+      // Batch all replacements into a SINGLE transaction = SINGLE undo step
       let tr = editor.state.tr;
-      // Iterate backwards so earlier positions stay valid
+      
+      // Iterate backwards so earlier positions stay valid during replacement
       [...matches].reverse().forEach(m => {
         const replacement = computeReplacement(replaceTerm, m.groups);
-        tr.insertText(replacement, m.from, m.to);
+        tr = tr.replaceWith(m.from, m.to, editor.state.schema.text(replacement));
       });
+      
+      // CRITICAL: Mark as single history step for clean Ctrl+Z behavior
+      tr.setMeta('addToHistory', true);
+      
       const count = matches.length;
       editor.view.dispatch(tr);
       toast.success(`Replaced ${count} occurrence${count !== 1 ? 's' : ''}`);
 
-      // Re-scan
+      // Re-scan after document change
       setTimeout(() => {
         updateDecorations(searchTerm, 0, { matchCase, wholeWord, useRegex });
       }, 30);
     } catch (e) {
+      console.error('Replace all failed:', e);
       toast.error('Replace failed: ' + e.message);
     }
   }, [editor, matches, replaceTerm, searchTerm, matchCase, wholeWord, useRegex, updateDecorations]);
@@ -543,4 +568,4 @@ const OptionToggle = ({ active, onClick, disabled, Icon, label, shortcut }) => (
   </button>
 );
 
-export { FindReplaceModal, getFindReplacePlugin, FIND_REPLACE_KEY };
+export { FindReplaceModal };

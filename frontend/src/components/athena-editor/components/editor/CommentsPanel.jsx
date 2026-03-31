@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     MessageSquare, X, Send, Check, CheckCheck, Reply,
@@ -9,12 +9,13 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import { cn } from '../utils';
+import { TextEditorService } from '../../../../services/Text-Editor/text.service.js';
 
 const COMMENT_COLORS = [
     '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 ];
 
-const CommentsPanel = ({ isOpen, onClose, editor }) => {
+const CommentsPanel = ({ isOpen, onClose, editor, docId }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [replyingTo, setReplyingTo] = useState(null);
@@ -22,30 +23,69 @@ const CommentsPanel = ({ isOpen, onClose, editor }) => {
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState('');
     const [suggestionMode, setSuggestionMode] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const textareaRef = useRef(null);
 
     const currentUser = { name: 'You', color: COMMENT_COLORS[0], initials: 'YO' };
 
-    const addComment = () => {
-        if (!newComment.trim()) return;
-        const selectedText = editor
-            ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ')
-            : '';
+    // Load comments from backend on mount
+    useEffect(() => {
+        if (!docId) {
+            setComments([]);
+            setIsLoading(false);
+            return;
+        }
 
-        const comment = {
-            id: Date.now(),
-            text: newComment,
-            author: currentUser,
-            timestamp: new Date(),
-            resolved: false,
-            replies: [],
-            selectedText,
-            assignedTo: null,
-            isSuggestion: suggestionMode,
+        const loadComments = async () => {
+            try {
+                setIsLoading(true);
+                const loadedComments = await TextEditorService.getComments(docId);
+                setComments(loadedComments || []);
+            } catch (error) {
+                console.error('Failed to load comments:', error);
+                toast.error('Failed to load comments');
+                setComments([]);
+            } finally {
+                setIsLoading(false);
+            }
         };
-        setComments(prev => [comment, ...prev]);
-        setNewComment('');
-        toast.success('Comment added');
+
+        loadComments();
+    }, [docId]);
+
+    const addComment = async () => {
+        if (!newComment.trim()) return;
+        
+        if (!editor || editor.state.selection.empty) {
+            toast.error('Please select some text to add a comment');
+            return;
+        }
+
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to, ' ');
+
+        const commentData = {
+            text: newComment,
+            selectedText,
+            author: currentUser,
+            resolved: false,
+            isSuggestion: suggestionMode,
+            from,  // Store ProseMirror position
+            to,    // Store ProseMirror position
+        };
+
+        try {
+            // Persist to backend first
+            const savedComment = await TextEditorService.addComment(docId, commentData);
+            
+            // Update local state with the saved comment (includes server-generated ID)
+            setComments(prev => [savedComment, ...prev]);
+            setNewComment('');
+            toast.success('Comment added');
+        } catch (error) {
+            console.error('Failed to add comment:', error);
+            toast.error('Failed to add comment');
+        }
     };
 
     const addReply = (commentId) => {
@@ -68,14 +108,36 @@ const CommentsPanel = ({ isOpen, onClose, editor }) => {
         toast.success('Reply added');
     };
 
-    const resolveComment = (id) => {
-        setComments(prev => prev.map(c => c.id === id ? { ...c, resolved: !c.resolved } : c));
-        toast.success('Comment status updated');
+    const resolveComment = async (id) => {
+        try {
+            // Find the comment to get its data
+            const comment = comments.find(c => c.id === id);
+            if (!comment) return;
+
+            // Update on backend
+            await TextEditorService.updateComment(docId, id, { resolved: !comment.resolved });
+            
+            // Update local state
+            setComments(prev => prev.map(c => c.id === id ? { ...c, resolved: !c.resolved } : c));
+            toast.success('Comment status updated');
+        } catch (error) {
+            console.error('Failed to update comment:', error);
+            toast.error('Failed to update comment status');
+        }
     };
 
-    const deleteComment = (id) => {
-        setComments(prev => prev.filter(c => c.id !== id));
-        toast.success('Comment deleted');
+    const deleteComment = async (id) => {
+        try {
+            // Delete from backend first
+            await TextEditorService.deleteComment(docId, id);
+            
+            // Update local state
+            setComments(prev => prev.filter(c => c.id !== id));
+            toast.success('Comment deleted');
+        } catch (error) {
+            console.error('Failed to delete comment:', error);
+            toast.error('Failed to delete comment');
+        }
     };
 
     const startEdit = (comment) => {
@@ -83,15 +145,64 @@ const CommentsPanel = ({ isOpen, onClose, editor }) => {
         setEditText(comment.text);
     };
 
-    const saveEdit = (id) => {
-        setComments(prev => prev.map(c => c.id === id ? { ...c, text: editText } : c));
-        setEditingId(null);
-        toast.success('Comment updated');
+    const saveEdit = async (id) => {
+        try {
+            // Update on backend first
+            await TextEditorService.updateComment(docId, id, { text: editText });
+            
+            // Update local state
+            setComments(prev => prev.map(c => c.id === id ? { ...c, text: editText } : c));
+            setEditingId(null);
+            toast.success('Comment updated');
+        } catch (error) {
+            console.error('Failed to update comment:', error);
+            toast.error('Failed to update comment');
+        }
+    };
+
+    const scrollToComment = (comment) => {
+        if (!editor || comment.from == null) {
+            toast.error('Cannot locate the commented text. The document may have changed.');
+            return;
+        }
+
+        try {
+            // Set selection to the stored position
+            editor.commands.setTextSelection({ from: comment.from, to: comment.to });
+            
+            // Scroll the content into view
+            editor.commands.scrollIntoView();
+            
+            // Focus the editor
+            editor.commands.focus();
+            
+            toast.success('Located commented text');
+        } catch (error) {
+            console.error('Failed to scroll to comment:', error);
+            toast.error('Could not locate the commented text. It may have been deleted or moved.');
+        }
     };
 
     const acceptSuggestion = (comment) => {
-        if (editor && comment.selectedText) {
-            toast.success('Suggestion accepted');
+        // Fix: Actually apply the suggested change to the editor
+        if (editor && comment.selectedText && comment.text) {
+            try {
+                // Replace the selected text with the suggestion
+                editor.chain()
+                    .focus()
+                    .setTextSelection({ 
+                        from: editor.state.selection.from, 
+                        to: editor.state.selection.to 
+                    })
+                    .insertContent(comment.text)
+                    .run();
+                toast.success('Suggestion accepted and applied');
+            } catch (error) {
+                console.error('Failed to apply suggestion:', error);
+                toast.error('Failed to apply suggestion');
+            }
+        } else {
+            toast.info('No text selected or no suggestion text');
         }
         resolveComment(comment.id);
     };
@@ -173,7 +284,12 @@ const CommentsPanel = ({ isOpen, onClose, editor }) => {
 
             {/* Comments List */}
             <div className="flex-1 overflow-y-auto">
-                {comments.length === 0 ? (
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center px-4 text-gray-400">
+                        <Clock className="w-10 h-10 mb-3 opacity-30 animate-pulse" />
+                        <p className="text-sm font-medium">Loading comments...</p>
+                    </div>
+                ) : comments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center px-4 text-gray-400">
                         <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
                         <p className="text-sm font-medium">No comments yet</p>
@@ -230,11 +346,17 @@ const CommentsPanel = ({ isOpen, onClose, editor }) => {
                                     </div>
                                 </div>
 
-                                {/* Selected text reference */}
+                                {/* Selected text reference - clickable to scroll to location */}
                                 {comment.selectedText && (
-                                    <div className="text-[10px] text-gray-400 bg-yellow-50 border-l-2 border-yellow-300 px-2 py-1 mb-1.5 rounded italic truncate">
-                                        "{comment.selectedText}"
-                                    </div>
+                                    <button
+                                        onClick={() => scrollToComment(comment)}
+                                        className="w-full text-left"
+                                        title="Click to jump to this text in the document"
+                                    >
+                                        <div className="text-[10px] text-gray-500 hover:text-blue-600 bg-yellow-50 hover:bg-blue-50 border-l-2 border-yellow-300 hover:border-blue-400 px-2 py-1 mb-1.5 rounded italic truncate transition-colors cursor-pointer">
+                                            "{comment.selectedText}"
+                                        </div>
+                                    </button>
                                 )}
 
                                 {/* Comment text */}

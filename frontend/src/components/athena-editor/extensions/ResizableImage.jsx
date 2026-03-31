@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { Image as TiptapImage } from '@tiptap/extension-image';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useEditorContext } from '../contexts/EditorContent.jsx';
@@ -223,11 +224,12 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
   );
 };
 
-export const ResizableImage = Node.create({
+export const ResizableImage = TiptapImage.extend({
   name: 'resizableImage',
 
   addOptions() {
     return {
+      ...this.parent?.(),
       inline: false,
       allowBase64: true,
       HTMLAttributes: {
@@ -243,15 +245,9 @@ export const ResizableImage = Node.create({
 
   addAttributes() {
     return {
-      src: {
-        default: null,
-      },
-      alt: {
-        default: '',
-      },
-      title: {
-        default: '',
-      },
+      // Inherit all attributes from parent Image extension
+      ...this.parent?.(),
+      // Add resize-specific attributes
       width: {
         default: 400,
         parseHTML: element => {
@@ -357,52 +353,6 @@ export const ResizableImage = Node.create({
         default: 100,
       },
     };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'img[src]',
-        getAttrs: dom => {
-          const src = dom.getAttribute('src');
-          const alt = dom.getAttribute('alt') || '';
-          const title = dom.getAttribute('title') || alt;
-
-          // Try to extract width and height from various sources
-          let width = dom.getAttribute('width') ||
-            dom.getAttribute('data-width') ||
-            dom.style.width;
-          let height = dom.getAttribute('height') ||
-            dom.getAttribute('data-height') ||
-            dom.style.height;
-
-          // Parse numeric values
-          if (width && typeof width === 'string') {
-            const num = parseInt(width.replace('px', ''), 10);
-            width = isNaN(num) ? 400 : num;
-          }
-
-          if (height && typeof height === 'string') {
-            const num = parseInt(height.replace('px', ''), 10);
-            height = isNaN(num) ? 300 : num;
-          }
-
-          return {
-            src,
-            alt,
-            title,
-            width: width || 400,
-            height: height || 300,
-            align: dom.getAttribute('data-align') ||
-              dom.style.float ||
-              dom.style.textAlign ||
-              'left',
-            class: dom.getAttribute('class'),
-            style: dom.getAttribute('style'),
-          };
-        },
-      },
-    ];
   },
 
   renderHTML({ HTMLAttributes }) {

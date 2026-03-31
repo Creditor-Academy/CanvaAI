@@ -1,6 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, FileText, Briefcase, GraduationCap, Mail, FileSignature, Newspaper } from 'lucide-react';
 
+// Fix: Import DOMPurify for XSS sanitization
+import DOMPurify from 'dompurify';
+
 const templates = [
   {
     id: 'blank',
@@ -94,6 +97,7 @@ export const TemplateSidebar = ({
   isOpen,
   onClose,
   onSelectTemplate,
+  isLoading = false, // Add loading state prop for future API support
 }) => {
   const categories = [...new Set(templates.map((t) => t.category))];
 
@@ -134,35 +138,63 @@ export const TemplateSidebar = ({
 
             {/* Templates List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {categories.map((category) => (
-                <div key={category} className="space-y-2">
-                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider">
-                    {category}
-                  </h3>
-                  <div className="grid gap-2">
-                    {templates
-                      .filter((t) => t.category === category)
-                      .map((template) => (
-                        <button
-                          key={template.id}
-                          onClick={() => {
-                            onSelectTemplate(template);
-                            onClose();
-                          }}
-                          className={`flex items-start gap-3 p-3 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors text-left w-full`}
-                        >
-                          <template.icon className="w-5 h-5 text-blue-600 mt-0.5" />
-                          <div>
-                            <div className="font-medium text-sm">{template.name}</div>
-                            <div className="text-xs text-blue-700">
-                              {template.description}
+              {isLoading ? (
+                /* Loading Skeleton UI - Future-proof for API calls */
+                <div className="space-y-6">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-4 bg-blue-200 rounded w-24 animate-pulse" />
+                      <div className="grid gap-2">
+                        {[1, 2].map((j) => (
+                          <div key={j} className="flex items-start gap-3 p-3 rounded-lg border border-blue-200">
+                            <div className="w-5 h-5 bg-blue-200 rounded mt-0.5 animate-pulse" />
+                            <div className="flex-1 space-y-1">
+                              <div className="h-4 bg-blue-200 rounded w-3/4 animate-pulse" />
+                              <div className="h-3 bg-blue-200 rounded w-1/2 animate-pulse" />
                             </div>
                           </div>
-                        </button>
-                      ))}
-                  </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                categories.map((category) => (
+                  <div key={category} className="space-y-2">
+                    <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider">
+                      {category}
+                    </h3>
+                    <div className="grid gap-2">
+                      {templates
+                        .filter((t) => t.category === category)
+                        .map((template) => (
+                          <button
+                            key={template.id}
+                            onClick={() => {
+                              // Fix: Sanitize template content at point of application
+                              // Defensive sanitization even for static templates
+                              const safe = DOMPurify.sanitize(template.content, {
+                                ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','ul','ol','li','strong','em','u','a','br','blockquote','code','pre','img'],
+                                ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt']
+                              });
+                              onSelectTemplate({ ...template, content: safe });
+                              onClose();
+                            }}
+                            className={`flex items-start gap-3 p-3 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors text-left w-full`}
+                          >
+                            <template.icon className="w-5 h-5 text-blue-600 mt-0.5" />
+                            <div>
+                              <div className="font-medium text-sm">{template.name}</div>
+                              <div className="text-xs text-blue-700">
+                                {template.description}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </motion.div>
         </>

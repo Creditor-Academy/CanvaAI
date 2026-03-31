@@ -13,12 +13,14 @@
  */
 
 import { paginateDocument } from './paginationEngine.js';
+import { 
+  A4_HEIGHT_PX as PAGE_HEIGHT,
+  PAGE_MARGIN_TOP_PX as MARGIN_TOP,
+  PAGE_MARGIN_BOTTOM_PX as MARGIN_BOTTOM
+} from '../../../utils/pagination/constants';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-const PAGE_HEIGHT = 1123;        // Full A4 height in px
-const MARGIN_TOP = 48;           // Top margin - MUST MATCH CSS padding-top
-const MARGIN_BOTTOM = 48;        // Bottom margin - MUST MATCH CSS padding-bottom
-const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 1027px
+// Computed usable height
+const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM;
 
 // ── Mutex & Scheduling ───────────────────────────────────────────────────────
 let isPaginating = false;

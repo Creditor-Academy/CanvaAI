@@ -29,7 +29,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { guardToolbarMouseDown, saveSelection, onMenuOpen, onMenuClose, runWithSavedSelection, preventEditorBlur } from './focusUtils';
+import focusUtils from './focusUtils';
+
+// Destructure functions from default export for backward compatibility
+const { guardToolbarMouseDown, saveSelection, onMenuOpen, onMenuClose, runWithSavedSelection, preventEditorBlur } = focusUtils;
 
 // Custom Paste Icon Component using local SVG
 const PasteIcon = ({ className, size = 20 }) => (
@@ -84,6 +87,7 @@ const HeaderMenuBar = React.memo(({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showMenuDropdown, setShowMenuDropdown] = useState(null);
   const [showFindReplaceDialog, setShowFindReplaceDialog] = useState(false);
+  const [showNewDocConfirm, setShowNewDocConfirm] = useState(false);
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [matchCase, setMatchCase] = useState(false);
@@ -252,7 +256,7 @@ const HeaderMenuBar = React.memo(({
 
   // File menu items
   const fileMenuItems = [
-    { id: 'new', label: 'New Page', icon: FileText, shortcut: 'Ctrl+N', onClick: () => { if (window.confirm('Create new document? Current changes will be lost.')) { editor?.commands.clearContent(); toast.success('New document created'); } } },
+    { id: 'new', label: 'New Page', icon: FileText, shortcut: 'Ctrl+N', onClick: () => setShowNewDocConfirm(true) },
     { id: 'open', label: 'Open...', icon: FolderOpen, shortcut: 'Ctrl+O', onClick: () => toast.info('Open file dialog') },
     { id: 'save', label: 'Save', icon: Save, shortcut: 'Ctrl+S', onClick: onSave },
     { id: 'print', label: 'Print', icon: Printer, shortcut: 'Ctrl+P', onClick: onPrint },
@@ -569,6 +573,38 @@ const HeaderMenuBar = React.memo(({
             }}>
               Replace
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Document Confirmation Dialog */}
+      <Dialog open={showNewDocConfirm} onOpenChange={setShowNewDocConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Document</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to create a new document? All current changes will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setShowNewDocConfirm(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (editor) {
+                  editor.commands.clearContent();
+                  toast.success('New document created');
+                }
+                setShowNewDocConfirm(false);
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Create New Document
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

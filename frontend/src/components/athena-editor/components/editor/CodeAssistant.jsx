@@ -94,11 +94,43 @@ export const CodeAssistant = ({
     setResultCode('');
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(resultCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success('Code copied');
+  const handleCopy = async () => {
+    if (!resultCode) return;
+    
+    try {
+      // Primary method: Clipboard API (requires HTTPS or user gesture)
+      await navigator.clipboard.writeText(resultCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('Code copied');
+    } catch (error) {
+      console.warn('Clipboard API failed, using fallback:', error?.message || error);
+      
+      // Fallback: execCommand for non-HTTPS contexts or permission denied
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = resultCode;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length); // For mobile
+        
+        const success = document.execCommand('copy');
+        document.body.removeChild(ta);
+        
+        if (success) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+          toast.success('Code copied (fallback)');
+        } else {
+          toast.error('Failed to copy code');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError);
+        toast.error('Failed to copy code');
+      }
+    }
   };
 
   return (

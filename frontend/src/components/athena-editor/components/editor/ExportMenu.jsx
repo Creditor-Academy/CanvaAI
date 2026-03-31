@@ -18,11 +18,19 @@ import { Button } from '../ui/button';
 import { toast } from 'sonner';
 import DOMPurify from 'dompurify';
 import { exportEditorPagesToPDF } from '../../../../utils/pdfExport';
+import TurndownService from 'turndown';
 
 export const ExportMenu = ({ getHTML, documentTitle }) => {
   const [isExporting, setIsExporting] = useState(false);
 
   const exportAsPDF = async () => {
+    // Open window IMMEDIATELY before any await - guarantees user gesture context
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      toast.error('Popup blocked. Please allow popups for PDF export.');
+      return;
+    }
+    
     setIsExporting(true);
     try {
       // Use the new page-based PDF export that matches editor pages exactly
@@ -31,20 +39,18 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
         scale: 2 // High quality export
       });
       
+      // Primary export succeeded - close the blank window we opened
+      printWin.close();
       toast.success('PDF exported successfully with exact page matching');
     } catch (error) {
       console.error('PDF export error:', error);
       toast.error(`Failed to export as PDF: ${error.message}`);
       
-      // Fallback to print method if page-based export fails
+      // Fallback: Use the already-open window for print-to-PDF
       try {
         const raw = typeof getHTML === 'function' ? getHTML() : '';
         const safe = DOMPurify.sanitize(raw || '<p></p>');
-        const w = window.open('', '_blank', 'noopener,noreferrer');
-        if (!w) {
-          toast.error('Popup blocked. Please allow popups to export.');
-          return;
-        }
+        
         const styles = `
           *{box-sizing:border-box}
           body{font-family:Inter,Arial,sans-serif;margin:0;color:#111827;line-height:1.5}
@@ -57,18 +63,24 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
           @page { size: A4; margin: 0.5in; }
           @media print { body{margin:0} .page{min-height:auto} }
         `;
-        w.document.open();
-        w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${documentTitle || 'Document'}</title><style>${styles}</style></head><body><div class="page"><div class="content">${safe}</div></div></body></html>`);
-        w.document.close();
-        w.focus();
+        
+        // Write fallback content to the already-open window
+        printWin.document.open();
+        printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${documentTitle || 'Document'}</title><style>${styles}</style></head><body><div class="page"><div class="content">${safe}</div></div></body></html>`);
+        printWin.document.close();
+        printWin.focus();
+        
         setTimeout(() => {
-          try { w.print(); } catch { void 0 }
-          w.close();
+          try { printWin.print(); } catch { void 0 }
+          // Don't close immediately - let user review before closing
+          setTimeout(() => printWin.close(), 1000);
         }, 300);
+        
         toast.success('Opening print dialog for PDF export (fallback method)');
       } catch (printError) {
         console.error('Print fallback also failed:', printError);
         toast.error('Both PDF export methods failed');
+        printWin.close(); // Clean up the blank window
       }
     } finally {
       setIsExporting(false);
@@ -77,6 +89,12 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
 
   const exportAsHTML = () => {
     const html = getHTML();
+    // Fix: Sanitize HTML before export to prevent XSS in exported files
+    const safe = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 's', 'code', 'pre', 'a', 'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'span', 'br', 'div'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'style', 'colspan', 'rowspan', 'width', 'height']
+    });
+    
     const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -96,7 +114,7 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
   </style>
 </head>
 <body>
-  ${html}
+  ${safe}
 </body>
 </html>`;
 
@@ -106,48 +124,63 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
     a.href = url;
     a.download = `${documentTitle}.html`;
     a.click();
-    URL.revokeObjectURL(url);
+    
+    // Revoke AFTER the click event has been processed
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    
     toast.success('Exported as HTML');
   };
 
   const exportAsMarkdown = () => {
-    const html = getHTML();
-    // Simple HTML to Markdown conversion
-    let markdown = html
-      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
-      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
-      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
-      .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
-      .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
-      .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
-      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-      .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-      .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
-      .replace(/<u[^>]*>(.*?)<\/u>/gi, '<u>$1</u>')
-      .replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~')
-      .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-      .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
-      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
-      .replace(/<ul[^>]*>|<\/ul>/gi, '\n')
-      .replace(/<ol[^>]*>|<\/ol>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/\n{3,}/g, '\n\n');
-
-    const blob = new Blob([markdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${documentTitle}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Exported as Markdown');
+    try {
+      // Use Turndown for proper HTML to Markdown conversion
+      const td = new TurndownService({
+        headingStyle: 'atx',      // Use # style headings
+        codeBlockStyle: 'fenced', // Use ``` code blocks
+        bulletListMarker: '-',    // Use - for lists
+        emDelimiter: '*',         // Use * for emphasis
+        strongDelimiter: '**'     // Use ** for strong
+      });
+      
+      // Add custom rules for better handling
+      td.addRule('table', {
+        filter: ['table'],
+        replacement: (content, node) => {
+          // Convert tables to markdown-style tables
+          return '\n\n' + content + '\n\n';
+        }
+      });
+      
+      td.addRule('codeBlock', {
+        filter: (node) => {
+          return node.nodeName === 'PRE' && node.querySelector('code');
+        },
+        replacement: (content, node) => {
+          const code = node.querySelector('code');
+          const language = code?.className?.replace('language-', '') || '';
+          return '\n\n```' + language + '\n' + code?.textContent + '\n```\n\n';
+        }
+      });
+      
+      const html = getHTML();
+      const markdown = td.turndown(html);
+      
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${documentTitle}.md`;
+      a.click();
+      
+      // CRITICAL FIX: Revoke AFTER the click event has been processed
+      // The click triggers an async file download; revoking immediately fails in Safari/Firefox
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      
+      toast.success('Exported as Markdown');
+    } catch (error) {
+      console.error('Markdown export error:', error);
+      toast.error('Failed to export as Markdown');
+    }
   };
 
   const exportAsText = () => {
@@ -160,7 +193,10 @@ export const ExportMenu = ({ getHTML, documentTitle }) => {
     a.href = url;
     a.download = `${documentTitle}.txt`;
     a.click();
-    URL.revokeObjectURL(url);
+    
+    // Revoke AFTER the click event has been processed
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    
     toast.success('Exported as plain text');
   };
 

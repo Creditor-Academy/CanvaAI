@@ -5,6 +5,7 @@ import { HiOutlinePresentationChartLine } from "react-icons/hi2";
 import { IoDocument } from "react-icons/io5";
 import { CiImageOn } from "react-icons/ci";
 import homepageImage from "../../assets/homepage.png";
+import Recents from "./Recents";
 
 const FEATURES = [
   {
@@ -200,6 +201,12 @@ export default function Dashboard() {
 
         </div>
       </motion.section>
+
+      {/* ================= RECENT DOCUMENTS ================= */}
+      
+      <section className="relative bg-white py-16">
+        <Recents />
+      </section>
 
       {/* ================= EXPLORE AI TOOLS ================= */}
 

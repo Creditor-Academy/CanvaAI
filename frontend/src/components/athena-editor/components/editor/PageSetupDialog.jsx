@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from '../ui/dialog';
@@ -35,6 +35,23 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
     const [pageColor, setPageColor] = useState('#ffffff');
     const [pagelessMode, setPagelessMode] = useState(false);
 
+    // CRITICAL FIX: Reset local state when dialog opens to prevent stale values from bleeding into new sessions
+    useEffect(() => {
+        if (open) {
+            // Reset all state to defaults when dialog opens
+            setPageSize('a4');
+            setOrientation('portrait');
+            setCustomWidth(794);
+            setCustomHeight(1123);
+            setMargins({ top: 96, bottom: 96, left: 72, right: 72 });
+            setColumns(1);
+            setColumnGap(36);
+            setPageColor('#ffffff');
+            setPagelessMode(false);
+            setActiveTab('size');
+        }
+    }, [open]);
+
     const selectedSize = PAGE_SIZES.find(s => s.value === pageSize);
 
     const apply = () => {
@@ -49,25 +66,13 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
             pageColor,
             pagelessMode,
         };
+        
+        // CRITICAL FIX: Only notify parent - DO NOT touch DOM directly
+        // Parent is responsible for applying CSS variables after its own state is committed
+        // This prevents desync when user clicks Apply then Cancel, or if onApply throws
         if (onApply) onApply(cfg);
         
-        // CRITICAL FIX: Update CSS VARIABLES instead of inline styles
-        // This ensures all components use the same source of truth from athena-variables.css
-        const root = document.documentElement;
-        root.style.setProperty('--doc-margin-top', `${margins.top}px`);
-        root.style.setProperty('--doc-margin-bottom', `${margins.bottom}px`);
-        root.style.setProperty('--doc-margin-left', `${margins.left}px`);
-        root.style.setProperty('--doc-margin-right', `${margins.right}px`);
-        root.style.setProperty('--page-bg-color', pageColor);
-        
-        // REMOVED: Direct inline style application that was overriding CSS
-        // const editorEl = document.querySelector('.tiptap.ProseMirror');
-        // if (editorEl) {
-        //   editorEl.style.padding = `${margins.top}px ${margins.right}px ...`; // THIS WAS THE BUG
-        //   editorEl.style.backgroundColor = pageColor;
-        // }
-        
-        toast.success('Page setup applied - margins and colors updated');
+        toast.success('Page setup applied');
         onOpenChange(false);
     };
 

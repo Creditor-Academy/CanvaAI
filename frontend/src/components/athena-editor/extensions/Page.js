@@ -15,19 +15,26 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import PageComponent from '../components/PageView.jsx';
+import { 
+  A4_HEIGHT_PX as PAGE_HEIGHT,
+  A4_WIDTH_PX as PAGE_WIDTH,
+  PAGE_MARGIN_TOP_PX as TOP_MARGIN,
+  PAGE_MARGIN_BOTTOM_PX as BOTTOM_MARGIN,
+  PAGE_MARGIN_LEFT_PX as LEFT_MARGIN,
+  PAGE_MARGIN_RIGHT_PX as RIGHT_MARGIN
+} from '../../../utils/pagination/constants';
 
-// ── A4 constants (96 DPI) - MUST MATCH CSS! ────────────────────────────────────
-// CSS: .page { min-height: 1123px; padding: 48px 72px; }
-export const PAGE_HEIGHT   = 1123;
-export const PAGE_WIDTH    = 794;
-export const TOP_MARGIN    = 48;    // Match CSS padding-top
-export const BOTTOM_MARGIN = 48;    // Match CSS padding-bottom
-export const LEFT_MARGIN   = 72;    // Match CSS padding-left
-export const RIGHT_MARGIN  = 72;    // Match CSS padding-right
-export const USABLE_HEIGHT = PAGE_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN; // 1027px
+// Computed usable height
+const USABLE_HEIGHT = PAGE_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN;
 
-// Kept for backward compat with TextEditor.jsx imports
-export const addHeadingStyles = () => {};
+/**
+ * Legacy function - now a no-op for backward compatibility.
+ * Styles are now in AthenaEditor.css using CSS custom properties.
+ * Use updateHeadingStyles() from EditorPagination.js instead.
+ */
+export const addHeadingStyles = () => {
+  // No-op: styles are loaded via AthenaEditor.css
+};
 
 // ── Page Node ─────────────────────────────────────────────────────────────────
 export const Page = Node.create({

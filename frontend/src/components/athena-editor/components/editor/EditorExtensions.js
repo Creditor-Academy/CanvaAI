@@ -24,7 +24,11 @@ import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
 import { Plugin, PluginKey } from 'prosemirror-state';
-import DOMPurify from 'dompurify';
+
+// Fix: Guard DOMPurify for SSR/test environments where it's not available
+const sanitize = typeof DOMPurify !== 'undefined'
+  ? (html, opts) => DOMPurify.sanitize(html, opts)
+  : (html) => html;
 
 import { Page } from '../../extensions/Page.js';
 import TableExtension from '../../extensions/TableExtension.js';
@@ -100,7 +104,6 @@ export const buildEditorExtensions = () => {
     CharacterCount,
     Focus.configure({ className: 'has-focus', mode: 'all' }),
     Placeholder.configure({ placeholder: 'Start typing or press / for commands...' }),
-    Image.configure({ HTMLAttributes: { class: 'rounded-lg' } }),
     ResizableImage,
     TaskList.configure({ HTMLAttributes: { class: 'task-list' } }),
     TaskItem.configure({ HTMLAttributes: { class: 'task-item' }, nested: true }),
@@ -116,16 +119,31 @@ export const buildEditorExtensions = () => {
     new Plugin({
       key: new PluginKey('emergencyLoopBreaker'),
       appendTransaction(transactions, oldState, newState) {
-        if (transactions.some(tr => tr.docChanged)) {
-          let bulletCount = 0;
-          newState.doc.descendants(node => { if (node.type.name === 'bulletList') bulletCount++; });
-          let oldBulletCount = 0;
-          oldState.doc.descendants(n => { if (n.type.name === 'bulletList') oldBulletCount++; });
-          if (bulletCount > 1000 && bulletCount > 5 * (oldBulletCount || 1)) {
-            console.error('CRITICAL: Bullet list explosion detected and blocked!');
-            return null;
-          }
+        // Only check on doc changes
+        if (!transactions.some(tr => tr.docChanged)) return undefined;
+        
+        // CRITICAL FIX: Only run check after paste transactions
+        // This prevents O(n) full tree scan on every keystroke
+        const triggeredByPaste = transactions.some(tr => tr.getMeta('paste') || tr.getMeta('uiEvent') === 'paste');
+        if (!triggeredByPaste) return undefined;
+        
+        // Use lightweight top-level scan only - O(pages) not O(all nodes)
+        let bulletCount = 0;
+        newState.doc.forEach(node => {
+          if (node.type.name === 'bulletList') bulletCount++;
+        });
+        
+        let oldBulletCount = 0;
+        oldState.doc.forEach(node => {
+          if (node.type.name === 'bulletList') oldBulletCount++;
+        });
+        
+        // Much lower threshold - 50 is already a massive document
+        if (bulletCount > 50 && bulletCount > 5 * (oldBulletCount || 1)) {
+          console.error('CRITICAL: Bullet list explosion detected and blocked!');
+          return null; // Revert transaction
         }
+        
         return undefined;
       }
     }),
@@ -137,12 +155,38 @@ export const buildEditorExtensions = () => {
             key: new PluginKey('enhancedPaste'),
             props: {
               transformPastedHTML: (html) => {
-                const clean = DOMPurify.sanitize(html, {
+                // Step 1: Sanitize HTML
+                const clean = sanitize(html, {
                   ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 's', 'code', 'pre', 'a', 'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'span', 'br', 'div'],
                   ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'style', 'colspan', 'rowspan', 'width', 'height']
                 });
+                
+                // Step 2: Strip page wrappers (CRITICAL FIX)
                 const temp = document.createElement('div');
                 temp.innerHTML = clean;
+                
+                // Check if HTML contains page-like structures
+                const hasPageWrappers = temp.querySelectorAll('[data-page-number], .page').length > 0;
+                if (hasPageWrappers) {
+                  const pageWrappers = temp.querySelectorAll('[data-page-number], .page');
+                  const extractedContent = [];
+                  
+                  // Extract content from each page wrapper
+                  pageWrappers.forEach((pageWrapper) => {
+                    Array.from(pageWrapper.childNodes).forEach(child => {
+                      extractedContent.push(child.cloneNode(true));
+                    });
+                  });
+                  
+                  // Rebuild HTML with extracted content only
+                  const newTempDiv = document.createElement('div');
+                  extractedContent.forEach(node => {
+                    newTempDiv.appendChild(node);
+                  });
+                  return newTempDiv.innerHTML;
+                }
+                
+                // Step 3: Clean up inline formatting tags
                 const all = temp.querySelectorAll('*');
                 all.forEach((el) => {
                   if (el.tagName === 'B') {
@@ -176,58 +220,13 @@ export const buildEditorExtensions = () => {
                     if (href && !el.getAttribute('target')) el.setAttribute('target', '_blank');
                   }
                 });
+                
                 return temp.innerHTML;
               },
-              handlePaste: null,
+              // Note: handlePaste omitted - use transformPastedHTML instead
             },
           }),
         ];
-      },
-    }),
-    Extension.create({
-      name: 'dataAttributeHandler',
-      addInputRules() { return []; },
-      parseHTML() {
-        return [{
-          tag: '*',
-          getAttrs: node => {
-            if (node instanceof HTMLElement) {
-              const attrs = {};
-              const fontFamily = node.getAttribute('data-font-family');
-              if (fontFamily) attrs.fontFamily = fontFamily;
-              const fontSize = node.getAttribute('data-font-size');
-              if (fontSize) attrs.fontSize = fontSize;
-              const color = node.getAttribute('data-color');
-              if (color) attrs.color = color;
-              const bgColor = node.getAttribute('data-bg-color');
-              if (bgColor) attrs.backgroundColor = bgColor;
-              const fontWeight = node.getAttribute('data-font-weight');
-              if (fontWeight) { if (fontWeight === 'bold' || parseInt(fontWeight) >= 600) attrs.fontWeight = 'bold'; }
-              const fontStyle = node.getAttribute('data-font-style');
-              if (fontStyle === 'italic') attrs.fontStyle = 'italic';
-              const textDecoration = node.getAttribute('data-text-decoration');
-              if (textDecoration) {
-                if (textDecoration.includes('underline')) attrs.textDecoration = 'underline';
-                else if (textDecoration.includes('line-through')) attrs.textDecoration = 'line-through';
-              }
-              return Object.keys(attrs).length > 0 ? attrs : false;
-            }
-            return false;
-          },
-        }];
-      },
-      renderHTML({ HTMLAttributes }) {
-        const { fontFamily, fontSize, color, backgroundColor, fontWeight, fontStyle, textDecoration, ...rest } = HTMLAttributes;
-        const styleObj = {};
-        if (fontFamily) styleObj.fontFamily = fontFamily;
-        if (fontSize) styleObj.fontSize = fontSize;
-        if (color) styleObj.color = color;
-        if (backgroundColor) styleObj.backgroundColor = backgroundColor;
-        if (fontWeight) styleObj.fontWeight = fontWeight;
-        if (fontStyle) styleObj.fontStyle = fontStyle;
-        if (textDecoration) styleObj.textDecoration = textDecoration;
-        const styleString = Object.entries(styleObj).map(([k, v]) => `${k}:${v} `).join(';');
-        return ['span', { ...rest, style: styleString }, 0];
       },
     }),
   ];

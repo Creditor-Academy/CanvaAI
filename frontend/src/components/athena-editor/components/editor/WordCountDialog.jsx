@@ -11,28 +11,53 @@ const WordCountDialog = ({ open, onOpenChange, editor }) => {
         sentences: 0, lines: 0, pages: 0, readingTime: 0
     });
 
+    // Fix: Static color mapping to prevent Tailwind PurgeCSS from removing dynamic classes
+    const COLOR_MAP = {
+      blue:   'bg-blue-50 border-blue-100 text-blue-700 text-blue-500',
+      indigo: 'bg-indigo-50 border-indigo-100 text-indigo-700 text-indigo-500',
+      purple: 'bg-purple-50 border-purple-100 text-purple-700 text-purple-500',
+      green:  'bg-green-50 border-green-100 text-green-700 text-green-500',
+      yellow: 'bg-yellow-50 border-yellow-100 text-yellow-700 text-yellow-500',
+      orange: 'bg-orange-50 border-orange-100 text-orange-700 text-orange-500',
+    };
+
     useEffect(() => {
         if (!open || !editor) return;
+        
         const text = editor.getText();
-        const html = editor.getHTML();
+
+        // Count paragraphs by traversing the ProseMirror doc — exact, not regex
+        let paragraphs = 0;
+        editor.state.doc.descendants(node => {
+          if (node.type.name === 'paragraph') paragraphs++;
+        });
+
         const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
         const chars = text.length;
         const charsNoSpace = text.replace(/\s/g, '').length;
-        const paragraphs = (html.match(/<p/g) || []).length;
-        const sentences = (text.match(/[.!?]+/g) || []).length;
+        
+        // Improved sentence counting: match sentence-ending punctuation followed by space or end
+        const sentences = (text.match(/[.!?]+(\s|$)/g) || []).length;
         const lines = text.split('\n').length;
         const pages = Math.max(1, Math.ceil(words / 250));
         const readingTime = Math.max(1, Math.ceil(words / 200));
+        
         setStats({ words, chars, charsNoSpace, paragraphs, sentences, lines, pages, readingTime });
     }, [open, editor]);
 
-    const StatCard = ({ icon: Icon, label, value, color = 'blue' }) => (
-        <div className={`bg-${color}-50 border border-${color}-100 rounded-xl p-4 flex flex-col items-center text-center`}>
-            <Icon className={`w-5 h-5 text-${color}-500 mb-2`} />
-            <div className={`text-2xl font-bold text-${color}-700`}>{value.toLocaleString()}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-        </div>
-    );
+    const StatCard = ({ icon: Icon, label, value, color = 'blue' }) => {
+        const colorClasses = COLOR_MAP[color] || COLOR_MAP.blue;
+        const textColor = `text-${color}-500`;
+        const textBoldColor = `text-${color}-700`;
+        
+        return (
+            <div className={`${colorClasses} rounded-xl p-4 flex flex-col items-center text-center`}>
+                <Icon className={`w-5 h-5 ${textColor} mb-2`} />
+                <div className={`text-2xl font-bold ${textBoldColor}`}>{value.toLocaleString()}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+            </div>
+        );
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

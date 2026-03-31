@@ -7,6 +7,7 @@ import {
   FiLayout,
 } from "react-icons/fi";
 import { useDocuments } from "../../hooks/useDocuments";
+import { TextEditorService } from "../../services/Text-Editor/text.service";
 
 /* ===== BRAND COLORS ===== */
 const COLORS = {
@@ -45,7 +46,6 @@ const Recents = ({
       queryClient.prefetchQuery({
         queryKey: ['document', projectId],
         queryFn: async () => {
-          const { TextEditorService } = await import('../../../services/Text-Editor/text.service.js');
           return await TextEditorService.getDocumentById(projectId);
         },
         staleTime: 30 * 60 * 1000, // Keep cached for 30 minutes
@@ -182,7 +182,7 @@ const Recents = ({
               color: Grey,
             }}
           >
-            {userId ? 'No documents found. Create your first document!' : 'Please log in to view your documents.'}
+            No documents found. Create your first document!
           </div>
         ) : (
           <div 

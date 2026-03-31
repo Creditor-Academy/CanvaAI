@@ -10,13 +10,14 @@
  * If you see two different ?t= timestamps in console, do a full page reload.
  */
 
-// ── Page geometry (MUST MATCH CSS!) ─────────────────────────────────────────────
-// CSS: .page { min-height: 1123px; padding: 48px 72px; }
-// Actual usable height = 1123 - 48 - 48 = 1027px (NOT 931px!)
-const PAGE_HEIGHT   = 1123;
-const MARGIN_TOP    = 48;   // Match CSS padding-top
-const MARGIN_BOTTOM = 48;   // Match CSS padding-bottom
-export const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 1027px
+import { 
+  A4_HEIGHT_PX as PAGE_HEIGHT,
+  PAGE_MARGIN_TOP_PX as MARGIN_TOP,
+  PAGE_MARGIN_BOTTOM_PX as MARGIN_BOTTOM
+} from '../../../utils/pagination/constants';
+
+// Computed usable height
+export const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM;
 
 // ── Typography model (11pt Inter, 1.6 line-height, 650px usable width) ────────
 // ✅ FIX 1: Corrected constants based on actual rendered measurements
