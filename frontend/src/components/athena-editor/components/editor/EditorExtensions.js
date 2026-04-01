@@ -96,7 +96,14 @@ export const buildEditorExtensions = () => {
     FontSize,
     TextAlign.configure({ types: ['heading', 'paragraph', 'listItem'] }),
     Underline,
-    Link.configure({ openOnClick: false, HTMLAttributes: { class: 'text-blue-600 underline' } }),
+    Link.configure({ 
+      openOnClick: true,
+      HTMLAttributes: { 
+        class: 'text-blue-600 underline',
+        target: '_blank',
+        rel: 'noopener noreferrer'
+      } 
+    }),
     Blockquote.configure({ HTMLAttributes: { class: 'blockquote' } }),
     CodeBlockLowlight.configure({ lowlight: createLowlight(common) }),
     Highlight.configure({ multicolor: true }),

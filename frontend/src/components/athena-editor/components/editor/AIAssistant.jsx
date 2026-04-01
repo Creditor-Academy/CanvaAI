@@ -74,7 +74,6 @@ const QUICK_ACTIONS = [
   { id: 'summarize', label: 'Summarize', icon: AlignLeft, color: 'text-blue-500', bg: 'bg-blue-50 hover:bg-blue-100', border: 'border-blue-200', editorBehavior: 'append' },
   { id: 'expand', label: 'Expand', icon: Expand, color: 'text-orange-500', bg: 'bg-orange-50 hover:bg-orange-100', border: 'border-orange-200', editorBehavior: 'replace' },
   { id: 'simplify', label: 'Simplify', icon: Minimize2, color: 'text-rose-500', bg: 'bg-rose-50 hover:bg-rose-100', border: 'border-rose-200', editorBehavior: 'replace' },
-  { id: 'translate', label: 'Translate', icon: Languages, color: 'text-cyan-500', bg: 'bg-cyan-50 hover:bg-cyan-100', border: 'border-cyan-200', editorBehavior: 'replace' },
 ];
 
 const INLINE_ACTIONS = [
@@ -86,7 +85,6 @@ const INLINE_ACTIONS = [
   { value: 'make_professional', label: 'Professional', icon: Briefcase, category: 'styling' },
   { value: 'make_concise', label: 'Concise', icon: Minimize2, category: 'polish' },
   { value: 'add_examples', label: 'Examples', icon: List, category: 'polish' },
-  { value: 'translate', label: 'Translate', icon: Globe, category: 'advanced' },
   { value: 'paraphrase', label: 'Paraphrase', icon: RefreshCw, category: 'advanced' },
   { value: 'custom', label: 'Custom', icon: Wand2, category: 'advanced' },
 ];
@@ -103,11 +101,7 @@ const INLINE_LANGUAGES = [
   'Arabic', 'Hindi', 'Turkish', 'Polish', 'Swedish',
 ];
 
-const TRANSLATE_LANGUAGES = [
-  'Spanish', 'French', 'German', 'Italian', 'Portuguese',
-  'Chinese (Simplified)', 'Japanese', 'Korean', 'Arabic', 'Hindi',
-  'Russian', 'Dutch', 'Polish', 'Turkish', 'Swedish',
-];
+
 
 const INLINE_CATEGORIES = [
   { id: 'all', label: 'All' },
@@ -121,8 +115,6 @@ const TABS = [
   { id: 'image', label: 'Image', icon: ImageIcon, color: 'from-purple-500 to-pink-500' },
   { id: 'document', label: 'Document', icon: FileText, color: 'from-blue-500 to-indigo-500' },
   { id: 'transform', label: 'Transform', icon: Wand2, color: 'from-emerald-500 to-teal-500' },
-  { id: 'advanced', label: 'Advanced', icon: Zap, color: 'from-orange-500 to-amber-500' },
-  { id: 'chat', label: 'Chat', icon: MessageSquare, color: 'from-pink-500 to-rose-500' },
 ];
 
 const CHAT_SUGGESTIONS = [
@@ -144,7 +136,6 @@ const PROMPTS = {
   make_concise: 'You are an editor specializing in brevity. Remove all unnecessary words, redundancy, and filler from the given text. Keep every essential idea but cut aggressively. Output ONLY the concise version.',
   add_examples: 'You are a writing coach. Enhance the given text by inserting relevant, concrete examples and illustrations to support each key claim. Integrate them naturally. Output ONLY the enhanced text with examples.',
   paraphrase: 'You are a writing expert. Paraphrase the given text using completely different wording and sentence structures while perfectly preserving the original meaning. Output ONLY the paraphrased version.',
-  translate: (lang) => `You are a professional translator. Translate the given text accurately and naturally into ${lang}. Preserve the original meaning, tone, and structure. Output ONLY the translated text.`,
   change_tone: (tone) => `You are a writing style expert. Rewrite the given text in a ${tone} tone. Preserve all original content and meaning but completely adjust the voice, word choice, and sentence rhythm to match the ${tone} style. Output ONLY the rewritten text.`,
   custom: (instruction) => `You are an expert writing assistant. Follow this instruction precisely: "${instruction}". Apply it to the given text. Output ONLY the result — no explanation, no preamble.`,
   chat: 'You are Athena, a helpful AI writing assistant embedded inside a document editor. Help users write, edit, brainstorm, and improve documents. Be knowledgeable, concise, and friendly. Produce polished, publication-ready content when asked. Use markdown when it improves readability. Keep responses focused and appropriately sized.',
@@ -155,7 +146,7 @@ const PROMPTS = {
 };
 
 const ACTION_TEMPERATURE = {
-  translate: 0.2, summarize: 0.3, make_concise: 0.3, make_professional: 0.4,
+  summarize: 0.3, make_concise: 0.3, make_professional: 0.4,
   simplify: 0.4, rewrite: 0.6, enhance: 0.7, expand: 0.75,
   add_examples: 0.75, paraphrase: 0.8, change_tone: 0.6, custom: 0.7,
 };
@@ -225,8 +216,7 @@ export const AIAssistant = ({
   const [activeAction, setActiveAction] = useState(null);
   const [actionResult, setActionResult] = useState('');
   const [actionError, setActionError] = useState('');
-  const [showLangPicker, setShowLangPicker] = useState(false);
-  const [targetLang, setTargetLang] = useState('Spanish');
+  
 
   // ── Inline Actions (Advanced) ─────────────────────────────────────────────
   const [inlineActionType, setInlineActionType] = useState('rewrite');
@@ -452,10 +442,9 @@ export const AIAssistant = ({
 
   // ─── Quick Transform ───────────────────────────────────────────────────────
 
-  const runTransform = useCallback(async (actionId, language) => {
+  const runTransform = useCallback(async (actionId) => {
     if (!selectedText?.trim()) { toast.error('Select text first'); return; }
-    const lang = language ?? targetLang;
-    const systemPrompt = actionId === 'translate' ? PROMPTS.translate(lang) : PROMPTS[actionId];
+    const systemPrompt = PROMPTS[actionId];
     if (!systemPrompt) return;
     setActiveAction(actionId);
     setActionResult('');
@@ -473,11 +462,9 @@ export const AIAssistant = ({
     } finally {
       setActiveAction(null);
     }
-  }, [selectedText, targetLang]);
+  }, [selectedText]);
 
   const handleQuickAction = useCallback((id) => {
-    if (id === 'translate') { setShowLangPicker(true); return; }
-    setShowLangPicker(false);
     runTransform(id);
   }, [runTransform]);
 
@@ -492,12 +479,11 @@ export const AIAssistant = ({
 
   const buildSystemPrompt = useCallback(() => {
     switch (inlineActionType) {
-      case 'translate': return PROMPTS.translate(inlineTargetLang);
       case 'change_tone': return PROMPTS.change_tone(inlineSelectedTone);
       case 'custom': return inlineCustomPrompt.trim() ? PROMPTS.custom(inlineCustomPrompt.trim()) : null;
       default: return PROMPTS[inlineActionType] ?? null;
     }
-  }, [inlineActionType, inlineTargetLang, inlineSelectedTone, inlineCustomPrompt]);
+  }, [inlineActionType, inlineSelectedTone, inlineCustomPrompt]);
 
   const handleInlineTransform = useCallback(async () => {
     if (!selectedText?.trim()) { toast.error('No text selected'); return; }
@@ -945,25 +931,7 @@ export const AIAssistant = ({
                 ))}
               </div>
 
-              {/* Language picker for translate */}
-              <AnimatePresence>
-                {showLangPicker && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="space-y-1.5">
-                    <SectionLabel>Target Language</SectionLabel>
-                    <div className="grid grid-cols-3 gap-1">
-                      {TRANSLATE_LANGUAGES.map(lang => (
-                        <button
-                          key={lang}
-                          onClick={() => { setTargetLang(lang); runTransform('translate', lang); setShowLangPicker(false); }}
-                          className={`px-1.5 py-1 rounded-md text-[9px] font-semibold border transition-all
-                            ${targetLang === lang ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-                        >{lang}</button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              
 
               {/* Error */}
               <AnimatePresence>
@@ -1012,340 +980,9 @@ export const AIAssistant = ({
             </div>
           )}
 
-          {/* ══ ADVANCED INLINE ACTIONS ══════════════════════════════════ */}
-          {mode === 'advanced' && (
-            <div className="p-3 space-y-2.5">
-              {/* Sub-nav */}
-              <div className="flex gap-1 border-b border-slate-100 pb-2">
-                <button onClick={() => setShowHistory(false)}
-                  className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${!showHistory ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
-                  Transform
-                </button>
-                <button onClick={() => setShowHistory(true)}
-                  className={`px-2.5 py-1 text-[10px] font-semibold rounded-md flex items-center gap-1 transition-all ${showHistory ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
-                  <History className="w-3 h-3" />History ({inlineHistory.length})
-                </button>
-              </div>
 
-              {showHistory ? (
-                <div className="space-y-2">
-                  {inlineHistory.length === 0 ? (
-                    <div className="text-center py-8">
-                      <History className="w-8 h-8 mx-auto mb-2 text-slate-200" />
-                      <p className="text-[10px] text-slate-400">No history yet</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-slate-500">{inlineHistory.length} transformations</span>
-                        <button onClick={() => setInlineHistory([])} className="text-[10px] text-red-400 hover:text-red-600 flex items-center gap-0.5">
-                          <Trash2 className="w-2.5 h-2.5" />Clear
-                        </button>
-                      </div>
-                      <div className="space-y-1.5">
-                        {inlineHistory.map((item) => (
-                          <div key={item.id} className="p-2 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 transition-all">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[9px] font-bold text-slate-500 uppercase">{item.label}</span>
-                              <button onClick={() => { setInlineResult(item.result); setShowHistory(false); }}
-                                className="text-[9px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5">
-                                Load<ArrowRight className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                            <p className="text-[10px] text-slate-500 italic line-clamp-1">"{item.originalText}"</p>
-                            <p className="text-[10px] text-slate-700 line-clamp-2 mt-0.5">{item.result.slice(0, 100)}…</p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {/* Selected text */}
-                  {selectedText?.trim() ? (
-                    <div className="p-2 bg-amber-50 rounded-lg border border-amber-100">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <SectionLabel className="text-amber-700">Selected</SectionLabel>
-                        <Badge className="bg-amber-100 text-amber-700">{inlineWordCount.original}w</Badge>
-                      </div>
-                      <p className="text-[10px] text-slate-600 line-clamp-2 italic border-l-2 border-amber-300 pl-2">{selectedText.trim()}</p>
-                    </div>
-                  ) : (
-                    <div className="p-2 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-center">
-                      <p className="text-[10px] text-slate-400">Select text in document to transform</p>
-                    </div>
-                  )}
 
-                  {/* Category filter */}
-                  <div className="flex gap-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-                    {INLINE_CATEGORIES.map(cat => (
-                      <button key={cat.id} onClick={() => setInlineSelectedCategory(cat.id)}
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap transition-all border shrink-0
-                          ${inlineSelectedCategory === cat.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-200'}`}>
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
 
-                  {/* Action grid */}
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {INLINE_ACTIONS.filter(a => inlineSelectedCategory === 'all' || a.category === inlineSelectedCategory).map((action) => {
-                      const Icon = action.icon;
-                      const isActive = inlineActionType === action.value;
-                      return (
-                        <button key={action.value} onClick={() => setInlineActionType(action.value)}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all
-                            ${isActive ? 'border-blue-400 bg-blue-50' : 'border-slate-150 bg-white hover:border-blue-200 hover:bg-slate-50'}`}>
-                          <div className={`p-1.5 rounded-md transition-all ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                            <Icon className="w-3 h-3" />
-                          </div>
-                          <span className={`text-[8px] font-semibold text-center leading-tight ${isActive ? 'text-blue-700' : 'text-slate-600'}`}>{action.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Conditional sub-options */}
-                  <AnimatePresence mode="wait">
-                    {inlineActionType === 'custom' && (
-                      <motion.div key="custom" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                        <Textarea
-                          placeholder="e.g., 'Rewrite in the style of Hemingway'…"
-                          value={inlineCustomPrompt}
-                          onChange={(e) => setInlineCustomPrompt(e.target.value)}
-                          className="min-h-[52px] max-h-[90px] resize-none bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs focus:border-blue-400 focus:bg-white transition-all"
-                        />
-                      </motion.div>
-                    )}
-                    {inlineActionType === 'change_tone' && (
-                      <motion.div key="tone" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                        <div className="flex flex-wrap gap-1">
-                          {INLINE_TONES.map(t => (
-                            <button key={t} onClick={() => setInlineSelectedTone(t)}
-                              className={`px-2 py-0.5 rounded-md text-[9px] font-semibold border transition-all
-                                ${inlineSelectedTone === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-200'}`}>
-                              {t}
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                    {inlineActionType === 'translate' && (
-                      <motion.div key="translate" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                        <div className="grid grid-cols-4 gap-1">
-                          {INLINE_LANGUAGES.map(lang => (
-                            <button key={lang} onClick={() => setInlineTargetLang(lang)}
-                              className={`px-1.5 py-1 rounded-md text-[8px] font-semibold border transition-all
-                                ${inlineTargetLang === lang ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-200'}`}>
-                              {lang}
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Controls row */}
-                  <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
-                    <div className="flex-1 space-y-0.5">
-                      <div className="flex justify-between">
-                        <SectionLabel>Creativity</SectionLabel>
-                        <Badge className="bg-blue-50 text-blue-600">{Math.round(inlineCreativity[0] * 100)}%</Badge>
-                      </div>
-                      <Slider value={inlineCreativity} onValueChange={setInlineCreativity} max={1} step={0.1} />
-                    </div>
-                    <Button
-                      onClick={handleInlineTransform}
-                      disabled={inlineLoading || !selectedText?.trim() || (inlineActionType === 'custom' && !inlineCustomPrompt.trim())}
-                      className="h-9 px-4 bg-slate-900 hover:bg-black text-white font-bold text-[10px] uppercase tracking-widest rounded-lg shadow-sm transition-all disabled:opacity-40"
-                    >
-                      {inlineLoading ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />…</> : <><Zap className="w-3 h-3 mr-1 text-yellow-400" />Run</>}
-                    </Button>
-                  </div>
-
-                  {/* Error */}
-                  <AnimatePresence>
-                    {inlineError && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="flex items-center gap-2 p-2 bg-red-50 rounded-lg border border-red-100 text-[10px] text-red-600">
-                        <AlertCircle className="w-3 h-3 shrink-0" />{inlineError}
-                        <button className="ml-auto" onClick={() => setInlineError('')}><X className="w-3 h-3" /></button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Result */}
-                  <AnimatePresence>
-                    {(inlineResult || inlineLoading) && (
-                      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 pt-1.5 border-t border-slate-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="w-3 h-3 text-blue-500" />
-                            <SectionLabel className="text-blue-700">Result</SectionLabel>
-                            {inlineResult && (
-                              <>
-                                <span className="text-[9px] text-slate-400">{inlineWordCount.result}w</span>
-                                <span className={`text-[9px] font-bold ${wordDeltaColor}`}>{wordDeltaLabel}</span>
-                              </>
-                            )}
-                          </div>
-                          <div className="flex items-center">
-                            <IconBtn onClick={handleInlineCopy} title="Copy">
-                              {inlineCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                            </IconBtn>
-                            <IconBtn onClick={handleInlineTransform} title="Regenerate">
-                              <RotateCw className={`w-3 h-3 ${inlineLoading ? 'animate-spin' : ''}`} />
-                            </IconBtn>
-                            <IconBtn onClick={handleInlineDownload} title="Download">
-                              <Download className="w-3 h-3" />
-                            </IconBtn>
-                            <IconBtn onClick={() => { setInlineResult(''); setInlineError(''); }} title="Clear" className="hover:text-red-500">
-                              <X className="w-3 h-3" />
-                            </IconBtn>
-                          </div>
-                        </div>
-
-                        <div className="max-h-[180px] overflow-y-auto rounded-lg p-2.5 bg-blue-50/60 border border-blue-100 text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap relative"
-                          style={{ scrollbarWidth: 'thin' }}>
-                          {inlineResult || (
-                            <div className="flex items-center justify-center h-16 text-slate-400 text-[10px] gap-1.5">
-                              <Loader2 className="w-3 h-3 animate-spin" />Generating…
-                            </div>
-                          )}
-                          {inlineLoading && inlineResult && (
-                            <div className="absolute bottom-2 right-2 flex gap-0.5">
-                              {[0, 1, 2].map(i => (
-                                <div key={i} className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {!inlineLoading && inlineResult && (
-                          <div className="flex gap-1.5">
-                            <Button onClick={() => handleInlineApply('replace')}
-                              className="flex-1 h-7 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-[10px] hover:opacity-90">
-                              <Check className="w-3 h-3 mr-1" />Replace
-                            </Button>
-                            <Button variant="outline" onClick={() => handleInlineApply('append')}
-                              className="flex-1 h-7 rounded-md border border-slate-200 text-slate-600 font-semibold text-[10px] hover:bg-slate-50">
-                              <Plus className="w-3 h-3 mr-1" />Append
-                            </Button>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ══ CHAT ═════════════════════════════════════════════════════ */}
-          {mode === 'chat' && (
-            <div className="flex flex-col" style={{ height: 400 }}>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2.5" style={{ scrollbarWidth: 'thin' }}>
-                {chatMessages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 space-y-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                      <Sparkles className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="text-center">
-                      <h3 className="text-xs font-bold text-slate-700">How can I help?</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Ask anything about your document</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5 w-full">
-                      {CHAT_SUGGESTIONS.map((s, i) => (
-                        <button key={i} onClick={() => setChatInput(s.label)}
-                          className="p-2 rounded-lg border border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/30 text-slate-600 text-[10px] font-medium transition-all text-left flex items-center gap-1.5">
-                          <span className="text-sm">{s.icon}</span>{s.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {chatMessages.map((msg, idx) => (
-                      <div key={idx} className={`flex gap-2 items-end ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className={`w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-lg
-                          ${msg.role === 'user' ? 'bg-slate-700 text-white' : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'}`}>
-                          {msg.role === 'user' ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                        </div>
-                        <div className={`flex flex-col gap-1 max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                          <div className={`px-3 py-2 text-[11px] rounded-xl whitespace-pre-wrap leading-relaxed
-                            ${msg.role === 'user'
-                              ? 'bg-slate-800 text-white rounded-br-sm'
-                              : 'bg-white border border-slate-100 text-slate-700 rounded-bl-sm shadow-sm'}`}>
-                            {msg.content || <span className="text-slate-400 italic">Thinking…</span>}
-                          </div>
-                          {msg.role === 'assistant' && msg.content && (
-                            <div className="flex items-center gap-1">
-                              <IconBtn onClick={() => copyText(msg.content)} title="Copy" className="border border-slate-100 rounded-md w-5 h-5 flex items-center justify-center shadow-sm">
-                                {copied ? <Check className="w-2.5 h-2.5 text-emerald-500" /> : <Copy className="w-2.5 h-2.5" />}
-                              </IconBtn>
-                              <button
-                                onClick={() => { onInlineAction?.('insert', msg.content); toast.success('Inserted at cursor'); }}
-                                className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-600 border border-blue-100 hover:border-blue-600 hover:text-white rounded-md text-[9px] font-semibold flex items-center gap-0.5 text-blue-600 transition-all">
-                                <CheckCircle2 className="w-2.5 h-2.5" />Insert
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {isChatLoading && chatMessages[chatMessages.length - 1]?.content === '' && (
-                      <div className="flex gap-2 items-end">
-                        <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-                          <Sparkles className="w-3 h-3 animate-pulse" />
-                        </div>
-                        <div className="px-3 py-2 text-xs rounded-xl bg-white border border-slate-100 rounded-bl-sm shadow-sm flex items-center gap-1">
-                          {[0, 1, 2].map(i => <div key={i} className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
-                        </div>
-                      </div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </>
-                )}
-              </div>
-
-              {/* Input area */}
-              <div className="p-2.5 bg-white/90 border-t border-slate-100 space-y-2 shrink-0">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-1">
-                    <Zap className="w-2.5 h-2.5 text-yellow-400" />
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Creativity</span>
-                    <Badge className="bg-blue-50 text-blue-600 ml-0.5">{Math.round(chatCreativity[0] * 100)}%</Badge>
-                  </div>
-                  {chatMessages.length > 0 && (
-                    <button onClick={() => { abort(); setChatMessages([]); }}
-                      className="text-[9px] text-slate-400 hover:text-red-500 flex items-center gap-0.5 transition-colors">
-                      <Trash2 className="w-2.5 h-2.5" />Clear
-                    </button>
-                  )}
-                </div>
-                <Slider value={chatCreativity} onValueChange={setChatCreativity} max={1} step={0.1} />
-                <div className="relative">
-                  <Textarea
-                    ref={chatInputRef}
-                    placeholder="Ask Athena anything… (Enter to send)"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
-                    className="min-h-[48px] max-h-[100px] resize-none text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 pr-10 focus:bg-white focus:ring-1 focus:ring-blue-400/30 transition-all"
-                  />
-                  <button
-                    onClick={isChatLoading ? abort : handleChatSend}
-                    disabled={!isChatLoading && !chatInput.trim()}
-                    className={`absolute right-1.5 bottom-1.5 w-7 h-7 flex items-center justify-center rounded-lg text-white shadow-sm disabled:opacity-50 transition-all
-                      ${isChatLoading ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600 hover:opacity-90'}`}>
-                    {isChatLoading ? <X className="w-3 h-3" /> : <Send className="w-3 h-3" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
             </motion.div>
           </AnimatePresence>
         </div>

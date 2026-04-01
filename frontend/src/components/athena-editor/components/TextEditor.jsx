@@ -5612,7 +5612,14 @@ const TextEditorContent = ({
       TextStyle, Color, FontFamily, FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TiptapUnderline,
-      TiptapLink.configure({ openOnClick: false, HTMLAttributes: { class: 'text-blue-600 underline' } }),
+      TiptapLink.configure({ 
+        openOnClick: true,
+        HTMLAttributes: { 
+          class: 'text-blue-600 underline',
+          target: '_blank',
+          rel: 'noopener noreferrer'
+        } 
+      }),
       ListItem,
       Blockquote.configure({ HTMLAttributes: { class: 'blockquote' } }),
       CodeBlockLowlight.configure({ lowlight: createLowlight(common) }),
