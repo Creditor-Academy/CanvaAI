@@ -289,6 +289,29 @@ body {
   font-size: 0.85rem;
 }
 
+/* CRITICAL FIX: Ensure links are clickable and visible */
+.ProseMirror a {
+  color: #2563eb; /* blue-600 */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  pointer-events: auto !important; /* Override any pointer-events: none */
+  transition: color 0.2s ease;
+}
+
+.ProseMirror a:hover {
+  color: #1d4ed8; /* blue-700 */
+  text-decoration: underline;
+}
+
+.ProseMirror a:active {
+  color: #1e40af; /* blue-800 */
+}
+
+.ProseMirror a[target="_blank"] {
+  cursor: pointer;
+}
+
 /* Syntax Highlighting */
 .hljs-comment,
 .hljs-quote {

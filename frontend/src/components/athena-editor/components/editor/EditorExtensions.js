@@ -102,7 +102,12 @@ export const buildEditorExtensions = () => {
         class: 'text-blue-600 underline',
         target: '_blank',
         rel: 'noopener noreferrer'
-      } 
+      },
+      // CRITICAL: Ensure links are always clickable
+      validate: (href) => {
+        // Basic URL validation
+        return /^https?:\/\//.test(href);
+      }
     }),
     Blockquote.configure({ HTMLAttributes: { class: 'blockquote' } }),
     CodeBlockLowlight.configure({ lowlight: createLowlight(common) }),

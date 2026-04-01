@@ -5,7 +5,7 @@ import {
     Users, MoreVertical, ArrowRight, Trash2, Edit3, Copy, Download, Pin,
     PinOff, FolderOpen, Sparkles, BookOpen, Briefcase, Mail, AlignLeft,
     ListChecks, FileCode, ScrollText, X, Check, RefreshCw, Smile,
-    Wand2, Feather, Newspaper, MessageSquare, Zap, ChevronLeft,
+    Wand2, Feather, Newspaper, MessageSquare, Zap, ChevronLeft, ChevronDown, ChevronUp,
     SlidersHorizontal, Type, Globe, GraduationCap, Lightbulb, Heart,
     Target, Layers, CheckCircle2, ExternalLink
 } from 'lucide-react';
@@ -788,22 +788,11 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                 </section>
 
                 {/* ── Recent Documents (Updated to visual thumbnails) ── */}
-                <section className="mt-12 bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
-                    <div className="flex items-center justify-between mb-8">
+                <section className="mt-12 bg-white rounded-3xl border border-slate-200 shadow-xl p-8 relative">
+                    <div className="flex items-center justify-between mb-6">
                         <h2 className="text-[20px] font-extrabold text-slate-950">Recent Documents</h2>
-                        <div className="flex gap-2.5">
-                            {/* Refresh Button */}
-                            <button
-                                onClick={handleManualRefresh}
-                                disabled={isLoading}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-sm font-semibold transition-all disabled:opacity-50"
-                                title="Refresh documents list"
-                            >
-                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                                Refresh
-                            </button>
-
-                            {/* Search keeps functioning */}
+                        <div className="flex items-center gap-3">
+                            {/* Search */}
                             <div className="relative">
                                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
@@ -814,7 +803,8 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                     className="h-10 w-64 bg-slate-100 rounded-full pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
                                 />
                             </div>
-                            {/* Filter keeps functioning */}
+                            
+                            {/* Filter */}
                             <div className="flex gap-1 bg-slate-100 rounded-full p-1 border border-slate-200 shadow-inner">
                                 {['All', 'Pinned'].map(f => (
                                     <button
@@ -826,36 +816,77 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                     </button>
                                 ))}
                             </div>
+                            
+                            {/* Refresh Button */}
+                            <button
+                                onClick={handleManualRefresh}
+                                disabled={isLoading}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-sm font-semibold transition-all disabled:opacity-50 hover:shadow-md"
+                                title="Refresh documents list"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                <span>Refresh</span>
+                            </button>
                         </div>
+                    </div>
+
+                    {/* Custom Scroll Controls */}
+                    <div className="absolute right-2 top-20 bottom-4 flex flex-col justify-between pointer-events-none z-10">
+                        <button
+                            onClick={() => {
+                                const container = document.getElementById('recent-docs-slider');
+                                if (container) container.scrollBy({ top: -280, behavior: 'smooth' });
+                            }}
+                            className="pointer-events-auto w-10 h-10 rounded-lg bg-white/95 backdrop-blur-sm hover:bg-blue-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition-all shadow-md hover:shadow-lg"
+                            title="Scroll Up"
+                        >
+                            <ChevronUp className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => {
+                                const container = document.getElementById('recent-docs-slider');
+                                if (container) container.scrollBy({ top: 280, behavior: 'smooth' });
+                            }}
+                            className="pointer-events-auto w-10 h-10 rounded-lg bg-white/95 backdrop-blur-sm hover:bg-blue-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition-all shadow-md hover:shadow-lg"
+                            title="Scroll Down"
+                        >
+                            <ChevronDown className="w-5 h-5" />
+                        </button>
                     </div>
 
                     {recentDocs.length === 0 ? (
                         <div className="text-center py-20 px-6 border-2 border-dashed border-slate-200 rounded-2xl">
                             <FileText className="w-14 h-14 text-slate-200 mx-auto mb-4" />
                             <p className="text-slate-600 font-bold text-lg">
-                                {searchQuery ? `No documents match "${searchQuery}"` : 'No recent documents         '}
+                                {searchQuery ? `No documents match "${searchQuery}"` : 'No recent documents'}
                             </p>
                             <p className="text-slate-400 text-sm mt-1.5">Start with AI or create a new one to get started</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {recentDocs.slice(0, 8).map((doc, idx) => (
-                                <motion.div
-                                    key={doc.id}
-                                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
-                                    className="group relative cursor-pointer"
-                                    onClick={() => openEditor(null, doc.id)} // Keep opening existing
-                                    onContextMenu={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY });
-                                    }}
-                                >
-                                    {/* Visual representation of the document card (placeholder) */}
-                                    {recentSlideshowPlaceholder(doc.title, doc.slideCount)}
+                        <div className="relative">
+                            {/* Scrollable Container with ID for slider controls */}
+                            <div
+                                id="recent-docs-slider"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-h-[600px] overflow-y-auto custom-scrollbar pr-4 scroll-smooth"
+                            >
+                                {recentDocs.slice(0, 8).map((doc, idx) => (
+                                    <motion.div
+                                        key={doc.id}
+                                        initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
+                                        className="group relative cursor-pointer scroll-smooth"
+                                        style={{ scrollSnapAlign: 'start' }}
+                                        onClick={() => openEditor(null, doc.id)} // Keep opening existing
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setContextMenu({ docId: doc.id, x: e.clientX, y: e.clientY });
+                                        }}
+                                    >
+                                        {/* Visual representation of the document card (placeholder) */}
+                                        {recentSlideshowPlaceholder(doc.title, doc.slideCount)}
 
-                                    {/* Footer with actions and info */}
-                                    <div className="mt-4 flex items-center justify-between gap-2 px-1">
+                                        {/* Footer with actions and info */}
+                                        <div className="mt-4 flex items-center justify-between gap-2 px-1">
                                         <div className="min-w-0">
                                             {renameId === doc.id ? (
                                                 <input
@@ -905,7 +936,10 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                 </motion.div>
                             ))}
                         </div>
-                    )}
+                        {/* Scroll indicator gradient */}
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent rounded-b-2xl" />
+                    </div>
+                )}
                 </section>
 
                 {/* ── Start from a template (Updated to document thumbnails) ── */}
@@ -1062,7 +1096,7 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 md:p-8"
                         style={{ background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(10px)' }}
                         onClick={() => !isGenerating && setShowAIGenerator(false)}
                     >
@@ -1071,7 +1105,7 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.94, opacity: 0, y: 16 }}
                             transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-                            className="w-full max-w-md max-h-[90vh] flex flex-col rounded-[24px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-200"
+                            className="w-full max-w-md max-h-[80vh] flex flex-col rounded-[24px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-200"
                             style={{ background: '#ffffff' }}
                             onClick={e => e.stopPropagation()}
                         >
@@ -1178,6 +1212,22 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                         </div>
                                         {/* Right: stats + actions */}
                                         <div className="flex items-center gap-2 shrink-0">
+                                            {/* Open in Editor button - First */}
+                                            <button
+                                                onClick={() => {
+                                                    const url = `/editor/${generatedDocId}?docId=${generatedDocId}`;
+                                                    const win = window.open(url, '_blank', 'noopener,noreferrer');
+                                                    if (!win) toast.info('Allow popups to open the editor');
+                                                    setShowAIGenerator(false);
+                                                    setGenStep('config');
+                                                }}
+                                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:opacity-90 shadow-lg"
+                                                style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff' }}
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                <span>Open in Editor</span>
+                                            </button>
+                                            {/* Stats - After */}
                                             {[
                                                 { icon: Type, label: `~${wordCount.toLocaleString()} words` },
                                                 { icon: Layers, label: aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1) },
@@ -1189,6 +1239,7 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                                     {label}
                                                 </div>
                                             ))}
+                                            {/* New button - Last */}
                                             <button
                                                 onClick={() => {
                                                     setShowAIGenerator(false);
@@ -1201,20 +1252,6 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
                                                 style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(0,0,0,0.55)' }}
                                             >
                                                 New
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    const url = `/editor/${generatedDocId}?docId=${generatedDocId}`;
-                                                    const win = window.open(url, '_blank', 'noopener,noreferrer');
-                                                    if (!win) toast.info('Allow popups to open the editor');
-                                                    setShowAIGenerator(false);
-                                                    setGenStep('config');
-                                                }}
-                                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl font-bold text-xs transition-all hover:opacity-90"
-                                                style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', boxShadow: '0 3px 12px rgba(245,158,11,0.35)' }}
-                                            >
-                                                <ExternalLink className="w-3.5 h-3.5" />
-                                                Open in Editor
                                             </button>
                                         </div>
                                     </motion.div>

@@ -7149,7 +7149,7 @@ const TextEditorContent = ({
 
           <div
             ref={editorContainerRef}
-            className="flex-1 overflow-y-auto bg-slate-100/50 p-4"
+            className="flex-1 bg-slate-100/50 p-4"
             onCopy={handleCopy}
             style={{ position: 'relative', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}
           >
