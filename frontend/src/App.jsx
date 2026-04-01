@@ -51,8 +51,8 @@ import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
 import PresentationTemplates from "./pages/PresentationTemplates";
-import DocumentTemplates from "./pages/DocumentTemplates";
-import ImageTemplates from "./pages/ImageTemplates";
+import DocumentTemplates from "./pages/documentTemplates";
+import ImageTemplates from "./pages/imageTemplates";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 import Pricing from "./components/analatics/Pricing";
 
