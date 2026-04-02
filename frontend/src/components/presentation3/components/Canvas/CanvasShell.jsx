@@ -797,8 +797,8 @@ const styles = {
   canvasWrapper: {
     flex: 1,
     background: "#f3f4f6",
-    padding: "40px 24px",
-    overflow: "auto",
+    padding: "60px 24px",
+    overflow: "hidden",
     display: "flex",
     flexDirection: "column",
     marginRight: "60px", // IMPORTANT: right properties panel ki width
