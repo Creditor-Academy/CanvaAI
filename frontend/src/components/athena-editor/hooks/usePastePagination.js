@@ -1,0 +1,142 @@
+/**
+ * usePastePagination
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ProseMirror plugin that intercepts paste events and triggers
+ * paginateDocument(force:true) after the DOM has fully settled.
+ *
+ * Coordinates with paginationEngine.js singleton flags:
+ *   window.__athena_pasteInFlight — prevents debouncePaginate from running
+ *   window.__athena_isPaginating  — prevents re-entrant pagination
+ *
+ * FIXED vs previous version:
+ *   • Sets window.__athena_pasteInFlight = true so paginationEngine's own
+ *     debounce guard backs off (avoids double-pagination race).
+ *   • Clears window.__athena_pasteInFlight after paginateDocument finishes.
+ *   • Guards against editor destruction at every async boundary.
+ *   • Plugin key check prevents double-registration in React StrictMode.
+ */
+
+import { useEffect } from 'react';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import { paginateDocument } from '../utils/paginationEngine';
+
+const PLUGIN_KEY = new PluginKey('athenaPastePagination');
+
+// Mirror the flag helpers from paginationEngine.js
+const getFlag = (k)    => window[`__athena_${k}`] ?? false;
+const setFlag = (k, v) => { window[`__athena_${k}`] = v; };
+
+/**
+ * @param {import('@tiptap/react').Editor | null} editor
+ * @param {React.MutableRefObject<boolean>}       isPastingRef     — TextEditor's ref
+ * @param {React.MutableRefObject<number>}        lastPasteTimeRef — TextEditor's ref
+ */
+export function usePastePagination(editor, isPastingRef, lastPasteTimeRef) {
+  useEffect(() => {
+    if (!editor) return;
+
+    const plugin = new Plugin({
+      key: PLUGIN_KEY,
+
+      props: {
+        /**
+         * handlePaste fires synchronously inside the user-gesture frame for
+         * Ctrl+V / Cmd+V / right-click paste, before ProseMirror dispatches
+         * its insertion transaction.
+         *
+         * Returning false lets ProseMirror handle the actual content insertion
+         * normally. We only set flags and schedule the post-paste pagination.
+         */
+        handlePaste(view, _event, _slice) {
+          // ── Mark paste in-flight ────────────────────────────────────────
+          isPastingRef.current      = true;
+          lastPasteTimeRef.current  = Date.now();
+
+          // Tell paginationEngine's debouncePaginate to back off
+          setFlag('pasteInFlight', true);
+
+          // ── Double-RAF: wait for ProseMirror transaction + browser paint ─
+          //
+          // RAF #1: ProseMirror has dispatched its insertion transaction and
+          //         React has reconciled. The virtual DOM is up to date but
+          //         the browser has not yet painted.
+          //
+          // RAF #2: The browser has painted. Real offsetHeight / scrollHeight
+          //         values now reflect the pasted content. paginateDocument's
+          //         height-estimation can measure accurately.
+
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (editor.isDestroyed) {
+                isPastingRef.current = false;
+                setFlag('pasteInFlight', false);
+                return;
+              }
+
+              // Guard: if paginationEngine is already running (e.g. debouncePaginate
+              // fired before our second RAF), don't race it.
+              if (getFlag('isPaginating')) {
+                // It will clear the flag itself; just release our mutex.
+                setTimeout(() => {
+                  isPastingRef.current = false;
+                  setFlag('pasteInFlight', false);
+                }, 200);
+                return;
+              }
+
+              try {
+                // force:true skips fingerprint + cooldown guards
+                paginateDocument(editor, { force: true });
+              } catch (err) {
+                console.error('[usePastePagination] paginateDocument error:', err);
+              }
+
+              // ── Release mutexes after paginateDocument's microtask settles ─
+              // paginateDocument clears athena_is_paginating via Promise.resolve(),
+              // so we wait one more tick before clearing our own flags to avoid
+              // the onUpdate debouncePaginate guard firing too early.
+              setTimeout(() => {
+                isPastingRef.current = false;
+                setFlag('pasteInFlight', false);
+              }, 100);
+            });
+          });
+
+          // Return false — ProseMirror handles the actual content insertion.
+          return false;
+        },
+      },
+    });
+
+    // ── Register the plugin with the live editor ──────────────────────────
+    const { view } = editor;
+    const existingPlugins = view.state.plugins;
+
+    // Guard: don't register twice (e.g. React StrictMode double-effect)
+    const alreadyRegistered = existingPlugins.some(
+      (p) => p.spec?.key === PLUGIN_KEY
+    );
+
+    if (!alreadyRegistered) {
+      const newState = view.state.reconfigure({
+        plugins: [...existingPlugins, plugin],
+      });
+      view.updateState(newState);
+    }
+
+    // ── Cleanup: remove the plugin on unmount ─────────────────────────────
+    return () => {
+      if (editor.isDestroyed) return;
+      try {
+        const filtered = editor.view.state.plugins.filter(
+          (p) => p.spec?.key !== PLUGIN_KEY
+        );
+        editor.view.updateState(
+          editor.view.state.reconfigure({ plugins: filtered })
+        );
+      } catch {
+        // Editor already tearing down — safe to ignore
+      }
+    };
+  }, [editor, isPastingRef, lastPasteTimeRef]);
+}

@@ -986,19 +986,6 @@ export const AIAssistant = ({
             </motion.div>
           </AnimatePresence>
         </div>
-
-        {/* ── Footer / Status ─────────────────────────────────────────── */}
-        <div className="shrink-0 px-3 py-2 bg-slate-50/80 border-t border-slate-100 backdrop-blur-md flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isGenerating || imageLoading || isChatLoading || inlineLoading ? 'bg-purple-500 animate-pulse shadow-sm shadow-purple-300' : 'bg-slate-300'}`} />
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">
-              {isGenerating || imageLoading || isChatLoading || inlineLoading ? 'AI is processing…' : 'Athena is Ready'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-             <span className="text-[8px] text-slate-400 font-medium tracking-tight">GPT-4o Premium</span>
-          </div>
-        </div>
       </motion.div>
     )}
     </AnimatePresence>,

@@ -339,7 +339,15 @@ const PreviewPane = ({ template, onConfirm, onDismiss }) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       transition={{ duration: 0.18 }}
-      className="mx-4 mb-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+      // Fixed positioning to prevent layout shifts
+      style={{ 
+        position: 'absolute',
+        bottom: '70px', // Above footer
+        left: '16px',
+        right: '16px',
+        zIndex: 100
+      }}
+      className="rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden"
     >
       {/* Mini document preview */}
       <div
@@ -376,12 +384,14 @@ const PreviewPane = ({ template, onConfirm, onDismiss }) => {
       {/* Actions */}
       <div className="flex items-center gap-2 px-3 py-2 bg-slate-50">
         <button
+          type="button"
           onClick={onDismiss}
           className="text-xs text-slate-500 hover:text-slate-700 transition-colors px-2 py-1 rounded"
         >
           Dismiss
         </button>
         <button
+          type="button"
           onClick={onConfirm}
           className="flex items-center gap-1.5 ml-auto text-xs font-medium text-white px-3 py-1.5 rounded-lg transition-all hover:opacity-90 active:scale-95"
           style={{ background: template.color }}
@@ -404,14 +414,16 @@ const TemplateCard = React.forwardRef(({
   return (
     <motion.button
       ref={ref}
-      layout
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.14 }}
+      type="button"
       onClick={() => onSelect(template)}
       onMouseEnter={() => onPreview(template)}
+      onMouseLeave={() => onPreview(null)}
       onFocus={() => onPreview(template)}
+      onBlur={() => onPreview(null)}
       aria-selected={isActive}
       role="option"
       className={[
@@ -475,9 +487,12 @@ export const TemplateSidebar = ({
   const [query, setQuery]               = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [hoveredTemplate, setHoveredTemplate] = useState(null);
+  const [pendingHoverId, setPendingHoverId] = useState(null);
   const [focusedIndex, setFocusedIndex]   = useState(-1);
   const [recentIds, setRecentIds]         = useState(loadRecent);
   const [confirmedId, setConfirmedId]     = useState(null);
+  
+  const hoverTimeoutRef = useRef(null);
 
   const searchRef   = useRef(null);
   const listRef     = useRef(null);
@@ -516,11 +531,31 @@ export const TemplateSidebar = ({
     } else {
       setQuery('');
       setActiveCategory('All');
-      setHoveredTemplate(null);
+      handleDismissPreview();
       setFocusedIndex(-1);
       setConfirmedId(null);
     }
-  }, [isOpen]);
+  }, [isOpen]); // Removed handleDismissPreview - it's stable and causes init order issues
+
+  // ── Handlers ────────────────────────────────────────────────────────────
+  // Define these BEFORE the useEffects that depend on them
+  const handleDismissPreview = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredTemplate(null);
+    setPendingHoverId(null);
+  }, []);
+
+  // Cleanup hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (focusedIndex >= 0 && cardRefs.current[focusedIndex]) {
@@ -528,7 +563,6 @@ export const TemplateSidebar = ({
     }
   }, [focusedIndex]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────
   const handleSelect = useCallback((template) => {
     const safe = sanitize(template.content);
     saveRecent(template.id);
@@ -537,6 +571,24 @@ export const TemplateSidebar = ({
     onSelectTemplate({ ...template, content: safe });
     onClose();
   }, [onSelectTemplate, onClose]);
+
+  // Debounced preview handler - prevents UI instability from rapid hovering
+  const handlePreview = useCallback((template) => {
+    // Clear any pending hover timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    // Only set preview if template changed or after a short delay
+    if (pendingHoverId !== template?.id) {
+      setPendingHoverId(template?.id || null);
+      
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHoveredTemplate(template);
+        hoverTimeoutRef.current = null;
+      }, 150); // 150ms delay prevents flickering on quick hovers
+    }
+  }, [pendingHoverId]);
 
   const handleKeyDown = useCallback((e) => {
     if (!isOpen) return;
@@ -567,8 +619,26 @@ export const TemplateSidebar = ({
   }, [handleKeyDown]);
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const showPreview  = hoveredTemplate && !confirmedId;
+  const showPreview = hoveredTemplate && !confirmedId;
   const templateCount = filtered.length;
+
+  // Update preview handler for cards - clears hover state when leaving card
+  const handleCardPreview = useCallback((template) => {
+    if (!template) {
+      // Mouse left the card - clear pending hover but don't clear displayed preview yet
+      setPendingHoverId(null);
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+      // Only clear hoveredTemplate if we're not hovering over a different card
+      setTimeout(() => {
+        setHoveredTemplate((prev) => (pendingHoverId === prev?.id ? null : prev));
+      }, 50);
+    } else {
+      handlePreview(template);
+    }
+  }, [handlePreview, pendingHoverId]);
 
   return (
     <AnimatePresence>
@@ -584,7 +654,7 @@ export const TemplateSidebar = ({
             onClick={onClose}
             aria-hidden="true"
             className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px]"
-            style={{ zIndex: 200 }}
+            style={{ zIndex: 1000 }}
           />
 
           {/* Sidebar panel */}
@@ -598,10 +668,18 @@ export const TemplateSidebar = ({
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 260, mass: 0.9 }}
             className="fixed right-0 top-0 bottom-0 flex flex-col bg-slate-50 border-l border-slate-200 shadow-2xl"
-            style={{ zIndex: 210, width: 340 }}
+            style={{ 
+              zIndex: 1001, 
+              width: 340,
+              maxWidth: '100vw',
+              touchAction: 'none'
+            }}
           >
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <div className="shrink-0 px-4 pt-4 pb-3 border-b border-slate-200 bg-white">
+            <div 
+              className="shrink-0 px-4 pt-4 pb-3 border-b border-slate-200 bg-white"
+              style={{ contain: 'layout' }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
@@ -618,6 +696,7 @@ export const TemplateSidebar = ({
                   onClick={onClose}
                   aria-label="Close template picker"
                   className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  type="button"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -633,10 +712,14 @@ export const TemplateSidebar = ({
                   onChange={(e) => { setQuery(e.target.value); setFocusedIndex(-1); }}
                   placeholder="Search templates… ( / )"
                   aria-label="Search templates"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
                   className="w-full pl-8 pr-3 py-2 text-[13px] bg-slate-50 border border-slate-200 rounded-lg placeholder-slate-400 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-300 transition-all"
                 />
                 {query && (
                   <button
+                    type="button"
                     onClick={() => setQuery('')}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     aria-label="Clear search"
@@ -652,7 +735,11 @@ export const TemplateSidebar = ({
               className="shrink-0 flex gap-1 px-3 py-2 overflow-x-auto bg-white border-b border-slate-100"
               role="tablist"
               aria-label="Filter by category"
-              style={{ scrollbarWidth: 'none' }}
+              style={{ 
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                contain: 'layout'
+              }}
             >
               {categories.map((cat) => {
                 const cfg = CATEGORY_CONFIG[cat] || { color: '#6366f1' };
@@ -660,6 +747,7 @@ export const TemplateSidebar = ({
                 return (
                   <button
                     key={cat}
+                    type="button"
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => { setActiveCategory(cat); setFocusedIndex(-1); }}
@@ -683,7 +771,12 @@ export const TemplateSidebar = ({
               role="listbox"
               aria-label="Available templates"
               className="flex-1 overflow-y-auto px-3 py-3 space-y-1"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}
+              style={{ 
+                scrollbarWidth: 'thin', 
+                scrollbarColor: '#cbd5e1 transparent',
+                WebkitOverflowScrolling: 'touch',
+                contain: 'layout style'
+              }}
             >
               {isLoading ? (
                 <div className="space-y-2">
@@ -697,6 +790,7 @@ export const TemplateSidebar = ({
                   <p className="text-sm font-medium text-slate-600">No templates found</p>
                   <p className="text-xs text-slate-400 mt-1">Try a different keyword or category</p>
                   <button
+                    type="button"
                     onClick={() => { setQuery(''); setActiveCategory('All'); }}
                     className="mt-3 text-xs text-indigo-600 hover:underline"
                   >
@@ -730,7 +824,7 @@ export const TemplateSidebar = ({
                               isFocused={focusedIndex === idx}
                               recentIds={recentIds}
                               onSelect={handleSelect}
-                              onPreview={setHoveredTemplate}
+                              onPreview={handleCardPreview}
                             />
                           ))}
                         </div>
@@ -768,7 +862,7 @@ export const TemplateSidebar = ({
                                     isFocused={focusedIndex === globalIdx}
                                     recentIds={recentIds}
                                     onSelect={handleSelect}
-                                    onPreview={setHoveredTemplate}
+                                    onPreview={handleCardPreview}
                                   />
                                 );
                               })}
@@ -787,7 +881,7 @@ export const TemplateSidebar = ({
                             isFocused={focusedIndex === idx}
                             recentIds={recentIds}
                             onSelect={handleSelect}
-                            onPreview={setHoveredTemplate}
+                            onPreview={handleCardPreview}
                           />
                         ))}
                       </div>
@@ -804,13 +898,16 @@ export const TemplateSidebar = ({
                   key={hoveredTemplate.id}
                   template={hoveredTemplate}
                   onConfirm={() => handleSelect(hoveredTemplate)}
-                  onDismiss={() => setHoveredTemplate(null)}
+                  onDismiss={handleDismissPreview}
                 />
               )}
             </AnimatePresence>
 
             {/* ── Footer ──────────────────────────────────────────────────── */}
-            <div className="shrink-0 px-4 py-2.5 border-t border-slate-100 bg-white flex items-center justify-between">
+            <div 
+              className="shrink-0 px-4 py-2.5 border-t border-slate-100 bg-white flex items-center justify-between"
+              style={{ contain: 'layout' }}
+            >
               <span className="text-[10px] text-slate-400">
                 ↑↓ navigate &nbsp;·&nbsp; Enter select &nbsp;·&nbsp; Esc close
               </span>
@@ -826,4 +923,4 @@ export const TemplateSidebar = ({
   );
 };
 
-export default TemplateSidebar;
+export default TemplateSidebar; 

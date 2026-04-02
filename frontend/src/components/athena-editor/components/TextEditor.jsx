@@ -45,6 +45,7 @@ import Indent from '../extensions/Indent.js';
 import { Page, initializePagination } from '../extensions/Page.js';
 import { addHeadingStyles, updateHeadingStyles } from '../components/editor/EditorPagination.js';  // Heading styles functions
 import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import { usePastePagination } from '../hooks/usePastePagination';
 import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
 import '../AthenaEditor.css'; // 🔥 CRITICAL: Page NodeView styling
 import '../../../styles/real-pagination.css';
@@ -5480,30 +5481,35 @@ const TextEditorContent = ({
     corec: false,
     // 🔥 CRITICAL: Custom Shift+Enter handler - create new paragraph instead of hard break
     editorProps: {
-      // ✅ CRITICAL FIX: Strip page wrappers from ALL pasted content
-      // This runs BEFORE handlePaste and catches everything
+      // Strips page-wrapper nodes from pasted content.
+      // Runs before handlePaste — catches copy-paste from within this editor.
       transformPasted(slice) {
-        const { Fragment } = this.schema;
+        // ✅ Bug A fixed: removed `const { Fragment } = this.schema`
+        //    Fragment is imported from '@tiptap/pm/model' at the top of this file.
+        //    `this` is undefined here — ProseMirror calls this as a plain function.
+
+        // ✅ Bug B fixed: slice.content is a ProseMirror Fragment, not a JS Array.
+        //    Fragment has .forEach() but NOT .some()/.map()/.filter().
+        //    Use a forEach + boolean flag instead.
+        let hasPageNodes = false;
+        slice.content.forEach(node => {
+          if (node.type.name === 'page') hasPageNodes = true;
+        });
+
+        if (!hasPageNodes) return slice;
+
+        // Flatten: pull children out of each page wrapper
         const newNodes = [];
+        slice.content.forEach(node => {
+          if (node.type.name === 'page') {
+            node.content.forEach(child => newNodes.push(child));
+          } else {
+            newNodes.push(node);
+          }
+        });
 
-        // Check if ANY of the pasted nodes are pages
-        const hasPageNodes = slice.content.some(node => node.type.name === 'page');
-
-        if (hasPageNodes) {
-          // Flatten page nodes - extract their children
-          slice.content.forEach(node => {
-            if (node.type.name === 'page') {
-              // Add all children of this page node
-              node.content.forEach(child => newNodes.push(child));
-            } else {
-              newNodes.push(node);
-            }
-          });
-
-          return slice.copy(Fragment.fromArray(newNodes));
-        }
-
-        return slice;
+        // Fragment is in module scope from: import { Fragment } from '@tiptap/pm/model'
+        return slice.copy(Fragment.fromArray(newNodes));
       },
 
       handleKeyDown: (view, event) => {
@@ -5778,6 +5784,10 @@ const TextEditorContent = ({
     console.log('✅ Outline scanner registered with editor storage');
 
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ✅ CRITICAL FIX: Wire up paste pagination plugin
+  // This intercepts paste events and triggers pagination after DOM settles
+  usePastePagination(editor, isPastingRef, lastPasteTimeRef);
 
   // 🚀 OPTIMIZATION: Synchronize editor content when document data arrives from cache/backend
   useEffect(() => {
@@ -6917,6 +6927,12 @@ const TextEditorContent = ({
                   if (navigator.clipboard?.readText) {
                     const text = await navigator.clipboard.readText();
                     runWithSavedSelection(editor, (chain) => chain.insertContent(text));
+                    // Trigger pagination after paste settles
+                    setTimeout(() => {
+                      import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+                        forceRepaginate(editor);
+                      });
+                    }, 150);
                   } else {
                     document.execCommand('paste');
                   }
@@ -6929,6 +6945,12 @@ const TextEditorContent = ({
                 try {
                   const text = await navigator.clipboard.readText();
                   runWithSavedSelection(editor, (chain) => chain.insertContent(text));
+                  // Trigger pagination after paste settles
+                  setTimeout(() => {
+                    import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+                      forceRepaginate(editor);
+                    });
+                  }, 150);
                 } catch {
                   toast.info('Use Ctrl+Shift+V to paste as plain text');
                 }

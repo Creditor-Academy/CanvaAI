@@ -1,19 +1,39 @@
 /**
  * paginationEngine.js
  *
- * Uses content-based height estimation (no live DOM measurement).
- * DOM measurement inside fixed-height page containers is always wrong —
+ * Content-based height estimation — no live DOM measurement.
+ * DOM measurement inside fixed-height page containers is always wrong:
  * the container forces 1123px so every child reports inflated heights.
  *
  * IMPORTANT: This module must be a singleton. If Vite HMR creates two
  * instances, both will have their own _isPaginating flag and fight each other.
  * If you see two different ?t= timestamps in console, do a full page reload.
+ *
+ * ── History of bugs fixed in this version ────────────────────────────────────
+ *
+ * BUG-1  transformPasted crash ("Cannot read properties of undefined")
+ *        Fixed in TextEditor.jsx — see companion note at bottom of this file.
+ *
+ * BUG-2  Pasted text stays on one page even when height > USABLE_HEIGHT.
+ *        Root cause A: binning loop condition `cur.length > 0` is false on
+ *          the very first block, so a lone oversized block always lands on
+ *          page 1 without triggering a page break.
+ *        Root cause B: previous "proxy" fix shared the same ProseMirror node
+ *          object across multiple pages. ProseMirror silently drops all but
+ *          the first occurrence → pages 2+ render blank.
+ *        Fix: splitOversizedNode() creates REAL new paragraph nodes (copies
+ *          of the original with sliced text runs) so each page gets its own
+ *          independent node object. The original node is never referenced twice.
+ *
+ * BUG-3  Guards 2 & 3 blocked legitimate single-block pastes even with
+ *        force:true. Removed — splitting handles the real case.
  */
 
-import { 
+import { Fragment } from '@tiptap/pm/model';
+import {
   A4_HEIGHT_PX as PAGE_HEIGHT,
   PAGE_MARGIN_TOP_PX as MARGIN_TOP,
-  PAGE_MARGIN_BOTTOM_PX as MARGIN_BOTTOM
+  PAGE_MARGIN_BOTTOM_PX as MARGIN_BOTTOM,
 } from '../../../utils/pagination/constants';
 
 // Computed usable height
@@ -112,6 +132,127 @@ const estimateHeight = (node) => {
   }
 };
 
+// ── Split an oversized node into REAL new ProseMirror nodes ──────────────────
+const splitOversizedNode = (node, schema) => {
+  const h = estimateHeight(node);
+  
+  console.log('[splitOversizedNode] Called with:', {
+    nodeType: node.type.name,
+    textLength: node.textContent.length,
+    estimatedHeight: h,
+    usableHeight: USABLE_HEIGHT,
+    shouldSplit: h > USABLE_HEIGHT
+  });
+  
+  if (h <= USABLE_HEIGHT) {
+    console.log('[splitOversizedNode] Node fits on one page, returning as-is');
+    return [node];
+  }
+
+  // Only paragraphs can be meaningfully split by text content.
+  if (node.type.name !== 'paragraph') {
+    console.log('[splitOversizedNode] Not a paragraph, returning as-is');
+    return [node];
+  }
+
+  // How many lines fit on one page
+  const linesPerPage = Math.floor((USABLE_HEIGHT - PARA_MARGIN) / LINE_H);
+  const charsPerPage = linesPerPage * CHARS_PER_LINE;
+  
+  console.log('[splitOversizedNode] Calculated capacity:', { linesPerPage, charsPerPage });
+
+  // Collect all inline content as {text, marks} segments
+  const segments = [];
+  node.forEach(inline => {
+    if (inline.isText) {
+      segments.push({ text: inline.text, marks: inline.marks });
+    }
+  });
+
+  console.log('[splitOversizedNode] Found segments:', segments.length);
+
+  if (segments.length === 0) {
+    console.log('[splitOversizedNode] No text segments found, returning as-is');
+    return [node];
+  }
+
+  // Merge all text so we can slice by character count
+  const chars = []; // Array of { ch: string, marks: Mark[] }
+  for (const seg of segments) {
+    for (const ch of seg.text) {
+      chars.push({ ch, marks: seg.marks });
+    }
+  }
+
+  console.log('[splitOversizedNode] Total characters:', chars.length);
+
+  if (chars.length === 0) {
+    console.log('[splitOversizedNode] No characters after processing, returning as-is');
+    return [node];
+  }
+
+  // Slice characters into page-sized chunks and rebuild paragraphs
+  const result = [];
+  let offset = 0;
+  let chunkIndex = 0;
+
+  while (offset < chars.length) {
+    const chunk = chars.slice(offset, offset + charsPerPage);
+    offset += charsPerPage;
+    chunkIndex++;
+
+    console.log('[splitOversizedNode] Processing chunk', chunkIndex, ':', {
+      charCount: chunk.length,
+      textPreview: chunk.map(c => c.ch).slice(0, 50).join('') + '...'
+    });
+
+    // Re-group consecutive characters that share the same marks into text nodes
+    const inlineNodes = [];
+    let runStart = 0;
+
+    while (runStart < chunk.length) {
+      const runMarks = chunk[runStart].marks;
+      let runEnd = runStart + 1;
+
+      while (
+        runEnd < chunk.length &&
+        marksEqual(chunk[runEnd].marks, runMarks)
+      ) {
+        runEnd++;
+      }
+
+      const text = chunk.slice(runStart, runEnd).map(c => c.ch).join('');
+      inlineNodes.push(schema.text(text, runMarks));
+      runStart = runEnd;
+    }
+
+    // Create a new paragraph node with the same attrs as the original
+    const paragraphNode = schema.nodes.paragraph.create(
+      node.attrs,
+      Fragment.fromArray(inlineNodes)
+    );
+    
+    console.log('[splitOversizedNode] Created paragraph chunk', chunkIndex, ':', {
+      textLength: paragraphNode.textContent.length,
+      textPreview: paragraphNode.textContent.substring(0, 50) + '...'
+    });
+    
+    result.push(paragraphNode);
+  }
+
+  console.log('[splitOversizedNode] Returning', result.length, 'split nodes');
+  return result;
+};
+
+// Helper: structural mark equality (avoids reference comparison)
+const marksEqual = (a, b) => {
+  if (a.length !== b.length) return false;
+  return a.every((m, i) =>
+    m.type.name === b[i].type.name &&
+    JSON.stringify(m.attrs) === JSON.stringify(b[i].attrs)
+  );
+};
+
 // ── Flatten all blocks out of page wrappers ───────────────────────────────────
 const flattenBlocks = (doc) => {
   const out = [];
@@ -142,47 +283,58 @@ export const paginateDocument = (editor, options = {}) => {
     const allBlocks = flattenBlocks(doc);
     if (allBlocks.length === 0) { setFlag('isPaginating', false); return false; }
 
-    // ✅ BUG 2 FIX (ENHANCED): Don't paginate on transitional states
-    // Guard 1: Single empty paragraph (cursor movement / mid-paste)
-    if (allBlocks.length === 1 && allBlocks[0].type.name === 'paragraph' 
-        && allBlocks[0].textContent.length === 0 && !options.force) {
-      console.log('[paginateDocument] ⚠️ Skipping pagination on transitional empty paragraph');
-      setFlag('isPaginating', false);
-      return false;
-    }
-    
-    // Guard 2: Single massive paragraph (>1000 chars) - likely unprocessed markdown
-    if (allBlocks.length === 1 && allBlocks[0].textContent.length > 1000 && !options.force) {
-      console.warn('[paginateDocument] ⚠️ Skipping pagination on single giant paragraph (' + allBlocks[0].textContent.length + ' chars) - likely raw markdown. Please ensure AI content is parsed through marked() before insertion.');
-      setFlag('isPaginating', false);
-      return false;
-    }
-    
-    // Guard 3: Very uneven distribution (one block >> others) - sign of bad parsing
-    const totalChars = allBlocks.reduce((sum, b) => sum + b.textContent.length, 0);
-    const maxBlockChars = Math.max(...allBlocks.map(b => b.textContent.length));
-    if (allBlocks.length > 1 && maxBlockChars > totalChars * 0.9 && !options.force) {
-      console.warn('[paginateDocument] ⚠️ Skipping pagination - one block contains ' + Math.round(maxBlockChars/totalChars*100) + '% of content (sign of unparsed markdown)');
+    // Guard: single empty paragraph — user just moved cursor, skip
+    if (
+      allBlocks.length === 1 &&
+      allBlocks[0].type.name === 'paragraph' &&
+      allBlocks[0].textContent.length === 0 &&
+      !options.force
+    ) {
       setFlag('isPaginating', false);
       return false;
     }
 
-    // Estimate heights
-    const blocksWithH = allBlocks.map(node => ({
-      node,
-      height: estimateHeight(node),
-    }));
+    // Expand any block that is taller than one page into multiple real nodes.
+    // This ensures each page gets independent node objects (no shared references).
+    const blocksWithH = allBlocks.flatMap(node => {
+      // Split oversized paragraphs into independent copies with sliced text
+      const splitNodes = splitOversizedNode(node, schema);
+      
+      // DEBUG: Log what we're getting from splitOversizedNode
+      console.log('[paginateDocument] splitOversizedNode returned:', {
+        originalNode: node.type.name,
+        originalText: node.textContent.substring(0, 50) + '...',
+        splitCount: splitNodes.length,
+        splitNodes: splitNodes.map((n, i) => ({
+          index: i,
+          type: n.type.name,
+          textLength: n.textContent.length,
+          textPreview: n.textContent.substring(0, 30) + '...'
+        }))
+      });
+      
+      // Re-wrap with height estimates for the binning loop
+      return splitNodes.map(splitNode => ({
+        node: splitNode,
+        height: estimateHeight(splitNode),
+      }));
+    });
 
     const totalH = blocksWithH.reduce((s, b) => s + b.height, 0);
-    console.log(`[paginateDocument] ${allBlocks.length} blocks, total height ${Math.round(totalH)}px, usable/page ${USABLE_HEIGHT}px`);
+    console.log(
+      `[paginateDocument] ${allBlocks.length} blocks → ${blocksWithH.length} layout-units,` +
+      ` total height ${Math.round(totalH)}px, usable/page ${USABLE_HEIGHT}px`
+    );
 
-    // Bin into pages
-    const pages = [];
+    // Bin layout-units into pages
+    // FIX-2: Because oversized blocks are now split into USABLE_HEIGHT-sized proxies,
+    // the binning condition triggers correctly even for a single-block document.
+    const pages = [];   // Array<Array<layoutUnit>>
     let cur = [], curH = 0;
 
     for (const b of blocksWithH) {
       if (pages.length >= MAX_PAGES) break;
-      if (curH + b.height > USABLE_HEIGHT && cur.length > 0) {
+      if (cur.length > 0 && curH + b.height > USABLE_HEIGHT) {
         pages.push(cur); cur = []; curH = 0;
       }
       cur.push(b); curH += b.height;
@@ -218,12 +370,26 @@ export const paginateDocument = (editor, options = {}) => {
     editor.storage._lastPaginationFingerprint = fingerprint;
 
     // Build page nodes — pageNumber attr is set explicitly here
+    // FIX-2: Each layout-unit now contains an actual split node with real content
     console.log(`[paginateDocument] Building ${pages.length} page nodes`);
     const newPages = pages.map((pg, i) => {
       const attrs = { pageNumber: i + 1, isBlank: false };
-      console.log(`[paginateDocument] Creating page node:`, attrs);
-      const node = schema.nodes.page.create(attrs, pg.map(b => b.node));
-      console.log(`[paginateDocument] Page node created with attrs:`, node.attrs);
+      
+      // Extract the actual nodes from layout-units
+      const pageNodes = pg.map(unit => unit.node);
+      
+      console.log(`[paginateDocument] Creating page ${i + 1} with ${pageNodes.length} nodes`, {
+        pageNumber: i + 1,
+        unitsInPage: pg.length,
+        nodes: pageNodes.map((n, idx) => ({
+          index: idx,
+          type: n.type.name,
+          textLength: n.textContent.length,
+          textPreview: n.textContent.substring(0, 30) + '...'
+        }))
+      });
+      
+      const node = schema.nodes.page.create(attrs, pageNodes);
       
       // 🔥 CRITICAL FIX: Verify page node has correct structure
       if (!node.attrs.pageNumber || node.attrs.pageNumber < 1) {
@@ -300,22 +466,11 @@ export const forceRepaginate = (editor) => {
 };
 
 // ── Call once from editor onCreate ───────────────────────────────────────────
+// ✅ DEPRECATED: Removed to prevent double-pagination race with usePastePagination
+// The ProseMirror plugin in usePastePagination handles all paste interception.
 export const setupPasteDetection = (editor) => {
   if (!editor) return;
-  
-  // ✅ NOTE: transformPasted is now handled in TextEditor.jsx editorProps
-  // This avoids conflicts with the custom paste plugin
-  
-  // Keep only the paste event listener for pagination triggering
-  editor.on('paste', () => {
-    console.log('[pasteDetection] Paste detected — freezing pagination');
-    setFlag('pasteInFlight', true);
-    clearTimeout(_timer);
-    setTimeout(() => {
-      setFlag('pasteInFlight', false);
-      forceRepaginate(editor);
-    }, 150);
-  });
+  // Intentionally empty — paste handling moved to usePastePagination hook
 };
 
 export const safePaginate         = paginateDocument;

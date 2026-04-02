@@ -139,12 +139,15 @@ export const DocumentOutline = ({
         WebkitUserSelect: 'none', // Safari support
         MozUserSelect: 'none', // Firefox support
         msUserSelect: 'none', // IE/Edge support
-        position: 'relative', // Create own stacking context
+        position: 'sticky', // Sticky positioning - stays in place while scrolling within parent
+        top: 0,
+        left: 0,
         zIndex: 100, // Match dropdown z-index to prevent being covered
         flexShrink: 0, // Prevent panel from shrinking
         flexGrow: 0, // Prevent panel from growing
         height: '100%', // Explicit full height
         alignSelf: 'stretch', // Stretch to fill parent
+        overflow: 'hidden', // Prevent panel itself from scrolling
       }}
       aria-label="Document outline"
       onMouseDown={(e) => {

@@ -46,6 +46,7 @@ import { Page, initializePagination } from '../extensions/Page.js';
 import { addHeadingStyles, updateHeadingStyles } from '../components/editor/EditorPagination.js';  // Heading styles functions
 import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
 import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
+import { usePastePagination } from '../hooks/usePastePagination'; // 🔥 NEW: Paste pagination hook
 import '../AthenaEditor.css'; // 🔥 CRITICAL: Page NodeView styling
 import '../../../styles/real-pagination.css';
 import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
@@ -1228,8 +1229,8 @@ const TextEditorContent = ({
     editorProps: {
       // ✅ CRITICAL FIX: Strip page wrappers from ALL pasted content
       // This runs BEFORE handlePaste and catches everything
-      transformPasted(slice) {
-        const { Fragment } = this.schema;
+      transformPasted(view, slice) {
+        const { Fragment } = view.state.schema;
         const newNodes = [];
 
         // Check if ANY of the pasted nodes are pages
@@ -1315,7 +1316,9 @@ const TextEditorContent = ({
       // CRITICAL: This runs on EVERY content change, but the debounce prevents
       // rapid-fire pagination. The 300ms delay lets the DOM render completely.
 
-      // 🔥 CRITICAL: Skip pagination during paste - let paste handler trigger it
+      // 🔥 CRITICAL: isPastingRef is set by usePastePagination's ProseMirror plugin.
+      // While true, we skip debouncePaginate and let the plugin's double-RAF
+      // call paginateDocument(force:true) after the DOM has settled.
       if (isPastingRef.current) {
         log('[onUpdate] Skipping pagination - paste in progress');
         return;
@@ -1443,6 +1446,11 @@ const TextEditorContent = ({
       // setActiveHeadingLevel(newHeadingLevel);
     },
   });
+
+  // 🔥 CRITICAL FIX: Paste pagination hook
+  // This registers a ProseMirror plugin that intercepts paste events and triggers
+  // pagination after the DOM has fully rendered the pasted content.
+  usePastePagination(editor, isPastingRef, lastPasteTimeRef);
 
   useEffect(() => {
     if (!editor) return;
@@ -1708,7 +1716,8 @@ const TextEditorContent = ({
     }
   }, [editor]);
 
-  const handlePaste = useCallback(() => { }, []);
+  // 🔥 REMOVED: Empty handlePaste - now handled by usePastePagination hook via ProseMirror plugin
+  // const handlePaste = useCallback(() => { }, []);
 
   // 🔥 HELPER: Parse PDF paragraph text with inline formatting
   const parseParagraphWithFormatting = (text, schema) => {
@@ -2644,6 +2653,12 @@ const TextEditorContent = ({
                   if (navigator.clipboard?.readText) {
                     const text = await navigator.clipboard.readText();
                     runWithSavedSelection(editor, (chain) => chain.insertContent(text));
+                    // Trigger pagination after paste settles
+                    setTimeout(() => {
+                      import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+                        forceRepaginate(editor);
+                      });
+                    }, 150);
                   } else {
                     document.execCommand('paste');
                   }
@@ -2656,6 +2671,12 @@ const TextEditorContent = ({
                 try {
                   const text = await navigator.clipboard.readText();
                   runWithSavedSelection(editor, (chain) => chain.insertContent(text));
+                  // Trigger pagination after paste settles
+                  setTimeout(() => {
+                    import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
+                      forceRepaginate(editor);
+                    });
+                  }, 150);
                 } catch {
                   toast.info('Use Ctrl+Shift+V to paste as plain text');
                 }
