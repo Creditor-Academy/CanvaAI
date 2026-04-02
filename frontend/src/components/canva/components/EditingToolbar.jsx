@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import {
     FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter,
     FiAlignRight, FiType, FiZap, FiMove, FiChevronDown,
     FiRotateCcw, FiRotateCw, FiSave, FiDownload, FiCopy,
     FiEdit3, FiTrash2, FiMinus, FiPlus, FiFilter, FiCrop, FiLayers,
-    FiFile, FiImage, FiSettings, FiStar, FiFolder, FiShare2, FiPlay, FiMessageSquare,
+    FiImage, FiSettings, FiStar, FiFolder, FiShare2, FiPlay, FiMessageSquare,
     FiEye, FiEyeOff, FiGrid, FiMaximize, FiMinimize, FiRefreshCw, FiCheck
 } from 'react-icons/fi';
 import ProjectNameModal from './ProjectNameModal';
@@ -86,7 +87,7 @@ const EditingToolbar = ({
     const fonts = [
         'Arial', 'Dancing Script', 'Helvetica', 'Roboto', 'Open Sans', 'Lato', 'Montserrat',
         'Poppins', 'Inter', 'Oswald', 'Roboto Mono', 'Raleway', 'Ubuntu',
-        'Merriweather', 'Playfair Display',  'Courier New',
+        'Merriweather', 'Playfair Display', 'Courier New',
         'Georgia', 'Times New Roman', 'Verdana', 'Comic Sans MS',
         'Source Sans Pro', 'Nunito', 'Fira Sans', 'Work Sans', 'PT Sans',
         'Quicksand', 'Avenir', 'Segoe UI', 'Calibri', 'Garamond',
@@ -161,8 +162,12 @@ const EditingToolbar = ({
                 <div className="h-14 px-4 flex items-center justify-between border-b border-gray-100">
                     {/* Left section - Project info */}
                     <div className="flex items-center gap-3 min-w-[200px]">
-                        <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
-                            <FiFile className="text-white" size={18} />
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="text-amber-500">
+                                <rect x="3" y="3" width="18" height="18" rx="3" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <path d="M21 15l-5-5-4 4-3-3-6 6" />
+                            </svg>
                         </div>
                         <div className="flex flex-col">
                             <div className="flex items-center gap-2">
@@ -617,43 +622,30 @@ const EditingToolbar = ({
                                     try {
                                         const name = pendingName || 'design';
 
-                                        const hasValidImageId =
-                                            imageId &&
-                                            imageId !== 'undefined' &&
-                                            imageId !== 'null' &&
-                                            typeof imageId === 'string';
-
-                                        // Always attempt backend export if we have a valid imageId and format
-                                        const useBackendExport = pendingFormat && hasValidImageId;
-
-                                        if (useBackendExport) {
-                                            const blob = await exportImage(imageId, pendingFormat);
-
-                                            const url = window.URL.createObjectURL(blob);
-                                            const link = document.createElement('a');
-
-                                            link.href = url;
-                                            link.download = `${name}.${pendingFormat}`;
-
-                                            document.body.appendChild(link);
-                                            link.click();
-                                            document.body.removeChild(link);
-
-                                            window.URL.revokeObjectURL(url);
-                                        } else {
-                                            // Use local canvas export which supports CSS gradients
-                                            onDownload?.(pendingFormat, name);
+                                        if (!imageId) {
+                                            throw new Error('Image ID is required for export');
                                         }
+
+                                        const blob = await exportImage(imageId, pendingFormat);
+
+                                        const url = window.URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+
+                                        link.href = url;
+                                        link.download = `${name}.${pendingFormat}`;
+
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+
+                                        window.URL.revokeObjectURL(url);
 
                                         setShowNamePrompt(false);
                                         setPendingFormat(null);
                                         setPendingName('');
                                     } catch (error) {
                                         console.error('Export failed:', error);
-
-                                        // fallback if backend export fails
-                                        onDownload?.(pendingFormat, pendingName || 'design');
-
+                                        toast.error('Failed to download image. Please try again.');
                                         setShowNamePrompt(false);
                                         setPendingFormat(null);
                                         setPendingName('');
@@ -662,6 +654,8 @@ const EditingToolbar = ({
                             >
                                 Save
                             </button>
+
+
                         </div>
                     </div>
                 </div>,
@@ -672,6 +666,7 @@ const EditingToolbar = ({
 };
 
 export default EditingToolbar;
+
 
 
 

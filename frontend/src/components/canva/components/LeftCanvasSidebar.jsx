@@ -61,7 +61,8 @@ const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, on
 
 const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, children, position, onClose }) => {
   if (expandedSection !== sectionKey) return null;
-  const portalStyle = "fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200";
+  // Use a light (white) surface for expanded panels so content reads on white backgrounds
+  const portalStyle = "fixed z-[9999] bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200 text-slate-900";
 
   return createPortal(
     <div
@@ -75,11 +76,11 @@ const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, childr
         transform: 'translateY(0)'
       }}
     >
-      <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 flex-shrink-0">
-        <h3 className="text-white font-bold tracking-tight">{title}</h3>
-        <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-md text-slate-400"><FiX /></button>
+      <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-white flex-shrink-0">
+        <h3 className="text-gray-900 font-bold tracking-tight">{title}</h3>
+        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-md text-gray-600"><FiX /></button>
       </div>
-      <div className="p-4 overflow-y-auto pb-10 custom-scrollbar pb-32" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
+      <div className="p-4 overflow-y-auto pb-10 custom-scrollbar pb-32 text-slate-700" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
         {children}
       </div>
     </div>,
@@ -390,6 +391,33 @@ const LeftCanvasSidebar = memo(({
       setReferencePosition({ x, y, width: portalWidth });
     }
   }, [referencePosition]);
+
+  // Sync local expandedSection with parent `openSections` so portals open on first click
+  useEffect(() => {
+    const openKey = Object.keys(openSections).find(k => openSections[k]);
+    if (!openKey) {
+      if (expandedSection) setExpandedSection(null);
+      return;
+    }
+
+    if (openKey === expandedSection) return; // already in sync
+
+    // compute position from stored button ref if possible
+    const portalWidth = 300;
+    const btn = buttonRefs.current?.[openKey];
+    let position = referencePosition;
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      const spacing = 12;
+      const x = rect.right + spacing;
+      const y = Math.max(20, rect.top);
+      position = { x, y, width: portalWidth };
+      if (openKey === 'background') setReferencePosition(position);
+    }
+
+    if (position) setExpandedSectionPosition(position);
+    setExpandedSection(openKey);
+  }, [openSections, buttonRefs, referencePosition, expandedSection]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
