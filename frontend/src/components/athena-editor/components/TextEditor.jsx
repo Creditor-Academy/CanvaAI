@@ -85,6 +85,7 @@ import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import HeaderMenuBar from './editor/HeaderMenuBar';
 import { FindReplaceModal } from './editor/FindReplaceModal';
 import { AIAssistant } from './editor/AIAssistant.jsx';
+import { ExportDialog } from './ExportDialog';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
@@ -232,7 +233,7 @@ const { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSel
 import { useKeyboardShortcuts } from './editor/useKeyboardShortcuts';
 import { CommentsPanel as _CommentsPanel } from './editor/CommentsPanel';
 import { VersionHistory as _VersionHistory } from './editor/VersionHistory';
-import { VoiceTyping as _VoiceTyping } from './editor/VoiceTyping';
+// import { VoiceTyping as _VoiceTyping } from './editor/VoiceTyping';
 import { PageSetupDialog as _PageSetupDialog } from './editor/PageSetupDialog';
 import { KeyboardShortcutsDialog as _KeyboardShortcutsDialog } from './editor/KeyboardShortcutsDialog';
 import { WordCountDialog as _WordCountDialog } from './editor/WordCountDialog';
@@ -372,7 +373,7 @@ const normalizeInlineStyles = (html) => {
 const _safe = (C) => (typeof C === 'function' ? C : () => null);
 const CommentsPanel = _safe(_CommentsPanel);
 const VersionHistory = _safe(_VersionHistory);
-const VoiceTyping = _safe(_VoiceTyping);
+// const VoiceTyping = _safe(_VoiceTyping);
 const PageSetupDialog = _safe(_PageSetupDialog);
 const KeyboardShortcutsDialog = _safe(_KeyboardShortcutsDialog);
 const WordCountDialog = _safe(_WordCountDialog);
@@ -653,7 +654,7 @@ export const EditorToolbar = ({
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState(null); // 🔥 For version restore confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // 🔥 For document delete confirmation
-  const [showVoiceTyping, setShowVoiceTyping] = useState(false);
+  // const [showVoiceTyping, setShowVoiceTyping] = useState(false);
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [showWordCount, setShowWordCount] = useState(false);
   const [textDirection, setTextDirectionState] = useState('ltr');
@@ -1267,7 +1268,7 @@ export const EditorToolbar = ({
       setUploadProgress(100);
 
       // ✅ Insert URL (not base64) - keeps document size small
-      editor.chain().focus().setResizableImage({
+      editor.chain().focus(null, { scrollIntoView: false }).setResizableImage({
         src: url,
         alt: file.name,
         width: 600,
@@ -1292,7 +1293,7 @@ export const EditorToolbar = ({
       // Validate URL
       new URL(imageUrl);
 
-      editor.chain().focus().setResizableImage({
+      editor.chain().focus(null, { scrollIntoView: false }).setResizableImage({
         src: imageUrl,
         alt: selectedImageAlt || 'Image from URL',
         width: 600,
@@ -2853,8 +2854,6 @@ export const EditorToolbar = ({
           label: 'Word Count', icon: Hash, action: () => setShowWordCount(true)
         },
         { type: 'separator' },
-        { label: 'Voice Typing', icon: MessageSquare, action: () => setShowVoiceTyping(true) },
-        { type: 'separator' },
         { label: 'Find & Replace', icon: Replace, shortcut: 'Ctrl+H', action: () => setShowFindReplace(true) },
         { label: 'Find', icon: Search, shortcut: 'Ctrl+F', action: () => setShowSearch(true) },
         { type: 'separator' },
@@ -3038,8 +3037,8 @@ export const EditorToolbar = ({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={cn("sticky top-0 z-40 bg-[#eaf2ff] border-b border-blue-200 shadow-sm toolbar", className)}
-      style={{ contain: 'layout style' }}
+      className={cn("sticky top-0 bg-[#eaf2ff] border-b border-blue-200 shadow-sm toolbar", className)}
+      style={{ zIndex: 40 }} // Base toolbar container - dropdowns will be higher
       onMouseDown={(e) => {
         const t = e.target;
         if (t && (t.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]'))) return;
@@ -3606,7 +3605,7 @@ export const EditorToolbar = ({
               <List className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
+          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white shadow-lg border border-gray-200 rounded-md p-1">
             <DropdownMenuItem
               onClick={() => {
                 console.log('Numbered list selected');
@@ -3690,7 +3689,7 @@ export const EditorToolbar = ({
               <AlignLeft className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white z-100 shadow-lg border border-gray-200 rounded-md p-1">
+          <DropdownMenuContent onCloseAutoFocus={(e) => e.preventDefault()} className="w-48 bg-white shadow-lg border border-gray-200 rounded-md p-1">
             <DropdownMenuItem
               onClick={() => {
                 console.log('Align left selected');
@@ -4485,11 +4484,6 @@ export const EditorToolbar = ({
           />
         )}
       </AnimatePresence>
-      <AnimatePresence>
-        {showVoiceTyping && (
-          <VoiceTyping isOpen={showVoiceTyping} onClose={() => setShowVoiceTyping(false)} editor={editor} />
-        )}
-      </AnimatePresence>
       <PageSetupDialog open={showPageSetup} onOpenChange={setShowPageSetup} onApply={(cfg) => { if (cfg.margins) updatePageMargins(cfg.margins); }} />
       <KeyboardShortcutsDialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog} />
       <WordCountDialog open={showWordCount} onOpenChange={setShowWordCount} editor={editor} />
@@ -4656,7 +4650,7 @@ export const EditorToolbar = ({
 
       {/* Find & Replace Inline Dialog */}
       {showFindReplace && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20" onClick={() => setShowFindReplace(false)}>
+        <div className="fixed inset-0 flex items-start justify-center pt-20" style={{ zIndex: 400 }} onClick={() => setShowFindReplace(false)}>
           <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 w-110 p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
@@ -4690,7 +4684,7 @@ export const EditorToolbar = ({
 
       {/* Link Insert Dialog */}
       {showInsertLink && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20" onClick={() => setShowInsertLink(false)}>
+        <div className="fixed inset-0 flex items-start justify-center pt-20" style={{ zIndex: 400 }} onClick={() => setShowInsertLink(false)}>
           <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 w-96 p-5" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-gray-900 text-base mb-4">Insert Link</h3>
             <div className="space-y-3">
@@ -4750,7 +4744,7 @@ const TextEditorContent = ({
 
   const { state: editorState = {}, actions: editorActions = {} } = useEditorContext() || {};
   const { state: imageState = {}, actions: imageActions = {} } = useImageContext() || {};
-  const { exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading } = useExportState();
+  const { exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading, exportProgress } = useExportState();
 
   const {
     showReferencesPanel = false, showExportDialog = false,
@@ -4850,18 +4844,11 @@ const TextEditorContent = ({
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
 
   // ── Page-capacity constants ─────────────────────────────────────────────
-  // A4 page: 210×297 mm @ 96 dpi = 794×1123 px
-  // Margins: 1 in (72 pt) top/bottom/left/right
-  // Usable height: 1123 - 144 = 979 px
-  // Font: 12 pt = 16 px rendered; line height 1.15 → 18.4 px/line
-  // Lines per page: floor(979 / 18.4) = 53 raw lines, but paragraphs have
-  //   spacing-after, headings are taller, lists add bullets → effective ~32 lines
-  // Words per line at 65 chars/line ÷ 5.5 chars/word ≈ 11.8 words/line
-  // Words per page: 32 × 11.8 ≈ 378 → use 380 (conservative)
-  // Chars per page: 32 × 65 = 2080 → use 2100 (conservative)
-  const MAX_WORDS_PER_PAGE = 380;        // 12 pt / 1.15 spacing, ~32 lines/page
-  const MAX_CHARS_PER_PAGE = 2100;       // 32 lines × 65 chars/line
-  const MAX_LINES_PER_PAGE = 32;         // 12 pt / 1.15 spacing on A4
+  // 🔥 REMOVED: Legacy word-count constants - no longer used
+  // These constants caused mismatch between editor and PDF export:
+  // Old: MAX_WORDS_PER_PAGE=380, MAX_CHARS_PER_PAGE=2100, MAX_LINES_PER_PAGE=32
+  // Now using: DOM-based PaginationEngine with actual height measurement
+  const AVG_CHARS_PER_LINE = 65;         // Conservative estimate at 12 pt
   const STATS_DELAY = 500;               // ms delay before updating stats to prevent cursor jump
 
   const editorRef = useRef(null);
@@ -5344,166 +5331,16 @@ const TextEditorContent = ({
     */
   }, []); // pageCfg is a stable plain-object literal — no closure deps
 
-  // ── runProgressivePageBreaks ─────────────────────────────────────────────
-  //
-  // For documents > 20 K characters we break the work into chunks to keep
-  // the UI responsive. Each chunk yields to the event loop before continuing.
-  //
-  // The key insight: we can't call runPastePageBreaks multiple times on the
-  // SAME document state (the mutex prevents it and positions shift after each
-  // insertion). Instead we do ONE full scan, collect ALL positions, then
-  // insert them in batches of CHUNK_SIZE, yielding between batches.
-  //
+  // 🔥 DEPRECATED - Legacy word-count pagination REMOVED
+  // 
+  // This function used word/char heuristics (MAX_WORDS_PER_PAGE = 380) which
+  // diverged from actual rendered height, causing PDF export mismatch.
+  // 
+  // REPLACED BY: runPastePageBreaksOptimized (uses DOM height measurement)
   const runProgressivePageBreaks = useCallback(async (editorInstance) => {
-    if (isInsertingRef.current) return;
-    if (!editorInstance?.state?.doc) return;
-
-    const totalChars = editorInstance.state.doc.textContent.length;
-    if (totalChars <= 20000) {
-      // Small enough — delegate to the standard single-pass function
-      runPastePageBreaks(editorInstance);
-      return;
-    }
-
-    isInsertingRef.current = true;
-    const CHUNK_SIZE = 100; // insertions per batch before yielding
-
-    try {
-      const doc = editorInstance.state.doc;
-
-      toast.loading(
-        `Paginating large document (${Math.round(totalChars / 1000)}K chars)…`,
-        { id: 'progressive-paste', duration: 30000 }
-      );
-
-      // ── Pass 1: full scan (same logic as runPastePageBreaks) ──────────
-      const insertAt = [];
-      let pageWords = 0;
-      let pageChars = 0;
-      let pageLines = 0;
-
-      doc.forEach((blockNode, topOffset) => {
-        if (blockNode.type.name === 'pageBreak') {
-          pageWords = 0; pageChars = 0; pageLines = 0;
-          return;
-        }
-
-        const text = blockNode.textContent || '';
-        const blockWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
-        const blockChars = text.length;
-        let lineMultiplier = 1;
-        if (blockNode.type.name === 'heading') {
-          const lvl = blockNode.attrs?.level ?? 3;
-          lineMultiplier = lvl === 1 ? 3 : lvl === 2 ? 2 : 1.5;
-        }
-        const rawLines = Math.ceil(blockChars / pageCfg.AVG_CHARS_PER_LINE) || 1;
-        const blockLines = Math.max(1, Math.ceil(rawLines * lineMultiplier));
-
-        pageWords += blockWords;
-        pageChars += blockChars;
-        pageLines += blockLines;
-
-        const overflow =
-          pageWords > pageCfg.MAX_WORDS_PER_PAGE ||
-          pageChars > pageCfg.MAX_CHARS_PER_PAGE ||
-          pageLines > pageCfg.MAX_LINES_PER_PAGE;
-
-        if (overflow && insertAt.length < pageCfg.MAX_BREAKS_PER_RUN) {
-          insertAt.push(topOffset);
-          pageWords = blockWords;
-          pageChars = blockChars;
-          pageLines = blockLines;
-        }
-      });
-
-      // Stamp fingerprint before any insertion so the resulting onUpdate
-      // exits the fingerprint guard without re-scanning.
-      const txt = doc.textContent;
-      lastFingerprintRef.current = `${txt.length}:${txt.substring(0, 80)}`;
-
-      if (insertAt.length === 0) {
-        toast.success('Document processed — no breaks needed.', {
-          id: 'progressive-paste', duration: 2000,
-        });
-        return;
-      }
-
-      // ── Pass 2: insert in CHUNK_SIZE batches, yielding between each ───
-      const totalBreaks = insertAt.length;
-      let offset = 0;
-      let batchStart = 0;
-
-      // CRITICAL: Save cursor position before progressive pagination
-      const savedSelection = editorInstance.state.selection;
-      const savedFrom = savedSelection.from;
-      const savedTo = savedSelection.to;
-
-      while (batchStart < totalBreaks) {
-        if (editorInstance.isDestroyed) break;
-
-        // Release mutex briefly between batches so UI can repaint
-        isInsertingRef.current = false;
-        await new Promise((r) => setTimeout(r, 16)); // ~1 frame
-        isInsertingRef.current = true;
-
-        if (editorInstance.isDestroyed) break;
-
-        const batchEnd = Math.min(batchStart + CHUNK_SIZE, totalBreaks);
-        let chain = editorInstance.chain();
-        for (let i = batchStart; i < batchEnd; i++) {
-          chain = chain.insertContentAt(insertAt[i] + 1 + offset, { type: 'pageBreak' });
-          offset += 1;
-        }
-        chain.run();
-
-        toast.loading(
-          `Paginating… ${Math.min(batchEnd, totalBreaks)}/${totalBreaks} breaks`,
-          { id: 'progressive-paste' }
-        );
-
-        batchStart = batchEnd;
-      }
-
-      // CRITICAL: Restore cursor position after progressive pagination
-      requestAnimationFrame(() => {
-        if (!editorInstance.isDestroyed && savedFrom >= 0) {
-          try {
-            // Adjust position based on total breaks inserted before cursor
-            const breaksBeforeCursor = insertAt.filter(pos => pos <= savedFrom).length;
-            const adjustedFrom = savedFrom + breaksBeforeCursor;
-            const adjustedTo = savedTo + breaksBeforeCursor;
-
-            editorInstance.commands.setTextSelection({
-              from: Math.min(adjustedFrom, editorInstance.state.doc.content.size),
-              to: Math.min(adjustedTo, editorInstance.state.doc.content.size)
-            });
-
-            editorInstance.view.focus({ preventScroll: true });
-            console.log('[TextEditor] Cursor restored after progressive pagination');
-          } catch (err) {
-            console.error('[TextEditor] Failed to restore cursor:', err);
-            if (!editorInstance.isDestroyed) {
-              editorInstance.view.focus({ preventScroll: true });
-            }
-          }
-        }
-      });
-
-      const pages = totalBreaks + 1;
-      toast.success(
-        `✓ Large document paginated — ${totalBreaks} breaks, ${pages} pages`,
-        { id: 'progressive-paste', duration: 4000 }
-      );
-
-    } catch (err) {
-      console.error('[ProgressivePagination] error:', err);
-      toast.error('Pagination failed for large document', {
-        id: 'progressive-paste', duration: 4000,
-      });
-    } finally {
-      isInsertingRef.current = false;
-    }
-  }, [runPastePageBreaks]);
+    console.warn('[TextEditor] runProgressivePageBreaks is DEPRECATED - use runPastePageBreaksOptimized');
+    return 0;
+  }, []);
 
   // ── checkAndInsertAutoPageBreaks ─────────────────────────────────────────
   //
@@ -5574,15 +5411,10 @@ const TextEditorContent = ({
     const fingerprint = `${text.length}:${text.substring(0, 80)}`;
     if (fingerprint === lastFingerprintRef.current) return;
 
-    // Quick capacity pre-check: if total doc is < 80 % of one page,
-    // there is nothing to paginate yet → update fingerprint and bail.
-    const totalWords = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+    // Simple character count check - no word-count heuristics
+    // Very small docs don't need pagination
     const totalChars = text.length;
-    const threshold = 0.8;
-    if (
-      totalWords < pageCfg.MAX_WORDS_PER_PAGE * threshold &&
-      totalChars < pageCfg.MAX_CHARS_PER_PAGE * threshold
-    ) {
+    if (totalChars < 500) {
       lastFingerprintRef.current = fingerprint;
       return;
     }
@@ -6516,6 +6348,7 @@ const TextEditorContent = ({
       switch (exportFormat) {
         case 'pdf': await exportToPDF(editor, options); break;
         case 'docx': await exportToDOCX(editor, options); break;
+        case 'epub': await DocumentExporter.exportToEPUB(editor, options); break;
         case 'md': await exportToMarkdown(editor, options); break;
         case 'txt': await exportToPlainText(editor, options); break;
         case 'html': await exportToHTML(editor, options); break;
@@ -6545,39 +6378,49 @@ const TextEditorContent = ({
   const handleHeadingClick = useCallback((headingId) => {
     if (!editor) return;
     try {
+      // 🔍 Debug: Log click
+      console.log('📑 [DocumentOutline] Heading clicked:', headingId);
+      
       // 🔥 Find heading by ID in document
       let targetPos = null;
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading' &&
           (node.attrs.id === headingId || `${pos}` === headingId.replace('heading-', '').split('-')[0])) {
-          targetPos = pos;
+          targetPos = pos + 1; // +1 to get to start of heading content
           return false; // Stop searching
         }
         return true;
       });
 
       if (targetPos !== null) {
-        // Set selection at heading position
-        editor.chain().focus().setTextSelection(targetPos).run();
-
-        // 🔥 Smooth scroll to heading in viewport
+        console.log('📑 [DocumentOutline] Found heading at position:', targetPos);
+        
+        // Set selection at heading position WITH scroll into view
+        const result = editor.chain()
+          .focus(targetPos, { scrollIntoView: true })
+          .setTextSelection(targetPos)
+          .run();
+        
+        console.log('📑 [DocumentOutline] Command result:', result);
+        console.log('📑 [DocumentOutline] Editor has focus:', editor.view.hasFocus());
+        console.log('📑 [DocumentOutline] Selection:', editor.state.selection);
+        
+        // Additional manual scroll to ensure visibility (works with pagination)
         setTimeout(() => {
-          const contentContainer = contentContainerRef.current;
-          if (contentContainer) {
-            const headingElement = contentContainer.querySelector(`[data-pos="${targetPos}"]`);
-            if (headingElement) {
-              headingElement.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-                inline: 'nearest'
-              });
-              console.log('📑 Scrolled to heading:', headingId);
+          const editorContainer = document.querySelector('.editor-scroll-container');
+          if (editorContainer) {
+            const selectedElement = editorContainer.querySelector('[class*="ProseMirror-selected"]');
+            if (selectedElement) {
+              selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              console.log('📑 [DocumentOutline] Manually scrolled to element');
             }
           }
-        }, 50); // Small delay for DOM to update after selection
+        }, 100);
+      } else {
+        console.warn('⚠️ [DocumentOutline] Heading not found:', headingId);
       }
     } catch (error) {
-      console.error('Heading click error:', error);
+      console.error('❌ [DocumentOutline] Error:', error);
     }
   }, [editor]);
 
@@ -6606,27 +6449,27 @@ const TextEditorContent = ({
 
   const toggleBulletList = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleBulletList().run();
+    editor.chain().focus(null, { scrollIntoView: false }).toggleBulletList().run();
   }, [editor]);
 
   const toggleOrderedList = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleOrderedList().run();
+    editor.chain().focus(null, { scrollIntoView: false }).toggleOrderedList().run();
   }, [editor]);
 
   const toggleTaskList = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleTaskList().run();
+    editor.chain().focus(null, { scrollIntoView: false }).toggleTaskList().run();
   }, [editor]);
 
   const toggleUnderline = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleUnderline().run();
+    editor.chain().focus(null, { scrollIntoView: false }).toggleUnderline().run();
   }, [editor]);
 
   const toggleBlockquote = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleBlockquote().run();
+    editor.chain().focus(null, { scrollIntoView: false }).toggleBlockquote().run();
   }, [editor]);
 
   const addNewPage = useCallback(() => {
@@ -6661,7 +6504,7 @@ const TextEditorContent = ({
       toast.success('Image inserted successfully');
       setShowImageModal(false);
     } catch (error) {
-      try { editor.chain().focus().setImage({ src, alt }).run(); setShowImageModal(false); }
+      try { editor.chain().focus(null, { scrollIntoView: false }).setImage({ src, alt }).run(); setShowImageModal(false); }
       catch (e) { toast.error('Failed to insert image'); }
     }
   }, [editor]);
@@ -6934,11 +6777,34 @@ const TextEditorContent = ({
     };
   }, []);
 
+  // Calculate export progress percentage and stage for ExportDialog
+  const exportProgressPercent = useMemo(() => {
+    if (!exportProgress?.totalSteps) return 0;
+    return Math.round((exportProgress.completedSteps / exportProgress.totalSteps) * 100);
+  }, [exportProgress]);
+
+  const exportStageMessage = useMemo(() => {
+    return exportProgress?.currentStep || 'Preparing document';
+  }, [exportProgress]);
+
+  // Check if any export is currently loading
+  const isExportLoading = useMemo(() => {
+    return Object.values(exportLoading).some(loading => loading);
+  }, [exportLoading]);
+
   return (
     <TooltipProvider>
       <div className="h-screen w-full flex flex-col bg-background overflow-x-hidden relative">
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100 z-30">
+        <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100 z-30" 
+          style={{ 
+            height: '48px', 
+            flexShrink: 0,
+            flexGrow: 0,
+            overflow: 'visible', // Allow dropdowns to extend outside
+            position: 'relative',
+            zIndex: 30
+          }}>
           <div className="flex items-center gap-3">
             <div className="bg-[#1a73e8] p-1.5 rounded shadow-sm">
               <FileText className="w-5 h-5 text-white" />
@@ -7136,7 +7002,13 @@ const TextEditorContent = ({
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0, height: '100%' }}>
+        <div className="flex-1 flex overflow-hidden" style={{ 
+          minHeight: 0, 
+          height: 'calc(100vh - 48px - 32px)', // Explicit: viewport - header - footer
+          position: 'relative',
+          flexShrink: 0,
+          flexGrow: 1
+        }}>
           <DocumentOutline
             isOpen={isOutlineOpen}
             onClose={() => setIsOutlineOpen(false)}
@@ -7198,34 +7070,23 @@ const TextEditorContent = ({
           onSelectTemplate={handleTemplateSelect}
         />
 
-        {/* Export Dialog */}
-        <Dialog open={showExportDialog} onOpenChange={(open) => updateEditorFeatures({ showExportDialog: open })}>
-          <DialogContent className="max-w-md bg-white" aria-describedby="export-dialog-description">
-            <DialogHeader>
-              <DialogTitle>Export Document</DialogTitle>
-              <DialogDescription id="export-dialog-description">Choose format and options for exporting your document.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Format</Label>
-                <Select value={exportFormat} onValueChange={(value) => updateEditorFeatures({ exportFormat: value })}>
-                  <SelectTrigger><SelectValue placeholder="Select format" /></SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {[['pdf', 'PDF'], ['docx', 'DOCX'], ['md', 'Markdown'], ['txt', 'Plain Text'], ['html', 'HTML'], ['json', 'JSON']].map(([v, l]) => (
-                      <SelectItem key={v} value={v}>{l}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => updateEditorFeatures({ showExportDialog: false })}>Cancel</Button>
-              <Button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Download className="w-4 h-4 mr-2" /> Export
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Export Dialog - Production Grade */}
+        <ExportDialog
+          open={showExportDialog}
+          onOpenChange={(open) => updateEditorFeatures({ showExportDialog: open })}
+          exportFormat={exportFormat}
+          onFormatChange={(value) => updateEditorFeatures({ exportFormat: value })}
+          onExport={handleExport}
+          exportLoading={isExportLoading}
+          exportProgress={exportProgressPercent}
+          exportStage={exportStageMessage}
+          documentTitle={document?.title || 'Untitled Document'}
+          documentStats={{
+            words: documentStats?.words || 0,
+            pages: documentStats?.pages || 1,
+            characters: documentStats?.characters || 0,
+          }}
+        />
 
         {/* Version History */}
         <AnimatePresence>
@@ -7306,11 +7167,13 @@ const TextEditorContent = ({
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setShowImageModal(false)}
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100]"
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+                style={{ zIndex: 400 }} // Layer 4: Modals - Backdrop
               />
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+                className="fixed inset-0 flex items-center justify-center p-4"
+                style={{ zIndex: 400 }} // Layer 4: Modals - Content
               >
                 <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
                   {/* Header */}
@@ -7547,7 +7410,7 @@ const TextEditorContent = ({
           onImageInsert={(imageUrl, altText) => {
             if (!editor) return;
             try {
-              editor.chain().focus().setResizableImage({
+              editor.chain().focus(null, { scrollIntoView: false }).setResizableImage({
                 src: imageUrl,
                 alt: altText,
                 title: altText || 'AI Generated Image',

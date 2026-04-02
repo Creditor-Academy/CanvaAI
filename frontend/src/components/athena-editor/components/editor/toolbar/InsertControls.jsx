@@ -326,7 +326,7 @@ export const InsertControls = ({ editor, handleInsertImage }) => {
       />
 
       <ToolbarButton
-        onClick={() => editor.chain().focus().setPageBreak().run()}
+        onClick={() => editor.chain().focus(null, { scrollIntoView: false }).setPageBreak().run()}
         icon={Split}
       />
 

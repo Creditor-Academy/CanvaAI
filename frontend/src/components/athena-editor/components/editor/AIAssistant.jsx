@@ -592,7 +592,7 @@ export const AIAssistant = ({
             top: panelPosition.y,
             width: 360,
             maxHeight: '85vh',
-            zIndex: 99999,
+            zIndex: 600, // Layer 6: Special Floating Panels
             cursor: isDragging ? 'grabbing' : 'default',
             overflow: 'hidden',
             display: 'flex',

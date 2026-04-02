@@ -42,9 +42,9 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
                     case 'newline': editor.chain().focus().insertContent('<br/>').run(); return true;
                     case 'punctuation': editor.chain().focus().insertContent(action.value).run(); return true;
                     case 'format':
-                        if (action.action === 'bold') editor.chain().focus().toggleBold().run();
-                        if (action.action === 'italic') editor.chain().focus().toggleItalic().run();
-                        if (action.action === 'underline') editor.chain().focus().toggleUnderline().run();
+                        if (action.action === 'bold') editor.chain().focus(null, { scrollIntoView: false }).toggleBold().run();
+                        if (action.action === 'italic') editor.chain().focus(null, { scrollIntoView: false }).toggleItalic().run();
+                        if (action.action === 'underline') editor.chain().focus(null, { scrollIntoView: false }).toggleUnderline().run();
                         return true;
                     case 'edit':
                         if (action.action === 'undo') editor.chain().focus().undo().run();
@@ -153,7 +153,8 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 right-6 w-80 bg-white rounded-2xl shadow-2xl border border-blue-100 z-50 overflow-hidden"
+            className="fixed bottom-24 right-6 w-80 bg-white rounded-2xl shadow-2xl border border-blue-100 overflow-hidden"
+            style={{ zIndex: 600 }} // Layer 6: Special Floating Panels
         >
             <div className="flex items-center justify-between px-4 py-3 border-b border-blue-50 bg-gradient-to-r from-blue-50 to-indigo-50">
                 <div className="flex items-center gap-2">

@@ -1,53 +1,68 @@
-import { Mark, mergeAttributes } from '@tiptap/core';
+/**
+ * FontSize Extension for TipTap
+ * 
+ * Adds font size control to text styling
+ * Works in conjunction with TextStyle extension
+ */
 
-export const FontSize = Mark.create({
+import { Extension } from '@tiptap/core';
+import { TextStyle } from '@tiptap/extension-text-style';
+
+const FontSize = Extension.create({
   name: 'fontSize',
 
   addOptions() {
     return {
-      HTMLAttributes: {},
+      types: ['textStyle'],
     };
   },
 
-  addAttributes() {
-    return {
-      fontSize: {
-        default: null,
-        parseHTML: element => element.style.fontSize,
-        renderHTML: attributes => {
-          if (!attributes.fontSize) {
-            return {};
-          }
-
-          return {
-            style: `font-size: ${attributes.fontSize}`,
-          };
-        },
-      },
-    };
-  },
-
-  parseHTML() {
+  addGlobalAttributes() {
     return [
       {
-        style: 'font-size',
-        getAttrs: fontSize => fontSize ? { fontSize } : false,
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize,
+            renderHTML: attributes => {
+              if (!attributes.fontSize) {
+                return {};
+              }
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              };
+            },
+          },
+        },
       },
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
-  },
-
   addCommands() {
     return {
-      setFontSize: fontSize => ({ commands }) => {
-        return commands.setMark(this.name, { fontSize });
+      /**
+       * Set font size
+       * @param {string} fontSize - Font size value (e.g., '12px', '14px')
+       */
+      setFontSize: (fontSize) => ({ chain }) => {
+        return chain()
+          .setMark('textStyle', { 
+            fontSize: fontSize.includes('px') ? fontSize : `${fontSize}px` 
+          })
+          .run();
       },
-      unsetFontSize: () => ({ commands }) => {
-        return commands.unsetMark(this.name);
+
+      /**
+       * Remove font size
+       */
+      unsetFontSize: () => ({ chain }) => {
+        return chain()
+          .setMark('textStyle', { fontSize: null })
+          .run();
       },
     };
   },
 });
+
+export default FontSize;

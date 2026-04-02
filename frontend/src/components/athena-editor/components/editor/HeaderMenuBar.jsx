@@ -402,9 +402,11 @@ const HeaderMenuBar = React.memo(({
           key={menuItem.id || menuItem.label}
           onMouseDown={(e) => { 
             console.log('🖱️ [HeaderMenuBar] Mouse down:', menuItem.label, 'Button:', e.button);
+            // CRITICAL FIX: Prevent any default behavior that could cause layout shift
+            e.preventDefault();
+            e.stopPropagation();
             // Execute callback directly from onMouseDown since Radix blocks onClick
             if (e.button === 0 && menuItem.onClick) {  // Left click only
-              e.preventDefault();
               console.log('🎯 Executing callback from onMouseDown...');
               try {
                 menuItem.onClick();
@@ -437,7 +439,7 @@ const HeaderMenuBar = React.memo(({
 
   return (
     <>
-      <div ref={menuRef} className="flex items-center gap-0 h-full">
+      <div ref={menuRef} className="flex items-center gap-0 h-full" style={{ position: 'relative', overflow: 'visible' }}>
         {/* Menu Bar Items */}
         {menuItems.map((menu) => {
           let menuData = null;

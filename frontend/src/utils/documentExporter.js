@@ -10,6 +10,10 @@ import { toast } from 'sonner';
 import JSZip from 'jszip';
 import DOMPurify from 'dompurify';
 
+// EPUB constants
+const EPUB_NS = 'http://www.idpf.org/2007/opf';
+const CONTAINER_NS = 'urn:oasis:names:tc:opendocument:xmlns:container';
+
 // ─── Unit constants ────────────────────────────────────────────────────────────
 const PT_TO_MM   = 0.352778;   // 1 pt  → mm
 const PX_TO_MM   = 0.264583;   // 1 px  → mm (96 dpi)
@@ -807,6 +811,655 @@ export class DocumentExporter {
   }
 
   // ============================================================
+  // EPUB EXPORT
+  // ============================================================
+
+  /**
+   * Export document to EPUB 3.0 format
+   * Creates a fully compliant EPUB file with proper structure
+   * 
+   * @param {object} editor - TipTap editor instance
+   * @param {object} options - Export options
+   * @returns {Promise<Blob>} EPUB file blob
+   */
+  static async exportToEPUB(editor, options = {}) {
+    const {
+      filename = 'document.epub',
+      title = 'Document',
+      author = 'Athena Editor',
+      language = 'en',
+      coverImage = null,
+    } = options;
+
+    const toastId = toast.loading('Creating EPUB…');
+
+    try {
+      // Extract structured content from editor
+      const content = this.extractStructuredContent(editor);
+      
+      // Create unique identifier (UUID)
+      const uuid = `urn:uuid:${this._generateUUID()}`;
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+      // Initialize JSZip for creating EPUB archive
+      const zip = new JSZip();
+
+      // ── EPUB directory structure ───────────────────────────────────────
+      // mimetype (must be first, uncompressed)
+      zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+      // META-INF/container.xml
+      zip.file('META-INF/container.xml', this._buildContainerXML());
+
+      // OEBPS/content.opf (package document)
+      const opfContent = this._buildOPF(content, { title, author, language, uuid, timestamp });
+      zip.file('OEBPS/content.opf', opfContent);
+
+      // OEBPS/toc.ncx (navigation control)
+      const ncxContent = this._buildNCX(content, { title, author, uuid });
+      zip.file('OEBPS/toc.ncx', ncxContent);
+
+      // OEBPS/nav.xhtml (EPUB 3 navigation)
+      const navContent = this._buildNavXHTML(content, { title, language });
+      zip.file('OEBPS/nav.xhtml', navContent);
+
+      // OEBPS/chapter1.xhtml (main content)
+      const xhtmlContent = this._buildChapterXHTML(content, { title, language });
+      zip.file('OEBPS/chapter1.xhtml', xhtmlContent);
+
+      // OEBPS/styles.css (stylesheet)
+      const cssContent = this._buildEPUBCSS();
+      zip.file('OEBPS/styles.css', cssContent);
+
+      // Add cover image if provided
+      if (coverImage) {
+        const imgData = await this._loadImageAsArrayBuffer(coverImage);
+        zip.file('OEBPS/images/cover.jpg', imgData);
+      }
+
+      // Generate EPUB blob
+      const epubBlob = await zip.generateAsync({
+        type: 'blob',
+        mimeType: 'application/epub+zip',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+      });
+
+      // Trigger download
+      saveAs(epubBlob, filename);
+      
+      toast.success(`EPUB created: ${content.length} sections`);
+      return epubBlob;
+
+    } catch (error) {
+      console.error('[EPUB Export] Error:', error);
+      toast.error('Failed to create EPUB');
+      throw error;
+    } finally {
+      toast.dismiss(toastId);
+    }
+  }
+
+  /**
+   * Build container.xml (required EPUB metadata)
+   */
+  static _buildContainerXML() {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="${CONTAINER_NS}">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`;
+  }
+
+  /**
+   * Build content.opf (package document with metadata and manifest)
+   */
+  static _buildOPF(content, { title, author, language, uuid, timestamp }) {
+    const manifestItems = [
+      '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
+      '<item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>',
+      '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
+      '<item id="css" href="styles.css" media-type="text/css"/>',
+    ];
+
+    const spineItems = '<itemref idref="chapter1" linear="yes"/>';
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="${EPUB_NS}" version="3.0" unique-identifier="uid" xml:lang="${language}">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>${this._escapeXML(title)}</dc:title>
+    <dc:creator>${this._escapeXML(author)}</dc:creator>
+    <dc:language>${language}</dc:language>
+    <dc:identifier id="uid">${uuid}</dc:identifier>
+    <meta property="dcterms:modified">${timestamp}</meta>
+    <meta name="generator" content="Athena Editor"/>
+  </metadata>
+  <manifest>
+    ${manifestItems.join('\n    ')}
+  </manifest>
+  <spine toc="ncx">
+    ${spineItems}
+  </spine>
+</package>`;
+  }
+
+  /**
+   * Build toc.ncx (navigation control for EPUB 2/3 compatibility)
+   */
+  static _buildNCX(content, { title, author, uuid }) {
+    const navPoints = [];
+    let playOrder = 1;
+
+    // Add navigation points for headings
+    content.forEach((section, index) => {
+      if (section.type === 'heading') {
+        navPoints.push(`
+    <navPoint id="navpoint-${index}" playOrder="${playOrder++}">
+      <navLabel><text>${this._escapeXML(section.text)}</text></navLabel>
+      <content src="chapter1.xhtml#heading-${index}"/>
+    </navPoint>`);
+      }
+    });
+
+    // If no headings, create single entry
+    if (navPoints.length === 0) {
+      navPoints.push(`
+    <navPoint id="navpoint-1" playOrder="1">
+      <navLabel><text>${this._escapeXML(title)}</text></navLabel>
+      <content src="chapter1.xhtml"/>
+    </navPoint>`);
+    }
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${uuid}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${this._escapeXML(title)}</text></docTitle>
+  <docAuthor><text>${this._escapeXML(author)}</text></docAuthor>
+  <navMap>
+    ${navPoints.join('')}
+  </navMap>
+</ncx>`;
+  }
+
+  /**
+   * Build nav.xhtml (EPUB 3 navigation document)
+   */
+  static _buildNavXHTML(content, { title, language }) {
+    const tocItems = [];
+    
+    content.forEach((section, index) => {
+      if (section.type === 'heading') {
+        tocItems.push(`<li><a href="chapter1.xhtml#heading-${index}">${this._escapeXML(section.text)}</a></li>`);
+      }
+    });
+
+    const tocList = tocItems.length > 0 
+      ? `<ol>${tocItems.join('\n          ')}</ol>`
+      : '<li><a href="chapter1.xhtml">Full Content</a></li>';
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${language}">
+<head>
+  <meta charset="utf-8"/>
+  <title>${this._escapeXML(title)}</title>
+  <style>
+    nav#toc ol { list-style: none; padding-left: 1em; }
+    nav#toc li { margin: 0.5em 0; }
+    nav#toc a { text-decoration: none; color: #333; }
+  </style>
+</head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>Table of Contents</h1>
+    ${tocList}
+  </nav>
+</body>
+</html>`;
+  }
+
+  /**
+   * Build chapter XHTML (main content document)
+   * Enhanced to preserve inline formatting and better structure
+   */
+  static _buildChapterXHTML(content, { title, language }) {
+    const bodyContent = content.map((section, index) => {
+      switch (section.type) {
+        case 'heading':
+          const level = Math.min(section.level || 1, 6);
+          // Use runs if available for inline formatting
+          const headingText = section.runs ? this._convertRunsToXHTML(section.runs) : this._escapeXML(section.text);
+          return `<h${level} id="heading-${index}">${headingText}</h${level}>`;
+        
+        case 'paragraph':
+          const paraText = section.runs ? this._convertRunsToXHTML(section.runs) : this._escapeXML(section.text);
+          return `<p>${paraText}</p>`;
+        
+        case 'blockquote':
+          const quoteText = section.runs ? this._convertRunsToXHTML(section.runs) : this._escapeXML(section.text);
+          return `<blockquote>${quoteText}</blockquote>`;
+        
+        case 'codeBlock':
+          return `<pre><code>${this._escapeXML(section.text)}</code></pre>`;
+        
+        case 'bulletList':
+          const bulletItems = (section.items || []).map(item => {
+            const itemText = item.runs ? this._convertRunsToXHTML(item.runs) : this._escapeXML(item.text || '');
+            return `<li>${itemText}</li>`;
+          }).join('');
+          return `<ul>${bulletItems}</ul>`;
+        
+        case 'orderedList':
+          const orderedItems = (section.items || []).map(item => {
+            const itemText = item.runs ? this._convertRunsToXHTML(item.runs) : this._escapeXML(item.text || '');
+            return `<li>${itemText}</li>`;
+          }).join('');
+          return `<ol>${orderedItems}</ol>`;
+        
+        case 'taskList':
+          const taskItems = (section.items || []).map(item => {
+            const itemText = item.runs ? this._convertRunsToXHTML(item.runs) : this._escapeXML(item.text || '');
+            const checked = item.checked ? '✓' : '○';
+            return `<li>[${checked}] ${itemText}</li>`;
+          }).join('');
+          return `<ul class="contains-task-list">${taskItems}</ul>`;
+        
+        case 'image':
+          const alt = this._escapeXML(section.alt || 'Image');
+          const src = section.src || '';
+          if (src) {
+            return `<figure><img src="${src}" alt="${alt}"/><figcaption>${alt}</figcaption></figure>`;
+          }
+          return '';
+        
+        case 'table':
+          // Basic table support
+          if (section.rows && section.rows.length > 0) {
+            const rows = section.rows.map(row => {
+              const cells = row.map(cell => {
+                const cellText = this._escapeXML(cell || '');
+                return section.isHeader ? `<th>${cellText}</th>` : `<td>${cellText}</td>`;
+              }).join('');
+              return `<tr>${cells}</tr>`;
+            }).join('');
+            return `<table><tbody>${rows}</tbody></table>`;
+          }
+          return '';
+        
+        case 'horizontalRule':
+          return `<hr/>`;
+        
+        case 'pageBreak':
+          return `<div style="page-break-before: always;"></div>`;
+        
+        case 'listItem':
+          // Handled by parent list
+          return '';
+        
+        default:
+          return '';
+      }
+    }).join('\n      ');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="${language}">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>${this._escapeXML(title)}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    ${bodyContent}
+  </section>
+</body>
+</html>`;
+  }
+
+  /**
+   * Build EPUB stylesheet
+   */
+  static _buildEPUBCSS() {
+    return `
+/* Professional EPUB stylesheet with enhanced typography */
+@page {
+  margin: 0.75in;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-size: 11pt;
+  line-height: 1.7;
+  margin: 0;
+  padding: 0;
+  color: #1a1a1a;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -epub-hyphens: auto;
+}
+
+h1 {
+  font-size: 2.2em;
+  font-weight: 700;
+  margin: 2em 0 0.8em;
+  line-height: 1.3;
+  page-break-before: always;
+  text-align: left;
+  color: #1a1a1a;
+}
+
+h2 {
+  font-size: 1.8em;
+  font-weight: 600;
+  margin: 1.6em 0 0.6em;
+  line-height: 1.35;
+  page-break-after: avoid;
+  text-align: left;
+  color: #2a2a2a;
+}
+
+h3 {
+  font-size: 1.4em;
+  font-weight: 600;
+  margin: 1.3em 0 0.5em;
+  line-height: 1.4;
+  page-break-after: avoid;
+  text-align: left;
+}
+
+h4 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 1.1em 0 0.4em;
+  line-height: 1.4;
+  page-break-after: avoid;
+}
+
+h5 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 1em 0 0.3em;
+  line-height: 1.4;
+}
+
+h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.9em 0 0.3em;
+  line-height: 1.4;
+}
+
+p {
+  margin: 0.7em 0;
+  text-indent: 1.5em;
+  orphans: 2;
+  widows: 2;
+}
+
+/* First paragraph after heading - no indent */
+h1 + p, h2 + p, h3 + p, h4 + p, h5 + p, h6 + p {
+  text-indent: 0;
+}
+
+blockquote {
+  margin: 1.2em 2em;
+  padding: 0.8em 1.2em;
+  border-left: 4px solid #4a5568;
+  background: #f7fafc;
+  font-style: italic;
+  font-size: 0.95em;
+  line-height: 1.8;
+  page-break-inside: avoid;
+}
+
+pre, code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  background: #f4f4f4;
+  padding: 0.3em 0.5em;
+  border-radius: 3px;
+  border: 1px solid #e0e0e0;
+}
+
+pre {
+  margin: 1.2em 0;
+  padding: 1em;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.5;
+  background: #f8f9fa;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  page-break-inside: avoid;
+}
+
+code {
+  padding: 0.2em 0.4em;
+}
+
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+ul, ol {
+  margin: 0.8em 0;
+  padding-left: 2.5em;
+}
+
+li {
+  margin: 0.4em 0;
+  line-height: 1.6;
+}
+
+li > ul, li > ol {
+  margin: 0.3em 0;
+}
+
+dl {
+  margin: 1em 0;
+}
+
+dt {
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+}
+
+dd {
+  margin-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.2em auto;
+  page-break-inside: avoid;
+}
+
+figure {
+  margin: 1.5em 0;
+  text-align: center;
+  page-break-inside: avoid;
+}
+
+figcaption {
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 0.5em;
+  font-style: italic;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.2em 0;
+  font-size: 0.95em;
+  page-break-inside: avoid;
+}
+
+th, td {
+  padding: 0.6em 0.8em;
+  border: 1px solid #d1d5db;
+  text-align: left;
+}
+
+th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #e5e7eb;
+  margin: 2em 0;
+  page-break-before: avoid;
+}
+
+a {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+a:hover {
+  color: #1d4ed8;
+}
+
+strong, b {
+  font-weight: 700;
+}
+
+em, i {
+  font-style: italic;
+}
+
+u {
+  text-decoration: underline;
+}
+
+s, del {
+  text-decoration: line-through;
+}
+
+sub, sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sup {
+  top: -0.5em;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+mark {
+  background: #fef3c7;
+  padding: 0.1em 0.2em;
+  border-radius: 2px;
+}
+
+small {
+  font-size: 0.85em;
+}
+
+/* Task lists */
+ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+ul.contains-task-list li {
+  margin: 0.5em 0;
+}
+
+/* Code blocks with syntax highlighting */
+.code-block {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+/* Blockquote variations */
+.warning {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.info {
+  border-left-color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* Page break control */
+section {
+  page-break-before: auto;
+}
+
+/* Orphans and widows control */
+p, li, blockquote {
+  orphans: 2;
+  widows: 2;
+}
+`;
+  }
+
+  /**
+   * Generate UUID v4 for EPUB identifier
+   */
+  static _generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  /**
+   * Escape XML special characters
+   */
+  static _escapeXML(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  /**
+   * Load image as ArrayBuffer for ZIP inclusion
+   */
+  static async _loadImageAsArrayBuffer(url) {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return arrayBuffer;
+  }
+
+  // ============================================================
   // DOCX EXPORT
   // ============================================================
 
@@ -1486,6 +2139,54 @@ export class DocumentExporter {
     return (node.content || []).map(n => this._extractPlainText(n)).join('');
   }
 
+  /**
+   * Convert inline formatting runs to XHTML with proper markup
+   */
+  static _convertRunsToXHTML(runs) {
+    if (!runs || !Array.isArray(runs)) return '';
+    
+    return runs.map(run => {
+      let text = this._escapeXML(run.text || '');
+      
+      // Apply marks (bold, italic, etc.)
+      const marks = run.marks || [];
+      for (const mark of marks) {
+        switch (mark.type) {
+          case 'bold':
+            text = `<strong>${text}</strong>`;
+            break;
+          case 'italic':
+            text = `<em>${text}</em>`;
+            break;
+          case 'underline':
+            text = `<u>${text}</u>`;
+            break;
+          case 'strike':
+            text = `<s>${text}</s>`;
+            break;
+          case 'code':
+            text = `<code>${text}</code>`;
+            break;
+          case 'link':
+            const href = this._escapeXML(mark.attrs?.href || '');
+            text = `<a href="${href}">${text}</a>`;
+            break;
+          case 'highlight':
+            text = `<mark>${text}</mark>`;
+            break;
+          case 'subscript':
+            text = `<sub>${text}</sub>`;
+            break;
+          case 'superscript':
+            text = `<sup>${text}</sup>`;
+            break;
+        }
+      }
+      
+      return text;
+    }).join('');
+  }
+
   static _extractTableRowsFromNode(tableNode) {
     const rows = [];
     for (const row of tableNode.content || []) {
@@ -1674,6 +2375,36 @@ export class DocumentExporter {
 
       const oebps = zip.folder('OEBPS');
 
+      // ── Cover image (MUST be processed BEFORE content.opf) ───────────────
+      let coverImageManifest = '';
+      let coverSpineItem = '';
+      if (coverImage) {
+        try {
+          const isJpeg  = coverImage.includes('image/jpeg') || coverImage.includes('image/jpg');
+          const ext     = isJpeg ? 'jpg' : 'png';
+          const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+          const base64   = coverImage.split(',')[1];
+          const bytes    = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          oebps.folder('images').file(`cover.${ext}`, bytes);
+
+          coverImageManifest = `<item id="cover-image" href="images/cover.${ext}" media-type="${mimeType}" properties="cover-image"/>
+    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>`;
+          coverSpineItem = `<itemref idref="cover" linear="no"/>`;
+
+          oebps.file('cover.xhtml', `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="${language}">
+<head><meta charset="utf-8"/><title>Cover</title>
+<style>body{margin:0;padding:0} img{width:100%;height:auto;display:block}</style></head>
+<body><img src="images/cover.${ext}" alt="Cover"/></body>
+</html>`);
+        } catch (coverErr) {
+          console.warn('[EPUB cover image error]', coverErr);
+          coverImageManifest = '';
+          coverSpineItem = '';
+        }
+      }
+
       // ── OEBPS/content.opf (EPUB3 package) ────────────────────────────────
       oebps.file('content.opf',
 `<?xml version="1.0" encoding="UTF-8"?>
@@ -1789,36 +2520,6 @@ hr { border: none; border-top: 1px solid #E5E7EB; margin: 2em 0; }
 nav#toc ol { list-style: none; padding: 0; }
 nav#toc li { margin: .4em 0; }
 nav#toc a  { color: #4F46E5; }`);
-
-      // ── Cover image (optional) ──────────────────────────────────────────
-      let coverImageManifest = '';
-      let coverSpineItem = '';
-      if (coverImage) {
-        try {
-          const isJpeg  = coverImage.includes('image/jpeg') || coverImage.includes('image/jpg');
-          const ext     = isJpeg ? 'jpg' : 'png';
-          const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
-          const base64   = coverImage.split(',')[1];
-          const bytes    = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-          oebps.folder('images').file(`cover.${ext}`, bytes);
-
-          coverImageManifest = `<item id="cover-image" href="images/cover.${ext}" media-type="${mimeType}" properties="cover-image"/>
-    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>`;
-          coverSpineItem = `<itemref idref="cover" linear="no"/>`;
-
-          oebps.file('cover.xhtml', `<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="${language}">
-<head><meta charset="utf-8"/><title>Cover</title>
-<style>body{margin:0;padding:0} img{width:100%;height:auto;display:block}</style></head>
-<body><img src="images/cover.${ext}" alt="Cover"/></body>
-</html>`);
-        } catch (coverErr) {
-          console.warn('[EPUB cover image error]', coverErr);
-          coverImageManifest = '';
-          coverSpineItem = '';
-        }
-      }
 
       // Resolve manifest template placeholders
       const updateFile = async (path, content) => {
@@ -1937,86 +2638,34 @@ nav#toc a  { color: #4F46E5; }`);
     const { title = 'Document' } = options;
     const toastId = toast.loading('Opening print preview…');
     try {
-      const html = editor?.getHTML?.() || '';
-      const safe = DOMPurify.sanitize(html || '<p></p>');
-
-      const styles = `
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { font-size: 11pt; }
-        body {
-          font-family: 'Segoe UI', system-ui, sans-serif;
-          color: #111827;
-          line-height: 1.6;
-          background: #fff;
-        }
-        .page {
-          width: 210mm;
-          min-height: 297mm;
-          margin: 0 auto;
-          padding: 20mm 25mm;
-          background: #fff;
-        }
-        h1, h2, h3, h4, h5, h6 { font-weight: bold; margin: 1.2em 0 .4em; page-break-after: avoid; }
-        h1 { font-size: 1.8em; border-bottom: 2px solid #4F46E5; padding-bottom: .3em; }
-        h2 { font-size: 1.4em; }
-        h3 { font-size: 1.15em; }
-        p  { margin: .5em 0; orphans: 3; widows: 3; }
-        blockquote {
-          border-left: 4px solid #4F46E5;
-          padding: .4em .8em;
-          margin: .8em 0;
-          color: #4B5563;
-          font-style: italic;
-        }
-        pre {
-          font-family: Consolas, monospace;
-          font-size: .85em;
-          background: #F9FAFB;
-          border: 1px solid #E5E7EB;
-          border-radius: 4px;
-          padding: .75em 1em;
-          white-space: pre-wrap;
-          page-break-inside: avoid;
-        }
-        code { font-family: Consolas, monospace; font-size: .85em; background: #F3F4F6; padding: .1em .25em; border-radius: 3px; }
-        img  { max-width: 100%; height: auto; display: block; margin: .75em 0; }
-        table { border-collapse: collapse; width: 100%; margin: .75em 0; page-break-inside: avoid; }
-        th, td { border: 1px solid #D1D5DB; padding: .4em .7em; font-size: .9em; }
-        th { background: #EFF6FF; font-weight: bold; }
-        ul, ol { padding-left: 1.5em; margin: .5em 0; }
-        li { margin: .2em 0; }
-        hr { border: none; border-top: 1px solid #E5E7EB; margin: 1.5em 0; }
-        a  { color: #4F46E5; }
-        strong { font-weight: bold; }
-        em { font-style: italic; }
-        @page {
-          size: A4;
-          margin: 0;
-        }
-        @media print {
-          body  { background: white; }
-          .page { padding: 15mm 20mm; box-shadow: none; }
-          h1, h2, h3 { page-break-after: avoid; }
-          pre, blockquote { page-break-inside: avoid; }
-        }`;
-
-      const docHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${this._esc(title)}</title>
-  <style>${styles}</style>
-</head>
-<body>
-  <div class="page">${safe}</div>
-  <script>
-    window.addEventListener('load', () => {
-      setTimeout(() => { window.print(); window.close(); }, 400);
-    });
-  <\/script>
-</body>
-</html>`;
+      // CRITICAL FIX: Use actual page nodes from editor instead of flat HTML
+      // This ensures print/PDF matches the editor's pagination exactly
+      const pageElements = document.querySelectorAll('.ProseMirror > .page');
+      
+      let docHTML;
+      
+      if (pageElements.length > 0) {
+        // ✅ EXPORT USING ACTUAL PAGE NODES (Authoritative)
+        console.log(`[Print] Using ${pageElements.length} actual page nodes from editor`);
+        
+        // Build HTML with explicit page breaks matching editor structure
+        let pagesHTML = '';
+        pageElements.forEach((pageEl, index) => {
+          const content = pageEl.innerHTML || '<p></p>';
+          const pageBreakStyle = index === 0 
+            ? 'page-break-before: auto; break-before: auto;' 
+            : 'page-break-before: always; break-before: page;';
+          
+          pagesHTML += `<div style="${pageBreakStyle} min-height: 297mm; padding: var(--doc-margin-top, 20mm) var(--doc-margin-right, 25mm) var(--doc-margin-bottom, 20mm) var(--doc-margin-left, 25mm); box-sizing: border-box;">${content}</div>`;
+        });
+        
+        docHTML = this._buildPrintDocument(title, pagesHTML, true);
+      } else {
+        // ⚠️ FALLBACK: Legacy single-page mode
+        const html = editor?.getHTML?.() || '';
+        const safe = DOMPurify.sanitize(html || '<p></p>');
+        docHTML = this._buildPrintDocument(title, `<div class="page">${safe}</div>`, false);
+      }
 
       const printWindow = window.open('', '_blank', 'noopener,width=900,height=700');
       if (printWindow) {
@@ -2040,13 +2689,99 @@ nav#toc a  { color: #4F46E5; }`);
           }, 400);
         };
       }
-      toast.success('Print preview opened');
+      toast.success(`Print preview opened (${pageElements.length} pages)`);
     } catch (err) {
       console.error('[Print error]', err);
       toast.error('Failed to print document');
     } finally {
       toast.dismiss(toastId);
     }
+  }
+
+  /**
+   * Build complete HTML document for printing with proper styles
+   */
+  static _buildPrintDocument(title, pagesHTML, hasExplicitPageBreaks) {
+    const styles = `
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html { font-size: 11pt; }
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: #111827;
+        line-height: 1.6;
+        background: #fff;
+      }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        background: #fff;
+      }
+      h1, h2, h3, h4, h5, h6 { 
+        font-weight: bold; 
+        margin: 1.2em 0 .4em; 
+        page-break-after: avoid; 
+      }
+      h1 { font-size: 1.8em; border-bottom: 2px solid #4F46E5; padding-bottom: .3em; }
+      h2 { font-size: 1.4em; }
+      h3 { font-size: 1.15em; }
+      p  { margin: .5em 0; orphans: 3; widows: 3; }
+      blockquote {
+        border-left: 4px solid #4F46E5;
+        padding: .4em .8em;
+        margin: .8em 0;
+        color: #4B5563;
+        font-style: italic;
+      }
+      pre {
+        font-family: Consolas, monospace;
+        font-size: .85em;
+        background: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+        padding: .75em 1em;
+        white-space: pre-wrap;
+        page-break-inside: avoid;
+      }
+      code { font-family: Consolas, monospace; font-size: .85em; background: #F3F4F6; padding: .1em .25em; border-radius: 3px; }
+      img  { max-width: 100%; height: auto; display: block; margin: .75em 0; }
+      table { border-collapse: collapse; width: 100%; margin: .75em 0; page-break-inside: avoid; }
+      th, td { border: 1px solid #D1D5DB; padding: .4em .7em; font-size: .9em; }
+      th { background: #EFF6FF; font-weight: bold; }
+      ul, ol { padding-left: 1.5em; margin: .5em 0; }
+      li { margin: .2em 0; }
+      hr { border: none; border-top: 1px solid #E5E7EB; margin: 1.5em 0; }
+      a  { color: #4F46E5; }
+      strong { font-weight: bold; }
+      em { font-style: italic; }
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      @media print {
+        body  { background: white; }
+        .page { box-shadow: none; }
+        h1, h2, h3 { page-break-after: avoid; }
+        pre, blockquote, table, img { page-break-inside: avoid; }
+      }`;
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this._esc(title)}</title>
+  <style>${styles}</style>
+</head>
+<body>
+  ${pagesHTML}
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => { window.print(); window.close(); }, 400);
+    });
+  <\/script>
+</body>
+</html>`;
   }
 
   // ============================================================

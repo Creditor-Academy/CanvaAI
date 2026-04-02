@@ -81,7 +81,8 @@ const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersio
             initial={{ opacity: 0, x: 320 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 320 }}
-            className="fixed right-0 top-0 h-full w-80 bg-white border-l border-blue-100 shadow-2xl z-40 flex flex-col"
+            className="fixed right-0 top-0 h-full w-80 bg-white border-l border-blue-100 shadow-2xl flex flex-col"
+            style={{ zIndex: 150 }} // Layer 1: Sidebars & Panels
         >
             <div className="flex items-center justify-between px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
                 <div className="flex items-center gap-2">

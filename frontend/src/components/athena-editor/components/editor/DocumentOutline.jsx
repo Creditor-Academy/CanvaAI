@@ -134,9 +134,30 @@ export const DocumentOutline = ({
         maxWidth: '300px',
         background: T.bg,
         borderRight: `1px solid ${T.border}`,
-        fontFamily: '"DM Sans", "Geist", system-ui, sans-serif',
+        fontFamily: '"DM Sans" "Geist", system-ui, sans-serif',
+        userSelect: 'none', // Prevent selection in outline panel
+        WebkitUserSelect: 'none', // Safari support
+        MozUserSelect: 'none', // Firefox support
+        msUserSelect: 'none', // IE/Edge support
+        position: 'relative', // Create own stacking context
+        zIndex: 100, // Match dropdown z-index to prevent being covered
+        flexShrink: 0, // Prevent panel from shrinking
+        flexGrow: 0, // Prevent panel from growing
+        height: '100%', // Explicit full height
+        alignSelf: 'stretch', // Stretch to fill parent
       }}
       aria-label="Document outline"
+      onMouseDown={(e) => {
+        // Allow clicks on interactive elements (headings, buttons)
+        // Only prevent default for non-interactive areas
+        const target = e.target;
+        if (target.closest('[role="button"]') || target.closest('button')) {
+          // Allow button clicks to work normally
+          return;
+        }
+        // Prevent selection for other areas
+        e.preventDefault();
+      }}
     >
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}

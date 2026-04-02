@@ -181,8 +181,8 @@ export const FontControls = ({
                     )}
                     style={{ backgroundColor: color }}
                     onClick={() => {
-                      setTextColor && setTextColor(color);
-                      editor.chain().focus().setColor(color).run();
+                      setTextColor(color);
+                      editor.chain().focus(null, { scrollIntoView: false }).setColor(color).run();
                     }}
                     title={color}
                   >
@@ -213,7 +213,7 @@ export const FontControls = ({
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setTextColor && setTextColor(color);
-                      editor.chain().focus().setColor(color).run();
+                      editor.chain().focus(null, { scrollIntoView: false }).setColor(color).run();
                     }}
                     title={color}
                   />
@@ -240,7 +240,7 @@ export const FontControls = ({
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setTextColor && setTextColor(color);
-                      editor.chain().focus().setColor(color).run();
+                      editor.chain().focus(null, { scrollIntoView: false }).setColor(color).run();
                     }}
                     title={color}
                   />
@@ -267,7 +267,7 @@ export const FontControls = ({
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setTextColor && setTextColor(color);
-                      editor.chain().focus().setColor(color).run();
+                      editor.chain().focus(null, { scrollIntoView: false }).setColor(color).run();
                     }}
                     title={color}
                   />
@@ -295,7 +295,7 @@ export const FontControls = ({
                       style={{ backgroundColor: color }}
                       onClick={() => {
                         setTextColor && setTextColor(color);
-                        editor.chain().focus().setColor(color).run();
+                        editor.chain().focus(null, { scrollIntoView: false }).setColor(color).run();
                       }}
                       title={color}
                     />
@@ -318,8 +318,8 @@ export const FontControls = ({
               </div>
               <button
                 onClick={() => {
-                  setTextColor && setTextColor('#000000');
-                  editor.chain().focus().setColor('#000000').run();
+                  setTextColor('#000000');
+                  editor.chain().focus(null, { scrollIntoView: false }).setColor('#000000').run();
                 }}
                 className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
               >
@@ -368,7 +368,7 @@ export const FontControls = ({
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setHighlightColor && setHighlightColor(color);
-                      editor.chain().focus().toggleHighlight({ color }).run();
+                      editor.chain().focus(null, { scrollIntoView: false }).toggleHighlight({ color }).run();
                     }}
                     title={color}
                   >
@@ -399,7 +399,7 @@ export const FontControls = ({
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setHighlightColor && setHighlightColor(color);
-                      editor.chain().focus().toggleHighlight({ color }).run();
+                      editor.chain().focus(null, { scrollIntoView: false }).toggleHighlight({ color }).run();
                     }}
                     title={color}
                   />
@@ -426,7 +426,7 @@ export const FontControls = ({
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setHighlightColor && setHighlightColor(color);
-                      editor.chain().focus().toggleHighlight({ color }).run();
+                      editor.chain().focus(null, { scrollIntoView: false }).toggleHighlight({ color }).run();
                     }}
                     title={color}
                   />
@@ -454,7 +454,7 @@ export const FontControls = ({
                       style={{ backgroundColor: color }}
                       onClick={() => {
                         setHighlightColor && setHighlightColor(color);
-                        editor.chain().focus().toggleHighlight({ color }).run();
+                        editor.chain().focus(null, { scrollIntoView: false }).toggleHighlight({ color }).run();
                       }}
                       title={color}
                     />
@@ -477,8 +477,8 @@ export const FontControls = ({
               </div>
               <button
                 onClick={() => {
-                  setHighlightColor && setHighlightColor(null);
-                  editor.chain().focus().toggleHighlight({ color: null }).run();
+                  setHighlightColor(null);
+                  editor.chain().focus(null, { scrollIntoView: false }).toggleHighlight({ color: null }).run();
                 }}
                 className="text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors"
               >

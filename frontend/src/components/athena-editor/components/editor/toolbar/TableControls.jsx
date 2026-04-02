@@ -44,7 +44,7 @@ export const TableControls = ({ editor }) => {
 
   const toggleTableHeader = () => {
     if (editor && editor.can().toggleHeaderCell()) {
-      editor.chain().focus().toggleHeaderCell().run();
+      editor.chain().focus(null, { scrollIntoView: false }).toggleHeaderCell().run();
       toast.success('Header toggled');
     }
   };
