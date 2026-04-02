@@ -45,6 +45,7 @@ export const useCanvasInteractions = (
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMouseOverCanvas, setIsMouseOverCanvas] = useState(false);
+  const [rotateGuide, setRotateGuide] = useState(null);
 
   /* ===================== DRAG ===================== */
 
@@ -131,6 +132,24 @@ export const useCanvasInteractions = (
             : l
         )
       );
+
+      // Rotation snap indicators: snap to nearest multiple of 45° (0,45,90,...)
+      // Show guide only when the current angle is within a small tolerance of the snap angle.
+      const norm = ((angle % 360) + 360) % 360;
+      const nearest = Math.round(norm / 45) * 45;
+      const delta = Math.abs(norm - nearest);
+      const diff = Math.min(delta, 360 - delta);
+      const TOL_DEG = 1; // strict tolerance: 1 degree
+
+      if (diff <= TOL_DEG) {
+        const snappedAngle = ((nearest % 360) + 360) % 360;
+        setRotateGuide({ angle: snappedAngle, cx: rotateStart.cx, cy: rotateStart.cy });
+      } else {
+        setRotateGuide(null);
+      }
+
+      // Always clear alignment guides while rotating to avoid mixing guide types
+      setAlignmentGuides({ x: [], y: [] });
       return;
     }
 
@@ -266,6 +285,9 @@ export const useCanvasInteractions = (
       layerId: null,
     });
 
+    // clear rotate guide
+    setRotateGuide(null);
+
     setLayers(curr => {
       saveToHistory(curr);
       return curr;
@@ -323,5 +345,6 @@ export const useCanvasInteractions = (
     handleCanvasMouseLeave,
     handleCanvasClick,
     alignmentGuides, // Export guides
+    rotateGuide,
   };
 };

@@ -112,6 +112,7 @@ const drawCloudPath = (ctx, x, y, w, h) => {
 /**
  * Export canvas as image (PNG/JPEG)
  */
+
 export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', quality = 0.92, bgColor = '#ffffff', bgImage = null) => {
   const width = canvasSize.width;
   const height = canvasSize.height;

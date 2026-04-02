@@ -9,8 +9,10 @@ import {
     FiEye, FiEyeOff, FiGrid, FiMaximize, FiMinimize, FiRefreshCw, FiCheck
 } from 'react-icons/fi';
 import ProjectNameModal from './ProjectNameModal';
+import { exportImage } from '@/services/imageEditor/imageApi';
 
 const EditingToolbar = ({
+    imageId,
     selectedLayer,
     layer,
     onTextSettingsChange,
@@ -82,10 +84,14 @@ const EditingToolbar = ({
     ];
 
     const fonts = [
-        'Arial', 'Helvetica', 'Roboto', 'Open Sans', 'Lato', 'Montserrat',
+        'Arial', 'Dancing Script', 'Helvetica', 'Roboto', 'Open Sans', 'Lato', 'Montserrat',
         'Poppins', 'Inter', 'Oswald', 'Roboto Mono', 'Raleway', 'Ubuntu',
-        'Merriweather', 'Playfair Display', 'Dancing Script', 'Courier New',
-        'Georgia', 'Times New Roman', 'Verdana', 'Comic Sans MS'
+        'Merriweather', 'Playfair Display',  'Courier New',
+        'Georgia', 'Times New Roman', 'Verdana', 'Comic Sans MS',
+        'Source Sans Pro', 'Nunito', 'Fira Sans', 'Work Sans', 'PT Sans',
+        'Quicksand', 'Avenir', 'Segoe UI', 'Calibri', 'Garamond',
+        'Baskerville', 'Lucida Sans', 'Trebuchet MS', 'Franklin Gothic',
+        'Noto Sans', 'Noto Serif', 'Proxima Nova', 'Helvetica Neue', 'SF Pro Text'
     ];
 
     useEffect(() => {
@@ -120,6 +126,14 @@ const EditingToolbar = ({
 
     const isTextLayer = selectedLayer && layer?.type === 'text';
     const isImageLayer = selectedLayer && layer?.type === 'image';
+
+    // Local buffer for editing font size so user can type freely (allow empty)
+    const [fontSizeInput, setFontSizeInput] = useState('');
+
+    useEffect(() => {
+        if (layer && typeof layer.fontSize === 'number') setFontSizeInput(String(layer.fontSize));
+        else setFontSizeInput('');
+    }, [layer?.fontSize, layer?.id]);
 
     // Handle save: always show ProjectNameModal (even for existing projects)
     const handleSaveClick = () => {
@@ -272,17 +286,59 @@ const EditingToolbar = ({
                                 {/* Font Size Controls */}
                                 <div className={toolGroup}>
                                     <button
-                                        onClick={() => onTextSettingsChange('fontSize', Math.max(8, (layer.fontSize || 16) - 1))}
+                                        onClick={() => {
+                                            const newVal = Math.max(8, (layer?.fontSize || 16) - 1);
+                                            onTextSettingsChange('fontSize', newVal);
+                                            setFontSizeInput(String(newVal));
+                                        }}
                                         className="p-1.5 hover:text-blue-600"
                                         title="Decrease font size"
                                     >
                                         <FiMinus size={12} />
                                     </button>
-                                    <span className="w-8 text-center text-xs font-bold text-gray-700">
-                                        {layer.fontSize || 16}
-                                    </span>
+
+                                    {/* Numeric input to allow direct entry (buffered) */}
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={fontSizeInput}
+                                        onChange={(e) => {
+                                            // allow empty or numeric characters only
+                                            const v = e.target.value.replace(/[^0-9]/g, '');
+                                            setFontSizeInput(v);
+                                        }}
+                                        onBlur={() => {
+                                            if (fontSizeInput === '') {
+                                                // nothing committed, revert to current layer value
+                                                setFontSizeInput(layer && typeof layer.fontSize === 'number' ? String(layer.fontSize) : '');
+                                                return;
+                                            }
+                                            const n = parseInt(fontSizeInput || '0', 10);
+                                            const clamped = Number.isNaN(n) ? 16 : Math.min(200, Math.max(8, n));
+                                            onTextSettingsChange('fontSize', clamped);
+                                            setFontSizeInput(String(clamped));
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.currentTarget.blur();
+                                            } else if (e.key === 'Escape') {
+                                                // revert edits
+                                                setFontSizeInput(layer && typeof layer.fontSize === 'number' ? String(layer.fontSize) : '');
+                                                e.currentTarget.blur();
+                                            }
+                                        }}
+                                        className="w-14 text-center text-xs font-bold text-gray-700 bg-transparent border border-transparent focus:border-blue-300 focus:bg-white/5 rounded-sm p-1"
+                                        title="Font size"
+                                        disabled={!layer}
+                                    />
+
                                     <button
-                                        onClick={() => onTextSettingsChange('fontSize', Math.min(200, (layer.fontSize || 16) + 1))}
+                                        onClick={() => {
+                                            const newVal = Math.min(200, (layer?.fontSize || 16) + 1);
+                                            onTextSettingsChange('fontSize', newVal);
+                                            setFontSizeInput(String(newVal));
+                                        }}
                                         className="p-1.5 hover:text-blue-600"
                                         title="Increase font size"
                                     >
@@ -503,7 +559,7 @@ const EditingToolbar = ({
                                         </button>
                                     ))}
                                     {/* Filename prompt modal moved to top-level portal for full-screen centering */}
-                                    
+
                                 </div>, document.body)
                             }
                         </div>
@@ -557,12 +613,51 @@ const EditingToolbar = ({
                             <button className="px-3 py-1 text-sm rounded-md" onClick={() => setShowNamePrompt(false)}>Cancel</button>
                             <button
                                 className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
-                                onClick={() => {
-                                    const name = pendingName || undefined;
-                                    if (pendingFormat) onDownload(pendingFormat, name);
-                                    setShowNamePrompt(false);
-                                    setPendingFormat(null);
-                                    setPendingName('');
+                                onClick={async () => {
+                                    try {
+                                        const name = pendingName || 'design';
+
+                                        const hasValidImageId =
+                                            imageId &&
+                                            imageId !== 'undefined' &&
+                                            imageId !== 'null' &&
+                                            typeof imageId === 'string';
+
+                                        // Always attempt backend export if we have a valid imageId and format
+                                        const useBackendExport = pendingFormat && hasValidImageId;
+
+                                        if (useBackendExport) {
+                                            const blob = await exportImage(imageId, pendingFormat);
+
+                                            const url = window.URL.createObjectURL(blob);
+                                            const link = document.createElement('a');
+
+                                            link.href = url;
+                                            link.download = `${name}.${pendingFormat}`;
+
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+
+                                            window.URL.revokeObjectURL(url);
+                                        } else {
+                                            // Use local canvas export which supports CSS gradients
+                                            onDownload?.(pendingFormat, name);
+                                        }
+
+                                        setShowNamePrompt(false);
+                                        setPendingFormat(null);
+                                        setPendingName('');
+                                    } catch (error) {
+                                        console.error('Export failed:', error);
+
+                                        // fallback if backend export fails
+                                        onDownload?.(pendingFormat, pendingName || 'design');
+
+                                        setShowNamePrompt(false);
+                                        setPendingFormat(null);
+                                        setPendingName('');
+                                    }
                                 }}
                             >
                                 Save
@@ -577,3 +672,6 @@ const EditingToolbar = ({
 };
 
 export default EditingToolbar;
+
+
+
