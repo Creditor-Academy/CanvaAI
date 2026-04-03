@@ -4,6 +4,11 @@ import { createShapeLayer, createImageLayer } from "../models/presentationModel"
 import useHistoryStore from "./useHistoryStore";
 import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
 
+// Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
+// Not persisted to the store state so it is never saved to the database.
+const _aiGeneratedSlideIds = new Set();
+export const isAIGeneratedSlide = (slideId) => _aiGeneratedSlideIds.has(slideId);
+export const clearAIGeneratedSlide = (slideId) => _aiGeneratedSlideIds.delete(slideId);
 
 // Helper to ensure colors are in #rrggbb format for <input type="color">
 export const normalizeColor = (color) => {
@@ -576,6 +581,8 @@ const usePresentationStore = create((set, get) => {
     appendSlide: (slideData) => {
       get().saveToHistory();
       const normalizedSlide = normalizeSlide(slideData, true);
+      // Flag this slide so CanvasShell runs auto-stack exactly once for AI content.
+      _aiGeneratedSlideIds.add(normalizedSlide.id);
       set((state) => ({
         slides: [...state.slides, normalizedSlide],
         activeSlideId: normalizedSlide.id,
@@ -596,6 +603,8 @@ const usePresentationStore = create((set, get) => {
     appendLayersToSlide: (slideId, layersData) => {
       if (!layersData) return;
       get().saveToHistory();
+      // Flag this slide so CanvasShell runs auto-stack exactly once for AI content.
+      _aiGeneratedSlideIds.add(slideId);
 
       // Safe extraction of layers
       const incomingLayers = Array.isArray(layersData.layers)
