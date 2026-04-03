@@ -341,7 +341,7 @@ const Presentation = () => {
           {/* Header Section */}
           <div style={styles.header}>
             <div>
-              <h1 style={styles.title}>Create Stunning Presentation's</h1>
+              <h1 style={styles.title}>Create Stunning Presentation's.</h1>
               <p style={styles.subtitle}> "Create professional presentations in seconds with AI or start from scratch"</p>
             </div>
           </div>
