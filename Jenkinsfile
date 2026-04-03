@@ -28,6 +28,9 @@ pipeline {
             steps {
                 dir("${FRONTEND_DIR}") {
                     sh '''
+                    sudo mkdir -p ${DEPLOY_PATH}
+                    sudo chown -R jenkins:jenkins ${DEPLOY_PATH}
+                    sudo chmod -R 755 ${DEPLOY_PATH}
                     sudo rm -rf ${DEPLOY_PATH}/*
                     sudo cp -r dist/* ${DEPLOY_PATH}/
                     '''
