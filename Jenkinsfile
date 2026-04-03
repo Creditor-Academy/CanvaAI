@@ -8,12 +8,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main', url: 'https://github.com/Creditor-Academy/CanvaAI.git'
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
                 dir("${FRONTEND_DIR}") {
