@@ -816,7 +816,7 @@ export const EditorToolbar = ({
       }
     } catch { }
   };
-  
+
   const focusEditor = () => {
     try {
       if (editor?.view?.dom && typeof editor.view.dom.focus === 'function') {
@@ -4342,16 +4342,16 @@ export const EditorToolbar = ({
             {/* Language Selection */}
             <div className="space-y-2">
               <Label htmlFor="codeLanguage">Default Language</Label>
-                  <Select value={selectedCodeLanguage} onValueChange={setSelectedCodeLanguage}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select language..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CODE_LANGUAGES.map((lang) => (
-                        <SelectItem key={lang} value={lang}>
-                          {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                        </SelectItem>
-                      ))}
+              <Select value={selectedCodeLanguage} onValueChange={setSelectedCodeLanguage}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select language..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CODE_LANGUAGES.map((lang) => (
+                    <SelectItem key={lang} value={lang}>
+                      {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -4876,10 +4876,10 @@ const TextEditorContent = ({
   const isInsertingRef = useRef(false);
   const lastFingerprintRef = useRef('');
   const lastPasteTimeRef = useRef(0);
-  
+
   // ENHANCEMENT: Track typing speed for adaptive debounce
   const lastContentChangeRef = useRef(0);
-  
+
   const docIdRef = useRef(null);
 
   // 🔥 CRITICAL FIX: Use React Router hooks for SSR-safe, navigation-aware docId retrieval
@@ -5452,13 +5452,13 @@ const TextEditorContent = ({
       TextStyle, Color, FontFamily, FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TiptapUnderline,
-      TiptapLink.configure({ 
+      TiptapLink.configure({
         openOnClick: true,
-        HTMLAttributes: { 
+        HTMLAttributes: {
           class: 'text-blue-600 underline',
           target: '_blank',
           rel: 'noopener noreferrer'
-        } 
+        }
       }),
       ListItem,
       Blockquote.configure({ HTMLAttributes: { class: 'blockquote' } }),
@@ -5583,23 +5583,23 @@ const TextEditorContent = ({
       // and trigger pagination IMMEDIATELY to prevent "void typing" sensation
       const selection = editorInstance.state.selection;
       const resolvedPos = selection.$anchor;
-      
+
       // Get the DOM position of the cursor to calculate Y coordinate
       const coords = editorInstance.view.coordsAtPos(resolvedPos.pos);
       const containerRect = editorInstance.view.dom.parentElement?.closest('.editor-pages-container')?.getBoundingClientRect();
-      
+
       if (coords && containerRect) {
         const cursorY = coords.top - containerRect.top + containerRect.height * 0.5; // Approximate scroll position
-        
+
         // ENHANCEMENT: More conservative critical zone threshold
         // Only trigger immediate pagination when truly at page bottom (within 1 line)
         // This prevents premature pagination that disrupts typing flow
         const USABLE_HEIGHT = 1178; // From constants.js
         const CRITICAL_ZONE_THRESHOLD = USABLE_HEIGHT - 24; // Last line only (24px = LINE_HEIGHT_PX)
-        
+
         if (cursorY > CRITICAL_ZONE_THRESHOLD) {
           log(`[onUpdate] 🚨 Cursor in critical zone (${Math.round(cursorY)}px > ${CRITICAL_ZONE_THRESHOLD}px). Immediate pagination!`);
-          
+
           // Bypass debounce - run immediately
           setTimeout(() => {
             try {
@@ -5608,7 +5608,7 @@ const TextEditorContent = ({
               console.error('[onUpdate] Critical zone pagination failed:', err);
             }
           }, 0);
-          
+
           return;
         }
       }
@@ -5630,9 +5630,9 @@ const TextEditorContent = ({
       const timeSinceLastChange = Date.now() - (lastContentChangeRef.current || 0);
       const isFastTyping = timeSinceLastChange < 200; // Less than 200ms between keystrokes
       const debounceDelay = isFastTyping ? 400 : 300; // Longer delay for fast typers
-      
+
       lastContentChangeRef.current = Date.now();
-      
+
       debouncePaginate(editorInstance, debounceDelay);
 
       // ── Stats + autosave (unchanged) ─────────────────────────────────────
@@ -5737,7 +5737,7 @@ const TextEditorContent = ({
       // ENHANCEMENT: Ultra-lightweight selection tracking
       // Only updates a timestamp ref - zero re-renders, zero state updates
       // This is critical for smooth typing experience without cursor jumps
-      
+
       const { from, to } = editorInstance.state.selection;
 
       // Track selection change time for pagination timing decisions
@@ -6435,7 +6435,7 @@ const TextEditorContent = ({
     try {
       // 🔍 Debug: Log click
       console.log('📑 [DocumentOutline] Heading clicked:', headingId);
-      
+
       // 🔥 Find heading by ID in document
       let targetPos = null;
       editor.state.doc.descendants((node, pos) => {
@@ -6449,18 +6449,18 @@ const TextEditorContent = ({
 
       if (targetPos !== null) {
         console.log('📑 [DocumentOutline] Found heading at position:', targetPos);
-        
+
         // Set selection at heading position WITHOUT automatic scroll
         // CRITICAL FIX: Don't auto-scroll on click - user may be viewing different page
         const result = editor.chain()
           .focus(targetPos, { scrollIntoView: false })  // Changed to false
           .setTextSelection(targetPos)
           .run();
-        
+
         console.log('📑 [DocumentOutline] Command result:', result);
         console.log('📑 [DocumentOutline] Editor has focus:', editor.view.hasFocus());
         console.log('📑 [DocumentOutline] Selection:', editor.state.selection);
-        
+
         // REMOVED: Manual scroll that was forcing view to element
         // Users should control scroll behavior explicitly
       } else {
@@ -6821,7 +6821,7 @@ const TextEditorContent = ({
       editorRef.current = null;
 
       console.log('✅ All timers cleaned up, editor ref nulled');
-      
+
       // ── NEW: Cleanup pagination state ───────────────────────────────────
       // Reset all pagination flags and storage to prevent memory leaks
       if (editorRef.current) {
@@ -6854,9 +6854,9 @@ const TextEditorContent = ({
     <TooltipProvider>
       <div className="h-screen w-full flex flex-col bg-background overflow-x-hidden relative">
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100 z-30" 
-          style={{ 
-            height: '48px', 
+        <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100 z-30"
+          style={{
+            height: '48px',
             flexShrink: 0,
             flexGrow: 0,
             overflow: 'visible', // Allow dropdowns to extend outside
@@ -7072,8 +7072,8 @@ const TextEditorContent = ({
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden" style={{ 
-          minHeight: 0, 
+        <div className="flex-1 flex overflow-hidden" style={{
+          minHeight: 0,
           height: 'calc(100vh - 48px - 32px)', // Explicit: viewport - header - footer
           position: 'relative',
           flexShrink: 0,

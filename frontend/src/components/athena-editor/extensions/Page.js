@@ -45,7 +45,7 @@ export const Page = Node.create({
   content: 'block+',
   // Explicitly define what blocks are allowed (exclude page node)
   defining: true,
-  isolating: true,
+  // Note: isolating is explicitly omitted to allow Backspace to join content across pages
 
   addAttributes() {
     return {
