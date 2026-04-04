@@ -51,7 +51,7 @@ const TopNavbar = () => {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 h-[52px] flex items-center justify-between px-5 z-[100]"
+      className="fixed top-0 left-0 right-0 h-[52px] flex items-center justify-between px-3 md:px-5 z-[100]"
       style={{
         background: "rgba(193, 221, 245, 0.65)",
         backdropFilter: "blur(18px)",
@@ -61,21 +61,21 @@ const TopNavbar = () => {
       }}
     >
       {/* LEFT LOGO */}
-      <div className="flex items-center gap-3 text-[#54565a] font-semibold text-[16px] tracking-wide">
-        <div className="w-8 h-8 rounded-lg bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center font-bold">
+      <div className="flex items-center gap-2 md:gap-3 text-[#54565a] font-semibold text-sm md:text-[16px] tracking-wide">
+        <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center font-bold text-sm md:text-base">
           D
         </div>
-        DesignovaAI
+        <span className="hidden sm:inline">DesignovaAI</span>
       </div>
 
       {/* RIGHT ACTIONS */}
-      <div className="flex items-center gap-2 relative">
+      <div className="flex items-center gap-1 md:gap-2 relative">
         {/* HELP */}
         <button
           onClick={() => navigate("/help-support")}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)]  transition"
+          className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)] transition"
         >
-          <FiHelpCircle size={18} />
+          <FiHelpCircle size={16} className="md:size-[18px]" />
         </button>
 
 
@@ -84,20 +84,20 @@ const TopNavbar = () => {
         <div ref={notifRef}>
           <button
             onClick={() => setOpenNotif(!openNotif)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)]  transition relative"
+            className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-[#54565a] hover:bg-[rgba(9,146,194,0.08)] transition relative"
           >
-            <FiBell size={18} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            <FiBell size={16} className="md:size-[18px]" />
+            <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
           {openNotif && (
-            <div className="absolute right-0 mt-3 w-72 rounded-xl shadow-2xl p-3"
+            <div className="absolute right-0 mt-3 w-64 md:w-72 rounded-xl shadow-2xl p-3"
               style={{
                 background: "rgba(255,255,255)",
                 border: "1px solid rgba(0,0,0,0.06)"
               }}>
-              <p className="text-sm text-slate-600 mb-2">Notifications</p>
-              <div className="space-y-2 text-sm">
+              <p className="text-xs md:text-sm text-slate-600 mb-2">Notifications</p>
+              <div className="space-y-2 text-xs md:text-sm">
                 <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer text-slate-800">
                   Your presentation is ready
                 </div>
@@ -113,12 +113,11 @@ const TopNavbar = () => {
         </div>
 
         {/* PROFILE AVATAR */}
-        {/* PROFILE AVATAR */}
         <div className="relative" ref={profileRef}>
           <div
             onClick={() => setopenProfile(!openProfile)}
-            className="w-8 h-8 rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] 
-               flex items-center justify-center text-white text-sm font-semibold cursor-pointer overflow-hidden"
+            className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] 
+               flex items-center justify-center text-white text-xs md:text-sm font-semibold cursor-pointer overflow-hidden"
           >
             {profile?.avatar ? (
               <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
@@ -134,17 +133,17 @@ const TopNavbar = () => {
 
 
           {openProfile && (
-            <div className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
+            <div className="absolute right-0 mt-3 w-64 md:w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
               style={{
                 background: "rgba(255,255,255)",
                 border: "1px solid rgba(0,0,0,0.06)"
               }}>
 
               {/* PROFILE HEADER */}
-              <div className="flex flex-col items-center px-5 pt-5 pb-4">
+              <div className="flex flex-col items-center px-4 md:px-5 pt-4 md:pt-5 pb-3 md:pb-4">
 
                 {/* BIG AVATAR */}
-                <div className="w-16 h-16 rounded-full bg-[#60a5fa] text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-[#60a5fa] text-white flex items-center justify-center text-lg md:text-xl font-semibold mb-2 md:mb-3 overflow-hidden">
                   {profile?.avatar ? (
                     <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -156,20 +155,20 @@ const TopNavbar = () => {
                 </div>
 
                 {/* NAME */}
-                <div className="font-semibold text-slate-800 text-sm text-center">
+                <div className="font-semibold text-slate-800 text-xs md:text-sm text-center px-2">
                   {profile?.firstName
                     ? `${profile.firstName} ${profile.lastName || ""}`
                     : profile?.email?.split("@")[0]}
                 </div>
 
                 {/* EMAIL */}
-                <div className="text-xs text-slate-500 text-center mt-1 break-all">
+                <div className="text-[10px] md:text-xs text-slate-500 text-center mt-1 break-all px-2">
                   {profile?.email}
                 </div>
               </div>
               {/* CREDITS INFO (DEMO) */}
-              <div className="mt-4 w-full px-3">
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <div className="mt-3 md:mt-4 w-full px-3">
+                <div className="flex justify-between text-[10px] md:text-xs text-slate-500 mb-1">
                   <span>Total Credits</span>
                   <span>
                     {credits.used} / {credits.total}
@@ -183,16 +182,16 @@ const TopNavbar = () => {
               <div className="h-px bg-slate-200"></div>
 
               {/* ACTIONS */}
-              <div className="py-2 text-sm">
+              <div className="py-2 text-xs md:text-sm">
 
                 <button
                   onClick={() => {
                     navigate("/settings", { state: { profile } });
                     setopenProfile(false);
                   }}
-                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-slate-100 text-slate-700"
+                  className="w-full px-3 md:px-4 py-2 flex items-center gap-2 md:gap-3 hover:bg-slate-100 text-slate-700"
                 >
-                  <FiUser size={16} />
+                  <FiUser size={14} className="md:size-[16px]" />
                   Personal Settings
                 </button>
 
@@ -201,9 +200,9 @@ const TopNavbar = () => {
                     localStorage.removeItem("token");
                     navigate("/login", { replace: true });
                   }}
-                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-50 text-red-600"
+                  className="w-full px-3 md:px-4 py-2 flex items-center gap-2 md:gap-3 hover:bg-red-50 text-red-600"
                 >
-                  <FiLogOut size={16} />
+                  <FiLogOut size={14} className="md:size-[16px]" />
                   Logout
                 </button>
 

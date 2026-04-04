@@ -31,7 +31,7 @@ const sanitize = typeof DOMPurify !== 'undefined'
   : (html) => html;
 
 import { Page } from '../../extensions/Page.js';
-import TableExtension from '../../extensions/TableExtension.js';
+// Removed unused TableExtension import
 import Indent from '../../extensions/Indent.js';
 import { ResizableImage } from '../../extensions/ResizableImage.jsx';
 import { TextDirection } from '../../extensions/TextDirection.js';

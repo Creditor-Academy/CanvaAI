@@ -406,7 +406,7 @@
   height: 1123px; /* ✅ FIX 4: Fixed height prevents visual overlap with next page */
   margin: 20px auto;
   background: white;
-  padding: 48px 72px; /* Top/Bottom: 48px, Left/Right: 72px */
+  padding: 96px; /* Top/Bottom: 96px, Left/Right: 96px */
   box-sizing: border-box;
   display: block !important; /* CRITICAL: Force visible */
   position: relative;
@@ -427,10 +427,11 @@
 }
 
 .page-content {
-  height: 100%;
-  min-height: inherit;
+  height: 100%; /* Fill available height within the padding box */
+  max-height: 100%;
   display: block !important; /* CRITICAL: Force visible */
   visibility: visible !important;
+  overflow: hidden; /* ✅ Prevent text from spilling into the bottom margin */
   
   /* 🔥 CRITICAL FIX: Prevent white-space inheritance that causes overlay issues */
   white-space: normal !important;

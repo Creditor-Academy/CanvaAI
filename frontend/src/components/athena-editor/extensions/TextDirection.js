@@ -33,20 +33,50 @@ export const TextDirection = Extension.create({
 
     addCommands() {
         return {
-            setTextDirection: (direction) => ({ commands }) => {
+            setTextDirection: (direction) => ({ commands, tr }) => {
                 if (!this.options.directions.includes(direction)) {
                     return false;
                 }
 
-                return this.options.types.every(type =>
-                    commands.updateAttributes(type, { dir: direction })
-                );
+                return commands.command(({ tr, state, dispatch }) => {
+                    let changed = false;
+                    const { selection } = state;
+                    const { from, to } = selection;
+
+                    state.doc.nodesBetween(from, to, (node, pos) => {
+                        if (this.options.types.includes(node.type.name)) {
+                            if (node.attrs.dir !== direction) {
+                                if (dispatch) {
+                                    tr.setNodeMarkup(pos, null, { ...node.attrs, dir: direction });
+                                }
+                                changed = true;
+                            }
+                        }
+                    });
+
+                    return changed;
+                });
             },
 
             unsetTextDirection: () => ({ commands }) => {
-                return this.options.types.every(type =>
-                    commands.resetAttributes(type, 'dir')
-                );
+                return commands.command(({ tr, state, dispatch }) => {
+                    let changed = false;
+                    const { selection } = state;
+                    const { from, to } = selection;
+
+                    state.doc.nodesBetween(from, to, (node, pos) => {
+                        if (this.options.types.includes(node.type.name)) {
+                            if (node.attrs.dir !== null) {
+                                if (dispatch) {
+                                    tr.setNodeMarkup(pos, null, { ...node.attrs, dir: null });
+                                }
+                                changed = true;
+                            }
+                        }
+                    });
+
+                    return changed;
+                });
             },
         };
     },

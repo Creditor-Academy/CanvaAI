@@ -109,21 +109,21 @@ export default function Dashboard() {
 
         <motion.div
           style={{ y: heroY }}
-          className="relative z-10 max-w-6xl mx-auto px-6 pt-[140px] pb-[220px] text-center text-white"
+          className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-[100px] sm:pt-[120px] md:pt-[140px] pb-[150px] sm:pb-[180px] md:pb-[220px] text-center text-white"
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
         >
           <motion.p
             variants={fadeUp}
-            className="uppercase tracking-widest text-sm mb-4 opacity-90"
+            className="uppercase tracking-widest text-xs sm:text-sm mb-3 sm:mb-4 opacity-90"
           >
             Designova AI Workspace
           </motion.p>
 
           <motion.h1
             variants={fadeUp}
-            className="text-6xl md:text-7xl font-bold leading-tight font-georgia "
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight font-georgia px-2"
           >
             Create Presentations, Images and Documents with AI
             
@@ -131,14 +131,14 @@ export default function Dashboard() {
 
           <motion.p
             variants={fadeUp}
-            className="mt-6 text-lg max-w-2xl mx-auto opacity-90"
+            className="mt-4 sm:mt-6 text-sm sm:text-base md:text-lg max-w-2xl mx-auto opacity-90 px-4"
           >
             Build professional presentations, edit images, craft documents —
             or let AI generate everything instantly for you.
           </motion.p>
           <button
             onClick={scrollToTools}
-            className="mt-8 px-8 py-3 bg-white text-[#0c4a6e] rounded-lg font-semibold hover:scale-105 transition"
+            className="mt-6 sm:mt-8 px-6 py-2.5 sm:px-8 sm:py-3 bg-white text-[#0c4a6e] rounded-lg font-semibold hover:scale-105 transition text-sm sm:text-base min-h-[44px]"
           >
             Try AI Tools →
           </button>

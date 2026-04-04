@@ -420,13 +420,28 @@ body {
 
 /* Container for endless page - shows single continuous page */
 .editor-pages-container {
-  width: 100%;
-  max-width: 794px;  /* Standard A4 width */
+  width: 100vw !important;
+  max-width: 100vw !important;
   min-height: auto;
   display: block;
-  padding: 20px 0;
-  margin: 0 auto;    /* Centered */
+  padding: 20px 0 !important;
+  margin: 0 !important;
+  margin-left: -50vw !important;
+  margin-right: -50vw !important;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
+
+/* Scrollbar styling for editor container */
+.editor-pages-container::-webkit-scrollbar       { width: 12px !important; }
+.editor-pages-container::-webkit-scrollbar-track { background: #dde1e7 !important; border-radius: 0 !important; }
+.editor-pages-container::-webkit-scrollbar-thumb { background: #9ca3af !important; border-radius: 0 !important; }
+.editor-pages-container::-webkit-scrollbar-thumb:hover { background: #6b7280 !important; }
+.editor-pages-container::-webkit-scrollbar-corner { background: #dde1e7 !important; }
+.editor-pages-container { scrollbar-width: thin !important; scrollbar-color: #9ca3af #dde1e7 !important; }
 
 /* Endless workspace - ONE page that grows with content */
 .editor-workspace-scaled,
@@ -493,9 +508,9 @@ body {
     linear-gradient(to bottom,
       transparent 0,
       transparent var(--page-margin-bottom, 96px),
-      #e2e8f0 calc(var(--page-margin-bottom, 96px)),  /* Changed from #f1f5f9 for better visibility */
-      #cbd5e1 calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px) / 2),  /* Darker center for visibility */
-      #e2e8f0 calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
+      #ffffff calc(var(--page-margin-bottom, 96px)),
+      #ffffff calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px) / 2),
+      #ffffff calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
       transparent calc(var(--page-margin-bottom, 96px) + var(--page-break-gap, 40px)),
       transparent 100%);
   border: none;
@@ -1007,4 +1022,289 @@ body {
 .resize-cursor {
   cursor: ew-resize;
   cursor: col-resize;
+}
+
+/* ==================== COMPREHENSIVE MOBILE RESPONSIVENESS ==================== */
+
+/* Tablet Landscape (≤1024px) */
+@media screen and (max-width: 1024px) {
+  /* Adjust main content padding */
+  main {
+    padding: 1rem !important;
+  }
+  
+  /* Scale down large containers */
+  .container,
+  .max-w-7xl,
+  .max-w-6xl {
+    max-width: 100% !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Tablet Portrait (≤768px) */
+@media screen and (max-width: 768px) {
+  /* Global adjustments */
+  html {
+    font-size: 15px;
+  }
+  
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Main content area */
+  main {
+    padding: 0.75rem !important;
+    margin-left: 0 !important;
+  }
+  
+  /* Grid layouts - reduce columns */
+  .grid {
+    gap: 0.75rem !important;
+  }
+  
+  .grid-cols-4,
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  
+  /* Cards and containers */
+  .card,
+  [class*="card"] {
+    padding: 1rem !important;
+  }
+  
+  /* Buttons - make touch-friendly */
+  button,
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 1rem;
+  }
+  
+  /* Forms */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Modals and dialogs */
+  [role="dialog"],
+  .modal {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 1rem auto !important;
+  }
+  
+  /* Tables - enable horizontal scroll */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  /* Images */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* Mobile Large (≤640px) */
+@media screen and (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+  
+  main {
+    padding: 0.5rem !important;
+  }
+  
+  /* Single column grids */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Reduce spacing */
+  .gap-4,
+  .gap-6,
+  .gap-8 {
+    gap: 0.75rem !important;
+  }
+  
+  /* Headings */
+  h1 {
+    font-size: 1.75rem !important;
+  }
+  
+  h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  h3 {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Mobile Medium (≤480px) */
+@media screen and (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+  
+  /* Minimal padding */
+  main {
+    padding: 0.375rem !important;
+  }
+  
+  /* Stack all flex containers vertically */
+  .flex-row {
+    flex-direction: column !important;
+  }
+  
+  /* Full width buttons */
+  button.w-auto,
+  .btn.w-auto {
+    width: 100% !important;
+  }
+  
+  /* Smaller avatars and icons */
+  .avatar,
+  [class*="avatar"] {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+
+/* Mobile Small (≤360px) */
+@media screen and (max-width: 360px) {
+  html {
+    font-size: 12px;
+  }
+  
+  /* Ultra compact layout */
+  main {
+    padding: 0.25rem !important;
+  }
+  
+  /* Hide non-essential elements */
+  .hidden-xs {
+    display: none !important;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button,
+  a,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  *:hover {
+    transition: none !important;
+  }
+  
+  /* Better scrolling on mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  /* Adjust for landscape mode */
+  header {
+    height: 44px !important;
+  }
+  
+  main {
+    padding-top: 52px !important;
+  }
+  
+  /* Reduce vertical spacing */
+  .py-8,
+  .py-12,
+  .py-16 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  /* Hide navigation and UI chrome */
+  header,
+  nav,
+  aside,
+  .sidebar,
+  .navbar {
+    display: none !important;
+  }
+  
+  /* Reset margins for print */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Ensure content is black on white */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* High DPI / Retina displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders and shadows */
+  .border {
+    border-width: 0.5px;
+  }
+  
+  box-shadow {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  /* Auto-adjust for users with dark mode enabled */
+  :root {
+    color-scheme: dark light;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Wide screens (>1920px) */
+@media screen and (min-width: 1920px) {
+  html {
+    font-size: 18px;
+  }
+  
+  .container,
+  .max-w-7xl {
+    max-width: 1600px !important;
+  }
 }

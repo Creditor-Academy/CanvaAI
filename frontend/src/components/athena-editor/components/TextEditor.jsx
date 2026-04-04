@@ -44,7 +44,7 @@ import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../extensions/Indent.js';
 import { Page, initializePagination } from '../extensions/Page.js';
 import { addHeadingStyles, updateHeadingStyles } from '../components/editor/EditorPagination.js';  // Heading styles functions
-import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import { paginateDocument, debouncePaginate, cleanupPagination } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
 import { usePastePagination } from '../hooks/usePastePagination';
 import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
 import '../AthenaEditor.css'; // 🔥 CRITICAL: Page NodeView styling
@@ -816,9 +816,12 @@ export const EditorToolbar = ({
       }
     } catch { }
   };
+  
   const focusEditor = () => {
     try {
       if (editor?.view?.dom && typeof editor.view.dom.focus === 'function') {
+        // ENHANCEMENT: preventScroll=true ensures focus doesn't disrupt user's scroll position
+        // This is critical for maintaining reading flow when using toolbar/formatting options
         editor.view.dom.focus({ preventScroll: true });
       }
     } catch { }
@@ -4873,6 +4876,10 @@ const TextEditorContent = ({
   const isInsertingRef = useRef(false);
   const lastFingerprintRef = useRef('');
   const lastPasteTimeRef = useRef(0);
+  
+  // ENHANCEMENT: Track typing speed for adaptive debounce
+  const lastContentChangeRef = useRef(0);
+  
   const docIdRef = useRef(null);
 
   // 🔥 CRITICAL FIX: Use React Router hooks for SSR-safe, navigation-aware docId retrieval
@@ -5571,9 +5578,47 @@ const TextEditorContent = ({
         }
       });
 
+      // ── GOOGLE DOCS FINESSE: Immediate Response for Critical Zone ───────
+      // When cursor is within 2 lines (48px) of bottom boundary, bypass debounce
+      // and trigger pagination IMMEDIATELY to prevent "void typing" sensation
+      const selection = editorInstance.state.selection;
+      const resolvedPos = selection.$anchor;
+      
+      // Get the DOM position of the cursor to calculate Y coordinate
+      const coords = editorInstance.view.coordsAtPos(resolvedPos.pos);
+      const containerRect = editorInstance.view.dom.parentElement?.closest('.editor-pages-container')?.getBoundingClientRect();
+      
+      if (coords && containerRect) {
+        const cursorY = coords.top - containerRect.top + containerRect.height * 0.5; // Approximate scroll position
+        
+        // ENHANCEMENT: More conservative critical zone threshold
+        // Only trigger immediate pagination when truly at page bottom (within 1 line)
+        // This prevents premature pagination that disrupts typing flow
+        const USABLE_HEIGHT = 1178; // From constants.js
+        const CRITICAL_ZONE_THRESHOLD = USABLE_HEIGHT - 24; // Last line only (24px = LINE_HEIGHT_PX)
+        
+        if (cursorY > CRITICAL_ZONE_THRESHOLD) {
+          log(`[onUpdate] 🚨 Cursor in critical zone (${Math.round(cursorY)}px > ${CRITICAL_ZONE_THRESHOLD}px). Immediate pagination!`);
+          
+          // Bypass debounce - run immediately
+          setTimeout(() => {
+            try {
+              paginateDocument(editorInstance, { force: true, reason: 'critical-zone' });
+            } catch (err) {
+              console.error('[onUpdate] Critical zone pagination failed:', err);
+            }
+          }, 0);
+          
+          return;
+        }
+      }
+
       // ── DEBOUNCED RE-PAGINATION (only after DOM settles) ─────────────────
+      // ENHANCEMENT: Adaptive debounce based on typing speed
+      // - Fast typing: 400ms delay (lets user finish thought before paginating)
+      // - Slow typing: 300ms delay (quicker response for deliberate editing)
       // CRITICAL: This runs on EVERY content change, but the debounce prevents
-      // rapid-fire pagination. The 300ms delay lets the DOM render completely.
+      // rapid-fire pagination. The delay lets the DOM render completely.
 
       // 🔥 CRITICAL: Skip pagination during paste - let paste handler trigger it
       if (isPastingRef.current) {
@@ -5581,7 +5626,14 @@ const TextEditorContent = ({
         return;
       }
 
-      debouncePaginate(editorInstance, 300);
+      // ENHANCEMENT: Dynamic debounce based on recent activity
+      const timeSinceLastChange = Date.now() - (lastContentChangeRef.current || 0);
+      const isFastTyping = timeSinceLastChange < 200; // Less than 200ms between keystrokes
+      const debounceDelay = isFastTyping ? 400 : 300; // Longer delay for fast typers
+      
+      lastContentChangeRef.current = Date.now();
+      
+      debouncePaginate(editorInstance, debounceDelay);
 
       // ── Stats + autosave (unchanged) ─────────────────────────────────────
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
@@ -5682,25 +5734,18 @@ const TextEditorContent = ({
       // Pagination only runs after paste or explicit page break operations
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
-      // CRITICAL FIX: Don't update state on every selection change
-      // This was causing cursor position resets during typing/deletion
-      // Selection updates now handled via refs if needed elsewhere
+      // ENHANCEMENT: Ultra-lightweight selection tracking
+      // Only updates a timestamp ref - zero re-renders, zero state updates
+      // This is critical for smooth typing experience without cursor jumps
+      
       const { from, to } = editorInstance.state.selection;
 
-      // CRITICAL FIX: Use plain ref instead of extension storage
-      // Extension storage can be cleared/re-initialized by other extensions
+      // Track selection change time for pagination timing decisions
       lastSelectionChangeRef.current = Date.now();
 
-      // REMOVED: setSelectedText - causes re-render on every cursor movement
-      // setSelectedText(from !== to ? editorInstance.state.doc.textBetween(from, to, ' ') : '');
-
-      // REMOVED: setActiveHeadingLevel - causes unnecessary re-renders
-      // let newHeadingLevel = 0;
-      // editorInstance.state.doc.nodesBetween(from, to, (node) => {
-      //   if (node.type.name === 'heading') { newHeadingLevel = node.attrs.level; return false; }
-      //   return true;
-      // });
-      // setActiveHeadingLevel(newHeadingLevel);
+      // NOTE: All selection-based UI updates (toolbar state, etc.) are handled
+      // by Tiptap's built-in reactivity. We don't need manual state updates here.
+      // This prevents the "cursor reset" bug that occurred with frequent setState calls.
     },
   });
 
@@ -6405,9 +6450,10 @@ const TextEditorContent = ({
       if (targetPos !== null) {
         console.log('📑 [DocumentOutline] Found heading at position:', targetPos);
         
-        // Set selection at heading position WITH scroll into view
+        // Set selection at heading position WITHOUT automatic scroll
+        // CRITICAL FIX: Don't auto-scroll on click - user may be viewing different page
         const result = editor.chain()
-          .focus(targetPos, { scrollIntoView: true })
+          .focus(targetPos, { scrollIntoView: false })  // Changed to false
           .setTextSelection(targetPos)
           .run();
         
@@ -6415,17 +6461,8 @@ const TextEditorContent = ({
         console.log('📑 [DocumentOutline] Editor has focus:', editor.view.hasFocus());
         console.log('📑 [DocumentOutline] Selection:', editor.state.selection);
         
-        // Additional manual scroll to ensure visibility (works with pagination)
-        setTimeout(() => {
-          const editorContainer = document.querySelector('.editor-scroll-container');
-          if (editorContainer) {
-            const selectedElement = editorContainer.querySelector('[class*="ProseMirror-selected"]');
-            if (selectedElement) {
-              selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              console.log('📑 [DocumentOutline] Manually scrolled to element');
-            }
-          }
-        }, 100);
+        // REMOVED: Manual scroll that was forcing view to element
+        // Users should control scroll behavior explicitly
       } else {
         console.warn('⚠️ [DocumentOutline] Heading not found:', headingId);
       }
@@ -6784,6 +6821,17 @@ const TextEditorContent = ({
       editorRef.current = null;
 
       console.log('✅ All timers cleaned up, editor ref nulled');
+      
+      // ── NEW: Cleanup pagination state ───────────────────────────────────
+      // Reset all pagination flags and storage to prevent memory leaks
+      if (editorRef.current) {
+        try {
+          cleanupPagination(editorRef.current);
+          console.log('✅ Pagination state cleaned up');
+        } catch (err) {
+          console.error('[Cleanup] Failed to cleanup pagination:', err);
+        }
+      }
     };
   }, []);
 

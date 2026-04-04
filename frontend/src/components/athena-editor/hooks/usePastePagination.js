@@ -47,7 +47,14 @@ export function usePastePagination(editor, isPastingRef, lastPasteTimeRef) {
          * Returning false lets ProseMirror handle the actual content insertion
          * normally. We only set flags and schedule the post-paste pagination.
          */
-        handlePaste(view, _event, _slice) {
+        handlePaste(view, event, slice) {
+          // ── Save selection BEFORE paste ─────────────────────────────────
+          // Critical for cursor stability - save where the paste STARTED
+          const savedSelection = { 
+            from: view.state.selection.from, 
+            to: view.state.selection.to 
+          };
+
           // ── Mark paste in-flight ────────────────────────────────────────
           isPastingRef.current      = true;
           lastPasteTimeRef.current  = Date.now();
@@ -86,9 +93,14 @@ export function usePastePagination(editor, isPastingRef, lastPasteTimeRef) {
 
               try {
                 // force:true skips fingerprint + cooldown guards
+                // paginateDocument will handle cursor position mapping internally
                 paginateDocument(editor, { force: true });
               } catch (err) {
                 console.error('[usePastePagination] paginateDocument error:', err);
+                // On error, restore original selection immediately
+                try {
+                  editor.commands.setTextSelection(savedSelection.from);
+                } catch (_) {}
               }
 
               // ── Release mutexes after paginateDocument's microtask settles ─
