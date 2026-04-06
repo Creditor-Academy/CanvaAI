@@ -116,6 +116,18 @@
   background: #f8fafc;
 }
 
+/* Saving state — amber accent, spinner visible */
+.nav-btn--saving {
+  background: #fffbeb !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+.save-spinner {
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
 
 .agent-nav-btn {
   background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;

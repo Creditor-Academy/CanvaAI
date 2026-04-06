@@ -103,8 +103,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const scrollRef = React.useRef(null);
   const { user } = useAuth();
-
-  const [profile, setProfile] = useState(null);
+  const profile = user;
   const [showCreate, setShowCreate] = useState(false);
   const [tab, setTab] = useState("manual");
   const [tokens, setTokens] = useState(0);
@@ -136,14 +135,6 @@ export default function Dashboard() {
     let mounted = true;
 
     const fetchData = async () => {
-      // Profile
-      try {
-        const profileData = await api.getProfile();
-        if (mounted) setProfile(profileData || null);
-      } catch (e) {
-        console.error("Profile fetch error:", e);
-      }
-
       // Wallet
       try {
         const walletRes = await userService.getWalletDashboard();

@@ -61,6 +61,13 @@ const CanvasShell = () => {
   const isApplyingAutoStackRef = useRef(false);
   const manualLayoutLocksRef = useRef({});
   const dragStartedRef = useRef(false);
+  // Ref to the slide div so document-level handlers can read its rect.
+  const slideRef = useRef(null);
+  // Always-current snapshot of drag state — avoids stale closures in the
+  // document-level handler which is mounted once with empty deps.
+  const dragContextRef = useRef({});
+  // Always-current stopAll so the document handler always calls the latest version.
+  const stopAllRef = useRef(null);
 
   const getLockedSetForSlide = useCallback((slideId) => {
     if (!slideId) return new Set();
@@ -217,110 +224,118 @@ const CanvasShell = () => {
     rotatingId,
   ]);
 
-  const handleMouseMove = (e) => {
-    const slideRect = e.currentTarget.getBoundingClientRect();
+  // Keep dragContextRef always current so the document-level handler never has stale values.
+  useEffect(() => {
+    dragContextRef.current = {
+      draggingId, resizingId, rotatingId,
+      offset, startSize, startPos,
+      activeSlide,
+    };
+  }, [draggingId, resizingId, rotatingId, offset, startSize, startPos, activeSlide]);
 
-    if (draggingId) {
-      dragStartedRef.current = true;
-      const scale = (slideRect.width / SLIDE_WIDTH); // This scale includes canvasZoom
-      // Actually, slideRect.width is the VISUAL width, which is SLIDE_WIDTH * autoScale * canvasZoom
-      // But we just need the ratio of screen pixels to slide pixels.
-      const totalScale = scale;
+  // Document-level mouse handlers — mounted ONCE (empty deps).
+  // Reads all live values through dragContextRef so nothing is ever stale.
+  // This is the standard pattern for drag-and-drop that works even when the
+  // pointer leaves the slide div (e.g. dragging an element from outside the canvas).
+  useEffect(() => {
+    const onMove = (e) => {
+      const { draggingId, resizingId, rotatingId, offset, startSize, startPos, activeSlide } =
+        dragContextRef.current;
+      if (!slideRef.current || (!draggingId && !resizingId && !rotatingId)) return;
 
-      const mouseXRatio = (e.clientX - slideRect.left - offset.x) / totalScale;
-      const mouseYRatio = (e.clientY - slideRect.top - offset.y) / totalScale;
+      const slideRect = slideRef.current.getBoundingClientRect();
 
-      const layer = activeSlide.layers?.find(l => l.id === draggingId);
-      if (!layer) return;
+      if (draggingId) {
+        dragStartedRef.current = true;
+        const scale = slideRect.width / SLIDE_WIDTH;
 
-      let newX = mouseXRatio;
-      let newY = mouseYRatio;
+        const layer = activeSlide?.layers?.find((l) => l.id === draggingId);
+        if (!layer) return;
 
-      // Smart Guides & Snapping Logic
-      const guides = [];
-      const threshold = 5 / scale; // Snap within 5 display pixels
+        let newX = (e.clientX - slideRect.left - offset.x) / scale;
+        let newY = (e.clientY - slideRect.top - offset.y) / scale;
 
-      const snapX = (targetX, guidePos) => {
-        if (Math.abs(newX - targetX) < threshold) {
-          newX = targetX;
-          guides.push({ type: 'v', x: guidePos });
-          return true;
-        }
-        return false;
-      };
+        // Smart Guides & Snapping
+        const guides = [];
+        const threshold = 5 / scale;
 
-      const snapY = (targetY, guidePos) => {
-        if (Math.abs(newY - targetY) < threshold) {
-          newY = targetY;
-          guides.push({ type: 'h', y: guidePos });
-          return true;
-        }
-        return false;
-      };
+        const snapX = (targetX, guidePos) => {
+          if (Math.abs(newX - targetX) < threshold) {
+            newX = targetX;
+            guides.push({ type: 'v', x: guidePos });
+          }
+        };
+        const snapY = (targetY, guidePos) => {
+          if (Math.abs(newY - targetY) < threshold) {
+            newY = targetY;
+            guides.push({ type: 'h', y: guidePos });
+          }
+        };
 
-      // 1. Snap to Slide Center
-      snapX(SLIDE_WIDTH / 2 - layer.width / 2, SLIDE_WIDTH / 2);
-      snapY(SLIDE_HEIGHT / 2 - layer.height / 2, SLIDE_HEIGHT / 2);
+        // Snap to slide center
+        snapX(SLIDE_WIDTH / 2 - layer.width / 2, SLIDE_WIDTH / 2);
+        snapY(SLIDE_HEIGHT / 2 - layer.height / 2, SLIDE_HEIGHT / 2);
 
-      // 2. Snap to other layers
-      activeSlide.layers?.forEach(other => {
-        if (other.id === draggingId) return;
+        // Snap to other layers
+        activeSlide?.layers?.forEach((other) => {
+          if (other.id === draggingId) return;
+          snapX(other.x, other.x);
+          snapX(other.x + other.width, other.x + other.width);
+          snapX(other.x - layer.width, other.x);
+          snapX(other.x + other.width - layer.width, other.x + other.width);
+          snapX(other.x + other.width / 2 - layer.width / 2, other.x + other.width / 2);
+          snapY(other.y, other.y);
+          snapY(other.y + other.height, other.y + other.height);
+          snapY(other.y - layer.height, other.y);
+          snapY(other.y + other.height - layer.height, other.y + other.height);
+          snapY(other.y + other.height / 2 - layer.height / 2, other.y + other.height / 2);
+        });
 
-        // X alignments
-        snapX(other.x, other.x); // Left to Left
-        snapX(other.x + other.width, other.x + other.width); // Left to Right
-        snapX(other.x - layer.width, other.x); // Right to Left
-        snapX(other.x + other.width - layer.width, other.x + other.width); // Right to Right
-        snapX(other.x + other.width / 2 - layer.width / 2, other.x + other.width / 2); // Center X
-
-        // Y alignments
-        snapY(other.y, other.y); // Top to Top
-        snapY(other.y + other.height, other.y + other.height); // Top to Bottom
-        snapY(other.y - layer.height, other.y); // Bottom to Top
-        snapY(other.y + other.height - layer.height, other.y + other.height); // Bottom to Bottom
-        snapY(other.y + other.height / 2 - layer.height / 2, other.y + other.height / 2); // Center Y
-      });
-
-      updateLayerPosition(draggingId, newX, newY);
-      setDragCoords({ x: Math.round(newX), y: Math.round(newY) });
-      setActiveGuides(guides);
-    }
-
-    if (resizingId) {
-      const scale = slideRect.width / SLIDE_WIDTH;
-      resizeTextBox(
-        resizingId,
-        startSize.w + (e.clientX - startPos.x) / scale,
-        startSize.h + (e.clientY - startPos.y) / scale
-      );
-    }
-
-    if (rotatingId) {
-      const scale = slideRect.width / SLIDE_WIDTH;
-      const layer = activeSlide.layers?.find((l) => l.id === rotatingId);
-      if (layer) {
-        // Calculate center of layer in SCREEN pixels
-        const layerCenterX = slideRect.left + (layer.x + layer.width / 2) * scale;
-        const layerCenterY = slideRect.top + (layer.y + layer.height / 2) * scale;
-
-        const angle = Math.atan2(
-          e.clientY - layerCenterY,
-          e.clientX - layerCenterX
-        ) * (180 / Math.PI);
-
-        updateLayerRotation(rotatingId, angle + 90); // +90 because handle is at the top
+        updateLayerPosition(draggingId, newX, newY);
+        setDragCoords({ x: Math.round(newX), y: Math.round(newY) });
+        setActiveGuides(guides);
       }
-    }
-  };
+
+      if (resizingId) {
+        const scale = slideRect.width / SLIDE_WIDTH;
+        resizeTextBox(
+          resizingId,
+          startSize.w + (e.clientX - startPos.x) / scale,
+          startSize.h + (e.clientY - startPos.y) / scale
+        );
+      }
+
+      if (rotatingId) {
+        const scale = slideRect.width / SLIDE_WIDTH;
+        const layer = activeSlide?.layers?.find((l) => l.id === rotatingId);
+        if (layer) {
+          const layerCenterX = slideRect.left + (layer.x + layer.width / 2) * scale;
+          const layerCenterY = slideRect.top + (layer.y + layer.height / 2) * scale;
+          const angle =
+            Math.atan2(e.clientY - layerCenterY, e.clientX - layerCenterX) * (180 / Math.PI);
+          updateLayerRotation(rotatingId, angle + 90);
+        }
+      }
+    };
+
+    const onUp = () => stopAllRef.current?.();
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopAll = () => {
+    const { draggingId, activeSlide } = dragContextRef.current;
     if (dragStartedRef.current && draggingId) {
       const draggedLayer = activeSlide?.layers?.find((layer) => layer.id === draggingId);
       if (draggedLayer && isStackableLayer(draggedLayer)) {
         lockLayerFromAutoStack(draggingId);
       }
     }
-
     dragStartedRef.current = false;
     setDraggingId(null);
     setResizingId(null);
@@ -328,6 +343,8 @@ const CanvasShell = () => {
     setDragCoords(null);
     setActiveGuides([]);
   };
+  // Keep stopAllRef pointing to the latest stopAll closure on every render.
+  stopAllRef.current = stopAll;
 
   if (!activeSlide) return null;
 
@@ -335,6 +352,7 @@ const CanvasShell = () => {
     <div style={styles.canvasWrapper}>
       <div style={styles.editorCenter}>
         <div
+          ref={slideRef}
           style={{
             ...styles.slide,
             backgroundColor: activeSlide.background,
@@ -347,9 +365,6 @@ const CanvasShell = () => {
             transform: `scale(${canvasZoom})`,
             transformOrigin: "center center",
           }}
-          onMouseMove={handleMouseMove}
-          onMouseUp={stopAll}
-          onMouseLeave={stopAll}
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
               clearSelection();
@@ -380,11 +395,14 @@ const CanvasShell = () => {
                     setSelectedLayer(layer.id);
                     setDraggingId(layer.id);
 
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setOffset({
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top,
-                    });
+                    if (slideRef.current) {
+                      const sr = slideRef.current.getBoundingClientRect();
+                      const sc = sr.width / SLIDE_WIDTH;
+                      setOffset({
+                        x: e.clientX - sr.left - (layer.x || 0) * sc,
+                        y: e.clientY - sr.top - (layer.y || 0) * sc,
+                      });
+                    }
                   }}
                   style={{
                     transform: `rotate(${layer.rotation || 0}deg)`,
@@ -452,11 +470,14 @@ const CanvasShell = () => {
                     setSelectedLayer(layer.id);
                     setDraggingId(layer.id);
 
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setOffset({
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top,
-                    });
+                    if (slideRef.current) {
+                      const sr = slideRef.current.getBoundingClientRect();
+                      const sc = sr.width / SLIDE_WIDTH;
+                      setOffset({
+                        x: e.clientX - sr.left - (layer.x || 0) * sc,
+                        y: e.clientY - sr.top - (layer.y || 0) * sc,
+                      });
+                    }
                   }}
                 >
                   <div style={{
@@ -531,11 +552,14 @@ const CanvasShell = () => {
                     setSelectedLayer(layer.id);
                     setDraggingId(layer.id);
 
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setOffset({
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top,
-                    });
+                    if (slideRef.current) {
+                      const sr = slideRef.current.getBoundingClientRect();
+                      const sc = sr.width / SLIDE_WIDTH;
+                      setOffset({
+                        x: e.clientX - sr.left - (layer.x || 0) * sc,
+                        y: e.clientY - sr.top - (layer.y || 0) * sc,
+                      });
+                    }
                   }}
                 >
                   <TableLayer layer={layer} selected={selected} />
@@ -604,11 +628,14 @@ const CanvasShell = () => {
                   setSelectedLayer(layer.id);
                   setDraggingId(layer.id);
 
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setOffset({
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
-                  });
+                  if (slideRef.current) {
+                    const sr = slideRef.current.getBoundingClientRect();
+                    const sc = sr.width / SLIDE_WIDTH;
+                    setOffset({
+                      x: e.clientX - sr.left - (layer.x || 0) * sc,
+                      y: e.clientY - sr.top - (layer.y || 0) * sc,
+                    });
+                  }
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();

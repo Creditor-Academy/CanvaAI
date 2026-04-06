@@ -326,11 +326,29 @@ const normalizeLayer = (layer, forceNewId = false) => {
     normalizedLayer.height = isNaN(safeHeight) || safeHeight < 40 ? 100 : safeHeight;
   }
 
+  // Safeguard: x/y must always be valid numbers for all layer types.
+  // AI often sends null/undefined which makes the drag offset calculation produce NaN,
+  // causing the element to snap to (0,0) and showing "NaN, NaN" in the position readout.
+  const rawX = Number(normalizedLayer.x);
+  const rawY = Number(normalizedLayer.y);
+  normalizedLayer.x = isNaN(rawX) ? 0 : rawX;
+  normalizedLayer.y = isNaN(rawY) ? 0 : rawY;
+
   return normalizedLayer;
 };
 
 const normalizeSlide = (slide, forceNewId = false) => {
   if (!slide) return slide;
+
+  // Slides produced by the layout engine carry layoutProcessed: true.
+  // Their x/y/width/height are final — do NOT re-normalize layers.
+  // Only regenerate the slide id if requested (e.g. duplicate).
+  if (slide.layoutProcessed) {
+    return {
+      ...slide,
+      id: forceNewId ? nanoid() : (slide.id || nanoid()),
+    };
+  }
 
   return {
     ...slide,
