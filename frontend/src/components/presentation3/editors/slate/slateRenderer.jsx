@@ -58,19 +58,36 @@ const Element = ({ attributes, children, element }) => {
           style={{
             ...style,
             listStyleType: "decimal",
-            marginLeft: "20px",
+            paddingLeft: "1.5em",
+            margin: 0,
           }}
         >
           {children}
         </ol>
       );
 
-    case "list-item":
+    case "list-item": {
+      // Extract color and fontSize from the first text leaf so the ::marker
+      // (the number / bullet symbol) matches the text content color exactly.
+      const firstLeaf = element.children?.find((c) => c.text !== undefined);
+      const markerColor = firstLeaf?.color || element.color || "inherit";
+      const markerFontSize = firstLeaf?.fontSize || element.fontSize
+        ? `${firstLeaf?.fontSize || element.fontSize}px`
+        : "inherit";
       return (
-        <li {...attributes} className="list-item" style={style}>
+        <li
+          {...attributes}
+          className="list-item"
+          style={{
+            ...style,
+            color: markerColor,
+            fontSize: markerFontSize,
+          }}
+        >
           {children}
         </li>
       );
+    }
 
     default:
       return (

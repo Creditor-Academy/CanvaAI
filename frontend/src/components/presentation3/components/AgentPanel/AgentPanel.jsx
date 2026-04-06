@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import "./agent-panel.css";
 import * as aiService from "../../../../services/presentation/presentation.service";
+import {
+  processAndAppendAISlide,
+  processAndAppendAILayers,
+} from "../../processor/processAIGeneration";
 
 const AgentPanel = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -104,7 +108,8 @@ const AgentPanel = ({ isOpen, onClose }) => {
           presentationData
         });
         if (res.success && res.data) {
-          appendSlide(res.data);
+          // Route through the layout engine — assigns x/y/width/height and sets layoutProcessed: true
+          processAndAppendAISlide(res.data, appendSlide);
           onClose();
         }
       } else if (mode === "expand-slide") {
@@ -118,7 +123,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
         });
 
         if (res.success && res.data) {
-          appendLayersToSlide(selectedSlideId, res.data);
+          processAndAppendAILayers(res.data, selectedSlideId, appendLayersToSlide);
           setActiveSlide(selectedSlideId);
         }
       }

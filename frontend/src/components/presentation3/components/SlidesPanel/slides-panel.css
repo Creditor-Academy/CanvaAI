@@ -4,12 +4,12 @@
 
 .slides-panel {
   position: fixed;
-  top: 56px; 
+  top: 72px; 
  
   /* was 88px, moved closer to top of the body container */
   
    width: 200px;
-  height: calc(100vh - 66px);
+  height: calc(100vh - 82px);
 
   display: flex;
   flex-direction: column;

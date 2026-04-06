@@ -1,20 +1,20 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
-import api from "../services/api";
 import logo from "../assets/logo.png";
 import { FiMenu } from "react-icons/fi";
+import { useAuth } from "../contexts/AuthContext";
 
 
 
 const TopNavbar = () => {
   const navigate = useNavigate();
+  const { user: profile } = useAuth();
   const [openNotif, setOpenNotif] = useState(false);
   const notifRef = useRef(null);
 
 
   const profileRef = useRef(null);
-  const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
   
 
@@ -48,30 +48,6 @@ const TopNavbar = () => {
   }, []);
 
 
-  /* ---------------- Fetch profile ---------------- */
-
-
-  useEffect(() => {
-    let mounted = true;
-
-
-    const fetchData = async () => {
-      try {
-        const profileData = await api.getProfile();
-        if (mounted) setProfile(profileData || null);
-
-
-      } catch (err) {
-        console.error("Navbar fetch error:", err);
-      }
-    };
-
-
-    fetchData();
-
-
-    return () => (mounted = false);
-  }, []);
 
 
   return (
