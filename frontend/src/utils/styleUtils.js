@@ -20,3 +20,5 @@ export const getFilterCSS = ({ brightness = 100, contrast = 100, blur = 0 }) => 
   if (blur > 0) filters.push(`blur(${blur}px)`);
   return filters.length ? filters.join(' ') : 'none';
 };
+
+

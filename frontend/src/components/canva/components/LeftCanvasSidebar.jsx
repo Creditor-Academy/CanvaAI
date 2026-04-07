@@ -46,7 +46,7 @@ const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, on
         onMouseDown={(e) => { e.preventDefault(); onClick(sectionKey, e.currentTarget); }}
       >
         <span className="text-slate-700 group-hover:text-slate-900">{icon}</span>
-        <span className="text-[8px] font-medium uppercase tracking-wider text-slate-600 group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
+        <span className="text-[6px] font-medium uppercase tracking-wider text-black group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
         {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-500 rounded-full" />}
       </button>
       <Tooltip
@@ -62,7 +62,7 @@ const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, on
 const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, children, position, onClose }) => {
   if (expandedSection !== sectionKey) return null;
   // Use a light (white) surface for expanded panels so content reads on white backgrounds
-  const portalStyle = "fixed z-[9999] bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200 text-slate-900";
+  const portalStyle = "fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200 text-slate-900";
 
   return createPortal(
     <div
@@ -76,8 +76,8 @@ const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, childr
         transform: 'translateY(0)'
       }}
     >
-      <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-white flex-shrink-0">
-        <h3 className="text-gray-900 font-bold tracking-tight">{title}</h3>
+      <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 flex-shrink-0">
+        <h3 className="text-white font-bold tracking-tight">{title}</h3>
         <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-md text-gray-600"><FiX /></button>
       </div>
       <div className="p-4 overflow-y-auto pb-10 custom-scrollbar pb-32 text-slate-700" style={{ maxHeight: `calc(100vh - 160px)`, height: 'auto', minHeight: '400px' }}>
@@ -143,7 +143,14 @@ const LeftCanvasSidebar = memo(({
     e.target.value = ''; // Reset input
   }, [onCanvasBgImageChange]);
 
-  const sidebarContainerStyle = "pb-10 flex-[0_0_100px] border-r border-slate-800 flex flex-col items-center py-6 gap-2 z-[10] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-full";
+  const sidebarContainerStyle = `
+  relative pb-10 flex-[0_0_100px] flex flex-col items-center py-5 px-2 gap-3 z-[10]
+  rounded-[30px]
+  border border-amber-500/50
+  backdrop-blur-2xl
+  [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
+`;
+
   const childButtonStyle = (isSelected, isHovered) => `
     group relative py-3 px-4 rounded-xl cursor-pointer flex items-center gap-3 text-sm font-medium transition-all duration-200 w-full
     ${isSelected
@@ -314,7 +321,6 @@ const LeftCanvasSidebar = memo(({
       src: 'https://cdn.pixabay.com/photo/2020/08/27/16/26/face-5522356_1280.png',
       name: 'Face'
     }
-
   ];
 
 
@@ -434,7 +440,7 @@ const LeftCanvasSidebar = memo(({
     <div className="flex flex-col items-center w-full">
       <div className={sidebarContainerStyle}>
         <ParentButton
-          sectionKey="background" icon={<FiGrid size={16} />} label="Bg Color"
+          sectionKey="background" icon={<FiGrid size={16} />} label="Background"
           isActive={expandedSection === "background"}
           onMouseEnter={handleButtonMouseEnter}
           onMouseLeave={handleButtonMouseLeave}
@@ -444,6 +450,7 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
+
         <ParentButton
           sectionKey="text" icon={<FiType size={16} />} label="Add Text"
           isActive={expandedSection === "text"}
@@ -488,17 +495,7 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
-        <ParentButton
-          sectionKey="stockImages" icon={<FiLayers size={16} />} label="BG Images"
-          isActive={expandedSection === "stockImages"}
-          onMouseEnter={handleButtonMouseEnter}
-          onMouseLeave={handleButtonMouseLeave}
-          onClick={handleSectionToggleInternal}
-          buttonRef={(el) => buttonRefs.current["stockImages"] = el}
-          tooltipTexts={tooltipTexts}
-          hoveredButtonTooltip={hoveredButtonTooltip}
-          tooltipPosition={tooltipPosition}
-        />
+
         <ParentButton
           sectionKey="templates" icon={<FiStar size={16} />} label="Layout"
           isActive={expandedSection === "templates"}
@@ -510,7 +507,7 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
-        <ParentButton
+        {/* <ParentButton
           sectionKey="emoji" icon={<FiStar size={16} />} label="Emoji"
           isActive={expandedSection === "emoji"}
           onMouseEnter={handleButtonMouseEnter}
@@ -520,7 +517,7 @@ const LeftCanvasSidebar = memo(({
           tooltipTexts={tooltipTexts}
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
-        />
+        /> */}
 
 
         {/* Portals */}
@@ -529,6 +526,14 @@ const LeftCanvasSidebar = memo(({
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("background")}
         >
+
+          <div
+            onClick={() => bgFileInputRef.current?.click()}
+            className="w-full py-4 px-4 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-300 group mb-6 cursor-pointer text-slate-200"
+          >
+            Insert Stock Images
+          </div>
+
           <BackgroundColor onColorChange={onCanvasBgColorChange} />
         </ExpandedSectionPortal>
 
@@ -683,40 +688,7 @@ const LeftCanvasSidebar = memo(({
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("stockImages")}
         >
-          <div
-            onClick={() => bgFileInputRef.current?.click()}
-            className="w-full py-6 px-4 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-300 group mb-6 cursor-pointer text-slate-200"
-          >
-            Upload Stock Images
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {stockImages.map(image => (
-              <div
-                key={image.id}
-                className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-blue-500 transition-all"
-              >
-                <img
-                  src={image.src}
-                  alt={image.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleAddUploadedImage ? handleAddUploadedImage({ src: image.src, name: image.name }) : null; }}
-                    className="w-full py-1.5 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
-                  >
-                    <FiArrowUp size={12} /> Add to Page
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onCanvasBgImageChange ? onCanvasBgImageChange(image.src) : null; }}
-                    className="w-full py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
-                  >
-                    <FiImage size={12} /> Set as BG
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+
         </ExpandedSectionPortal>
 
         <ExpandedSectionPortal
@@ -883,3 +855,4 @@ const LeftCanvasSidebar = memo(({
 });
 
 export default LeftCanvasSidebar;
+

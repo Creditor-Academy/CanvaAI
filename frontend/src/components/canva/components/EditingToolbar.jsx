@@ -148,18 +148,18 @@ const EditingToolbar = ({
     };
 
     // Style Helpers
-    const btnBase = "h-9 flex items-center justify-center gap-2 px-3 text-sm font-medium transition-all rounded-lg";
+    const btnBase = "h-9 flex items-center justify-center gap-2 px-3 text-sm font-medium transition-all ";
     const btnGhost = `${btnBase} text-gray-600 hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed`;
-    const btnOutline = `${btnBase} border border-gray-200 text-gray-700 hover:border-blue-400 hover:text-blue-600 bg-white shadow-sm hover:shadow`;
+    const btnOutline = `${btnBase} text-gray-700 hover:border-blue-400 hover:text-blue-600 bg-white         hover:shadow`;
     const btnPrimary = "h-9 px-5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 shadow-md hover:shadow-lg transition-all";
     const btnActive = `${btnBase} bg-blue-50 text-blue-600 border border-blue-200`;
-    const toolGroup = "flex items-center gap-1 bg-gray-50/90 p-1 rounded-lg border border-gray-200/80 shadow-sm";
+    const toolGroup = "flex items-center gap-1 bg-gray-50/90 p-1";
     const verticalDivider = <div className="w-px h-6 bg-gray-200 mx-2" />;
 
     return (
         <>
-            <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 w-full sticky top-0 z-[100] flex flex-col antialiased shadow-sm">
-                <div className="h-14 px-4 flex items-center justify-between border-b border-gray-100">
+            <div className="bg-white/95 backdrop-blur-sm  w-full sticky top-0 z-[100] flex flex-col antialiased ">
+                <div className="h-14 px-4 flex items-center justify-between border-b border-amber-500">
                     {/* Left section - Project info */}
                     <div className="flex items-center gap-3 min-w-[200px]">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center">
@@ -181,7 +181,6 @@ const EditingToolbar = ({
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-gray-500 font-medium">Auto-saved</span>
                                 {saveSuccess && (
                                     <span className="text-[10px] text-green-600 font-medium flex items-center gap-1 animate-in fade-in">
                                         <FiCheck size={10} /> Saved
@@ -529,15 +528,15 @@ const EditingToolbar = ({
                                     {/* Format Options */}
                                     {[
                                         {
-                                            format: 'png',
+                                            format: 'PNG',
                                             label: 'PNG',
                                         },
                                         {
-                                            format: 'jpg',
+                                            format: 'JPG',
                                             label: 'JPG',
                                         },
                                         {
-                                            format: 'webp',
+                                            format: 'WEBP',
                                             label: 'WEBP',
                                         },
                                     ].map((item, index) => (
@@ -548,16 +547,16 @@ const EditingToolbar = ({
                                                 setPendingFormat(item.format);
                                                 setPendingName((projectName || 'design').toString().replace(/\s+/g, '-'));
                                                 setShowNamePrompt(true);
-                                                setShowExportDropdown(false);
+                                                setShowExportDropdown(false);  
                                             }}
-                                            className="w-full px-4 py-3 text-left hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-150 flex items-center gap-3 group border-b last:border-b-0 border-gray-50"
+                                            className="w-full px-4 py-3 text-left hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-150 flex items-center gap-3 group border-b last:border-b-0 border-gray-50 cursor-pointer hover:shadow-md rounderd-lg"
                                         >
 
 
                                             {/* Content */}
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-semibold text-gray-700">.{item.format}</span>
+                                                    <span className="text-sm font-semibold text-gray-700">{item.format}</span>
                                                 </div>
 
                                             </div>
@@ -572,7 +571,7 @@ const EditingToolbar = ({
                         {/* Save Button */}
                         <div className="relative" ref={saveButtonRef}>
                             <button
-                                className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg"
+                                className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-all shadow-md hover:shadow-lg"
                                 onClick={handleSaveClick}
                                 onMouseEnter={() => setShowSaveTooltip(true)}
                                 onMouseLeave={() => setShowSaveTooltip(false)}
@@ -666,7 +665,4 @@ const EditingToolbar = ({
 };
 
 export default EditingToolbar;
-
-
-
 
