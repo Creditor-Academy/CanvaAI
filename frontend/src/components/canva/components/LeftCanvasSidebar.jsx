@@ -113,10 +113,10 @@ const LeftCanvasSidebar = memo(({
   handleAddSticker,
   handleApplyDesignTemplate,
   onSave,
+  handleSaveClick,
   layers,
   hasUnsavedChanges,
   activeTemplateId
-
 }) => {
   const { user } = useAuth();
   const currentUserId = user?._id || user?.id || '';
@@ -813,13 +813,12 @@ const LeftCanvasSidebar = memo(({
 
             <div className="flex flex-col gap-3">
               <button
-                onClick={async () => {
-                  if (onSave) await onSave();
+                onClick={() => {
                   setShowSaveConfirm(false);
-                  if (pendingTemplate) {
-                    handleTemplateSelect(pendingTemplate);
+
+                  if (handleSaveClick) {
+                    handleSaveClick();
                   }
-                  setPendingTemplate(null);
                 }}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20"
               >
@@ -855,4 +854,5 @@ const LeftCanvasSidebar = memo(({
 });
 
 export default LeftCanvasSidebar;
+
 

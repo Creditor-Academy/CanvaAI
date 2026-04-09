@@ -239,6 +239,12 @@ const CanvaEditor = () => {
     }
   }, [handleCanvasMouseMoveBase, drawingSettings.isDrawing, selectedTool, getCanvasPoint, handleEraserAction, addPointToPath]);
 
+
+  const handleSaveClick = () => {
+    setIsProjectNameModalOpen(true);
+  };
+
+
   // 🔴 Finish drawing on global mouse up
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -1786,7 +1792,7 @@ const CanvaEditor = () => {
             layers={layers}
             hasUnsavedChanges={hasUnsavedChanges}
             activeTemplateId={activeTemplateId}
-
+            handleSaveClick={handleSaveClick}
           />
         </div>
       </div>
@@ -2045,9 +2051,19 @@ const CanvaEditor = () => {
         />
       )}
 
+      <ProjectNameModal
+        open={isProjectNameModalOpen}
+        onClose={() => setIsProjectNameModalOpen(false)}
+        onConfirm={(name) => {
+          confirmSave(name);
+        }}
+        initialName={projectName}
+      />
+
     </div>
   );
 };
 
 export default CanvaEditor;
+
 

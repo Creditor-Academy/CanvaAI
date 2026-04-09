@@ -88,17 +88,6 @@ const ShadowsControl = ({ value, onChange }) => {
         </span>
       </div>
 
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[13px] text-gray-700 font-medium min-w-[80px]">
-          Shadow
-        </span>
-        <input
-          type="color"
-          value={shadowValue.color}
-          onChange={(e) => handleChange('color', e.target.value)}
-          className="w-10 h-7 border border-gray-300 rounded cursor-pointer"
-        />
-      </div>
 
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[13px] text-gray-700 font-medium min-w-[80px]">
@@ -115,6 +104,19 @@ const ShadowsControl = ({ value, onChange }) => {
         <span className="text-xs text-gray-500 min-w-[35px]">
           {shadowValue.opacity}%
         </span>
+      </div>
+
+
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[13px] text-gray-700 font-medium min-w-[80px]">
+          Shadow
+        </span>
+        <input
+          type="color"
+          value={shadowValue.color}
+          onChange={(e) => handleChange('color', e.target.value)}
+          className="w-10 h-7 border border-gray-300 rounded cursor-pointer"
+        />
       </div>
     </div>
   );

@@ -137,7 +137,7 @@ const RightSidebar = ({
   return (
     <div>
       <div
-        className={`fixed right-0 pt-2 top-20 bg-white overflow-y-auto h-[calc(100vh-150px)] z-10 transition-all duration-300 custom-scrollbar rounded-l-[10px] border border-gray-200 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ${isRightSidebarCollapsed
+        className={`fixed  right-0 pt-2 top-20 bg-white overflow-y-auto h-[calc(100vh-150px)] z-10 transition-all duration-300 custom-scrollbar rounded-l-[10px] border border-amber-400 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ${isRightSidebarCollapsed
           ? 'w-[60px] pb-20 px-2'
           : 'w-[320px] pb-20 px-3'
           }`}
@@ -249,77 +249,140 @@ const RightSidebar = ({
                 Backward
               </button>
             </div>
-            <h4 className="mb-4 text-base">Properties</h4>
+            {/* <h4 className="mb-4 text-base">Properties</h4> */}
 
-            <div className="mb-4 pb-3 border-b border-gray-200">
-              <h5 className="mb-2 text-[13px] text-gray-700">Effects</h5>
-              <BrightnessControl value={selectedLayerData?.brightness ?? 100} onChange={(v) => handleEffectChange('brightness', v)} />
-              <ContrastControl value={selectedLayerData?.contrast ?? 100} onChange={(v) => handleEffectChange('contrast', v)} />
-              <BlurControl value={selectedLayerData?.blur ?? 0} onChange={(v) => handleEffectChange('blur', v)} />
-              <OpacityControl value={selectedLayerData?.opacity ?? 100} onChange={(v) => handleEffectChange('opacity', v)} />
-              <ShadowsControl value={selectedLayerData?.shadows} onChange={(v) => handleEffectChange('shadows', v)} />
-            </div>
+            <div className="space-y-4">
+              {/* Effects Section */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="text-sm font-semibold text-gray-800">Effects</h5>
+                  <span className="text-xs text-gray-400">Adjust image appearance</span>
+                </div>
 
-
-            {selectedLayerData?.type === 'shape' && (
-              <>
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">Image Fill</span>
-                    <button
-                      className="px-3 py-1 text-xs border border-gray-300 rounded"
-                      onClick={() => shapeImgInputRef.current?.click()}
-                    >
-                      Upload
-                    </button>
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <BrightnessControl
+                      value={selectedLayerData?.brightness ?? 100}
+                      onChange={(v) => handleEffectChange('brightness', v)}
+                    />
                   </div>
 
-                  <input
-                    type="file"
-                    ref={shapeImgInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleShapeImageUpload}
-                  />
-                </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <ContrastControl
+                      value={selectedLayerData?.contrast ?? 100}
+                      onChange={(v) => handleEffectChange('contrast', v)}
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">Fill Color</span>
-                  <input
-                    type="color"
-                    value={shapeSettings.fillColor || '#000000'}
-                    onChange={(e) => handleFillColorChange(e.target.value)}
-                    className="w-10 h-8 rounded cursor-pointer"
-                  />
-                </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <BlurControl
+                      value={selectedLayerData?.blur ?? 0}
+                      onChange={(v) => handleEffectChange('blur', v)}
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">Stroke Color</span>
-                  <input
-                    type="color"
-                    value={shapeSettings.strokeColor || '#000000'}
-                    onChange={(e) => handleStrokeColorChange(e.target.value)}
-                    className="w-10 h-8 rounded cursor-pointer"
-                  />
-                </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <OpacityControl
+                      value={selectedLayerData?.opacity ?? 100}
+                      onChange={(v) => handleEffectChange('opacity', v)}
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">Stroke Width</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={shapeSettings.strokeWidth ?? 0}
-                    onChange={(e) =>
-                      handleShapeSettingsChange(
-                        'strokeWidth',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="py-1 px-2 border border-gray-300 rounded text-sm w-20"
-                  />
+                  <div className="bg-gray-50 rounded-xl">
+                    <ShadowsControl
+                      value={selectedLayerData?.shadows}
+                      onChange={(v) => handleEffectChange('shadows', v)}
+                    />
+                  </div>
                 </div>
-              </>
-            )}
+              </div>
+
+              {/* Shape Settings */}
+              {selectedLayerData?.type === 'shape' && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-5">
+                    <h5 className="text-sm font-semibold text-gray-800">
+                      Shape Settings
+                    </h5>
+                    <span className="text-xs text-gray-400">Customize fill & stroke</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Image Fill Upload */}
+                    <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fill Image
+                      </label>
+
+                      <button
+                        className="w-full py-2.5 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                        onClick={() => shapeImgInputRef.current?.click()}
+                      >
+                        Upload Image
+                      </button>
+
+                      <input
+                        type="file"
+                        ref={shapeImgInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleShapeImageUpload}
+                      />
+                    </div>
+
+                    {/* Fill Color */}
+                    <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Fill Color</p>
+                        <p className="text-xs text-gray-400">Choose shape background</p>
+                      </div>
+
+                      <input
+                        type="color"
+                        value={shapeSettings.fillColor || '#000000'}
+                        onChange={(e) => handleFillColorChange(e.target.value)}
+                        className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer bg-white"
+                      />
+                    </div>
+
+                    {/* Stroke Color */}
+                    <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Stroke Color</p>
+                        <p className="text-xs text-gray-400">Outline color of shape</p>
+                      </div>
+
+                      <input
+                        type="color"
+                        value={shapeSettings.strokeColor || '#000000'}
+                        onChange={(e) => handleStrokeColorChange(e.target.value)}
+                        className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer bg-white"
+                      />
+                    </div>
+
+                    {/* Stroke Width */}
+                    <div className="bg-gray-50 rounded-xl px-4 py-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Stroke Width
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        value={shapeSettings.strokeWidth ?? 0}
+                        onChange={(e) =>
+                          handleShapeSettingsChange(
+                            'strokeWidth',
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full py-2.5 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

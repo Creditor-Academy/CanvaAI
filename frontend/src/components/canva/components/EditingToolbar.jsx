@@ -547,7 +547,7 @@ const EditingToolbar = ({
                                                 setPendingFormat(item.format);
                                                 setPendingName((projectName || 'design').toString().replace(/\s+/g, '-'));
                                                 setShowNamePrompt(true);
-                                                setShowExportDropdown(false);  
+                                                setShowExportDropdown(false);
                                             }}
                                             className="w-full px-4 py-3 text-left hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-150 flex items-center gap-3 group border-b last:border-b-0 border-gray-50 cursor-pointer hover:shadow-md rounderd-lg"
                                         >
