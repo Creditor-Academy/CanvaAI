@@ -288,7 +288,7 @@ const RightSidebar = ({
                     />
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl">
+                  <div className="rounded-xl">
                     <ShadowsControl
                       value={selectedLayerData?.shadows}
                       onChange={(v) => handleEffectChange('shadows', v)}
