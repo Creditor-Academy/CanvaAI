@@ -288,12 +288,15 @@ const RightSidebar = ({
                     />
                   </div>
 
-                  <div className="rounded-xl">
-                    <ShadowsControl
-                      value={selectedLayerData?.shadows}
-                      onChange={(v) => handleEffectChange('shadows', v)}
-                    />
-                  </div>
+                  {selectedLayerData?.type !== 'image' && selectedLayerData?.type !== 'shape' && (
+                    <div className="rounded-xl">
+                      <ShadowsControl
+                        value={selectedLayerData?.shadows}
+                        onChange={(v) => handleEffectChange('shadows', v)}
+                      />
+                    </div>
+                  )}
+
                 </div>
               </div>
 
@@ -331,33 +334,49 @@ const RightSidebar = ({
                     </div>
 
                     {/* Fill Color */}
-                    <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Fill Color</p>
-                        <p className="text-xs text-gray-400">Choose shape background</p>
-                      </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-700">Fill Color</span>
 
-                      <input
-                        type="color"
-                        value={shapeSettings.fillColor || '#000000'}
-                        onChange={(e) => handleFillColorChange(e.target.value)}
-                        className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer bg-white"
-                      />
+                      <div className="relative">
+                        <div
+                          onClick={() => strokeColorInputRef.current?.click()}
+                          className="w-7 h-7 rounded-full border border-gray-300 cursor-pointer"
+                          style={{
+                            boxShadow: `inset 0 0 0 12px ${shapeSettings.fillColor || '#000000'}`
+                          }}
+                        />
+
+                        <input
+                          ref={strokeColorInputRef}
+                          type="color"
+                          value={shapeSettings.fillColor || '#000000'}
+                          onChange={(e) => handleFillColorChange(e.target.value)}
+                          className="absolute top-0 -left-50 opacity-0 cursor-pointer w-7 h-7"
+                        />
+                      </div>
                     </div>
 
                     {/* Stroke Color */}
-                    <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Stroke Color</p>
-                        <p className="text-xs text-gray-400">Outline color of shape</p>
-                      </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-700">Stroke Color</span>
 
-                      <input
-                        type="color"
-                        value={shapeSettings.strokeColor || '#000000'}
-                        onChange={(e) => handleStrokeColorChange(e.target.value)}
-                        className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer bg-white"
-                      />
+                      <div className="relative">
+                        <div
+                          onClick={() => textColorInputRef.current?.click()}
+                          className="w-7 h-7 rounded-full border border-gray-300 cursor-pointer"
+                          style={{
+                            boxShadow: `inset 0 0 0 12px ${shapeSettings.strokeColor || '#000000'}`
+                          }}
+                        />
+
+                        <input
+                          ref={textColorInputRef}
+                          type="color"
+                          value={shapeSettings.strokeColor || '#000000'}
+                          onChange={(e) => handleStrokeColorChange(e.target.value)}
+                          className="absolute top-0 -left-50 opacity-0 cursor-pointer w-7 h-7"
+                        />
+                      </div>
                     </div>
 
                     {/* Stroke Width */}
