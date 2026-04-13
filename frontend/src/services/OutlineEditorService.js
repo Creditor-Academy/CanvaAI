@@ -4,6 +4,9 @@ const API_BASE_URL = `${BASE_URL}/api/pp`;
 
 // const API_BASE_URL = '/api/pp';
 
+import { buildLayoutFromAIResponse } from './ai/aiLayoutService';
+import { autoAlignAISlides } from '../components/presentation3/layout/aiAutoAlign';
+
 // Helper to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -179,13 +182,42 @@ export const finalizePresentation = async (outlineData) => {
   // Backend returns: { success: true, presentationId, data: { meta, slides, ... } }
   // Frontend expects: { success: true, presentationId, meta, slides }
   if (responseData.success && responseData.data) {
-    return {
+    let finalPayload = {
       success: true,
       presentationId: responseData.presentationId,
       meta: responseData.data.meta,
       // title: responseData.data.title || responseData.data.meta?.topic || '',
       slides: responseData.data.data.slides
     };
+
+    try {
+      // 1. Convert raw AI structure to base coordinates
+      let { slides } = buildLayoutFromAIResponse(finalPayload);
+      
+      // 2. Hydrate metadata flags for the transformer
+      slides = slides.map(slide => ({
+          ...slide,
+          meta: { ...(slide.meta || {}), isAIGenerated: true }
+      }));
+      
+      // 3. Auto Aligned layout recomposition
+      try {
+          slides = slides.map((slide, index) => {
+              if (slide.meta?.isAIGenerated) {
+                  return autoAlignAISlides([slide], { slideIndex: index })[0];
+              }
+              return slide;
+          });
+      } catch (alignErr) {
+          console.error("AutoAlign step failed:", alignErr);
+      }
+
+      finalPayload.slides = slides;
+    } catch (err) {
+        console.error("Layout normalization pipeline completely failed:", err);
+    }
+
+    return finalPayload;
   }
 
   return responseData;

@@ -158,7 +158,7 @@ export const useAutoSave = () => {
 
   // Debounced Autosave (5 seconds)
   useEffect(() => {
-    if (!hasUnsavedChanges || !presentationId) return;
+    if (!hasUnsavedChanges) return;
 
     const timerId = setTimeout(() => {
       performSave(false);
@@ -169,7 +169,7 @@ export const useAutoSave = () => {
 
   // Force Save (20 seconds)
   useEffect(() => {
-    if (!hasUnsavedChanges || !presentationId) return;
+    if (!hasUnsavedChanges) return;
 
     const intervalId = setInterval(() => {
       if (stateRef.current.hasUnsavedChanges) {
