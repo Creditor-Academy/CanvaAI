@@ -149,8 +149,8 @@ const TopNavbar = () => {
         <div className="hidden md:block relative" ref={profileRef}>
           <div
             onClick={() => setopenProfile(!openProfile)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold cursor-pointer overflow-hidden select-none"
-            style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold cursor-pointer overflow-hidden select-none"
+            style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d9ad8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}
           >
             {profile?.avatar ? (
               <img
