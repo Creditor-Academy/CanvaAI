@@ -50,11 +50,11 @@ import LandingPage from "./pages/LandingPage";
 import EditorTabPage from './pages/EditorTabPage';
 import ForgetPassword from "./pages/ForgetPassword";
 import PresentationWorkspace from "./components/presentation3/PresentationWorkspace";
-import PresentationTemplates from "./pages/PresentationTemplates";
 import DocumentTemplates from "./pages/documentTemplates";
-import ImageTemplates from "./pages/imageTemplates";
 import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 import Pricing from "./components/analatics/Pricing";
+import ImageTemplates from "./pages/imageTemplates";
+import PresentationTemplates from "./pages/presentationTemplates";
 
 const AppContent = () => {
   const location = useLocation();
@@ -136,7 +136,7 @@ const AppContent = () => {
           <Route path="/presentation" element={<Presentation />} />
           <Route path="/PresentationTemplates" element={<PresentationTemplates />} />
           <Route path="/documentTemplates" element={<DocumentTemplates />} />
-          <Route path="/imageTemplates" element={<ImageTemplates />} />
+          <Route path="/imageTemplates" element={<ImageTemplates/>} />
           <Route path="/pricing" element={<Pricing />} />
         </Routes>
 

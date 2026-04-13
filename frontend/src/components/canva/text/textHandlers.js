@@ -1,5 +1,6 @@
 import { calculateTextDimensions, isHeadingLayer } from '../../../utils/textUtils';
 import { enhanceText } from '../TextEnhanceService';
+import { toast } from 'sonner';
 
 /**
  * Text content change handler
@@ -83,7 +84,29 @@ export const createEnhanceTextHandler = (
       handleTextContentChange(data.enhancedText, true);
     } catch (error) {
       console.error('Error enhancing text:', error);
-      alert('Error enhancing text: ' + error.message);
+      // Try to extract an API error message from different possible error shapes
+      let apiMessage = null;
+      try {
+        if (error && typeof error.json === 'function') {
+          const parsed = await error.json();
+          apiMessage = parsed?.error || parsed?.message || (typeof parsed === 'string' ? parsed : JSON.stringify(parsed));
+        } else if (error?.response) {
+          const resp = error.response;
+          if (resp.data) apiMessage = resp.data.error || resp.data.message || JSON.stringify(resp.data);
+          else if (typeof resp.json === 'function') {
+            const parsed = await resp.json();
+            apiMessage = parsed?.error || parsed?.message || JSON.stringify(parsed);
+          }
+        } else if (error?.message) {
+          apiMessage = error.message;
+        }
+      } catch (parseErr) {
+        console.error('Failed to parse error response', parseErr);
+      }
+
+      const toastMsg = apiMessage ? `Error enhancing text: ${apiMessage}` : 'Error enhancing text: ' + (error?.message || 'Unknown error');
+      toast.error(toastMsg);
+
     } finally {
       setIsEnhancingText(false);
     }

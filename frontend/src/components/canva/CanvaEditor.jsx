@@ -239,6 +239,12 @@ const CanvaEditor = () => {
     }
   }, [handleCanvasMouseMoveBase, drawingSettings.isDrawing, selectedTool, getCanvasPoint, handleEraserAction, addPointToPath]);
 
+
+  const handleSaveClick = () => {
+    setIsProjectNameModalOpen(true);
+  };
+
+
   // 🔴 Finish drawing on global mouse up
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -1755,9 +1761,8 @@ const CanvaEditor = () => {
   return (
     <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden touch-none">
 
-
       {/* Left Sidebar - Hidden on mobile, visible on desktop */}
-      <div className="fixed left-0 top-20 bottom-0 z-[10]">
+      <div className="fixed left-2 top-20 bottom-0 z-[10]">
         <div className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <LeftCanvasSidebar
             toggleSection={toggleSection}
@@ -1787,7 +1792,7 @@ const CanvaEditor = () => {
             layers={layers}
             hasUnsavedChanges={hasUnsavedChanges}
             activeTemplateId={activeTemplateId}
-
+            handleSaveClick={handleSaveClick}
           />
         </div>
       </div>
@@ -2046,9 +2051,19 @@ const CanvaEditor = () => {
         />
       )}
 
+      <ProjectNameModal
+        open={isProjectNameModalOpen}
+        onClose={() => setIsProjectNameModalOpen(false)}
+        onConfirm={(name) => {
+          confirmSave(name);
+        }}
+        initialName={projectName}
+      />
+
     </div>
   );
 };
 
 export default CanvaEditor;
+
 

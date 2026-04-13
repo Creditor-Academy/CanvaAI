@@ -156,9 +156,30 @@ export const useCanvasInteractions = (
     /* ----- RESIZE ----- */
     if (isResizing && resizeStart.layerId) {
       const { x, y } = getCanvasPoint(e.clientX, e.clientY);
-      const dx = x - resizeStart.startX;
-      const dy = y - resizeStart.startY;
+
+      let dx = x - resizeStart.startX;
+      let dy = y - resizeStart.startY;
+
       const MIN = 20;
+
+      // 🔒 Detect corner handles
+      const isCorner = [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
+      ].includes(resizeStart.direction);
+
+      // 🔒 Lock diagonal movement (force both x & y together)
+      if (isCorner) {
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        const dominant = Math.max(absX, absY);
+
+        dx = dx < 0 ? -dominant : dominant;
+        dy = dy < 0 ? -dominant : dominant;
+      }
 
       setLayers(prev =>
         prev.map(layer => {
@@ -173,43 +194,59 @@ export const useCanvasInteractions = (
               width -= dx;
               height -= dy;
               break;
+
             case 'top-center':
               ly += dy;
               height -= dy;
               break;
+
             case 'top-right':
               ly += dy;
               width += dx;
               height -= dy;
               break;
+
             case 'right-center':
               width += dx;
               break;
+
             case 'bottom-right':
               width += dx;
               height += dy;
               break;
+
             case 'bottom-center':
               height += dy;
               break;
+
             case 'bottom-left':
               lx += dx;
               width -= dx;
               height += dy;
               break;
+
             case 'left-center':
               lx += dx;
               width -= dx;
               break;
+
             default:
               break;
           }
 
+          // 🚫 Prevent too small size
           if (width < MIN || height < MIN) return layer;
 
-          return { ...layer, x: lx, y: ly, width, height };
+          return {
+            ...layer,
+            x: lx,
+            y: ly,
+            width,
+            height
+          };
         })
       );
+
       return;
     }
 

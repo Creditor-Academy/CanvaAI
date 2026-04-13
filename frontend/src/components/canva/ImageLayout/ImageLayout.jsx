@@ -155,6 +155,8 @@ const ImageLayout = () => {
     const [templates, setTemplates] = useState([])
     const [templatesLoading, setTemplatesLoading] = useState(true)
     const [selectedImage, setSelectedImage] = useState(null)
+    const [showDeletePopup, setShowDeletePopup] = useState(false)
+    const [selectedDeleteId, setSelectedDeleteId] = useState(null)
 
     // ── CSS injection (identical to Presentation.jsx) ──────────────────────
     useEffect(() => {
@@ -376,15 +378,24 @@ const ImageLayout = () => {
         }
     }
 
-    const handleDeleteImage = async (imageId) => {
-        if (!window.confirm('Are you sure you want to delete this design?')) return
+    const handleDeleteClick = (imageId) => {
+        setSelectedDeleteId(imageId)
+        setShowDeletePopup(true)
+    }
+
+    const confirmDeleteImage = async () => {
+        if (!selectedDeleteId) return
+
         try {
-            await deleteImage(imageId)
-            setImages(prev => prev.filter(img => img._id !== imageId))
+            await deleteImage(selectedDeleteId)
+            setImages(prev => prev.filter(img => img._id !== selectedDeleteId))
             toast.success('Design deleted successfully')
         } catch (err) {
             console.error('Delete error', err)
             toast.error('Failed to delete design')
+        } finally {
+            setShowDeletePopup(false)
+            setSelectedDeleteId(null)
         }
     }
 
@@ -427,236 +438,302 @@ const ImageLayout = () => {
     // ── Render ─────────────────────────────────────────────────────────────
     return (
         <>
-            <div style={{ background: '#e9f4ff', minHeight: '100vh' }}>
-                {/* Wave background */}
+            <div className="min-h-screen bg-[#e9f4ff]">
                 <div className="wave-bg">
                     <div className="wave" />
                     <div className="wave" />
                     <div className="wave" />
                 </div>
 
-                <div style={styles.container}>
-                    <div style={styles.content}>
+                <div className="relative z-[1] min-h-screen origin-top scale-[0.9] px-5 pb-10 pt-[120px]">
+                    <div className="mx-auto flex max-w-[1200px] flex-col gap-10">
 
-                        {/* ── Header ─────────────────────────────────────── */}
-                        <div style={styles.header}>
+                        {/* Header */}
+                        <div className="mb-[10px] flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <h1 style={styles.title}>Create Stunning Images</h1>
-                                <p style={styles.subtitle}>Design professional visuals in seconds with AI or start from scratch</p>
+                                <h1 className="m-0 font-serif text-[clamp(40px,8vw,64px)] font-normal leading-[1.1] tracking-[-0.02em] text-slate-900">
+                                    Create Stunning Images
+                                </h1>
+                                <p className="mt-2 text-[1.1rem] font-normal text-slate-500">
+                                    Design professional visuals in seconds with AI or start from scratch
+                                </p>
                             </div>
                         </div>
 
-                        {/* ── Action buttons ─────────────────────────────── */}
-                        <div style={styles.actionGrid}>
-                            <div className="ai-btn-wrapper" onClick={() => window.open('/create/ai-design', '_blank')}>
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                            <div
+                                className="ai-btn-wrapper"
+                                onClick={() => window.open('/create/ai-design', '_blank')}
+                            >
                                 <div className="ai-btn-inner">
-                                    <div style={styles.iconContainer}>
+                                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20">
                                         <Sparkles size={32} color="#fff" />
                                     </div>
+
                                     <div>
-                                        <h2 style={{ ...styles.actionTitle, color: '#fff' }}>Create with AI</h2>
-                                        <p style={{ ...styles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
+                                        <h2 className="m-0 text-2xl font-bold text-white">
+                                            Create with AI
+                                        </h2>
+                                        <p className="mt-1 text-base text-white/80">
                                             Let AI generate a complete design from your topic.
                                         </p>
                                     </div>
-                                    <div style={styles.zapIcon}>
+
+                                    <div className="absolute bottom-[-10px] right-[-10px] opacity-50">
                                         <FiZap size={24} color="rgba(255,255,255,0.2)" />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="fresh-btn-wrapper" onClick={() => window.open('/canva-clone', '_blank')}>
+                            <div
+                                className="fresh-btn-wrapper"
+                                onClick={() => window.open('/canva-clone', '_blank')}
+                            >
                                 <div className="fresh-btn-inner">
-                                    <div style={{ ...styles.iconContainer, background: 'linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)', boxShadow: '0 10px 20px rgba(59,130,246,0.35)' }}>
+                                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-800 via-blue-500 to-sky-500 shadow-[0_10px_20px_rgba(59,130,246,0.35)]">
                                         <FiPlus size={28} color="#ffffff" />
                                     </div>
+
                                     <div>
-                                        <h2 style={styles.actionTitle}>Create Fresh</h2>
-                                        <p style={styles.actionDesc}>Open our advanced editor and start your story from scratch.</p>
+                                        <h2 className="m-0 text-2xl font-bold text-slate-900">
+                                            Create Fresh
+                                        </h2>
+                                        <p className="mt-1 text-base text-slate-500">
+                                            Open our advanced editor and start your story from scratch.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* ── Recent Images ──────────────────────────────── */}
+                        {/* Recent Images */}
                         <div className="glow-card">
-                            <div style={{ ...styles.sectionHeader, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <h2 style={styles.sectionTitle}>Recent Images</h2>
+                            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="m-0 font-serif text-[1.6rem] font-normal tracking-[-0.01em] text-slate-900">
+                                        Recent Images
+                                    </h2>
+
                                     {!loading && (
-                                        <span style={styles.countBadge}>{filteredImages.length} {filteredImages.length === 1 ? 'image' : 'images'}</span>
+                                        <span className="whitespace-nowrap rounded-full bg-indigo-100 px-3 py-1 text-[0.8rem] font-semibold text-indigo-500">
+                                            {filteredImages.length} {filteredImages.length === 1 ? 'image' : 'images'}
+                                        </span>
                                     )}
                                 </div>
+
                                 <input
                                     type="text"
                                     placeholder="Search images..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={styles.searchInput}
+                                    className="w-[220px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[0.9rem] text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                                 />
                             </div>
 
-                            {error && <div style={{ color: '#ef4444', marginBottom: '16px', fontFamily: 'system-ui, sans-serif' }}>{error}</div>}
+                            {error && (
+                                <div className="mb-4 text-red-500">
+                                    {error}
+                                </div>
+                            )}
 
-                            <div style={styles.scrollContainer}>
-                                {loading ? (
-                                    <div style={styles.grid}>
-                                        {[1, 2, 3, 4].map(i => (
-                                            <div key={i} style={styles.card}>
-                                                <div style={{ ...styles.cardPreview, background: 'linear-gradient(90deg,#f0f0f0 25%,#e4e4e4 37%,#f0f0f0 63%)', backgroundSize: '400% 100%', animation: 'shimmer 1.4s ease infinite' }} />
-                                                <div style={styles.cardInfo}>
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ height: 16, background: '#f0f0f0', borderRadius: 8, marginBottom: 8, animation: 'shimmer 1.4s ease infinite', backgroundSize: '400% 100%' }} />
-                                                        <div style={{ height: 12, background: '#f0f0f0', borderRadius: 8, width: '60%', animation: 'shimmer 1.4s ease infinite', backgroundSize: '400% 100%' }} />
+                            <div className="max-h-[480px] overflow-y-auto pr-2.5">
+                                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+                                    {filteredImages.map((image) => {
+                                        const canvasSize = image.data?.canvasSize || { width: 800, height: 600 }
+
+                                        return (
+                                            <div
+                                                key={image._id}
+                                                onClick={() => window.open(`/canva-clone/${image._id}`, '_blank')}
+                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500"
+                                            >
+                                                <div className="relative flex h-[140px] items-center justify-center overflow-hidden bg-slate-100">
+                                                    <div
+                                                        className="absolute inset-0"
+                                                        ref={el => {
+                                                            if (!el) return
+                                                            const rect = el.getBoundingClientRect()
+                                                            const scale = Math.min(
+                                                                rect.width / (canvasSize.width || 800),
+                                                                rect.height / (canvasSize.height || 600)
+                                                            )
+                                                            el.style.setProperty('--thumb-scale', String(scale))
+                                                        }}
+                                                    >
+                                                        <ImageThumbPreview image={image} />
                                                     </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-2 p-4">
+                                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                                        <h3 className="truncate text-base font-semibold text-slate-900">
+                                                            {image.title || 'Untitled'}
+                                                        </h3>
+                                                        <p className="mt-0.5 text-sm text-slate-500">
+                                                            {new Date(image.createdAt).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleDeleteClick(image._id)
+                                                        }}
+                                                        className="shrink-0 rounded-lg p-2 text-red-500 transition hover:bg-red-100"
+                                                        title="Delete Design"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : filteredImages.length === 0 ? (
-                                    <div style={styles.emptyCard}>
-                                        <p style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>
-                                            {searchTerm ? 'No images match your search.' : 'No images yet. Start creating!'}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div style={styles.grid} className="fade-in">
-                                        {filteredImages.map(image => {
-                                            const canvasSize = image.data?.canvasSize || { width: 800, height: 600 }
-                                            return (
-                                                <div
-                                                    key={image._id}
-                                                    onClick={() => window.open(`/canva-clone/${image._id}`, '_blank')}
-                                                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = '#6366f1' }}
-                                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e2e8f0' }}
-                                                    style={styles.card}
-                                                >
-                                                    <div style={{ ...styles.cardPreview, position: 'relative', overflow: 'hidden' }}>
-                                                        <div
-                                                            style={{ position: 'absolute', inset: 0 }}
-                                                            ref={el => {
-                                                                if (!el) return
-                                                                const rect = el.getBoundingClientRect()
-                                                                const scale = Math.min(rect.width / (canvasSize.width || 800), rect.height / (canvasSize.height || 600))
-                                                                el.style.setProperty('--thumb-scale', String(scale))
-                                                            }}
-                                                        >
-                                                            <ImageThumbPreview image={image} />
-                                                        </div>
-                                                    </div>
-                                                    <div style={styles.cardInfo}>
-                                                        <div style={styles.cardText}>
-                                                            <h3 style={styles.cardTitle}>{image.title || 'Untitled'}</h3>
-                                                            <p style={styles.cardDate}>{new Date(image.createdAt).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <button
-                                                            onClick={e => { e.stopPropagation(); handleDeleteImage(image._id) }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                                            style={styles.deleteBtn}
-                                                            title="Delete Design"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
+                                        )
+                                    })}
+                                </div>
                             </div>
 
                             {hasMore && !searchTerm && !loading && (
-                                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+                                <div className="mt-6 flex justify-center">
                                     <button
                                         onClick={loadMore}
                                         disabled={loadingMore}
-                                        style={{ padding: '10px 32px', background: loadingMore ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', cursor: loadingMore ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}
+                                        className={`flex items-center gap-2 rounded-xl px-8 py-2.5 text-[0.95rem] font-bold text-white shadow-[0_4px_14px_rgba(37,99,235,0.3)] transition ${loadingMore
+                                            ? 'cursor-not-allowed bg-blue-300'
+                                            : 'bg-blue-600 hover:bg-blue-700'
+                                            }`}
                                     >
                                         {loadingMore ? (
                                             <>
-                                                <div style={{ width: 16, height: 16, border: '2px solid #fff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                                 Loading...
                                             </>
-                                        ) : 'Load More'}
+                                        ) : (
+                                            'Load More'
+                                        )}
                                     </button>
                                 </div>
                             )}
                         </div>
 
-                        {/* ── Template Management ────────────────────────── */}
+                        {/* Template Management */}
                         <div className="glow-card">
-                            <div style={styles.sectionHeader}>
+                            <div className="mb-5 flex items-center gap-2.5 text-slate-900">
                                 <FiLayout size={20} color="#0f172a" />
-                                <h2 style={styles.sectionTitle}>Template Management</h2>
+                                <h2 className="m-0 font-serif text-[1.6rem] font-normal tracking-[-0.01em] text-slate-900">
+                                    Template Management
+                                </h2>
                             </div>
 
-                            <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
-                                {templatesLoading ? (
-                                    <div style={styles.grid}>
-                                        {[1, 2, 3, 4].map(i => (
-                                            <div key={i} style={styles.templateCard}>
-                                                <div style={{ ...styles.templatePreview, background: 'linear-gradient(90deg,#f0f0f0 25%,#e4e4e4 37%,#f0f0f0 63%)', backgroundSize: '400% 100%', animation: 'shimmer 1.4s ease infinite' }} />
-                                                <div style={styles.cardInfo}>
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ height: 16, background: '#f0f0f0', borderRadius: 8, animation: 'shimmer 1.4s ease infinite', backgroundSize: '400% 100%' }} />
+                            <div className="mt-5 max-h-[480px] overflow-y-auto pr-2.5">
+                                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+                                    {templates.map((tpl) => {
+                                        const canvasSize = tpl.data?.canvasSize || { width: 800, height: 600 }
+
+                                        return (
+                                            <div
+                                                key={tpl._id}
+                                                onClick={() => setSelectedImage(tpl)}
+                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500"
+                                            >
+                                                <div className="relative flex h-[140px] items-center justify-center overflow-hidden bg-indigo-50">
+                                                    <div
+                                                        className="absolute inset-0"
+                                                        ref={el => {
+                                                            if (!el) return
+                                                            const rect = el.getBoundingClientRect()
+                                                            const scale = Math.min(
+                                                                rect.width / (canvasSize.width || 800),
+                                                                rect.height / (canvasSize.height || 600)
+                                                            )
+                                                            el.style.setProperty('--thumb-scale', String(scale))
+                                                        }}
+                                                    >
+                                                        <ImageThumbPreview image={tpl} />
                                                     </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-2 p-4">
+                                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                                        <h3 className="truncate text-base font-semibold text-slate-900">
+                                                            {tpl.title || 'Untitled Template'}
+                                                        </h3>
+                                                        <p className="mt-0.5 text-sm text-slate-500">
+                                                            {new Date(tpl.createdAt).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setSelectedImage(tpl)
+                                                        }}
+                                                        className="view-btn"
+                                                    >
+                                                        View
+                                                    </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : templates.length === 0 ? (
-                                    <div style={styles.emptyCard}>
-                                        <p style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>No templates yet.</p>
-                                    </div>
-                                ) : (
-                                    <div style={styles.grid} className="fade-in">
-                                        {templates.map(tpl => {
-                                            const canvasSize = tpl.data?.canvasSize || { width: 800, height: 600 }
-                                            return (
-                                                <div
-                                                    key={tpl._id}
-                                                    onClick={() => setSelectedImage(tpl)}
-                                                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = '#6366f1' }}
-                                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e2e8f0' }}
-                                                    style={styles.templateCard}
-                                                >
-                                                    <div style={{ ...styles.templatePreview, position: 'relative', overflow: 'hidden' }}>
-                                                        <div
-                                                            style={{ position: 'absolute', inset: 0 }}
-                                                            ref={el => {
-                                                                if (!el) return
-                                                                const rect = el.getBoundingClientRect()
-                                                                const scale = Math.min(rect.width / (canvasSize.width || 800), rect.height / (canvasSize.height || 600))
-                                                                el.style.setProperty('--thumb-scale', String(scale))
-                                                            }}
-                                                        >
-                                                            <ImageThumbPreview image={tpl} />
-                                                        </div>
-                                                    </div>
-                                                    <div style={styles.cardInfo}>
-                                                        <div style={styles.cardText}>
-                                                            <h3 style={styles.cardTitle}>{tpl.title || 'Untitled Template'}</h3>
-                                                            <p style={styles.cardDate}>{new Date(tpl.createdAt).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <button
-                                                            onClick={e => { e.stopPropagation(); setSelectedImage(tpl) }}
-                                                            className="view-btn"
-                                                        >
-                                                            View
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
+                                        )
+                                    })}
+                                </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
+
+            {showDeletePopup && (
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/55 backdrop-blur-sm"
+                    onClick={() => {
+                        setShowDeletePopup(false)
+                        setSelectedDeleteId(null)
+                    }}
+                >
+                    <div
+                        className="w-[90%] max-w-[420px] rounded-3xl bg-white p-7 shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="mb-[18px] flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                                <Trash2 size={22} className="text-red-600" />
+                            </div>
+
+                            <div>
+                                <h3 className="m-0 text-[1.2rem] font-bold text-slate-900">
+                                    Delete Design
+                                </h3>
+                                <p className="mt-1 text-[0.92rem] text-slate-500">
+                                    This action cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+
+                        <p className="mb-6 text-[0.95rem] leading-relaxed text-slate-600">
+                            Are you sure you want to delete this design permanently?
+                        </p>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowDeletePopup(false)
+                                    setSelectedDeleteId(null)
+                                }}
+                                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-[18px] py-[10px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={confirmDeleteImage}
+                                className="cursor-pointer rounded-xl bg-gradient-to-br from-red-500 to-red-600 px-[18px] py-[10px] font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <ImagePopup
                 image={selectedImage}
@@ -668,214 +745,5 @@ const ImageLayout = () => {
     )
 }
 
-// ─── Styles (mirrors Presentation.jsx) ──────────────────────────────────────
-
-const styles = {
-    container: {
-        minHeight: '100vh',
-        background: 'transparent',
-        padding: '120px 20px 40px',
-        position: 'relative',
-        zIndex: 1,
-        transform: 'scale(0.9)',
-        transformOrigin: 'top center',
-    },
-    content: {
-        maxWidth: '1200px',
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '40px',
-    },
-    header: {
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '10px',
-    },
-    title: {
-        fontFamily: 'Georgia, "Times New Roman", serif',
-        fontSize: 'clamp(40px, 8vw, 64px)',
-        fontWeight: 400,
-        letterSpacing: '-0.02em',
-        lineHeight: 1.1,
-        color: '#0f172a',
-        margin: 0,
-    },
-    subtitle: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '1.1rem',
-        color: '#64748b',
-        marginTop: '8px',
-        fontWeight: 400,
-    },
-    searchInput: {
-        padding: '10px 16px',
-        border: '1px solid #e2e8f0',
-        borderRadius: '12px',
-        background: '#fff',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '0.9rem',
-        color: '#0f172a',
-        outline: 'none',
-        width: '220px',
-    },
-    actionGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-        gap: '24px',
-    },
-    iconContainer: {
-        width: '64px',
-        height: '64px',
-        borderRadius: '16px',
-        background: 'rgba(255,255,255,0.2)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    actionTitle: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '1.5rem',
-        fontWeight: 700,
-        margin: 0,
-    },
-    actionDesc: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '1rem',
-        margin: '4px 0 0',
-    },
-    zapIcon: {
-        position: 'absolute',
-        right: '-10px',
-        bottom: '-10px',
-        opacity: 0.5,
-    },
-    sectionHeader: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        color: '#0f172a',
-        marginBottom: '20px',
-    },
-    sectionTitle: {
-        fontFamily: 'Georgia, "Times New Roman", serif',
-        fontSize: '1.6rem',
-        fontWeight: 400,
-        margin: 0,
-        color: '#0f172a',
-        letterSpacing: '-0.01em',
-    },
-    scrollContainer: {
-        maxHeight: '480px',
-        overflowY: 'auto',
-        paddingRight: '10px',
-    },
-    grid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-        gap: '20px',
-    },
-    card: {
-        background: '#fff',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        transition: 'transform 0.2s, border-color 0.2s',
-    },
-    cardPreview: {
-        height: '140px',
-        background: '#f1f5f9',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cardInfo: {
-        padding: '16px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '8px',
-    },
-    cardText: {
-        overflow: 'hidden',
-        flex: 1,
-        minWidth: 0,
-    },
-    cardTitle: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '1rem',
-        fontWeight: 600,
-        margin: 0,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        color: '#0f172a',
-    },
-    cardDate: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '0.85rem',
-        color: '#64748b',
-        margin: '2px 0 0',
-    },
-    deleteBtn: {
-        background: 'none',
-        border: 'none',
-        color: '#ef4444',
-        cursor: 'pointer',
-        padding: '8px',
-        borderRadius: '8px',
-        flexShrink: 0,
-    },
-    emptyCard: {
-        padding: '60px',
-        background: '#fff',
-        borderRadius: '16px',
-        border: '2px dashed #e2e8f0',
-        textAlign: 'center',
-        color: '#64748b',
-    },
-    countBadge: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontSize: '0.8rem',
-        fontWeight: 600,
-        color: '#6366f1',
-        background: '#eef2ff',
-        padding: '3px 10px',
-        borderRadius: '20px',
-        whiteSpace: 'nowrap',
-    },
-    templateCard: {
-        background: '#fff',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        transition: 'transform 0.2s, border-color 0.2s',
-    },
-    templatePreview: {
-        height: '140px',
-        background: '#eef2ff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-    },
-    viewBtn: {
-        padding: '6px 12px',
-        borderRadius: '6px',
-        border: '1px solid #0a5dbb',
-        backgroundColor: 'transparent',
-        color: '#0a5dbb',
-        fontSize: '0.85rem',
-        fontWeight: 600,
-        cursor: 'pointer',
-        flexShrink: 0,
-    },
-}
-
 export default ImageLayout
+

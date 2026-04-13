@@ -27,49 +27,54 @@ const FloatingToolbar = ({
 
   const toolbarInner = (
     <div
-      className="flex items-center gap-2 bg-white/95 border border-gray-500 px-2.5 py-1.5 shadow-[0_6px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm z-50"
+      className="flex items-center gap-3 rounded-2xl border border-gray-400 bg-white/95 px-3.5 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.14)] backdrop-blur-sm z-50"
       onMouseDown={(e) => e.stopPropagation()}
       style={{ pointerEvents: 'auto' }}
     >
       {/* Color Picker */}
-      <input
-        type="color"
-        aria-label="Change color"
-        value={getLayerPrimaryColor(layer)}
-        onChange={(e) => onColorChange(e.target.value)}
-        className="w-7 h-7 p-0 border border-gray-200 rounded-lg bg-none cursor-pointer appearance-none"
-        style={{
-          WebkitAppearance: 'none',
-          appearance: 'none'
-        }}
-      />
+      {layer.type === 'text' && (
+        <label className="relative h-9 w-9 overflow-hidden rounded-xl border border-gray-200 cursor-pointer">
+          <input
+            type="color"
+            aria-label="Change color"
+            value={getLayerPrimaryColor(layer)}
+            onChange={(e) => onColorChange(e.target.value)}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+
+          <div
+            className="h-full w-full"
+            style={{ backgroundColor: getLayerPrimaryColor(layer) }}
+          />
+        </label>
+      )}
 
       {/* Duplicate Button */}
       <button
         type="button"
         title="Duplicate"
-        className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white cursor-pointer transition-colors hover:bg-gray-50"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onDuplicate(layer.id);
         }}
       >
-        <FiCopy size={16} color="#111827" />
+        <FiCopy size={18} color="#111827" />
       </button>
 
       {/* Delete Button */}
       <button
         type="button"
         title="Delete"
-        className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white cursor-pointer transition-colors hover:bg-gray-50"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onDelete(layer.id);
         }}
       >
-        <FiTrash2 size={16} color="#dc2626" />
+        <FiTrash2 size={18} color="#dc2626" />
       </button>
 
       {/* Enhance Button (only for text layers) */}
@@ -80,16 +85,15 @@ const FloatingToolbar = ({
             disabled={isEnhancing || !hasTextContent}
             isEnhancing={isEnhancing}
             variant="floating"
-            size={16}
+            size={18}
           />
           <TextStyleButton
             onClick={() => {
-              // Dispatch event to open the modal in the parent component
               window.dispatchEvent(new CustomEvent('openTextStyleModal'));
             }}
             disabled={!hasTextContent}
             variant="floating"
-            size={16}
+            size={18}
           />
         </>
       )}
@@ -117,10 +121,10 @@ const FloatingToolbar = ({
   // Inline mode: keep toolbar absolutely positioned relative to layer.
   // Accept optional `zoom` prop on `layer.__toolbarZoom` to counter-scale when canvas is zoomed.
   const zoomVal = zoom || (layer && layer.__toolbarZoom) || 100;
-  const scale = zoomVal ? (100 / zoomVal) : 1;
+  const scale = zoomVal / 100;
   const inlineStyle = {
     position: 'absolute',
-    top: '-84px',
+    top: '-64px',
     left: '0px',
     transformOrigin: 'top left',
     transform: `scale(${scale})`,
