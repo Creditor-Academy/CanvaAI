@@ -13,7 +13,6 @@
 //     → auto-save hook                (persist with layoutProcessed flag)
 
 import { buildLayoutFromAIResponse, buildLayoutFromAISlide } from "../../../services/ai/aiLayoutService";
-import { autoAlignAISlides } from "../layout/aiAutoAlign";
 
 /**
  * Process a full AI-generated presentation and load it into the store.
@@ -24,29 +23,12 @@ import { autoAlignAISlides } from "../layout/aiAutoAlign";
  */
 export const processFullAIPresentation = (rawResponse, { setPresentation, setTitle }) => {
   try {
-    let { title, slides } = buildLayoutFromAIResponse(rawResponse);
+    const { title, slides } = buildLayoutFromAIResponse(rawResponse);
 
     if (!slides || slides.length === 0) {
       console.warn("[processAIGeneration] No slides produced from AI response.");
       return false;
     }
-
-    // Embed metadata at source level
-    slides = slides.map(slide => ({
-      ...slide,
-      meta: {
-        ...(slide.meta || {}),
-        isAIGenerated: true
-      }
-    }));
-
-    // Auto-align ONLY AI generated slides conditionally per-slide
-    slides = slides.map((slide, index) => {
-      if (slide.meta?.isAIGenerated) {
-        return autoAlignAISlides([slide], { slideIndex: index })[0];
-      }
-      return slide;
-    });
 
     if (setTitle)        setTitle(title);
     if (setPresentation) setPresentation({ slides, title });
@@ -70,22 +52,7 @@ export const processAndAppendAISlide = (rawSlide, appendSlide) => {
     // If the AI wrapped the slide in a { success, data } envelope, unwrap it
     const slide = rawSlide?.data ?? rawSlide;
 
-    let processedSlide = buildLayoutFromAISlide(slide);
-    
-    // Tag metadata at source level
-    processedSlide = {
-      ...processedSlide,
-      meta: {
-        ...(processedSlide.meta || {}),
-        isAIGenerated: true
-      }
-    };
-
-    // Align if AI generated
-    if (processedSlide.meta?.isAIGenerated) {
-      processedSlide = autoAlignAISlides([processedSlide])[0];
-    }
-
+    const processedSlide = buildLayoutFromAISlide(slide);
     appendSlide(processedSlide);
     return processedSlide;
   } catch (err) {

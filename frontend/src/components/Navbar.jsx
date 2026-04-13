@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
-import { FiHelpCircle, FiLogOut, FiUser } from "react-icons/fi";
+import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
 import logo from "../assets/logo.png";
-import { FiMenu, FiX } from "react-icons/fi";
+import { FiMenu } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 
 
@@ -10,9 +10,11 @@ import { useAuth } from "../contexts/AuthContext";
 const TopNavbar = () => {
   const navigate = useNavigate();
   const { user: profile } = useAuth();
+  const [openNotif, setOpenNotif] = useState(false);
+  const notifRef = useRef(null);
+
+
   const profileRef = useRef(null);
-  const menuRef = useRef(null);
-  const menuBtnRef = useRef(null);
   const [openProfile, setopenProfile] = useState(false);
   const [openMenu, setOpenMenu] = useState(false);
 

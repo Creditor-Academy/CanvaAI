@@ -188,7 +188,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
               onClick={() => {
                 if (manualSave) manualSave();
               }}
-              data-tooltip={isSaving ? 'Saving...' : hasUnsavedChanges ? 'Saving soon...' : presentationId ? 'Saved' : 'Save'}
+              data-tooltip={(isSaving || hasUnsavedChanges) ? 'Saving...' : presentationId ? 'Saved' : 'Save'}
             >
               {(isSaving || hasUnsavedChanges) ? (
                 <>

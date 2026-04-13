@@ -47,7 +47,7 @@ export const useAutoSave = () => {
   // the slides effect doesn't fire a false-positive on initial load (both presentationId
   // and slides change in the same Zustand set() call, effects run in declaration order).
   const prevSlidesRef = useRef(slides);
-  const presentationLoadedRef = useRef(true); // true by default so fresh presentations detect changes
+  const presentationLoadedRef = useRef(false);
   useEffect(() => {
     if (presentationId) {
       presentationLoadedRef.current = true;
@@ -93,8 +93,11 @@ export const useAutoSave = () => {
       return; // Prevent parallel API calls (ref-based, no stale closure)
     }
 
-    // Auto-save works for both new and existing presentations.
-    // For new presentations, the first save will create the presentation and obtain an ID.
+    // For autosave, we only save if it's an existing presentation
+    if (!currentState.presentationId && !isManual) {
+      console.log('[AutoSave] Skipped: no presentationId for autosave');
+      return;
+    }
 
     isSavingRef.current = true;
     setIsSaving(true);
@@ -124,7 +127,9 @@ export const useAutoSave = () => {
         const newId = res?.presentationId || res?._id || res?.id || res?.data?._id || res?.data?.id;
         if (newId) {
           setPresentationId(newId);
-          navigateRef.current(`/presentation-editor-v3/${newId}`, { replace: true });
+          if (isManual) {
+            navigateRef.current(`/presentation-editor-v3/${newId}`, { replace: true });
+          }
         }
       }
 
