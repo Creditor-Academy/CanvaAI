@@ -1,17 +1,33 @@
-import React, { useMemo, useCallback, useEffect } from "react";
-import { createEditor, Editor } from "slate";
-import { Slate, Editable, withReact } from "slate-react";
+import React, { useMemo, useCallback, useEffect, useRef } from "react";
+import { createEditor, Editor, Transforms } from "slate";
+import { Slate, Editable, withReact, ReactEditor } from "slate-react";
 import { withHistory } from "slate-history";
 import { Leaf, Element } from "./slateRenderer";
 import { toggleMark, applyMark } from "./slateMarks";
 import { toggleBlock, setBlockStyle } from "./slateBlocks";
 import usePresentationStore from "../../store/usePresentationStore";
 
-const SlateTextEditor = ({ value, onChange, style }) => {
+const SlateTextEditor = ({ value, onChange, style, autoFocus = false }) => {
   const editor = useMemo(
     () => withHistory(withReact(createEditor())),
     []
   );
+
+  // Auto-focus and move cursor to end when this editor mounts with autoFocus=true.
+  // Uses a short rAF so the <Editable> DOM node is guaranteed to exist.
+  useEffect(() => {
+    if (!autoFocus) return;
+    const frame = requestAnimationFrame(() => {
+      try {
+        ReactEditor.focus(editor);
+        Transforms.select(editor, Editor.end(editor, []));
+      } catch (_) {
+        // editor may not be attached yet — safe to ignore
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only
 
   const { setSelectionMarks, setActiveEditor } = usePresentationStore();
 

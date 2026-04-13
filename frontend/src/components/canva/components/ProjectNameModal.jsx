@@ -43,7 +43,7 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header with gradient */}
-                <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 rounded-t-2xl">
+                <div className="relative bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-5 rounded-t-2xl">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="p-2.5 bg-white/20 rounded-xl">
@@ -53,7 +53,7 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
                                 <h2 className="text-xl font-bold text-white">
                                     Save Project
                                 </h2>
-                                <p className="text-sm text-blue-100">
+                                <p className="text-sm text-amber-100">
                                     Give your project a descriptive name
                                 </p>
                             </div>
@@ -94,7 +94,7 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
                                         focus:outline-none focus:ring-4
                                         ${error
                                             ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                                            : 'border-gray-200 focus:border-blue-500 focus:ring-blue-100'
+                                            : 'border-gray-200 focus:border-amber-500 focus:ring-amber-100'
                                         }
                                     `}
                                 />
@@ -148,16 +148,16 @@ const ProjectNameModal = ({ open, onClose, onConfirm, initialName }) => {
                         onClick={handleConfirm}
                         disabled={!name.trim() || name.length > 50}
                         className={`
-                            px-6 py-2.5 rounded-xl 
-                            font-semibold 
-                            flex items-center gap-2 
-                            transition-all duration-200
-                            focus:ring-4 focus:ring-blue-200
-                            ${!name.trim() || name.length > 50
+    px-6 py-2.5 rounded-xl 
+    font-semibold 
+    flex items-center gap-2 
+    transition-all duration-200
+    focus:ring-4 focus:ring-amber-200
+    ${!name.trim() || name.length > 50
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30'
+                                : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30'
                             }
-                        `}
+  `}
                     >
                         <Save className="w-4 h-4" />
                         Save Project

@@ -24,7 +24,6 @@ import {
   ShadowsControl,
   OpacityControl
 } from '../controls'
-import TextEnhanceButton from '../TextEnhanceButton'
 
 const RightSidebar = ({
   isRightSidebarCollapsed,
@@ -137,9 +136,14 @@ const RightSidebar = ({
 
   return (
     <div>
-      <div className={`fixed right-0 top-10 bg-white overflow-y-auto h-[calc(100vh-100px)] z-10 transition-all duration-300 custom-scrollbar ${isRightSidebarCollapsed ? 'w-[60px] pt-10 pb-20 px-2' : 'w-[320px] pt-10 pb-20 px-5'}`}>
+      <div
+        className={`fixed  right-0 pt-2 top-20 bg-white overflow-y-auto h-[calc(100vh-150px)] z-10 transition-all duration-300 custom-scrollbar rounded-l-[10px] border border-amber-400 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ${isRightSidebarCollapsed
+          ? 'w-[60px] pb-20 px-2'
+          : 'w-[320px] pb-20 px-3'
+          }`}
+      >
 
-        <div className="flex justify-between items-center mb-5 pb-2.5 border-b border-gray-200">
+        <div className="flex justify-between items-center mb-2 pb-2.5 border-b border-gray-200">
           {!isRightSidebarCollapsed && (
             <h3 className="m-0 text-base">Properties</h3>
           )}
@@ -148,7 +152,7 @@ const RightSidebar = ({
               e.stopPropagation()
               setIsRightSidebarCollapsed(!isRightSidebarCollapsed)
             }}
-            className="p-2 border border-gray-200 rounded-md bg-white flex items-center justify-center min-w-[32px] h-8 hover:bg-gray-50"
+            className="p-2 bg-white flex items-center justify-center min-w-[32px] h-8 hover:bg-gray-50"
             type="button"
           >
             {isRightSidebarCollapsed ? (
@@ -160,7 +164,7 @@ const RightSidebar = ({
         </div>
 
 
-        <div className="max-h-[40vh] overflow-y-auto">
+        <div className="max-h-[30vh] overflow-y-auto">
           {!isRightSidebarCollapsed && (
             layers.length === 0 ? (
               <div className="text-center text-gray-600 text-sm">
@@ -176,7 +180,7 @@ const RightSidebar = ({
                   onDragLeave={handleLayerDragLeave}
                   onDrop={(e) => handleLayerDrop(e, index)}
                   onDragEnd={handleLayerDragEnd}
-                  className={`p-3 rounded-md my-1 text-sm cursor-pointer flex items-center justify-between transition-all ${selectedLayer === layer.id ? 'border-2 border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white'}`}
+                  className={`p-1 rounded-md my-1 text-sm cursor-pointer flex items-center justify-between transition-all ${selectedLayer === layer.id ? 'border-2 border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white'}`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
                     <div className={`p-1 mr-2 ${isLayerDragging ? 'cursor-grabbing' : 'cursor-grab'}`}>
@@ -228,136 +232,176 @@ const RightSidebar = ({
         </div>
 
         {selectedLayer && !isRightSidebarCollapsed && (
-          <div className="mt-5 p-4 bg-gray-50 rounded-lg">
+          <div className=" py-4 bg-gray-50 rounded-lg">
             <div className="flex gap-4 mb-4">
               <button
-                className={`px-4 py-2 rounded ${selectedIndex >= layers.length - 1 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 text-white cursor-pointer'}`}
+                className={`px-4 py-1 rounded ${selectedIndex >= layers.length - 1 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 text-white cursor-pointer'}`}
                 onClick={() => handleLayerMoveUp && selectedLayer && handleLayerMoveUp(selectedLayer)}
                 disabled={selectedIndex >= layers.length - 1}
               >
                 Forward
               </button>
               <button
-                className={`px-4 py-2 rounded ${selectedIndex <= 0 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 text-white cursor-pointer'}`}
+                className={`px-4 py-1 rounded ${selectedIndex <= 0 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 text-white cursor-pointer'}`}
                 onClick={() => handleLayerMoveDown && selectedLayer && handleLayerMoveDown(selectedLayer)}
                 disabled={selectedIndex <= 0}
               >
                 Backward
               </button>
             </div>
-            <h4 className="mb-4 text-base">Properties</h4>
+            {/* <h4 className="mb-4 text-base">Properties</h4> */}
 
-            <div className="mb-4 pb-3 border-b border-gray-200">
-              <h5 className="mb-2 text-[13px] text-gray-700">Effects</h5>
-              <BrightnessControl value={selectedLayerData?.brightness ?? 100} onChange={(v) => handleEffectChange('brightness', v)} />
-              <ContrastControl value={selectedLayerData?.contrast ?? 100} onChange={(v) => handleEffectChange('contrast', v)} />
-              <BlurControl value={selectedLayerData?.blur ?? 0} onChange={(v) => handleEffectChange('blur', v)} />
-              <OpacityControl value={selectedLayerData?.opacity ?? 100} onChange={(v) => handleEffectChange('opacity', v)} />
-              <ShadowsControl value={selectedLayerData?.shadows} onChange={(v) => handleEffectChange('shadows', v)} />
-            </div>
-
-            {selectedLayerData?.type === 'text' && (
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Content</span>
-                  <input
-                    type="text"
-                    value={selectedLayerData?.text || ''}
-                    onChange={(e) => handleTextContentChange(e.target.value)}
-                    className="py-1.5 px-2 border border-gray-300 rounded text-sm w-full ml-2"
-                  />
+            <div className="space-y-4">
+              {/* Effects Section */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="text-sm font-semibold text-gray-800">Effects</h5>
+                  <span className="text-xs text-gray-400">Adjust image appearance</span>
                 </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex gap-4 gap-2 w-full ml-2 flex-col ">
-
-                    <TextEnhanceButton
-                      onClick={handleEnhanceText}
-                      disabled={isEnhancingText || !layers.find(l => l.id === selectedLayer)?.text?.trim()}
-                      isEnhancing={isEnhancingText}
-                      variant="inline"
-                      size={14}
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <BrightnessControl
+                      value={selectedLayerData?.brightness ?? 100}
+                      onChange={(v) => handleEffectChange('brightness', v)}
                     />
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Color</span>
-                  <div
-                    onClick={() => textColorInputRef.current?.click()}
-                    className="w-7 h-7 rounded-full border border-gray-300 cursor-pointer"
-                    style={{ boxShadow: `inset 0 0 0 12px ${textSettings.color || '#000'}` }}
-                  />
-                  <input
-                    ref={textColorInputRef}
-                    type="color"
-                    value={textSettings.color || '#000000'}
-                    onChange={(e) => handleTextSettingsChange('color', e.target.value)}
-                    className="absolute opacity-0 pointer-events-none w-0 h-0"
-                  />
-                </div>
-              </>
-            )}
-
-            {selectedLayerData?.type === 'shape' && (
-              <>
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">Image Fill</span>
-                    <button
-                      className="px-3 py-1 text-xs border border-gray-300 rounded"
-                      onClick={() => shapeImgInputRef.current?.click()}
-                    >
-                      Upload
-                    </button>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <ContrastControl
+                      value={selectedLayerData?.contrast ?? 100}
+                      onChange={(v) => handleEffectChange('contrast', v)}
+                    />
                   </div>
 
-                  <input
-                    type="file"
-                    ref={shapeImgInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleShapeImageUpload}
-                  />
-                </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <BlurControl
+                      value={selectedLayerData?.blur ?? 0}
+                      onChange={(v) => handleEffectChange('blur', v)}
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">Fill Color</span>
-                  <input
-                    type="color"
-                    value={shapeSettings.fillColor || '#000000'}
-                    onChange={(e) => handleFillColorChange(e.target.value)}
-                    className="w-10 h-8 rounded cursor-pointer"
-                  />
-                </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <OpacityControl
+                      value={selectedLayerData?.opacity ?? 100}
+                      onChange={(v) => handleEffectChange('opacity', v)}
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">Stroke Color</span>
-                  <input
-                    type="color"
-                    value={shapeSettings.strokeColor || '#000000'}
-                    onChange={(e) => handleStrokeColorChange(e.target.value)}
-                    className="w-10 h-8 rounded cursor-pointer"
-                  />
-                </div>
+                  {selectedLayerData?.type !== 'image' && selectedLayerData?.type !== 'shape' && (
+                    <div className="rounded-xl">
+                      <ShadowsControl
+                        value={selectedLayerData?.shadows}
+                        onChange={(v) => handleEffectChange('shadows', v)}
+                      />
+                    </div>
+                  )}
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">Stroke Width</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={shapeSettings.strokeWidth ?? 0}
-                    onChange={(e) =>
-                      handleShapeSettingsChange(
-                        'strokeWidth',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="py-1 px-2 border border-gray-300 rounded text-sm w-20"
-                  />
                 </div>
-              </>
-            )}
+              </div>
+
+              {/* Shape Settings */}
+              {selectedLayerData?.type === 'shape' && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-5">
+                    <h5 className="text-sm font-semibold text-gray-800">
+                      Shape Settings
+                    </h5>
+                    <span className="text-xs text-gray-400">Customize fill & stroke</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Image Fill Upload */}
+                    <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fill Image
+                      </label>
+
+                      <button
+                        className="w-full py-2.5 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                        onClick={() => shapeImgInputRef.current?.click()}
+                      >
+                        Upload Image
+                      </button>
+
+                      <input
+                        type="file"
+                        ref={shapeImgInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleShapeImageUpload}
+                      />
+                    </div>
+
+                    {/* Fill Color */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-700">Fill Color</span>
+
+                      <div className="relative">
+                        <div
+                          onClick={() => strokeColorInputRef.current?.click()}
+                          className="w-7 h-7 rounded-full border border-gray-300 cursor-pointer"
+                          style={{
+                            boxShadow: `inset 0 0 0 12px ${shapeSettings.fillColor || '#000000'}`
+                          }}
+                        />
+
+                        <input
+                          ref={strokeColorInputRef}
+                          type="color"
+                          value={shapeSettings.fillColor || '#000000'}
+                          onChange={(e) => handleFillColorChange(e.target.value)}
+                          className="absolute top-0 -left-50 opacity-0 cursor-pointer w-7 h-7"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Stroke Color */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-700">Stroke Color</span>
+
+                      <div className="relative">
+                        <div
+                          onClick={() => textColorInputRef.current?.click()}
+                          className="w-7 h-7 rounded-full border border-gray-300 cursor-pointer"
+                          style={{
+                            boxShadow: `inset 0 0 0 12px ${shapeSettings.strokeColor || '#000000'}`
+                          }}
+                        />
+
+                        <input
+                          ref={textColorInputRef}
+                          type="color"
+                          value={shapeSettings.strokeColor || '#000000'}
+                          onChange={(e) => handleStrokeColorChange(e.target.value)}
+                          className="absolute top-0 -left-50 opacity-0 cursor-pointer w-7 h-7"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Stroke Width */}
+                    <div className="bg-gray-50 rounded-xl px-4 py-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Stroke Width
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        value={shapeSettings.strokeWidth ?? 0}
+                        onChange={(e) =>
+                          handleShapeSettingsChange(
+                            'strokeWidth',
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full py-2.5 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

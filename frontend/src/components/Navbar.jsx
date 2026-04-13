@@ -1,43 +1,24 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
-import api from "../services/api";
 import logo from "../assets/logo.png";
 import { FiMenu } from "react-icons/fi";
+import { useAuth } from "../contexts/AuthContext";
 
 
 
 const TopNavbar = () => {
   const navigate = useNavigate();
+  const { user: profile } = useAuth();
   const [openNotif, setOpenNotif] = useState(false);
   const notifRef = useRef(null);
 
 
   const profileRef = useRef(null);
-  const [profile, setProfile] = useState(null);
   const [openProfile, setopenProfile] = useState(false);
-  
-
-
   const [openMenu, setOpenMenu] = useState(false);
 
-
-  /* ---------------- Close notification outside click ---------------- */
-
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target))
-        setOpenNotif(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-
   /* ---------------- Close profile outside click ---------------- */
-
-
   useEffect(() => {
     const handler = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target))
@@ -47,31 +28,22 @@ const TopNavbar = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-
-  /* ---------------- Fetch profile ---------------- */
-
-
+  /* ---------------- Close mobile menu outside click ---------------- */
   useEffect(() => {
-    let mounted = true;
-
-
-    const fetchData = async () => {
-      try {
-        const profileData = await api.getProfile();
-        if (mounted) setProfile(profileData || null);
-
-
-      } catch (err) {
-        console.error("Navbar fetch error:", err);
-      }
+    const handler = (e) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target) &&
+        menuBtnRef.current &&
+        !menuBtnRef.current.contains(e.target)
+      )
+        setOpenMenu(false);
     };
-
-
-    fetchData();
-
-
-    return () => (mounted = false);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+
 
 
   return (
@@ -177,7 +149,8 @@ const TopNavbar = () => {
         <div className="hidden md:block relative" ref={profileRef}>
           <div
             onClick={() => setopenProfile(!openProfile)}
-            className="w-8 h-8 rounded-full bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] flex items-center justify-center text-white text-sm font-semibold cursor-pointer overflow-hidden"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold cursor-pointer overflow-hidden select-none"
+            style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d9ad8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}
           >
             {profile?.avatar ? (
               <img
@@ -186,9 +159,8 @@ const TopNavbar = () => {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span>
+              <span className="text-[15px] leading-none">
                 {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
-                {(profile?.lastName?.[0] || profile?.email?.[1] || "").toUpperCase()}
               </span>
             )}
           </div>
@@ -198,67 +170,52 @@ const TopNavbar = () => {
             <div
               className="absolute right-0 mt-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50"
               style={{
-                background: "rgba(255,255,255)",
-                border: "1px solid rgba(0,0,0,0.06)",
+                background: "#fff",
+                border: "1px solid rgba(0,0,0,0.08)",
               }}
             >
-              <div className="flex flex-col items-center px-5 pt-5 pb-4">
-                <div className="w-16 h-16 rounded-full bg-blue-400 text-white flex items-center justify-center text-xl font-semibold mb-3 overflow-hidden">
+              {/* Profile header — horizontal row like the screenshot */}
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-100">
+                <div
+                  className="w-10 h-10 rounded-xl shrink-0 text-white flex items-center justify-center text-base font-bold overflow-hidden select-none"
+                  style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}
+                >
                   {profile?.avatar ? (
-                    <img
-                      src={profile.avatar}
-                      alt="avatar"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <>
-                      {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
-                      {(profile?.lastName?.[0] || profile?.email?.[1] || "").toUpperCase()}
-                    </>
+                    (profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()
                   )}
                 </div>
-
-
-                <div className="font-semibold text-slate-800 text-sm text-center">
-                  {
-                    profile?.firstName
+                <div className="min-w-0">
+                  <div className="font-semibold text-slate-800 text-sm truncate">
+                    {profile?.firstName
                       ? `${profile.firstName} ${profile.lastName || ""}`
-                      : profile?.email?.split("@")[0]
-                  }
-                </div>
-
-
-                <div className="text-xs text-slate-500 text-center mt-1 break-all">
-                  {profile?.email}
+                      : profile?.email?.split("@")[0]}
+                  </div>
+                  <div className="text-xs text-slate-400 truncate mt-0.5">
+                    {profile?.email}
+                  </div>
                 </div>
               </div>
 
-
-             
-
-
-              {/* actions */}
-
-
-              <div className="py-2 text-sm">
+              <div className="py-1.5 text-sm">
                 <button
                   onClick={() => {
                     navigate("/settings", { state: { profile } });
                     setopenProfile(false);
                   }}
-                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-slate-100 text-slate-700"
+                  className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 text-slate-700"
                 >
                   <FiUser size={16} />
                   Personal Settings
                 </button>
-
 
                 <button
                   onClick={() => {
                     localStorage.removeItem("token");
                     navigate("/login", { replace: true });
                   }}
-                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-50 text-red-600"
+                  className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-50 text-red-500"
                 >
                   <FiLogOut size={16} />
                   Logout
@@ -289,18 +246,25 @@ const TopNavbar = () => {
 
           {/* PROFILE INFO */}
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">
-              {(profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()}
+            <div
+              className="w-10 h-10 rounded-xl text-white flex items-center justify-center text-base font-bold overflow-hidden select-none shrink-0"
+              style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}
+            >
+              {profile?.avatar ? (
+                <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                (profile?.firstName?.[0] || profile?.email?.[0] || "U").toUpperCase()
+              )}
             </div>
 
 
-            <div className="text-sm">
-              <div className="font-semibold">
+            <div className="text-sm min-w-0">
+              <div className="font-semibold truncate">
                 {profile?.firstName
                   ? `${profile.firstName} ${profile.lastName || ""}`
                   : profile?.email?.split("@")[0]}
               </div>
-              <div className="text-xs text-slate-500">{profile?.email}</div>
+              <div className="text-xs text-slate-500 truncate">{profile?.email}</div>
             </div>
           </div>
 

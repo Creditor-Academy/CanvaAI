@@ -184,35 +184,24 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
           <div className="topbar-links">
             {/* Save Button */}
             <button
-              className="nav-btn"
-              disabled={isSaving || (!hasUnsavedChanges && !saveError)}
-              style={{
-                opacity: (isSaving || (!hasUnsavedChanges && !saveError)) ? 0.8 : 1,
-                cursor: (isSaving || (!hasUnsavedChanges && !saveError)) ? 'default' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+              className={`nav-btn${(isSaving || hasUnsavedChanges) ? ' nav-btn--saving' : ''}`}
               onClick={() => {
                 if (manualSave) manualSave();
               }}
-              data-tooltip={presentationId ? "Save Changes" : "Save"}
+              data-tooltip={(isSaving || hasUnsavedChanges) ? 'Saving...' : presentationId ? 'Saved' : 'Save'}
             >
               {(isSaving || hasUnsavedChanges) ? (
                 <>
-                  <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                  <Loader size={15} className="save-spinner" />
                   Saving...
-                  <style>
-                    {`@keyframes spin { 100% { transform: rotate(360deg); } }`}
-                  </style>
                 </>
               ) : saveError ? (
                 <>
-                  <Save size={18} color="red" /> Save failed
+                  <Save size={15} color="red" /> Retry Save
                 </>
               ) : (
                 <>
-                  <Save size={18} /> {lastSavedAt ? lastSavedText : "All changes saved"}
+                  <Save size={15} /> {lastSavedAt ? lastSavedText : 'All changes saved'}
                 </>
               )}
             </button>
