@@ -50,6 +50,7 @@ const TextLayer = ({ layer, isEditing }) => {
     return (
       <div className="text-layer" style={containerStyle}>
         <SlateTextEditor
+          autoFocus
           value={
             layer.content || [
               { type: "paragraph", children: [{ text: "" }] },

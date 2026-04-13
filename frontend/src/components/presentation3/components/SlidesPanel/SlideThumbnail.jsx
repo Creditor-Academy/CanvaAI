@@ -1,7 +1,7 @@
 import React from "react";
-
-
-import { SlateStaticRenderer } from "../../editors/slate/slateRenderer";
+import TextLayer from "../../layers/TextLayer";
+import ImageLayer from "../../layers/ImageLayer";
+import TableLayer from "../../layers/TableLayer";
 import ShapeRenderer from "../shapes/ShapeRenderer";
 
 const THUMB_WIDTH = 140;
@@ -9,21 +9,33 @@ const THUMB_HEIGHT = 78.75;
 const SCALE = THUMB_WIDTH / 960;
 
 const SlideThumbnail = ({ slide, isActive, onClick }) => {
+  // Compute background matching CanvasShell exactly
+  const bgStyle = {
+    backgroundColor: slide.background || "#ffffff",
+    backgroundImage: slide.backgroundImage
+      ? `url(${slide.backgroundImage})`
+      : "none",
+    backgroundSize: "100% 100%",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+  };
+
+  // Handle CSS gradient backgrounds
+  if (slide.backgroundType === "gradient" && slide.backgroundGradient?.colors?.length >= 2) {
+    const g = slide.backgroundGradient;
+    bgStyle.backgroundImage =
+      g.type === "radial"
+        ? `radial-gradient(${g.colors.join(", ")})`
+        : `linear-gradient(${g.angle ?? 135}deg, ${g.colors.join(", ")})`;
+  }
+
   return (
     <div
       onClick={onClick}
       className={`thumbnail ${isActive ? "active" : ""}`}
-      style={{
-        backgroundColor: slide.background || "#ffffff",
-        backgroundImage: slide.backgroundImage
-          ? `url(${slide.backgroundImage})`
-          : "none",
-        backgroundSize: "100% 100%",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center",
-      }}
+      style={bgStyle}
     >
-      {/* Layers Preview */}
+      {/* Scale a full 960×540 canvas down to thumbnail size */}
       <div
         style={{
           transform: `scale(${SCALE})`,
@@ -32,10 +44,36 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
           height: 540,
           position: "relative",
           overflow: "hidden",
+          pointerEvents: "none",
         }}
       >
         {slide.layers?.map((layer) => {
+          // ── Text layer — mirror CanvasShell wrapper exactly ──────────────
           if (layer.type === "text") {
+            return (
+              <div
+                key={layer.id}
+                style={{
+                  position: "absolute",
+                  left: layer.x,
+                  top: layer.y,
+                  width: layer.width,
+                  height: layer.height,
+                  padding: "6px",
+                  border: "1px solid transparent",
+                  boxSizing: "border-box",
+                  overflow: "hidden",
+                  transform: `rotate(${layer.rotation || 0}deg)`,
+                  transformOrigin: "center center",
+                }}
+              >
+                <TextLayer layer={layer} isEditing={false} />
+              </div>
+            );
+          }
+
+          // ── Image layer — mirror CanvasShell nested-div structure ────────
+          if (layer.type === "image") {
             return (
               <div
                 key={layer.id}
@@ -47,50 +85,28 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   height: layer.height,
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
-                  display: 'flex',
-                  // Allows vertical alignment if needed, defaults to top
-                  alignItems: 'flex-start',
-                  //textAlign is handled by Slate nodes
-                  justifyContent: 'flex-start',
+                  borderRadius: layer.borderRadius || 0,
                   overflow: "hidden",
-                  fontFamily: layer.fontFamily,
-                  fontSize: `${layer.fontSize || 16}px`,
-                  color: layer.color || "#ffffff",
-                  lineHeight: 1.4,
-                  wordBreak: "break-word",
-                  overflowWrap: "anywhere",
-                  whiteSpace: "normal",
                 }}
               >
-                <SlateStaticRenderer value={layer.content} style={{ textAlign: layer.textAlign }} />
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    position: "relative",
+                    overflow: "hidden",
+                    borderRadius: layer.borderRadius || 0,
+                    border: `${layer.borderWidth || 0}px solid ${layer.borderColor || "#000"}`,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <ImageLayer layer={layer} />
+                </div>
               </div>
             );
           }
 
-          if (layer.type === "image") {
-            return (
-              <img
-                key={layer.id}
-                src={layer.imageUrl || layer.src}
-                alt=""
-                style={{
-                  position: "absolute",
-                  left: layer.x,
-                  top: layer.y,
-                  width: layer.width,
-                  height: layer.height,
-                  objectFit: "fill",
-                  transform: `rotate(${layer.rotation || 0}deg)`,
-                  transformOrigin: "center center",
-                  borderRadius: layer.borderRadius || 0,
-                  border: `${layer.borderWidth || 0}px solid ${layer.borderColor || "#000"
-                    }`,
-                  boxSizing: "border-box",
-                }}
-              />
-            );
-          }
-
+          // ── Shape layer — matches ShapeLayer component positioning ───────
           if (layer.type === "shape") {
             return (
               <div
@@ -102,7 +118,7 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   width: layer.width,
                   height: layer.height,
                   transform: `rotate(${layer.rotation || 0}deg)`,
-                  transformOrigin: "center center",
+                  transformOrigin: "center",
                 }}
               >
                 <ShapeRenderer layer={layer} />
@@ -110,8 +126,8 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
             );
           }
 
+          // ── Table layer — use TableLayer component (correct 6px cell padding) ──
           if (layer.type === "table") {
-            const DEFAULT_EMPTY_SLATE_VALUE = [{ type: "paragraph", children: [{ text: "" }] }];
             return (
               <div
                 key={layer.id}
@@ -121,33 +137,12 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                   top: layer.y,
                   width: layer.width,
                   height: layer.height,
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${layer.cols}, 1fr)`,
-                  gridTemplateRows: `repeat(${layer.rows}, 1fr)`,
-                  border: `${layer.borderWidth || 1}px solid ${layer.borderColor || "#e5e7eb"}`,
-                  backgroundColor: layer.tableBgColor || "transparent",
+                  boxSizing: "border-box",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
               >
-                {layer.cells?.map((row, r) =>
-                  row.map((cell, c) => (
-                    <div
-                      key={`${r}-${c}`}
-                      style={{
-                        border: `${layer.borderWidth || 1}px solid ${layer.borderColor || "#e5e7eb"}`,
-                        padding: "1px", // Minimal padding for thumbnails
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: cell?.textAlign === "left" ? "flex-start" : cell?.textAlign === "right" ? "flex-end" : "center",
-                        overflow: "hidden",
-                        color: cell?.color || layer.color || "#ffffff"
-                      }}
-                    >
-                      <SlateStaticRenderer value={cell?.content || DEFAULT_EMPTY_SLATE_VALUE} />
-                    </div>
-                  ))
-                )}
+                <TableLayer layer={layer} />
               </div>
             );
           }

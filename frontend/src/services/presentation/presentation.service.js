@@ -200,28 +200,10 @@ export const deletePresentation = async (id, userId) => {
  * or directly: { url, revised_prompt, b64_json, key }
  */
 
-export const generateAIImage = async ({ userId, pptId, userPrompt, activeSlideData }) => {
+export const generateAIImage = async ({ userId, pptId, userPrompt }) => {
     const apiUrl = `${BASE_URL}/api/image/generate-image/${userId}/${pptId}`;
 
-    // Inject activeSlide JSON inside the prompt string as context
-    const finalPrompt = `
-You are generating a visual image for a presentation slide.
-
-Your goal is to create a high-quality, meaningful image that:
-1. Directly reflects the user's instruction below.
-2. Is contextually aligned with the slide content (title, text, and layout).
-3. Enhances the slide visually — avoid generic or unrelated imagery.
-
-User Instruction:
-${userPrompt}
-
-Slide Context (use this to make the image relevant and coherent with the slide):
-${safeStringify(activeSlideData)}
-
-Generate an image that a viewer would immediately associate with this slide's message.
-`;
-
-    const res = await axios.post(apiUrl, { prompt: finalPrompt }, getAuthHeaders());
+    const res = await axios.post(apiUrl, { prompt: userPrompt }, getAuthHeaders());
 
     // Support both wrapped (DALL-E style) and unwrapped response structures
     const first = res.data?.data?.[0] || res.data;

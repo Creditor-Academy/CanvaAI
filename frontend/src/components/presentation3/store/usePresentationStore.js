@@ -4,6 +4,11 @@ import { createShapeLayer, createImageLayer } from "../models/presentationModel"
 import useHistoryStore from "./useHistoryStore";
 import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
 
+// Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
+// Not persisted to the store state so it is never saved to the database.
+const _aiGeneratedSlideIds = new Set();
+export const isAIGeneratedSlide = (slideId) => _aiGeneratedSlideIds.has(slideId);
+export const clearAIGeneratedSlide = (slideId) => _aiGeneratedSlideIds.delete(slideId);
 
 // Helper to ensure colors are in #rrggbb format for <input type="color">
 export const normalizeColor = (color) => {
@@ -321,11 +326,29 @@ const normalizeLayer = (layer, forceNewId = false) => {
     normalizedLayer.height = isNaN(safeHeight) || safeHeight < 40 ? 100 : safeHeight;
   }
 
+  // Safeguard: x/y must always be valid numbers for all layer types.
+  // AI often sends null/undefined which makes the drag offset calculation produce NaN,
+  // causing the element to snap to (0,0) and showing "NaN, NaN" in the position readout.
+  const rawX = Number(normalizedLayer.x);
+  const rawY = Number(normalizedLayer.y);
+  normalizedLayer.x = isNaN(rawX) ? 0 : rawX;
+  normalizedLayer.y = isNaN(rawY) ? 0 : rawY;
+
   return normalizedLayer;
 };
 
 const normalizeSlide = (slide, forceNewId = false) => {
   if (!slide) return slide;
+
+  // Slides produced by the layout engine carry layoutProcessed: true.
+  // Their x/y/width/height are final — do NOT re-normalize layers.
+  // Only regenerate the slide id if requested (e.g. duplicate).
+  if (slide.layoutProcessed) {
+    return {
+      ...slide,
+      id: forceNewId ? nanoid() : (slide.id || nanoid()),
+    };
+  }
 
   return {
     ...slide,
@@ -576,6 +599,8 @@ const usePresentationStore = create((set, get) => {
     appendSlide: (slideData) => {
       get().saveToHistory();
       const normalizedSlide = normalizeSlide(slideData, true);
+      // Flag this slide so CanvasShell runs auto-stack exactly once for AI content.
+      _aiGeneratedSlideIds.add(normalizedSlide.id);
       set((state) => ({
         slides: [...state.slides, normalizedSlide],
         activeSlideId: normalizedSlide.id,
@@ -596,6 +621,8 @@ const usePresentationStore = create((set, get) => {
     appendLayersToSlide: (slideId, layersData) => {
       if (!layersData) return;
       get().saveToHistory();
+      // Flag this slide so CanvasShell runs auto-stack exactly once for AI content.
+      _aiGeneratedSlideIds.add(slideId);
 
       // Safe extraction of layers
       const incomingLayers = Array.isArray(layersData.layers)

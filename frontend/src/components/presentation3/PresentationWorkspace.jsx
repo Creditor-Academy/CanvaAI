@@ -147,9 +147,10 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
 };
 const styles = {
   root: {
-    height: "100vh",
+    height: "calc(100vh / 0.9)",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    zoom: 0.9,
   },
   body: {
     flex: 1,
