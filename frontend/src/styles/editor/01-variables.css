@@ -1,0 +1,90 @@
+/* ============================================================================
+   ATHENA EDITOR - CSS VARIABLES
+   Single source of truth for all editor design tokens
+   ============================================================================ */
+
+:root {
+  /* ══════════════════════════════════════════════════════════
+     PAGE DIMENSIONS
+     ══════════════════════════════════════════════════════════ */
+  --editor-page-width: 794px;
+  --editor-page-height: 1123px; /* A4 at 96 DPI */
+
+  /* ══════════════════════════════════════════════════════════
+     PAGE MARGINS
+     ══════════════════════════════════════════════════════════ */
+  --editor-margin-top: 48px; 
+  --editor-margin-bottom: 48px;
+  --editor-margin-left: 48px;
+  --editor-margin-right: 48px;
+
+  /* ══════════════════════════════════════════════════════════
+     COMPUTED USABLE AREA (Auto-calculated)
+     ══════════════════════════════════════════════════════════ */
+  /* ✅ Safety buffer: prevents last lines from being clipped at bottom margin */
+  --editor-content-buffer: 24px;
+  --editor-usable-height: calc(var(--editor-page-height) - var(--editor-margin-top) - var(--editor-margin-bottom) - var(--editor-content-buffer));
+  --editor-usable-width: calc(var(--editor-page-width) - var(--editor-margin-left) - var(--editor-margin-right));
+
+  /* Typography - Calibrated for Exactly 45 Lines/Page */
+  --editor-font-size: 14.667px;
+  --editor-line-height: 1.36;
+  --editor-line-height-px: 20px;
+  --editor-para-margin: 0px;
+  
+  /* Font Families */
+  --editor-font-heading: 'Outfit', 'Inter', sans-serif;
+  --editor-font-body: 'Inter', sans-serif;
+  --editor-font-mono: 'JetBrains Mono', monospace;
+
+  /* ══════════════════════════════════════════════════════════
+     HEADING SIZES
+     ══════════════════════════════════════════════════════════ */
+  --editor-h1-size: 2.5rem;
+  --editor-h1-weight: 800;
+  --editor-h2-size: 2rem;
+  --editor-h2-weight: 700;
+  --editor-h3-size: 1.75rem;
+  --editor-h3-weight: 600;
+  --editor-h4-size: 1.5rem;
+  --editor-h4-weight: 600;
+  --editor-h5-size: 1.25rem;
+  --editor-h5-weight: 600;
+  --editor-h6-size: 1.1rem;
+  --editor-h6-weight: 600;
+
+  /* ══════════════════════════════════════════════════════════
+     LAYOUT SPACING
+     ══════════════════════════════════════════════════════════ */
+  /* ✅ REDUCED: Page gap from 12px to 6px to minimize white space between pages */
+  --editor-page-gap: 6px;
+  --editor-header-height: 32px;
+  --editor-toolbar-height: 48px;
+  --editor-ui-total: calc(var(--editor-header-height) + var(--editor-toolbar-height));
+
+  /* COLORS - Synced with Brand */
+  --editor-bg-page: #f1f5f9;
+  --editor-bg-white: #ffffff;
+  --editor-text-primary: #0f172a;
+  --editor-text-secondary: #475569;
+  --editor-text-muted: #94a3b8;
+  --editor-border: #e2e8f0;
+  --editor-accent: #2563eb;
+  --editor-accent-hover: #1d4ed8;
+
+  /* ══════════════════════════════════════════════════════════
+     SHADOWS
+     ══════════════════════════════════════════════════════════ */
+  --editor-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.10);
+  --editor-shadow-md: 0 2px 12px rgba(0, 0, 0, 0.07);
+  --editor-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
+
+  /* ══════════════════════════════════════════════════════════
+     RESPONSIVE BREAKPOINTS
+     ══════════════════════════════════════════════════════════ */
+  --breakpoint-tablet-landscape: 1024px;
+  --breakpoint-tablet-portrait: 880px;
+  --breakpoint-large-mobile: 640px;
+  --breakpoint-medium-mobile: 480px;
+  --breakpoint-small-mobile: 360px;
+}

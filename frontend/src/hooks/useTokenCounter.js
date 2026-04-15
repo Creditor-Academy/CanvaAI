@@ -1,6 +1,13 @@
 /**
- * useTokenCounter.js - React hook for real-time token counting
- * Integrates with TipTap editor for live token tracking
+ * useTokenCounter.js - Advanced React hook for real-time token counting
+ * Integrates with TipTap editor for live token tracking with analytics
+ * 
+ * Features:
+ * - Real-time input token tracking while typing
+ * - Input/Output token separation for AI usage
+ * - Performance metrics and cache statistics
+ * - Token usage history and analytics
+ * - Adaptive debounce for optimal performance
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -30,14 +37,25 @@ export function useTokenCounter(editor, options = {}) {
     delta: 0,
     deltaFormatted: '0',
     tier: { level: 'low', color: 'green', label: 'Low Usage' },
-    cost: 0,
+    cost: { input: 0, output: 0, total: 0 },
     formattedTokens: '0',
     thresholdsTriggered: [],
-    isReady: false
+    isReady: false,
+    // Enhanced features
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    totalTokensUsed: 0,
+    efficiency: 100,
+    performance: {
+      calculationTime: 0,
+      cacheHit: false,
+      averageCalculationTime: 0
+    }
   });
   
   const counterRef = useRef(null);
-  const outputTokensRef = useRef(0);
+  const performanceRef = useRef(null);
   
   // Initialize counter
   useEffect(() => {
@@ -46,6 +64,8 @@ export function useTokenCounter(editor, options = {}) {
     // Create counter instance
     const counter = createTokenCounter({
       debounceMs: options.debounceMs || 300,
+      minDebounceMs: options.minDebounceMs || 50,
+      maxDebounceMs: options.maxDebounceMs || 500,
       thresholds: options.thresholds || [1000, 2000, 3000, 4000],
       onTokenUpdate: (data) => {
         const tier = getTokenTier(data.tokens);
@@ -59,15 +79,25 @@ export function useTokenCounter(editor, options = {}) {
           cost: data.estimatedCost,
           formattedTokens: formatTokenCount(data.tokens),
           thresholdsTriggered: data.thresholdsTriggered,
-          isReady: true
+          isReady: true,
+          // Enhanced data
+          inputTokens: data.inputTokens || data.tokens,
+          outputTokens: data.outputTokens || 0,
+          totalTokens: data.totalTokens || data.tokens,
+          totalTokensUsed: data.totalTokensUsed || 0,
+          efficiency: data.efficiency || 100,
+          performance: data.performance || prev.performance
         }));
       },
       onThresholdWarning: (warning) => {
-        console.warn(`⚠️ Token threshold exceeded: ${warning.message}`);
-        
-        // Can integrate with toast notifications here
         if (options.onThresholdWarning) {
           options.onThresholdWarning(warning);
+        }
+      },
+      onPerformanceUpdate: (metrics) => {
+        performanceRef.current = metrics;
+        if (options.onPerformanceUpdate) {
+          options.onPerformanceUpdate(metrics);
         }
       }
     });
@@ -92,17 +122,24 @@ export function useTokenCounter(editor, options = {}) {
       editor.off('transaction', handleUpdate);
       counter.destroy();
     };
-  }, [editor, options.debounceMs, options.thresholds, options.onThresholdWarning]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, options.debounceMs, options.thresholds?.join(','), options.onThresholdWarning]);
   
-  // Update output tokens (for efficiency calculation)
+  // Update output tokens (for AI response tracking)
   const setOutputTokens = useCallback((tokens) => {
-    outputTokensRef.current = tokens;
-    
-    setState(prev => ({
-      ...prev,
-      efficiency: getTokenEfficiency(prev.tokens, tokens)
-    }));
+    counterRef.current?.recordOutputTokens(tokens);
   }, []);
+
+  // Global listener for AI generation across the app
+  useEffect(() => {
+    const handleAIOutput = (e) => {
+      if (e.detail?.tokens) {
+        setOutputTokens(e.detail.tokens);
+      }
+    };
+    window.addEventListener('athena:ai-tokens', handleAIOutput);
+    return () => window.removeEventListener('athena:ai-tokens', handleAIOutput);
+  }, [setOutputTokens]);
   
   // Get current token count immediately
   const getCurrentTokens = useCallback(() => {
@@ -112,7 +149,23 @@ export function useTokenCounter(editor, options = {}) {
   // Reset counter
   const resetCounter = useCallback(() => {
     counterRef.current?.reset();
-    outputTokensRef.current = 0;
+  }, []);
+  
+  // Get performance metrics
+  const getPerformanceMetrics = useCallback(() => {
+    return counterRef.current?.getPerformanceMetrics() || {};
+  }, []);
+  
+  // Get token usage summary
+  const getTokenUsageSummary = useCallback(() => {
+    return counterRef.current?.getTokenUsageSummary() || {
+      input: 0,
+      output: 0,
+      total: 0,
+      sessionTotal: 0,
+      efficiency: 100,
+      estimatedCost: { input: 0, output: 0, total: 0 }
+    };
   }, []);
   
   return {
@@ -120,7 +173,12 @@ export function useTokenCounter(editor, options = {}) {
     setOutputTokens,
     getCurrentTokens,
     resetCounter,
-    counter: counterRef.current
+    getPerformanceMetrics,
+    getTokenUsageSummary,
+    counter: counterRef.current,
+    // Legacy compatibility
+    // Legacy compatibility - ensure cost is always an object or number
+    cost: state.cost?.total ?? state.cost ?? 0
   };
 }
 

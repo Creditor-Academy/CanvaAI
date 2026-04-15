@@ -1,0 +1,69 @@
+/* ============================================================================
+   ATHENA EDITOR - CONTENT TYPOGRAPHY
+   Styling for common ProseMirror blocks (Headings, Paragraphs).
+   ============================================================================ */
+
+/* Headings Base Styles */
+.ProseMirror h1, 
+.ProseMirror h2, 
+.ProseMirror h3, 
+.ProseMirror h4, 
+.ProseMirror h5, 
+.ProseMirror h6 {
+    font-family: var(--editor-font-heading);
+    color: var(--editor-text-primary);
+    line-height: 1.25;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.ProseMirror h1 { font-size: 24pt; border-bottom: 1px solid var(--editor-border); padding-bottom: 0.2rem; }
+.ProseMirror h2 { font-size: 18pt; }
+.ProseMirror h3 { font-size: 14pt; }
+.ProseMirror h4 { font-size: 12pt; }
+
+/* Paragraphs */
+.ProseMirror p {
+    margin: 0 0 var(--editor-para-margin);
+    line-height: var(--editor-line-height);
+    color: var(--editor-text-secondary);
+}
+
+/* Empty paragraph handling (for cursor visibility) */
+.ProseMirror p:empty::before {
+    content: '\200B'; /* Zero width space */
+    pointer-events: none;
+}
+
+/* Links */
+.ProseMirror a {
+    color: var(--editor-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.ProseMirror a:hover {
+    color: var(--editor-accent-hover);
+}
+
+/* Blockquotes */
+.ProseMirror blockquote {
+    border-left: 4px solid var(--editor-border);
+    padding-left: 1.25rem;
+    margin: 1rem 0;
+    font-style: italic;
+    color: var(--editor-text-secondary);
+}
+
+/* Inline Code */
+.ProseMirror code {
+    font-family: var(--editor-font-mono);
+    background: #f1f5f9;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #e11d48;
+}

@@ -56,23 +56,58 @@ import {
 } from '../../../utils/pagination/constants';
 
 // ── Usable content height per page ────────────────────────────────────────────
-// = CSS page height − CSS padding-top − CSS padding-bottom
-// NO ghost zone or proactive buffer: natural line-packing leaves 11px already.
-export const USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM;
+// = CSS page height − CSS margin-top − CSS margin-bottom
+// 
+// CSS Configuration (real-pagination.css):
+//   --page-h:     1123px (total page height)
+//   --pad-top:     48px (margin-top on .page-content)
+//   --pad-bot:     48px (margin-bottom on .page-content)
+//   --usable-h:   996px (1123 - 48 - 48 - 31 safety buffer)
+//
+// The CSS --usable-h (996px) ALREADY includes a 31px safety buffer.
+// The .page-content div has height: 996px, which is the ACTUAL usable space.
+// 
+// ✅ CRITICAL: Do NOT subtract safety buffer again - CSS already did it!
+// Using the full 1027px would cause overflow beyond .page-content height.
+// Using 996px matches the actual rendered editable area exactly.
+
+const CSS_USABLE_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM; // 1027px
+const SAFETY_BUFFER_PX = 31; // Already applied in CSS --usable-h
+export const USABLE_HEIGHT = CSS_USABLE_HEIGHT - SAFETY_BUFFER_PX; // 996px (matches CSS --usable-h)
 
 // ── Per-element height constants (must match real-pagination.css) ──────────────
-const TABLE_ROW_H    = 36;   // td padding 6px×2 + LINE_H(24) = 36px
-const TABLE_MARGIN   = 22;   // table margin: 0.75em × 2 ≈ 22px
-const IMAGE_H        = 200;  // fallback when attrs.height == 0
-const IMAGE_MARGIN   = 22;   // img margin: 0.75em × 2 ≈ 22px
-const HR_H           = 32;   // border(1) + margin(1em×2≈29px) + rounding(2)
-const CODE_LINE_H    = 20;   // 0.875em × 1.5lh = 19.2px → 20px
-const CODE_PAD       = 30;   // pre padding: 1em × 2 ≈ 29.3px → 30px
-const CODE_MARGIN    = 22;   // pre margin: 0.75em × 2 ≈ 22px
-const BLOCKQUOTE_PAD = 6;    // 0.2em top + 0.2em bottom ≈ 6px
+const TABLE_ROW_H    = 36;   // td: 6px*2 padding + 24px line = 36px ✓
+const TABLE_MARGIN   = 22;   // table margin: 0.75em × 2 ≈ 22px ✓
+const IMAGE_H        = 300;  // Modern default for AI generated figures
+const IMAGE_MARGIN   = 24;   
+const HR_H           = 24;   
+const CODE_LINE_H    = 20;   
+const CODE_PAD       = 30;   
+const CODE_MARGIN    = 22;   
+const BLOCKQUOTE_PAD = 8;    
 // Heading extra px over one body LINE_H (larger font + top+bottom margin).
-// Calibrated against the SINGLE set of heading rules in real-pagination.css.
-const HEADING_EXTRA  = [0, 54, 43, 37, 29, 29, 29]; // index = heading level
+// Calibrated against the actual CSS heading rules in real-pagination.css.
+// ✅ RECALIBRATED: Based on actual CSS rendering with em-based margins
+// 
+// CSS Calculations (base font: 14.667px):
+// h1: font-size=2em(29.3px), line-height=1.3(38.1px), margin=1.5em+0.75em=2.25em(66px)
+//     → Total for 1 line: 38.1px + 66px = 104.1px
+//     → HEADING_EXTRA = 104.1 - 20(LINE_H) = 84px
+//
+// h2: font-size=1.5em(22px), line-height=1.3(28.6px), margin=1.25em+0.5em=1.75em(38.5px)
+//     → Total for 1 line: 28.6px + 38.5px = 67.1px
+//     → HEADING_EXTRA = 67.1 - 20 = 47px
+//
+// h3: font-size=1.25em(18.3px), line-height=1.4(25.7px), margin=1em+0.5em=1.5em(22px)
+//     → Total for 1 line: 25.7px + 22px = 47.7px
+//     → HEADING_EXTRA = 47.7 - 20 = 28px
+//
+// h4-h6: font-size=1em(14.7px), line-height=1.4(20.5px), margin=0.75em+0.4em=1.15em(16.9px)
+//     → Total for 1 line: 20.5px + 16.9px = 37.4px
+//     → HEADING_EXTRA = 37.4 - 20 = 17px
+//
+// ✅ FINAL VALUES: Increased slightly to account for edge cases and multi-line headings
+const HEADING_EXTRA  = [0, 86, 49, 30, 19, 19, 19]; // index = heading level (recalibrated for CSS accuracy)
 
 const MAX_PAGES = 200;
 
@@ -93,10 +128,24 @@ export const estimateHeight = (node) => {
       break;
 
     case 'image': {
-      const ih = node.attrs?.height > 0
-        ? Math.min(node.attrs.height, USABLE_HEIGHT * 0.85)
+      // ✅ CRITICAL FIX: Use actual image height from attributes, not fallback
+      // Images are inserted with explicit height (default 300px)
+      const attrs = node.attrs || {};
+      const explicitHeight = attrs.height || 0;
+      
+      // If image has explicit height attribute, use it (capped at 85% of page)
+      // Otherwise use fallback
+      const ih = explicitHeight > 0
+        ? Math.min(explicitHeight, USABLE_HEIGHT * 0.85)
         : IMAGE_H;
+      
+      // Add margin for spacing
       h = ih + IMAGE_MARGIN;
+      
+      // Log for debugging
+      if (explicitHeight > 0) {
+        console.log(`[estimateHeight] Image with explicit height: ${explicitHeight}px -> estimated ${h}px (including margin)`);
+      }
       break;
     }
 
@@ -125,8 +174,30 @@ export const estimateHeight = (node) => {
 
     case 'table': {
       let rows = 0;
-      node.forEach(() => rows++);
-      h = rows * TABLE_ROW_H + TABLE_MARGIN;
+      let maxCellLines = 1;
+      
+      node.forEach(row => {
+        rows++;
+        // Check cells for multi-line content
+        row.forEach(cell => {
+          if (cell.content) {
+            cell.forEach(cellContent => {
+              if (cellContent.textContent) {
+                const textLen = cellContent.textContent.length;
+                const lines = Math.ceil(textLen / 60);
+                maxCellLines = Math.max(maxCellLines, lines);
+              }
+            });
+          }
+        });
+      });
+      
+      // Adjust row height if cells have multiple lines
+      const effectiveRowH = maxCellLines > 1 
+        ? TABLE_ROW_H + (maxCellLines - 1) * LINE_H 
+        : TABLE_ROW_H;
+      
+      h = rows * effectiveRowH + TABLE_MARGIN;
       break;
     }
 
@@ -165,11 +236,82 @@ const flattenBlocks = (doc) => {
   return out;
 };
 
-// ── Split oversized paragraph into real independent nodes ─────────────────────
-// Non-paragraph blocks (tables, images) that are taller than USABLE_HEIGHT
-// get their own page. We cannot split them without losing semantics.
+// ── Split oversized nodes into real independent nodes ─────────────────────
+// Paragraphs are split by lines, Tables are split by rows.
+// Images/CodeBlocks are currently kept atomic.
 const splitOversizedNode = (node, schema) => {
-  if (estimateHeight(node) <= USABLE_HEIGHT) return [node];
+  const h = estimateHeight(node);
+  if (h <= USABLE_HEIGHT) return [node];
+
+  // HANDLE TABLES: Split by rows to fit within USABLE_HEIGHT
+  if (node.type.name === 'table') {
+    console.log(`[splitOversizedNode] Splitting oversized table (${h}px, est. ${Math.ceil(h / TABLE_ROW_H)} rows)`);
+    const rows = [];
+    node.forEach(row => rows.push(row));
+
+    const result = [];
+    let curRows = [];
+    let curH = 0;
+
+    // Calculate max rows that can fit on a page
+    // USABLE_HEIGHT - TABLE_MARGIN (for table top/bottom margin)
+    const maxTableContentHeight = USABLE_HEIGHT - TABLE_MARGIN;
+    const maxRowsPerFragment = Math.floor(maxTableContentHeight / TABLE_ROW_H);
+    
+    console.log(`[splitOversizedNode] Table splitting: max ${maxRowsPerFragment} rows per fragment`);
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      
+      // Estimate actual row height based on cell content
+      let rowH = TABLE_ROW_H; // Base height
+      let maxCellLines = 1;
+      
+      // Check each cell in the row for multi-line content
+      row.forEach(cell => {
+        if (cell.content) {
+          cell.forEach(cellContent => {
+            if (cellContent.textContent) {
+              const textLen = cellContent.textContent.length;
+              // Estimate lines in cell (assuming ~60 chars per line in table cells)
+              const lines = Math.ceil(textLen / 60);
+              maxCellLines = Math.max(maxCellLines, lines);
+            }
+          });
+        }
+      });
+      
+      // If cell has multiple lines, adjust row height
+      if (maxCellLines > 1) {
+        rowH = TABLE_ROW_H + (maxCellLines - 1) * LINE_H;
+      }
+      
+      // If adding this row would exceed the limit, push current chunk and start new one
+      if (curRows.length > 0 && (curH + rowH) > maxTableContentHeight) {
+        // Push current fragment
+        result.push(schema.nodes.table.create(node.attrs, Fragment.fromArray([...curRows])));
+        console.log(`[splitOversizedNode] Created table fragment with ${curRows.length} rows (${curH}px)`);
+        
+        // Start new fragment with current row
+        curRows = [row];
+        curH = rowH;
+      } else {
+        curRows.push(row);
+        curH += rowH;
+      }
+    }
+    
+    // Push remaining rows
+    if (curRows.length > 0) {
+      result.push(schema.nodes.table.create(node.attrs, Fragment.fromArray([...curRows])));
+      console.log(`[splitOversizedNode] Created final table fragment with ${curRows.length} rows (${curH}px)`);
+    }
+    
+    console.log(`[splitOversizedNode] Table split into ${result.length} fragments`);
+    return result;
+  }
+
+  // HANDLE PARAGRAPHS: Split by text lines
   if (node.type.name !== 'paragraph') return [node];
 
   const linesPerPage = Math.floor((USABLE_HEIGHT - PARA_MARGIN) / LINE_H);
@@ -290,6 +432,31 @@ const computeNewCursorPos = (oldDoc, newDoc, oldFrom) => {
 // ── Core pagination function ───────────────────────────────────────────────────
 export const paginateDocument = (editor, options = {}) => {
 
+  // ── RUNTIME VALIDATION: Check if CSS and JS usable heights match ──────────
+  // This helps debug paste scenarios where content might overflow
+  if (options.force && typeof window !== 'undefined' && !window.__paginationValidated) {
+    requestAnimationFrame(() => {
+      const pageContent = document.querySelector('.page-content');
+      if (pageContent) {
+        const computedHeight = parseInt(getComputedStyle(pageContent).height);
+        const cssUsableH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--usable-h'));
+        
+        console.log(`[paginateDocument] Usable Height Validation:`, {
+          js_USABLE_HEIGHT: USABLE_HEIGHT,
+          css_computed_height: computedHeight,
+          css_variable_usable_h: cssUsableH,
+          matches: computedHeight === USABLE_HEIGHT || cssUsableH === USABLE_HEIGHT ? '✅ YES' : '❌ NO - MISMATCH!'
+        });
+        
+        if (computedHeight !== USABLE_HEIGHT && cssUsableH !== USABLE_HEIGHT) {
+          console.warn(`[paginateDocument] ⚠️ USABLE_HEIGHT mismatch detected!`,
+            `JS expects ${USABLE_HEIGHT}px, but CSS renders ${computedHeight}px (computed) or ${cssUsableH}px (CSS variable)`);
+        }
+      }
+      window.__paginationValidated = true;
+    });
+  }
+
   // ── Guards ────────────────────────────────────────────────────────────────
   if (getFlag('pasteInFlight') && !options.force) return false;
   if (getFlag('isPaginating'))                    return false;
@@ -384,6 +551,17 @@ export const paginateDocument = (editor, options = {}) => {
       if (cur.length > 0 && effectiveH > USABLE_HEIGHT) {
         pages.push(cur.map(u => u.node));
         cur = []; curH = 0;
+      }
+
+      // ── TABLE FRAGMENT HANDLING: Ensure tables don't overflow pages ──
+      // If this is a table and it won't fit in remaining space, start new page
+      if (b.node.type.name === 'table' && cur.length > 0) {
+        const remainingSpace = USABLE_HEIGHT - curH + PARA_MARGIN;
+        if (b.height > remainingSpace) {
+          // Table won't fit, push current page and start new one
+          pages.push(cur.map(u => u.node));
+          cur = []; curH = 0;
+        }
       }
 
       cur.push(b);

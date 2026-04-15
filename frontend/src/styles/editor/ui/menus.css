@@ -1,0 +1,86 @@
+/* ============================================================================
+   ATHENA EDITOR - UI MENUS & PICKERS
+   Styles for Dropdowns, Color Pickers, and Table Pickers.
+   ============================================================================ */
+
+/* Dropdown / Menu Content */
+.dropdown-menu-content {
+    min-width: 14rem;
+    background-color: white;
+    border: 1px solid var(--editor-border);
+    box-shadow: var(--editor-shadow-md);
+    border-radius: 6px;
+    padding: 4px;
+    z-index: 50;
+}
+
+.dropdown-menu-item {
+    font-size: 0.875rem;
+    padding: 6px 12px;
+    color: var(--editor-text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dropdown-menu-item:hover {
+    background-color: #f1f5f9;
+    color: var(--editor-accent);
+}
+
+/* Color Picker Swatches */
+.color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    padding: 8px;
+}
+
+.color-picker-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.color-picker-swatch:hover {
+    transform: scale(1.15);
+    z-index: 10;
+}
+
+/* Table Picker Grid */
+.table-picker-grid {
+    display: grid;
+    gap: 2px;
+    padding: 8px;
+    background: white;
+}
+
+.table-picker-cell {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.table-picker-cell.selected {
+    background-color: #3b82f6;
+    border-color: #2563eb;
+}
+
+.table-picker-cell.hover {
+    background-color: #dbeafe;
+}
+
+.table-picker-label {
+    text-align: center;
+    padding: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--editor-text-secondary);
+}

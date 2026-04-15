@@ -7,7 +7,9 @@
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { toast } from 'sonner';
-import { onMenuOpen } from '../editor/focusUtils';
+import focusUtils from '../components/editor/focusUtils';
+
+const { onMenuOpen } = focusUtils;
 
 /**
  * @typedef {Object} UseTablePickerReturn

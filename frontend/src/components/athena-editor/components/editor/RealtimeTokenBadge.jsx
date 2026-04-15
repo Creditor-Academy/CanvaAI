@@ -24,10 +24,6 @@ export const RealtimeTokenBadge = ({ editor, className = '' }) => {
   } = useTokenCounter(editor, {
     debounceMs: 300,
     thresholds: [1000, 2000, 3000, 4000],
-    onThresholdWarning: (warning) => {
-      // Could integrate with toast here
-      console.warn('Token threshold warning:', warning.message);
-    }
   });
   
   // Show delta animation

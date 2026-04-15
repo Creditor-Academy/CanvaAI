@@ -29,7 +29,7 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
     const [orientation, setOrientation] = useState('portrait');
     const [customWidth, setCustomWidth] = useState(794);
     const [customHeight, setCustomHeight] = useState(1123);
-    const [margins, setMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
+    const [margins, setMargins] = useState({ top: 4, bottom: 4, left: 72, right: 72 }); // Ultra Tight: 4px top/bottom, 0.75" sides
     const [columns, setColumns] = useState(1);
     const [columnGap, setColumnGap] = useState(36);
     const [pageColor, setPageColor] = useState('#ffffff');
@@ -43,7 +43,7 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
             setOrientation('portrait');
             setCustomWidth(794);
             setCustomHeight(1123);
-            setMargins({ top: 96, bottom: 96, left: 72, right: 72 });
+            setMargins({ top: 4, bottom: 4, left: 72, right: 72 });
             setColumns(1);
             setColumnGap(36);
             setPageColor('#ffffff');
@@ -77,10 +77,10 @@ const PageSetupDialog = ({ open, onOpenChange, onApply }) => {
     };
 
     const marginPresets = [
-        { label: 'Normal', values: { top: 96, bottom: 96, left: 72, right: 72 } }, // Google Docs standard
+        { label: 'Normal', values: { top: 4, bottom: 4, left: 72, right: 72 } }, // Ultra Tight: 4px top/bottom, 0.75" sides
         { label: 'Narrow', values: { top: 36, bottom: 36, left: 36, right: 36 } },
-        { label: 'Wide', values: { top: 96, bottom: 96, left: 108, right: 108 } },
-        { label: 'Mirrored', values: { top: 96, bottom: 96, left: 90, right: 54 } },
+        { label: 'Wide', values: { top: 72, bottom: 72, left: 96, right: 96 } },
+        { label: 'Mirrored', values: { top: 48, bottom: 48, left: 90, right: 54 } },
     ];
 
     return (

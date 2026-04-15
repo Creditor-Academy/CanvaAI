@@ -62,55 +62,111 @@ export function usePastePagination(editor, isPastingRef, lastPasteTimeRef) {
           // Tell paginationEngine's debouncePaginate to back off
           setFlag('pasteInFlight', true);
 
-          // ── Double-RAF: wait for ProseMirror transaction + browser paint ─
+          // ── Triple-RAF + Font Load + Layout Settling: wait for ProseMirror transaction + browser paint + fonts ──
           //
           // RAF #1: ProseMirror has dispatched its insertion transaction and
           //         React has reconciled. The virtual DOM is up to date but
           //         the browser has not yet painted.
           //
           // RAF #2: The browser has painted. Real offsetHeight / scrollHeight
-          //         values now reflect the pasted content. paginateDocument's
-          //         height-estimation can measure accurately.
+          //         values now reflect the pasted content.
+          //
+          // RAF #3 + Font Check: Wait for fonts to load so heading heights
+          //         are accurate. Different heading levels (h1-h6) have different
+          //         font sizes that affect pagination calculations.
+          //
+          // FIX for heading content shift: Added additional layout settling time
+          // after fonts load to ensure all heading margins and line-heights are
+          // fully computed before pagination runs.
 
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              if (editor.isDestroyed) {
-                isPastingRef.current = false;
-                setFlag('pasteInFlight', false);
-                return;
-              }
-
-              // Guard: if paginationEngine is already running (e.g. debouncePaginate
-              // fired before our second RAF), don't race it.
-              if (getFlag('isPaginating')) {
-                // It will clear the flag itself; just release our mutex.
-                setTimeout(() => {
+              requestAnimationFrame(() => {
+                if (editor.isDestroyed) {
                   isPastingRef.current = false;
                   setFlag('pasteInFlight', false);
-                }, 200);
-                return;
-              }
+                  return;
+                }
 
-              try {
-                // force:true skips fingerprint + cooldown guards
-                // paginateDocument will handle cursor position mapping internally
-                paginateDocument(editor, { force: true });
-              } catch (err) {
-                console.error('[usePastePagination] paginateDocument error:', err);
-                // On error, restore original selection immediately
-                try {
-                  editor.commands.setTextSelection(savedSelection.from);
-                } catch (_) {}
-              }
+                // Wait for fonts to load if available (critical for heading height accuracy)
+                const waitForFonts = () => {
+                  if (document.fonts && document.fonts.ready) {
+                    return document.fonts.ready.then(() => {
+                      // ✅ INCREASED: Additional delay after fonts load for heading layout to settle
+                      // Headings with various formats (h1-h6) need more time for margin/line-height calculations
+                      return new Promise(resolve => setTimeout(resolve, 100));
+                    });
+                  }
+                  return Promise.resolve();
+                };
 
-              // ── Release mutexes after paginateDocument's microtask settles ─
-              // paginateDocument clears athena_is_paginating via Promise.resolve(),
-              // so we wait one more tick before clearing our own flags to avoid
-              // the onUpdate debouncePaginate guard firing too early.
-              setTimeout(() => {
-                isPastingRef.current = false;
-                setFlag('pasteInFlight', false);
-              }, 100);
+                waitForFonts().then(() => {
+                  if (editor.isDestroyed) {
+                    isPastingRef.current = false;
+                    setFlag('pasteInFlight', false);
+                    return;
+                  }
+
+                  // ✅ NEW: Double-check layout has settled by measuring content height
+                  // This prevents pagination from running before heading heights are accurate
+                  const measureAndPaginate = () => {
+                    if (editor.isDestroyed) {
+                      isPastingRef.current = false;
+                      setFlag('pasteInFlight', false);
+                      return;
+                    }
+
+                    // Guard: if paginationEngine is already running (e.g. debouncePaginate
+                    // fired before our RAF chain), don't race it.
+                    if (getFlag('isPaginating')) {
+                      // It will clear the flag itself; just release our mutex.
+                      setTimeout(() => {
+                        isPastingRef.current = false;
+                        setFlag('pasteInFlight', false);
+                      }, 200);
+                      return;
+                    }
+
+                    try {
+                      // force:true skips fingerprint + cooldown guards
+                      // paginateDocument will handle cursor position mapping internally
+                      
+                      // Log paste content metrics for debugging
+                      const docSize = editor.state.doc.content.size;
+                      const blockCount = editor.state.doc.childCount;
+                      console.log(`[usePastePagination] Triggering pagination after paste:`, {
+                        docSize,
+                        blockCount,
+                        reason: 'paste',
+                        force: true
+                      });
+                      
+                      paginateDocument(editor, { force: true, reason: 'paste' });
+                    } catch (err) {
+                      console.error('[usePastePagination] paginateDocument error:', err);
+                      // On error, restore original selection immediately
+                      try {
+                        editor.commands.setTextSelection(savedSelection.from);
+                      } catch (_) {}
+                    }
+
+                    // ── Release mutexes after paginateDocument's microtask settles ─
+                    // paginateDocument clears athena_is_paginating via Promise.resolve(),
+                    // so we wait one more tick before clearing our own flags to avoid
+                    // the onUpdate debouncePaginate guard firing too early.
+                    setTimeout(() => {
+                      isPastingRef.current = false;
+                      setFlag('pasteInFlight', false);
+                    }, 100);
+                  };
+
+                  // ✅ NEW: Additional RAF cycle to ensure layout is fully settled
+                  // This is critical for content with mixed heading formats
+                  requestAnimationFrame(() => {
+                    measureAndPaginate();
+                  });
+                });
+              });
             });
           });
 

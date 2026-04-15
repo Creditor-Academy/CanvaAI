@@ -751,38 +751,57 @@ Output ONLY the formatted content. No preamble, no "Here is your document", no e
             <main className="max-w-7xl mx-auto px-4 sm:px-8 pb-24 pt-8">
 
                 {/* ── Title Header ── */}
-                <header className="mb-10 py-10">
-                    <h1 className="text-[32px] font-extrabold text-slate-950 tracking-tight leading-tight">Write Better. Format Faster. Edit Smarter.</h1>
-                    <p className="text-slate-600 text-[14px] mt-1.5">"Create, edit, and share content effortlessly with our advanced editing tool."</p>
+                <header className="mb-12 py-12 text-center">
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight mb-4">
+                            Write Better. <span className="text-blue-600">Format Faster.</span> <br />
+                            Edit Smarter.
+                        </h1>
+                        <p className="text-slate-500 text-lg md:text-xl max-w-2xl mx-auto font-medium">
+                            The intelligent workspace for professional documents, powered by AI.
+                        </p>
+                    </motion.div>
                 </header>
 
                 {/* ── Main Action Cards ── */}
-                <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
                     <motion.div
-                        whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }}
+                        whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }}
                         onClick={() => setShowAIGenerator(true)}
-                        className="bg-amber-400 hover:bg-amber-500 rounded-3xl p-7 flex gap-5 cursor-pointer shadow-lg transition-colors items-center"
+                        className="group relative overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 rounded-[2rem] p-8 flex gap-6 cursor-pointer shadow-[0_20px_50px_rgba(245,158,11,0.2)] transition-all elevation-5"
                     >
-                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                            <Sparkles className="w-9 h-9 text-white" />
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-white/20 transition-all"></div>
+                        <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-inner">
+                            <Sparkles className="w-10 h-10 text-white" />
                         </div>
-                        <div className="flex-1 text-white">
-                            <h2 className="text-xl font-extrabold leading-tight">Create with AI</h2>
-                            <p className="text-sm text-white/90 mt-1">Let AI generate a complete Document from your topic.</p>
+                        <div className="flex-1 text-white relative z-10">
+                            <h2 className="text-2xl font-black leading-tight mb-2">Create with AI</h2>
+                            <p className="text-white/90 font-medium">Let AI transform your ideas into a complete, professional document in seconds.</p>
+                            <div className="mt-4 flex items-center text-sm font-bold bg-white/20 w-fit px-4 py-1.5 rounded-full">
+                                Try Magic Write →
+                            </div>
                         </div>
                     </motion.div>
 
                     <motion.div
-                        whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }}
+                        whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }}
                         onClick={() => openEditor('blank')}
-                        className="bg-blue-600 hover:bg-blue-700 rounded-3xl p-7 flex gap-5 cursor-pointer shadow-lg transition-colors items-center"
+                        className="group relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 flex gap-6 cursor-pointer shadow-[0_20px_50px_rgba(37,99,235,0.2)] transition-all elevation-5"
                     >
-                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                            <Plus className="w-9 h-9 text-white" />
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-white/20 transition-all"></div>
+                        <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-inner">
+                            <Plus className="w-10 h-10 text-white" />
                         </div>
-                        <div className="flex-1 text-white">
-                            <h2 className="text-xl font-extrabold leading-tight">Create Fresh</h2>
-                            <p className="text-sm text-white/90 mt-1">Open our advanced editor and start your story from scratch.</p>
+                        <div className="flex-1 text-white relative z-10">
+                            <h2 className="text-2xl font-black leading-tight mb-2">Create Fresh</h2>
+                            <p className="text-white/90 font-medium">Start from a blank canvas with our powerful distraction-free editor.</p>
+                            <div className="mt-4 flex items-center text-sm font-bold bg-white/20 w-fit px-4 py-1.5 rounded-full">
+                                Open Editor →
+                            </div>
                         </div>
                     </motion.div>
                 </section>

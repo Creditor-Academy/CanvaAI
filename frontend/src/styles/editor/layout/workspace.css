@@ -1,0 +1,54 @@
+/* ============================================================================
+   ATHENA EDITOR - WORKSPACE LAYOUT
+   Handles the background, scrolling, and zoom container.
+   ============================================================================ */
+
+.editor-pages-container {
+    background: var(--editor-bg-workspace);
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    
+    /* Center the page in the workspace */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    /* Scrolling Behavior */
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    padding: 20px 0 !important; /* ✅ Added padding for breathing room */
+    
+    /* Performance */
+    scroll-behavior: auto !important;
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Workspace Scrollbar */
+.editor-pages-container::-webkit-scrollbar {
+    width: 12px;
+}
+
+.editor-pages-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.editor-pages-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border: 3px solid #f1f5f9;
+    border-radius: 6px;
+}
+
+.editor-pages-container::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* Zoom Container Adjustments */
+/* This is manipulated via React style props in TextEditorContent.jsx */
+.editor-pages-container > [style*="transform"] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}

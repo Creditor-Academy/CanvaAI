@@ -63,9 +63,6 @@ export function useTokenCounter(editor, options = {}) {
         }));
       },
       onThresholdWarning: (warning) => {
-        console.warn(`⚠️ Token threshold exceeded: ${warning.message}`);
-        
-        // Can integrate with toast notifications here
         if (options.onThresholdWarning) {
           options.onThresholdWarning(warning);
         }
@@ -92,7 +89,8 @@ export function useTokenCounter(editor, options = {}) {
       editor.off('transaction', handleUpdate);
       counter.destroy();
     };
-  }, [editor, options.debounceMs, options.thresholds, options.onThresholdWarning]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, options.debounceMs, options.thresholds?.join(','), options.onThresholdWarning]);
   
   // Update output tokens (for efficiency calculation)
   const setOutputTokens = useCallback((tokens) => {

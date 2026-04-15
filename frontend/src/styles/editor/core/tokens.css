@@ -1,0 +1,47 @@
+/* ============================================================================
+   ATHENA EDITOR - DESIGN TOKENS
+   Single source of truth for all editor dimensions and colors.
+   Sync with: src/utils/pagination/constants.js
+   ============================================================================ */
+
+:root {
+    /* ── Page Dimensions (A4) ────────────────────────────────────────── */
+    --editor-page-width: 794px;    /* 8.27in at 96dpi */
+    --editor-page-height: 1123px;  /* 11.69in at 96dpi */
+    --editor-page-gap: 16px;
+    --editor-usable-height: 911px;
+    
+    /* ── Margins (Professional 1-inch) ─────────────────── */
+    --editor-margin-top: 96px;
+    --editor-margin-bottom: 96px;
+    --editor-margin-left: 96px;
+    --editor-margin-right: 96px;
+    
+    /* ── Typography ──────────────────────────────────────────────────── */
+    --editor-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --editor-font-heading: 'Outfit', 'Inter', sans-serif;
+    --editor-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    
+    --editor-font-size: 14.667px;
+    --editor-line-height: 1.36;
+    --editor-line-height-px: 20px;
+    --editor-para-margin: 0px;
+    
+    /* ── Colors ──────────────────────────────────────────────────────── */
+    --editor-bg-workspace: #f1f5f9;
+    --editor-bg-white: #ffffff;
+    --editor-text-primary: #1e293b;
+    --editor-text-secondary: #475569;
+    --editor-border: #e2e8f0;
+    --editor-accent: #2563eb;
+    --editor-accent-hover: #1d4ed8;
+    
+    /* ── UI Components ───────────────────────────────────────────────── */
+    --editor-header-height: 32px;
+    --editor-toolbar-height: auto; /* Dynamic based on wrapping */
+    
+    /* ── Elevations ──────────────────────────────────────────────────── */
+    --editor-shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --editor-shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    --editor-shadow-page: none;
+}

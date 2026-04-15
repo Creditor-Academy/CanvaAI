@@ -84,7 +84,9 @@ const AppContent = () => {
           width: isFullScreenRoute ? "100vw" : "auto",
           maxWidth: isFullScreenRoute ? "100vw" : "none",
           overflowX: "hidden",
-          position: "relative"
+          position: "relative",
+          paddingTop: isFullScreenRoute ? 0 : "52px",
+          paddingLeft: isFullScreenRoute ? 0 : "63px"
         }}
       >
 

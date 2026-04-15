@@ -12,79 +12,9 @@ import {
 // Note: Don't re-export constants - import them directly from the source
 // This file should only export utility functions
 
-export const initializePagination = (editorInstance) => {
-  if (!editorInstance || editorInstance.isDestroyed) return;
-  try {
-    if (!editorInstance.state || !editorInstance.state.doc) return;
-    const { state } = editorInstance;
-
-    // Count existing page nodes (only at the top level of the document)
-    const pageNodes = [];
-    state.doc.forEach(node => {
-      if (node.type.name === 'page') pageNodes.push(node);
-    });
-
-    if (pageNodes.length > 0) {
-      // Doc already has pages — do NOT re-wrap.
-      // Only ensure the first page has at least one paragraph if it is empty.
-      const firstPage = pageNodes[0];
-      if (!firstPage.content || firstPage.content.size === 0) {
-        const insertPos = 1; // position 0 is doc start, 1 is inside first page
-        try {
-          const tr = state.tr.insert(insertPos, state.schema.node('paragraph'));
-          editorInstance.view.dispatch(tr);
-        } catch { void 0; }
-      }
-      return; // ← Early return: pages already exist, nothing more to do
-    }
-
-    // No pages exist yet — collect top-level content nodes and wrap them
-    // in a single starter page. The pagination engine will split into
-    // multiple pages on the next repaginate() run.
-    const contentNodes = [];
-    state.doc.forEach(node => {
-      // Only collect recognised block types; skip unknown/page nodes
-      if (
-        ['paragraph', 'heading', 'bulletList', 'orderedList', 'taskList',
-          'blockquote', 'codeBlock', 'horizontalRule', 'table', 'image'].includes(node.type.name)
-      ) {
-        contentNodes.push(node);
-      }
-    });
-
-    try {
-      const { schema } = state;
-      const pageContent = contentNodes.length > 0
-        ? contentNodes
-        : [schema.node('paragraph')];
-
-      const pageNode = schema.node('page', { pageNumber: 1, isBlank: false }, pageContent);
-      const tr = state.tr.replaceWith(0, state.doc.content.size, pageNode);
-      editorInstance.view.dispatch(tr);
-    } catch (setContentError) {
-      console.warn('[initializePagination] Failed to wrap content, inserting blank page:', setContentError);
-      try {
-        const tr = state.tr.replaceWith(
-          0, state.doc.content.size,
-          state.schema.node('page', { pageNumber: 1, isBlank: true }, [state.schema.node('paragraph')])
-        );
-        editorInstance.view.dispatch(tr);
-      } catch { void 0; }
-    }
-  } catch (error) {
-    console.warn('[initializePagination] Outer error, attempting recovery:', error);
-    try {
-      if (editorInstance && !editorInstance.isDestroyed) {
-        const { state } = editorInstance;
-        const tr = state.tr.replaceWith(
-          0, state.doc.content.size,
-          state.schema.node('page', { pageNumber: 1, isBlank: true }, [state.schema.node('paragraph')])
-        );
-        editorInstance.view.dispatch(tr);
-      }
-    } catch { void 0; }
-  }
-};
+// ── NOTE: initializePagination has been moved to Page.js ─────────────────────
+// The active version is in: ../extensions/Page.js
+// This file now only contains heading style utilities.
 
 /**
  * Update heading styles via CSS custom properties.

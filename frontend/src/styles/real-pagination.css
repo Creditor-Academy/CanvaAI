@@ -3,16 +3,13 @@
    
    ALIGNMENT GUARANTEE — every number maps to constants.js:
    ┌─────────────────────────────────────────────────┐
-   │  Page:       794 × 1193 px  (minimal margins)   │
-   │  Padding:    15px top, 0 bottom, 72px sides     │
-   │  Usable:     650 × 1178 px  ← SAME capacity!    │
+   │  Page:       794 × 1123 px  (A4 @ 96 DPI)       │
+   │  Margins:    48px top, 48px bottom, 48px sides  │
+   │  Usable:     698 × 1027 px                      │
    │  Font:       11pt = 14.667px at 96 DPI          │
-   │  Line-height:1.6 → 23.47px → JS uses 24px       │
-   │  Para margin:1em → 14.67px → JS uses 15px       │
-   │  Chars/line: 92  (650px ÷ 7.07px avg char)     │
-   │  Lines/page: 48  (floor((1178−15) / 24))        │
-   │                                                 │
-   │  Total saved: 57px per page vs original         │
+   │  Line-height:20.6px (1.404 multiplier)          │
+   │  Para margin:0px                                │
+   │  Lines/page: 49-50  (996 / 20)                  │
    └─────────────────────────────────────────────────┘
    ============================================================================ */
 
@@ -38,83 +35,94 @@
 :root {
   --page-w:         794px;
   --page-h:        1123px;   /* Standard A4 height at 96 DPI */
-  --pad-top:         96px;   /* PAGE_MARGIN_TOP_PX - Top margin */
-  --pad-bot:         96px;   /* PAGE_MARGIN_BOTTOM_PX - Bottom margin */
-  --pad-h:           96px;   /* PAGE_MARGIN_LEFT/RIGHT_PX */
-  --usable-h:       931px;   /* USABLE_HEIGHT_PX = 1123−96−96 */
-  --usable-w:       602px;   /* USABLE_WIDTH_PX  = 794−96−96  */
-  --page-gap:        12px;   
-  --page-bg:       #f0f2f5;
+  --pad-top:         48px;   /* ✅ Sync with 0.5-inch standard */
+  --pad-bot:         48px;   
+  --pad-h:           48px;   
+  --usable-h:       996px;   /* 1027 - 31px safety buffer */
+  --usable-w:       698px;   
+  /* Capacity: Exactly 49-50 lines @ 20px each */
+  --page-gap:        6px;    
+  --page-bg:       #f1f5f9;
   --font-px:     14.667px;   /* 11pt at 96 DPI */
-  --lh:               1.3;   /* line-height multiplier */
-  --lh-px:           19px;   /* ceil(14.667×1.3) = 19px */
-  --para-mb:         15px;   /* PARA_MARGIN_PX */
+  --lh:               1.36;   
+  --lh-px:           20px;   
+  --para-mb:         0px;   
 }
 
 /* ── 1. BACKDROP ──────────────────────────────────────────────────────────── */
 .editor-pages-container {
-  background: var(--page-bg);
-  /* Account for header (~48px) + toolbar (~96px) = ~144px */
-  min-height: calc(100vh - 144px);
-  max-height: calc(100vh - 144px);
-  padding: 24px 0 80px !important;
+  background: radial-gradient(circle at center, #f8fafc 0%, #f1f5f9 100%);
+  /* ✅ MATCH DOCUMENT OUTLINE HEIGHT: Use full available height */
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 16px 0 !important;  /* ✅ Reduced from 40px to match outline height */
+  box-sizing: border-box !important; /* ✅ CRITICAL: Ensures height: 100% respects padding */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  width: 100vw !important;
-  max-width: 100vw !important;
+  /* ✅ FIX: Use 100% width instead of 100vw to stay within parent container */
+  /* This prevents pages from being hidden behind outlines/sidebars */
+  /* and keeps scrollbar positioned correctly within the container */
+  width: 100% !important;
+  max-width: 100% !important;
   position: relative;
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw !important;
-  margin-right: -50vw !important;
+  /* ❌ REMOVED: viewport-width centering technique that caused layout issues */
+  /* left: 50%; */
+  /* right: 50%; */
+  /* margin-left: -50vw !important; */
+  /* margin-right: -50vw !important; */
   box-sizing: border-box;
   /* CRITICAL FIX: Use 'auto' to prevent scroll jumping issues */
   scroll-behavior: auto;
   overscroll-behavior: contain;
 }
 .editor-pages-container::-webkit-scrollbar       { width: 12px !important; }
-.editor-pages-container::-webkit-scrollbar-track { background: #dde1e7 !important; border-radius: 0 !important; }
-.editor-pages-container::-webkit-scrollbar-thumb { background: #9ca3af !important; border-radius: 0 !important; }
-.editor-pages-container::-webkit-scrollbar-thumb:hover { background: #6b7280 !important; }
+.editor-pages-container::-webkit-scrollbar-track { background: #f1f5f9 !important; border-radius: 0 !important; margin-top: 2px; margin-bottom: 2px; }
+.editor-pages-container::-webkit-scrollbar-thumb { 
+  background: #cbd5e1 !important; 
+  border-radius: 10px !important;  
+  border: 4px solid transparent !important;  
+  background-clip: padding-box !important;  
+  min-height: 80px !important;  
+}
+.editor-pages-container::-webkit-scrollbar-thumb:hover { 
+  background: #94a3b8 !important;
+  border: 4px solid transparent !important;
+  background-clip: padding-box !important;
+}
 .editor-pages-container::-webkit-scrollbar-corner { background: #dde1e7 !important; }
-.editor-pages-container { scrollbar-width: thin !important; scrollbar-color: #9ca3af #dde1e7 !important; }
+.editor-pages-container { scrollbar-width: auto !important; scrollbar-color: #9ca3af #dde1e7 !important; }  /* ✅ CHANGED: auto instead of thin */
 
 /* ── 2. PAGE NODE ─────────────────────────────────────────────────────────── */
 /*
- * MAXIMALLY COMPACT LAYOUT - Minimal margins to save maximum vertical space:
- *   • Page height reduced from 1250px to 1193px (saved 57px total!)
- *   • Usable content area remains 1178px (SAME CAPACITY)
- *   • Top padding minimal at 15px — just enough for clean appearance
- *   • Bottom padding zero — content extends to page edge
+ * STANDARD A4 LAYOUT - Correct dimensions matching constants.js:
+ *   • Page height: 1123px (A4 at 96 DPI)
+ *   • Page width: 794px (A4 at 96 DPI)
+ *   • Top margin: 48px
+ *   • Bottom margin: 48px
+ *   • Side margins: 48px
+ *   • Usable content: 1027px (1123 - 48 - 48)
  *
  * Google Docs approach:
  *   • All non-last pages are FIXED at exactly var(--page-h).
- *     The JS engine fills each page to var(--usable-h) of content.
- *     The padding (15px top + 0px bottom) accounts for the rest.
+ *     The JS engine fills each page to USABLE_HEIGHT - SAFETY_BUFFER of content.
  *     overflow:hidden clips anything the estimate got slightly wrong.
  *
- *   • The LAST page using height:auto so it shrinks to its content.
+ *   • The LAST page uses height:auto so it shrinks to its content.
  *     This eliminates the giant blank area at the end of documents.
- *
- *   • .page:only-child (single-page doc) keeps min-height so it
- *     still looks like a full document page.
  */
 .page {
-  /* Fixed page dimensions — matches A4_HEIGHT_PX & A4_WIDTH_PX */
   width: var(--page-w);
-  height: var(--page-h);           /* FIXED — non-last pages always full height (1193px) */
+  height: var(--page-h);
   box-sizing: border-box;
-
-  /* Padding — MUST match PAGE_MARGIN_* in constants.js exactly */
-  /* CRITICAL: Minimal top (15px), zero bottom — maximum space efficiency */
-  padding: var(--pad-top) var(--pad-h) var(--pad-bot);
-
+  flex-shrink: 0 !important;
+  overflow: hidden !important; /* ✅ CRITICAL: Prevent content bleed between pages */
+  padding: 0;
   margin: 0 auto var(--page-gap);
-
   background: #fff;
   box-shadow:
     0 1px 3px rgba(0,0,0,0.10),
@@ -122,17 +130,13 @@
   border-radius: 2px;
   position: relative;
   display: block;
-
-  /* Clip anything the height estimate gets wrong by a few px */
-  overflow: hidden;
-
-  /* Perf: skip paint on every keystroke */
+  overflow: hidden !important;  /* ✅ STRICT: Fixes 'hiding' lines in margin */
   contain: layout style;
 
   /* Typography root — sets the baseline that JS constants are calibrated to */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: var(--font-px);   /* 14.667px — DO NOT CHANGE without updating LINE_HEIGHT_PX */
-  line-height: var(--lh);      /* 1.6       — DO NOT CHANGE without updating LINE_HEIGHT_PX */
+  font-size: var(--font-px);   /* 14.667px — Sync with LINE_HEIGHT_PX */
+  line-height: var(--lh);      /* 1.41 — Sync with LINE_HEIGHT_PX */
   color: #1f2937;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -147,8 +151,12 @@
   height: auto;
   /* Never collapse below top-pad + 3 lines */
   min-height: calc(var(--pad-top) + var(--lh-px) * 3);
-  overflow: visible;    /* Don't clip — let content be fully visible */
-  margin-bottom: 40px;  /* Reduced from 64px for tighter appearance */
+  /* ✅ CRITICAL FIX: Prevent page from growing beyond usable height */
+  /* This stops the page from expanding when Shift+Enter creates empty paragraphs */
+  max-height: var(--page-h);
+  overflow: hidden;    /* ✅ Clip content that exceeds page height */
+  /* ✅ REDUCED: Bottom margin from 40px to 20px for more compact appearance */
+  margin-bottom: 20px;
 }
 
 /* Single-page doc: keep full-page appearance */
@@ -167,17 +175,49 @@
   position: relative;
   z-index: 1;
   pointer-events: auto;
+  display: flex !important;           /* ✅ FIXED: Force flex for page stacking */
+  flex-direction: column !important;
+  align-items: center;
+}
+
+/* ── PAGE CONTENT (EDITABLE AREA) ────────────────────────────────────────── */
+/*
+ * This is where users can actually type.
+ * Margin creates non-editable margin area OUTSIDE the content.
+ * This prevents clicking/typing in the margin regions.
+ */
+.page-content {
+  /* ✅ MARGIN instead of padding - creates non-editable margin zones */
+  margin: var(--pad-top) var(--pad-h) var(--pad-bot);
+  
+  /* ✅ CRITICAL FIX: Constrain width and height to prevent overflow */
+  width: var(--usable-w);
+  max-width: var(--usable-w);
+  height: var(--usable-h);
+  max-height: var(--usable-h);
+  overflow: hidden; /* ✅ Ensures content doesn't overflow */
+  
+  display: block;
+  visibility: visible;
+  white-space: normal !important;
+  position: relative;
+  z-index: 1;
+  
+  /* ❌ REMOVED: Gradual fade-out at bottom edge (shadow effect of safety) */
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
 /* ── 4. PARAGRAPHS ────────────────────────────────────────────────────────── */
 /*
- * margin-bottom: var(--para-mb) = 15px = PARA_MARGIN_PX in JS.
+ * margin-bottom: var(--para-mb) = 8px (REDUCED from 15px to fit 49+ lines).
  * Do NOT add margin-top or the JS height estimate will be off.
+ * ✅ REDUCED: Was 15px, now 8px to allow more lines per page
  */
 .ProseMirror .page p {
-  font-size: var(--font-px);
-  line-height: var(--lh);
-  margin: 0 0 var(--para-mb);
+  font-size: var(--font-px) !important;
+  line-height: 20px !important;  /* ✅ PDF SYNC: 45 lines per page */
+  margin: 0 0 0 !important;  
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
@@ -204,11 +244,23 @@
 /* ── 5. HEADINGS ──────────────────────────────────────────────────────────── */
 /*
  * JS HEADING_EXTRA[] values are calibrated to these exact sizes and margins.
- * HEADING_EXTRA = [0, 54, 43, 37, 29, 29, 29]
+ * HEADING_EXTRA = [0, 86, 49, 30, 19, 19, 19] (recalibrated for CSS accuracy)
  *
- * h1: 2em × 1.3lh  = 2×14.667×1.3 = 38.1px/line  + margin(1.5+0.75em)×14.667 ≈ 33px → ~54px extra ✓
- * h2: 1.5em × 1.3lh = 1.5×14.667×1.3 = 28.6px/line + margin(1.25+0.5em)×14.667 ≈ 26px → ~43px extra ✓
- * h3: 1.25em × 1.4lh = 25.7px/line + margin(1+0.5em)×14.667 ≈ 22px → ~37px extra ✓
+ * h1: font-size=2em(29.3px), line-height=1.3(38.1px), margin=1.5em+0.75em=2.25em(66px)
+ *     → Total for 1 line: 38.1px + 66px = 104.1px
+ *     → HEADING_EXTRA = 104.1 - 20(LINE_H) = 84px (rounded to 86)
+ *
+ * h2: font-size=1.5em(22px), line-height=1.3(28.6px), margin=1.25em+0.5em=1.75em(38.5px)
+ *     → Total for 1 line: 28.6px + 38.5px = 67.1px
+ *     → HEADING_EXTRA = 67.1 - 20 = 47px (rounded to 49)
+ *
+ * h3: font-size=1.25em(18.3px), line-height=1.4(25.7px), margin=1em+0.5em=1.5em(22px)
+ *     → Total for 1 line: 25.7px + 22px = 47.7px
+ *     → HEADING_EXTRA = 47.7 - 20 = 28px (rounded to 30)
+ *
+ * h4-h6: font-size=1em(14.7px), line-height=1.4(20.5px), margin=0.75em+0.4em=1.15em(16.9px)
+ *     → Total for 1 line: 20.5px + 16.9px = 37.4px
+ *     → HEADING_EXTRA = 37.4 - 20 = 17px (rounded to 19)
  */
 .ProseMirror .page h1 {
   font-size: 2em;           /* 29.3px */
@@ -244,7 +296,10 @@
   margin: 0 0 var(--para-mb);
   padding-left: 1.75em;
 }
-.ProseMirror .page li { margin-bottom: 0.25em; line-height: var(--lh); }
+.ProseMirror .page li { 
+  margin-bottom: 0px !important; 
+  line-height: 20px !important; 
+}
 
 /* ── 7. IMAGES ────────────────────────────────────────────────────────────── */
 /* margin: 0.75em × 2 = 22px → JS IMAGE_MARGIN = 22px ✓ */
@@ -279,34 +334,6 @@
 .page th {
   font-weight: 600;
   background: #f9fafb;
-}
-
-/* Headings */
-.page h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-top: 1.5em;
-  margin-bottom: 0.75em;
-  line-height: 1.3;
-  color: #0f172a;
-}
-
-.page h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-top: 1.25em;
-  margin-bottom: 0.5em;
-  line-height: 1.4;
-  color: #1e293b;
-}
-
-.page h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  line-height: 1.4;
-  color: #334155;
 }
 
 /* Lists */
@@ -382,34 +409,23 @@
 /* ==================== RESPONSIVE DESIGN ==================== */
 
 /* Tablet - Adjust for potentially different toolbar layout */
+/* Tablet - Center page, no width distortion */
 @media screen and (max-width: 1024px) {
   .editor-pages-container {
-    /* Toolbar might be slightly different on tablet */
-    min-height: calc(100vh - 130px);
-    max-height: calc(100vh - 130px);
-  }
-  
-  .page {
-    width: 95%;
-    max-width: 794px;
-    padding-left: 60px;
-    padding-right: 60px;
+    min-height: calc(100vh - 168px);
+    max-height: calc(100vh - 168px);
+    height: calc(100vh - 168px);
   }
 }
 
 /* Mobile - Compact toolbar, adjust accordingly */
+/* Mobile - Maintain fixed page size, scale handles visibility */
 @media screen and (max-width: 768px) {
   .editor-pages-container {
-    /* Mobile toolbar is typically more compact (~100px) */
-    min-height: calc(100vh - 100px);
-    max-height: calc(100vh - 100px);
-    padding: 16px 0 40px;  /* Reduced padding on mobile */
-  }
-  
-  .page {
-    width: 100%;
-    margin: 10px auto;
-    padding: 20px 24px 0; /* Minimal margins on mobile */
+    min-height: calc(100vh - 168px);
+    max-height: calc(100vh - 168px);
+    height: calc(100vh - 168px);
+    padding: 20px 0 !important;
   }
 }
 
@@ -433,10 +449,11 @@
 /* Landscape orientation - Account for reduced vertical space */
 @media screen and (max-height: 600px) and (orientation: landscape) {
   .editor-pages-container {
-    /* In landscape, toolbar may wrap or compress */
-    min-height: calc(100vh - 90px);
-    max-height: calc(100vh - 90px);
-    padding: 8px 0 20px;
+    /* ✅ INCREASED: Maximum height in landscape mode */
+    min-height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    padding: 4px 0 4px !important;  /* ✅ Minimal padding in landscape */
   }
 }
 

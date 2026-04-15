@@ -7,7 +7,9 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { runWithSavedSelection } from '../editor/focusUtils';
+import focusUtils from '../components/editor/focusUtils';
+
+const { runWithSavedSelection } = focusUtils;
 
 /**
  * @typedef {Object} UseTableOperationsReturn

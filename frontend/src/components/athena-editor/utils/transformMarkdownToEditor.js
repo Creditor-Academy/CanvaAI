@@ -15,29 +15,22 @@ import { marked } from 'marked';
  */
 export const transformMarkdownToEditor = (editor, markdownString) => {
   if (!editor || !markdownString || editor.isDestroyed) {
-    console.warn('⚠️ Cannot transform markdown - editor not ready');
     return;
   }
 
   try {
-    console.log('🔄 Transforming Markdown to TipTap JSON...');
-    console.log('📝 Markdown length:', markdownString.length);
-    
     // 1. Convert Markdown string to HTML using marked
     const htmlContent = marked.parse(markdownString);
-    console.log('✅ Markdown converted to HTML, length:', htmlContent.length);
     
     // 2. Set content as HTML
-    // TipTap will automatically parse <h1>, <h2>, etc. into heading nodes
     editor.commands.setContent(htmlContent);
-    console.log('✅ Content set in editor');
     
     // 3. Immediately trigger pagination engine
-    // Using forceRepaginate to bypass "giant paragraph" guards
     setTimeout(() => {
       import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
-        forceRepaginate(editor);
-        console.log('✅ Pagination triggered after Markdown transformation');
+        if (!editor.isDestroyed) {
+          forceRepaginate(editor);
+        }
       });
     }, 100);
     

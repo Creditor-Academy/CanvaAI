@@ -80,7 +80,7 @@ export const Page = Node.create({
 // Wraps bare document content in page nodes on first load.
 // All subsequent re-pagination is handled by paginationEngine.js
 export const initializePagination = (editor, forceMode = false) => {
-  console.log('[initializePagination] CALLED with editor:', !!editor, 'forceMode:', forceMode);
+  // console.log('[initializePagination] CALLED with editor:', !!editor, 'forceMode:', forceMode);
 
   if (!editor || editor.isDestroyed) return false;
 
@@ -91,14 +91,16 @@ export const initializePagination = (editor, forceMode = false) => {
   const firstChild = doc.firstChild;
   const alreadyPaged = firstChild?.type.name === 'page';
 
+  /*
   console.log('[initializePagination] Current state:', {
     childCount: doc.childCount,
     firstChildType: firstChild?.type.name,
     alreadyPaged,
   });
+  */
 
   if (alreadyPaged && !forceMode) {
-    console.log(`[initializePagination] Document already has ${doc.childCount} pages — skipping`);
+    // console.log(`[initializePagination] Document already has ${doc.childCount} pages — skipping`);
     return true;
   }
 
@@ -108,7 +110,7 @@ export const initializePagination = (editor, forceMode = false) => {
     if (node.type.name !== 'page') contentNodes.push(node);
   });
 
-  console.log(`[initializePagination] Found ${contentNodes.length} content nodes to wrap`);
+  // console.log(`[initializePagination] Found ${contentNodes.length} content nodes to wrap`);
 
   // Build initial pages
   let pages;
@@ -126,7 +128,7 @@ export const initializePagination = (editor, forceMode = false) => {
     ];
   }
 
-  console.log(`[initializePagination] Dispatching ${pages.length} pages`);
+  // console.log(`[initializePagination] Dispatching ${pages.length} pages`);
 
   try {
     editor.storage.athena_is_paginating = true;
@@ -135,11 +137,8 @@ export const initializePagination = (editor, forceMode = false) => {
     Promise.resolve().then(() => { editor.storage.athena_is_paginating = false; });
 
     // Verification
-    const newDoc = editor.state.doc;
-    console.log(`[initializePagination] ✅ Document now has ${newDoc.childCount} pages`);
-    newDoc.forEach((node, offset) => {
-      console.log(`  Page at offset ${offset}: type=${node.type.name} pageNumber=${node.attrs.pageNumber}`);
-    });
+    // const newDoc = editor.state.doc;
+    // console.log(`[initializePagination] ✅ Document now has ${newDoc.childCount} pages`);
 
     return true;
   } catch (err) {

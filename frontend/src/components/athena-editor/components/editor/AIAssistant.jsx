@@ -6,6 +6,7 @@ import { Slider } from '../ui/slider';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import { TextEditorService } from '../../../../services/Text-Editor/text.service.js';
+import { countTokensStatic } from '../../../../utils/realtimeTokenCounter.js';
 import {
   Sparkles, Wand2, Edit3, MessageSquare, CheckCircle, ArrowRight,
   Send, RefreshCw, Copy, Check, User, Zap, Trash2, FileText,
@@ -347,6 +348,17 @@ export const AIAssistant = ({
       if (!html.trim()) throw new Error('Empty response');
       const cleaned = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
       onGenerateDocument?.({ topic, pages, tone, type: docType, creativity: creativity[0], html: cleaned });
+      
+      // 🔥 Emit AI generation event for token counter
+      window.dispatchEvent(new CustomEvent('ai-generation-complete', {
+        detail: {
+          content: cleaned,
+          action: 'document-generation',
+          tokens: countTokensStatic(cleaned),
+          timestamp: Date.now()
+        }
+      }));
+      
       toast.success(`${docType} generated!`);
       setTopic('');
       setGenProgress('');
@@ -378,11 +390,28 @@ export const AIAssistant = ({
       });
       setGeneratedImageUrl(url);
       setEnhancedPrompt(enhancedPrompt);
+      
+      // 🔥 Count tokens for image generation (prompt + enhanced prompt)
+      const promptTokens = countTokensStatic(imagePrompt.trim());
+      const enhancedTokens = enhancedPrompt ? countTokensStatic(enhancedPrompt) : 0;
+      const totalImageTokens = promptTokens + enhancedTokens;
+      
+      window.dispatchEvent(new CustomEvent('athena:ai-tokens', { 
+        detail: { tokens: totalImageTokens } 
+      }));
+      
       toast.success('Image generated!');
     } catch (err) {
       if (err.name === 'AbortError') return;
       const fallbackUrl = TextEditorService.buildPollinationsUrl(`${imagePrompt}, ${imageStyle}`, '1024x1024');
       setGeneratedImageUrl(fallbackUrl);
+      
+      // 🔥 Count tokens even for fallback
+      const promptTokens = countTokensStatic(imagePrompt.trim());
+      window.dispatchEvent(new CustomEvent('athena:ai-tokens', { 
+        detail: { tokens: promptTokens } 
+      }));
+      
       toast.info('Image ready');
     } finally {
       setImageLoading(false);
@@ -428,6 +457,14 @@ export const AIAssistant = ({
           });
         },
       });
+      // Fire global dispatch event after streaming completes
+      setChatMessages((prev) => {
+        const generated = prev[assistantIdx]?.content || '';
+        if (generated) {
+           window.dispatchEvent(new CustomEvent('athena:ai-tokens', { detail: { tokens: countTokensStatic(generated) } }));
+        }
+        return prev;
+      });
     } catch (err) {
       if (err.name === 'AbortError') return;
       setChatMessages((prev) => {
@@ -455,7 +492,10 @@ export const AIAssistant = ({
     try {
       await TextEditorService.callAI({
         systemPrompt, userPrompt: selectedText, temperature: ACTION_TEMPERATURE[actionId] ?? 0.6, signal,
-      }).then(setActionResult);
+      }).then((result) => {
+        setActionResult(result);
+        window.dispatchEvent(new CustomEvent('athena:ai-tokens', { detail: { tokens: countTokensStatic(result) } }));
+      });
     } catch (err) {
       if (err.name === 'AbortError') return;
       setActionError('Action failed. Please try again.');
@@ -502,7 +542,11 @@ export const AIAssistant = ({
         text: selectedText, action: inlineActionType, customPrompt: inlineCustomPrompt.trim(),
         tone: inlineSelectedTone, language: inlineTargetLang,
         creativity: ACTION_TEMPERATURE[inlineActionType] ?? inlineCreativity[0], signal,
-      }).then((transformed) => { result = transformed; setInlineResult(transformed); });
+      }).then((transformed) => { 
+        result = transformed; 
+        setInlineResult(transformed);
+        window.dispatchEvent(new CustomEvent('athena:ai-tokens', { detail: { tokens: countTokensStatic(transformed) } }));
+      });
       if (!result.trim()) throw new Error('Empty response');
       setInlineHistory(prev => [{
         id: Date.now().toString(), timestamp: new Date(), action: inlineActionType,

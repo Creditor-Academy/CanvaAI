@@ -10,12 +10,13 @@
  * Margins:           30 px top, 0 bottom, 72 px left/right
  * Usable area:       650 × 1178 px
  *
- *   USABLE_HEIGHT = 1208 − 30 − 0 = 1178 px
+ *   USABLE_HEIGHT = 1123 − 48 − 48 = 1027 px
  *
  * ── TYPOGRAPHY ────────────────────────────────────────────────────────────────
- * CSS:  font-size: 11pt  →  11 × (96/72) = 14.667 px at 96 DPI
- *       line-height: 1.6 →  14.667 × 1.6 = 23.47 px  → ceil = 24 px
- *       paragraph margin-bottom: 1em = 14.667 px → ceil = 15 px
+ * CSS:    --editor-font-size: 14.667px;
+ *         --editor-line-height: 1.27;
+ *         --editor-line-height-px: 18.6px;
+ *         --editor-para-margin: 0px;
  *       usable width: 650 px, avg Inter char @11pt ≈ 7.07 px → 92 chars/line
  *
  * ── LINE CAPACITY VERIFICATION ────────────────────────────────────────────────
@@ -38,22 +39,28 @@ export const A4_HEIGHT_PX = 1123;
 export const A4_WIDTH_PX  = 794;
 
 // ── Margins — MUST match .page padding in real-pagination.css ─────────────────
-export const PAGE_MARGIN_TOP_PX    = 96;
-export const PAGE_MARGIN_BOTTOM_PX = 96;
-export const PAGE_MARGIN_LEFT_PX   = 96;
-export const PAGE_MARGIN_RIGHT_PX  = 96;
+export const PAGE_MARGIN_TOP_PX    = 48; /* Professional 0.5-inch margin */
+export const PAGE_MARGIN_BOTTOM_PX = 48; /* Professional 0.5-inch margin */
+export const PAGE_MARGIN_LEFT_PX   = 48; /* Professional 0.5-inch margin */
+export const PAGE_MARGIN_RIGHT_PX  = 48; /* Professional 0.5-inch margin */
 
 // ── Derived usable area ───────────────────────────────────────────────────────
 export const USABLE_HEIGHT_PX = A4_HEIGHT_PX - PAGE_MARGIN_TOP_PX - PAGE_MARGIN_BOTTOM_PX;
-// = 1123 − 96 − 96 = 931 px
+// USABLE_HEIGHT = 1027px
 
 export const USABLE_WIDTH_PX = A4_WIDTH_PX - PAGE_MARGIN_LEFT_PX - PAGE_MARGIN_RIGHT_PX;
-// = 794 − 96 − 96 = 602 px
+// = 794 − 48 − 48 = 698 px
 
 // ── Typography — MUST match CSS font-size / line-height ───────────────────────
-export const LINE_HEIGHT_PX  = 19;   // ceil(14.667 × 1.3) = ceil(19.06) = 19 px
-export const PARA_MARGIN_PX  = 15;   // ceil(1em) = ceil(14.667) = 15 px
-export const CHARS_PER_LINE  = 85;   // 602 ÷ 7.07 ≈ 85 chars
+export const LINE_HEIGHT_PX  = 20;   // 11pt font @ 1.36 multiplier ≈ 20px
+export const PARA_MARGIN_PX  = 0;    
+export const CHARS_PER_LINE  = 98;   
+export const SAFETY_BUFFER_PX = 31;
+
+// ── Line Capacity Verification ────────────────────────────────────────────────
+// Usable Height = 1123 - 48 - 48 = 1027px
+// Effective Height = 996px (with 31px safety buffer)
+// Lines per page = floor(996 / 20) = Exactly 49-50 lines per page
 
 // ── Responsive Breakpoints ────────────────────────────────────────────────────
 // These match the CSS media query breakpoints in real-pagination.css

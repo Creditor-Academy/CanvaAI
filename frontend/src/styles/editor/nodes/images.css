@@ -1,0 +1,72 @@
+/* ============================================================================
+   ATHENA EDITOR - IMAGE NODES
+   Styling for images and resizable image wrappers.
+   ============================================================================ */
+
+.ProseMirror img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5rem auto;
+}
+
+.resizable-image-wrapper {
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    line-height: 0;
+    transition: box-shadow 0.2s ease;
+}
+
+.resizable-image-wrapper.selected {
+    outline: 2px solid var(--editor-accent);
+    outline-offset: 4px;
+    z-index: 10;
+}
+
+.resizable-image {
+    user-select: none;
+    pointer-events: none;
+    -webkit-user-drag: none;
+    /* transition: width 0.1s linear, height 0.1s linear; */
+}
+
+/* Image Resizers */
+.image-resizer {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 2px solid var(--editor-accent);
+    border-radius: 50%;
+    z-index: 100;
+    pointer-events: auto !important;
+    cursor: nwse-resize;
+}
+
+.image-resizer-nw { top: -6px; left: -6px; }
+.image-resizer-ne { top: -6px; right: -6px; }
+.image-resizer-sw { bottom: -6px; left: -6px; }
+.image-resizer-se { bottom: -6px; right: -6px; }
+
+/* Image Alignment */
+.resizable-image-wrapper[data-align="left"] {
+    float: left;
+    margin-right: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.resizable-image-wrapper[data-align="right"] {
+    float: right;
+    margin-left: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.resizable-image-wrapper[data-align="center"] {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Clear floats after floated images */
+.ProseMirror { overflow: auto; } /* Simple clearfix */

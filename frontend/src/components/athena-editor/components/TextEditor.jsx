@@ -47,8 +47,7 @@ import { addHeadingStyles, updateHeadingStyles } from '../components/editor/Edit
 import { paginateDocument, debouncePaginate, cleanupPagination } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
 import { usePastePagination } from '../hooks/usePastePagination';
 import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
-import '../AthenaEditor.css'; // 🔥 CRITICAL: Page NodeView styling
-import '../../../styles/real-pagination.css';
+import '../../../styles/editor/athena-editor-master.css'; // 🎨 New consolidated CSS architecture
 import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
 import TableExtension from '../extensions/TableExtension.js';
@@ -663,7 +662,7 @@ export const EditorToolbar = ({
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [lineSpacingMenuOpen, setLineSpacingMenuOpen] = useState(false);
-  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
+  const [pageMargins, setPageMargins] = useState({ top: 4, bottom: 4, left: 72, right: 72 }); // ✅ ULTRA TIGHT: 4px top/bottom, 0.75" sides
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
@@ -674,6 +673,20 @@ export const EditorToolbar = ({
   const [selectedCols, setSelectedCols] = useState(0);
   const tablePickerRef = useRef(null);
   const tableButtonRef = useRef(null);
+
+  // ✅ Sync pageMargins state → CSS variables so every stylesheet sees the values
+  useEffect(() => {
+    const r = document.documentElement;
+    r.style.setProperty('--editor-margin-top',    `${pageMargins.top}px`);
+    r.style.setProperty('--editor-margin-bottom', `${pageMargins.bottom}px`);
+    r.style.setProperty('--editor-margin-left',   `${pageMargins.left}px`);
+    r.style.setProperty('--editor-margin-right',  `${pageMargins.right}px`);
+    // Also sync legacy variable names used by real-pagination.css
+    r.style.setProperty('--doc-margin-top',    `${pageMargins.top}px`);
+    r.style.setProperty('--doc-margin-bottom', `${pageMargins.bottom}px`);
+    r.style.setProperty('--doc-margin-left',   `${pageMargins.left}px`);
+    r.style.setProperty('--doc-margin-right',  `${pageMargins.right}px`);
+  }, [pageMargins]);
 
   // Auto-hide export progress messages after 5 seconds
   useEffect(() => {
@@ -1066,6 +1079,10 @@ export const EditorToolbar = ({
         setTimeout(() => {
           if (!editor.isDestroyed) {
             editor.commands.focus();
+            
+            // ✅ FORCE PAGINATION: Trigger pagination after table insertion
+            // Tables need immediate pagination to shift content to new page if needed
+            paginateDocument(editor, { force: true, reason: 'table-insertion' });
           }
         }, 50);
       } else {
@@ -4982,7 +4999,7 @@ const TextEditorContent = ({
 
         setSaveStatus('saved');
         setLastSaved(new Date());
-        console.log(`✅ Document ${id} auto-saved successfully`);
+        // console.log(`✅ Document ${id} auto-saved successfully`);
       } catch (error) {
         setSaveStatus('error');
         toast.error('Failed to save document. Please check your connection.');
@@ -4996,7 +5013,7 @@ const TextEditorContent = ({
     return () => {
       if (saveRef.current) {
         saveRef.current.cancel();
-        console.log('🧹 Cancelled pending save on unmount');
+        // console.log('🧹 Cancelled pending save on unmount');
       }
     };
   }, []);
@@ -5044,7 +5061,7 @@ const TextEditorContent = ({
     // ✅ CRITICAL: Always clean up interval on unmount
     return () => {
       clearInterval(intervalId);
-      console.log('🧹 Cleaned up stats sync interval');
+      // console.log('🧹 Cleaned up stats sync interval');
     };
   }, []); // ✅ Stable deps - refs are stable, no dependencies needed
 
@@ -5079,7 +5096,7 @@ const TextEditorContent = ({
     // DOM-BASED PAGINATION: This function is deprecated
     // Pagination is now handled automatically by the DOM layout
     // No manual page break insertion needed
-    console.log('[TextEditor] DOM-based pagination active - skipping manual pagination');
+    // console.log('[TextEditor] DOM-based pagination active - skipping manual pagination');
     return 0;
 
     // Legacy pagination code removed - see version control history if needed
@@ -5530,6 +5547,8 @@ const TextEditorContent = ({
             state.schema.nodes.paragraph.create(parentAttrs)
           );
           dispatch(tr);
+          // ✅ The transaction will trigger onUpdate, which handles pagination
+          // No need for manual trigger - the existing debounce will handle it
           return true;
         }
         return false;
@@ -5540,14 +5559,13 @@ const TextEditorContent = ({
       // 🔥 Initialize with 2 pages minimum on fresh load
       console.log('[TextEditor.onCreate] Editor created, initializing pages...');
 
-      // Try immediately first
-      const result1 = initializePagination(editor);
-      console.log('[TextEditor.onCreate] Immediate init result:', result1);
+      // const result1 = initializePagination(editor);
+      // console.log('[TextEditor.onCreate] Immediate init result:', result1);
 
       // Try again after 50ms delay
       setTimeout(() => {
-        const result2 = initializePagination(editor);
-        console.log('[TextEditor.onCreate] Delayed init result:', result2);
+        initializePagination(editor);
+        // console.log('[TextEditor.onCreate] Delayed init result:', result2);
       }, 50);
 
       // ✅ BUG 3 FIX: Removed setupPasteDetection - conflicts with paste plugin
@@ -5559,66 +5577,9 @@ const TextEditorContent = ({
       // paginateDocument tags its own transactions with this flag so we don't
       // re-enter pagination in response to our own dispatch.
       if (editorInstance.storage.athena_is_paginating) {
-        log('[onUpdate] Skipping - pagination in flight');
+        // log('[onUpdate] Skipping - pagination in flight');
         return;
       }
-
-      // ✅ CRITICAL FIX: Check for nested pages and remove them
-      const doc = editorInstance.state.doc;
-      let hasNestedPages = false;
-
-      // Check if any page node contains another page node
-      doc.descendants((node, pos) => {
-        if (node.type.name === 'page') {
-          node.content.forEach(child => {
-            if (child.type.name === 'page') {
-              hasNestedPages = true;
-            }
-          });
-        }
-      });
-
-      // ── GOOGLE DOCS FINESSE: Immediate Response for Critical Zone ───────
-      // When cursor is within 2 lines (48px) of bottom boundary, bypass debounce
-      // and trigger pagination IMMEDIATELY to prevent "void typing" sensation
-      const selection = editorInstance.state.selection;
-      const resolvedPos = selection.$anchor;
-
-      // Get the DOM position of the cursor to calculate Y coordinate
-      const coords = editorInstance.view.coordsAtPos(resolvedPos.pos);
-      const containerRect = editorInstance.view.dom.parentElement?.closest('.editor-pages-container')?.getBoundingClientRect();
-
-      if (coords && containerRect) {
-        const cursorY = coords.top - containerRect.top + containerRect.height * 0.5; // Approximate scroll position
-
-        // ENHANCEMENT: More conservative critical zone threshold
-        // Only trigger immediate pagination when truly at page bottom (within 1 line)
-        // This prevents premature pagination that disrupts typing flow
-        const USABLE_HEIGHT = 1178; // From constants.js
-        const CRITICAL_ZONE_THRESHOLD = USABLE_HEIGHT - 24; // Last line only (24px = LINE_HEIGHT_PX)
-
-        if (cursorY > CRITICAL_ZONE_THRESHOLD) {
-          log(`[onUpdate] 🚨 Cursor in critical zone (${Math.round(cursorY)}px > ${CRITICAL_ZONE_THRESHOLD}px). Immediate pagination!`);
-
-          // Bypass debounce - run immediately
-          setTimeout(() => {
-            try {
-              paginateDocument(editorInstance, { force: true, reason: 'critical-zone' });
-            } catch (err) {
-              console.error('[onUpdate] Critical zone pagination failed:', err);
-            }
-          }, 0);
-
-          return;
-        }
-      }
-
-      // ── DEBOUNCED RE-PAGINATION (only after DOM settles) ─────────────────
-      // ENHANCEMENT: Adaptive debounce based on typing speed
-      // - Fast typing: 400ms delay (lets user finish thought before paginating)
-      // - Slow typing: 300ms delay (quicker response for deliberate editing)
-      // CRITICAL: This runs on EVERY content change, but the debounce prevents
-      // rapid-fire pagination. The delay lets the DOM render completely.
 
       // 🔥 CRITICAL: Skip pagination during paste - let paste handler trigger it
       if (isPastingRef.current) {
@@ -5626,19 +5587,60 @@ const TextEditorContent = ({
         return;
       }
 
+      // ── IMMEDIATE PAGINATION CHECK: Detect overflow BEFORE debounce ──────
+      // 🔥 CRITICAL FIX: Check if current page content exceeds page height
+      // If yes, trigger pagination IMMEDIATELY (no debounce) to prevent clipping
+      try {
+        const currentPage = editorInstance.view.dom.closest('.page');
+        const pageContent = currentPage?.querySelector('.page-content');
+        
+        if (currentPage && pageContent) {
+          const contentHeight = pageContent.scrollHeight;
+          const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
+          const maxHeight = pageHeight - 96; // Subtract top+bottom margins (48+48)
+          
+          // If content exceeds usable height, trigger IMMEDIATE pagination
+          if (contentHeight > maxHeight) {
+            log(`[onUpdate] 🚨 Content overflow detected: ${contentHeight}px > ${maxHeight}px. Immediate pagination!`);
+            
+            // Bypass debounce - run pagination immediately
+            requestAnimationFrame(() => {
+              if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
+                paginateDocument(editorInstance, { force: true, reason: 'content-overflow' });
+              }
+            });
+            
+            // Still run debounced pagination as backup
+            lastContentChangeRef.current = Date.now();
+            debouncePaginate(editorInstance, 150);
+            
+            // Skip further processing - pagination will handle it
+            return;
+          }
+        }
+      } catch (err) {
+        // If DOM measurement fails, fall back to debounced pagination
+        log('[onUpdate] DOM measurement failed, using debounced pagination:', err);
+      }
+
+      // ── DEBOUNCED RE-PAGINATION (only after DOM settles) ─────────────────
       // ENHANCEMENT: Dynamic debounce based on recent activity
       const timeSinceLastChange = Date.now() - (lastContentChangeRef.current || 0);
       const isFastTyping = timeSinceLastChange < 200; // Less than 200ms between keystrokes
-      const debounceDelay = isFastTyping ? 400 : 300; // Longer delay for fast typers
+      const debounceDelay = isFastTyping ? 200 : 150; // ✅ Reduced from 400/300 for faster response
 
       lastContentChangeRef.current = Date.now();
 
       debouncePaginate(editorInstance, debounceDelay);
 
-      // ── Stats + autosave (unchanged) ─────────────────────────────────────
+      // ── Stats + autosave (DEBOUNCED - not on every keystroke) ────────────
+      // ✅ CRITICAL FIX: Debounce stats calculation to prevent 450ms+ delays
+      // Stats update every 1000ms instead of on every keystroke
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
       statsTimeoutRef.current = setTimeout(() => {
         if (!editorInstance?.state?.doc) return;
+        
+        // ✅ OPTIMIZED: Use textContent instead of traversing entire tree
         const text = editorInstance.state.doc.textContent;
         const words = text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -5647,91 +5649,47 @@ const TextEditorContent = ({
         characterCountRef.current = text.length;
         readingTimeRef.current = Math.ceil(words / 200);
 
-        const newHeadings = [];
-        let paragraphs = 0, images = 0, tables = 0;
-        const lists = [];
-        const tablesData = [];
-        const imagesData = [];
-        const links = [];
+        // ✅ OPTIMIZED: Only extract headings if document structure changed
+        // Skip expensive tree traversal on simple text edits
+        const needsHeadingUpdate = headingsRef.current.length === 0 || 
+                                   lastContentChangeRef.current % 10 === 0; // Update every 10th change
+        
+        if (needsHeadingUpdate) {
+          const newHeadings = [];
+          let paragraphs = 0, images = 0, tables = 0;
 
-        editorInstance.state.doc.descendants((node, pos) => {
-          const type = node.type.name;
-          if (type === 'heading') {
-            newHeadings.push({ level: node.attrs.level, text: node.textContent, id: `heading-${pos}` });
-          } else if (type === 'paragraph') {
-            paragraphs++;
-          } else if (type === 'image') {
-            images++;
-            imagesData.push({
-              src: node.attrs.src,
-              alt: node.attrs.alt,
-              position: pos
-            });
-          } else if (type === 'table') {
-            tables++;
-            tablesData.push({
-              rows: node.childCount,
-              position: pos
-            });
-          } else if (type === 'bulletList' || type === 'orderedList') {
-            lists.push({
-              type: node.type.name,
-              content: node.textContent,
-              position: pos
-            });
-          }
-
-          // Extract links from marks
-          node.marks.forEach(mark => {
-            if (mark.type.name === 'link') {
-              links.push({
-                href: mark.attrs.href,
-                text: node.textContent,
-                position: pos
-              });
+          editorInstance.state.doc.descendants((node, pos) => {
+            const type = node.type.name;
+            if (type === 'heading') {
+              newHeadings.push({ level: node.attrs.level, text: node.textContent, id: `heading-${pos}` });
+            } else if (type === 'paragraph') {
+              paragraphs++;
+            } else if (type === 'image') {
+              images++;
+            } else if (type === 'table') {
+              tables++;
             }
           });
-        });
 
-        headingsRef.current = newHeadings;
-        paragraphsRef.current = paragraphs;
-        imagesRef.current = images;
-        tablesRef.current = tables;
-        listsRef.current = lists;
-        imagesDataRef.current = imagesData;
-        linksRef.current = links;
+          headingsRef.current = newHeadings;
+          paragraphsRef.current = paragraphs;
+          imagesRef.current = images;
+          tablesRef.current = tables;
+        }
 
         // REMOVED: State updates that were causing cursor to jump to beginning
         // Word count UI now updates only when user explicitly opens the dialog
-        // setWordCount(words);
-        // setCharacterCount(text.length);
-        // setReadingTime(Math.ceil(words / 200));
-        // setHeadings(newHeadings);
-
-        // REMOVED: setDocumentStats - was causing parent re-renders
-        // if (updateDocumentStatsAction) updateDocumentStatsAction(prev => ({ ...prev, paragraphs, images, tables }));
-      }, STATS_DELAY); // Extended delay to prevent cursor interruption
+      }, 1000); // ✅ Increased to 1000ms to reduce performance impact
 
       // 🔥 CRITICAL FIX: Only save if NOT currently paginating or inserting page breaks
-      // 
-      // PROBLEM: debouncedSave(json) is called at the bottom of onUpdate. The guard at
-      // the top only skips pagination transactions via athena_is_paginating, but the save
-      // path has no such guard. If pagination is debounced at 300 ms and save at 1000 ms,
-      // the save can fire against a document that still has page breaks being inserted,
-      // persisting a half-paginated JSON structure to MongoDB.
-      //
-      // SOLUTION: Add mutex guards to prevent saving during pagination/insertion operations
       if (!editorInstance.storage.athena_is_paginating && !isInsertingRef.current) {
         // 🔥 DELTA-BASED AUTO-SAVE: Trigger debounced save on every content change
         // Only fires when pagination is settled - prevents half-paginated saves
         const json = editorInstance.state.doc.toJSON();
         saveRef.current?.(json);
       } else {
-        log('[onUpdate] Skipping auto-save - pagination or insertion in progress');
+        // log('[onUpdate] Skipping auto-save - pagination or insertion in progress');
       }
-
-      // REMOVED: Old auto-save timeout - replaced by debounced save
-      // Pagination only runs after paste or explicit page break operations
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
       // ENHANCEMENT: Ultra-lightweight selection tracking
@@ -5758,7 +5716,7 @@ const TextEditorContent = ({
 
     // 🔥 AUTOMATIC OUTLINE SCANNER: Register callback for pagination complete
     const extractHeadingsForOutline = () => {
-      console.log('📑 Automatic Outline Scanner triggered by pagination');
+      // console.log('📑 Automatic Outline Scanner triggered by pagination');
 
       const newHeadings = [];
       let paragraphs = 0, images = 0, tables = 0;
@@ -6433,41 +6391,47 @@ const TextEditorContent = ({
   const handleHeadingClick = useCallback((headingId) => {
     if (!editor) return;
     try {
-      // 🔍 Debug: Log click
       console.log('📑 [DocumentOutline] Heading clicked:', headingId);
 
       // 🔥 Find heading by ID in document
       let targetPos = null;
+      let targetNode = null;
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading' &&
           (node.attrs.id === headingId || `${pos}` === headingId.replace('heading-', '').split('-')[0])) {
-          targetPos = pos + 1; // +1 to get to start of heading content
+          targetPos = pos;
+          targetNode = node;
           return false; // Stop searching
         }
         return true;
       });
 
-      if (targetPos !== null) {
-        console.log('📑 [DocumentOutline] Found heading at position:', targetPos);
+      if (targetPos !== null && targetNode) {
+        console.log('📑 [DocumentOutline] Found heading at position:', targetPos, 'Level:', targetNode.attrs.level);
 
-        // Set selection at heading position WITHOUT automatic scroll
-        // CRITICAL FIX: Don't auto-scroll on click - user may be viewing different page
-        const result = editor.chain()
-          .focus(targetPos, { scrollIntoView: false })  // Changed to false
-          .setTextSelection(targetPos)
+        // Set selection at heading position
+        editor.chain()
+          .focus()
+          .setTextSelection(targetPos + 1) // +1 to position cursor at start of heading content
+          .scrollIntoView() // Scroll cursor into view
           .run();
 
-        console.log('📑 [DocumentOutline] Command result:', result);
-        console.log('📑 [DocumentOutline] Editor has focus:', editor.view.hasFocus());
-        console.log('📑 [DocumentOutline] Selection:', editor.state.selection);
+        // 🔥 CRITICAL: Trigger pagination to update page breaks after cursor move
+        setTimeout(() => {
+          if (!editor.isDestroyed) {
+            console.log('📑 [DocumentOutline] Triggering pagination after heading navigation');
+            paginateDocument(editor, { force: true, reason: 'heading-navigation' });
+          }
+        }, 100);
 
-        // REMOVED: Manual scroll that was forcing view to element
-        // Users should control scroll behavior explicitly
+        console.log('✅ [DocumentOutline] Cursor moved to heading:', headingId);
       } else {
         console.warn('⚠️ [DocumentOutline] Heading not found:', headingId);
+        toast.error('Heading not found in document');
       }
     } catch (error) {
-      console.error('❌ [DocumentOutline] Error:', error);
+      console.error('❌ [DocumentOutline] Heading click error:', error);
+      toast.error('Failed to navigate to heading');
     }
   }, [editor]);
 
@@ -6550,8 +6514,29 @@ const TextEditorContent = ({
       editor.chain().focus().setResizableImage({ src, alt, title: alt || 'Image', width, height, align: 'left' }).run();
       toast.success('Image inserted successfully');
       setShowImageModal(false);
+      
+      // ✅ FORCE PAGINATION: Trigger pagination after image insertion
+      // INCREASED DELAY: Wait 300ms to ensure image DOM is fully rendered before measuring
+      setTimeout(() => {
+        if (!editor.isDestroyed) {
+          // console.log('[insertImage] Triggering pagination after image insertion');
+          paginateDocument(editor, { force: true, reason: 'image-insertion' });
+        }
+      }, 300); // Increased delay to let image fully render
     } catch (error) {
-      try { editor.chain().focus(null, { scrollIntoView: false }).setImage({ src, alt }).run(); setShowImageModal(false); }
+      try { 
+        editor.chain().focus(null, { scrollIntoView: false }).setImage({ src, alt }).run(); 
+        setShowImageModal(false);
+        
+        // ✅ FORCE PAGINATION for fallback image insertion
+        // INCREASED DELAY: Wait 300ms to ensure image DOM is fully rendered before measuring
+        setTimeout(() => {
+          if (!editor.isDestroyed) {
+            // console.log('[insertImage] Triggering fallback pagination after image insertion');
+            paginateDocument(editor, { force: true, reason: 'image-insertion-fallback' });
+          }
+        }, 300);
+      }
       catch (e) { toast.error('Failed to insert image'); }
     }
   }, [editor]);
@@ -6795,7 +6780,7 @@ const TextEditorContent = ({
   // SOLUTION: Clear ALL pending timers on unmount, cancel debounce, nullify editor ref
   useEffect(() => {
     return () => {
-      console.log('🧹 Cleaning up all timeouts and timers on unmount');
+      // console.log('🧹 Cleaning up all timeouts and timers on unmount');
 
       // Clear ALL pending timeouts
       [
@@ -6814,20 +6799,20 @@ const TextEditorContent = ({
       // Cancel lodash debounce (if active)
       if (saveRef.current?.cancel) {
         saveRef.current.cancel();
-        console.log('🧹 Cancelled debounced save');
+        // console.log('🧹 Cancelled debounced save');
       }
 
       // Nullify editor ref to prevent stale references
       editorRef.current = null;
 
-      console.log('✅ All timers cleaned up, editor ref nulled');
+      // console.log('✅ All timers cleaned up, editor ref nulled');
 
       // ── NEW: Cleanup pagination state ───────────────────────────────────
       // Reset all pagination flags and storage to prevent memory leaks
       if (editorRef.current) {
         try {
           cleanupPagination(editorRef.current);
-          console.log('✅ Pagination state cleaned up');
+          // console.log('✅ Pagination state cleaned up');
         } catch (err) {
           console.error('[Cleanup] Failed to cleanup pagination:', err);
         }
@@ -6856,7 +6841,7 @@ const TextEditorContent = ({
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100 z-30"
           style={{
-            height: '48px',
+            height: 'var(--editor-header-height)',
             flexShrink: 0,
             flexGrow: 0,
             overflow: 'visible', // Allow dropdowns to extend outside
@@ -6897,44 +6882,44 @@ const TextEditorContent = ({
 
               // Direct editor commands with focus management and selection restoration
               onToggleBold={() => {
-                console.log('🎯 [TextEditor] onToggleBold called, editor:', !!editor);
+                // console.log('🎯 [TextEditor] onToggleBold called, editor:', !!editor);
                 runWithSavedSelection(editor, (chain) => chain.toggleBold());
               }}
               onToggleItalic={() => {
-                console.log('🎯 [TextEditor] onToggleItalic called, editor:', !!editor);
+                // console.log('🎯 [TextEditor] onToggleItalic called, editor:', !!editor);
                 runWithSavedSelection(editor, (chain) => chain.toggleItalic());
               }}
               onToggleUnderline={() => {
-                console.log('🎯 [TextEditor] onToggleUnderline called, editor:', !!editor);
+                // console.log('🎯 [TextEditor] onToggleUnderline called, editor:', !!editor);
                 runWithSavedSelection(editor, (chain) => chain.toggleUnderline());
               }}
               onToggleStrikethrough={() => {
-                console.log('🎯 [TextEditor] onToggleStrikethrough called, editor:', !!editor);
+                // console.log('🎯 [TextEditor] onToggleStrikethrough called, editor:', !!editor);
                 runWithSavedSelection(editor, (chain) => chain.toggleStrike());
               }}
               onToggleSuperscript={() => {
-                console.log('🎯 [TextEditor] onToggleSuperscript called');
+                // console.log('🎯 [TextEditor] onToggleSuperscript called');
                 runWithSavedSelection(editor, (chain) => chain.toggleSuperscript());
               }}
               onToggleSubscript={() => {
-                console.log('🎯 [TextEditor] onToggleSubscript called');
+                // console.log('🎯 [TextEditor] onToggleSubscript called');
                 runWithSavedSelection(editor, (chain) => chain.toggleSubscript());
               }}
               onToggleCode={() => {
-                console.log('🎯 [TextEditor] onToggleCode called');
+                // console.log('🎯 [TextEditor] onToggleCode called');
                 runWithSavedSelection(editor, (chain) => chain.toggleCode());
               }}
               onClearFormatting={() => {
-                console.log('🎯 [TextEditor] onClearFormatting called');
+                // console.log('🎯 [TextEditor] onClearFormatting called');
                 runWithSavedSelection(editor, (chain) => chain.unsetAllMarks().clearNodes());
               }}
               onSetTextAlign={(align) => {
-                console.log('🎯 [TextEditor] onSetTextAlign called', align);
+                // console.log('🎯 [TextEditor] onSetTextAlign called', align);
                 runWithSavedSelection(editor, (chain) => chain.setTextAlign(align));
               }}
               onInsertImage={() => setShowImageModal(true)}
               onInsertTable={() => {
-                console.log('🎯 [TextEditor] onInsertTable called');
+                // console.log('🎯 [TextEditor] onInsertTable called');
                 runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }));
               }}
               onInsertLink={() => {
@@ -6944,12 +6929,12 @@ const TextEditorContent = ({
                   validateAndSetLink(url);
                 }
               }}
-              onUndo={() => { console.log('onUndo called'); runWithSavedSelection(editor, (chain) => chain.undo()); }}
-              onRedo={() => { console.log('onRedo called'); runWithSavedSelection(editor, (chain) => chain.redo()); }}
-              onSelectAll={() => { console.log('onSelectAll called'); runWithSavedSelection(editor, (chain) => chain.selectAll()); }}
-              onCut={() => { console.log('onCut called'); document.execCommand('cut'); }}
+              onUndo={() => { /* console.log('onUndo called'); */ runWithSavedSelection(editor, (chain) => chain.undo()); }}
+              onRedo={() => { /* console.log('onRedo called'); */ runWithSavedSelection(editor, (chain) => chain.redo()); }}
+              onSelectAll={() => { /* console.log('onSelectAll called'); */ runWithSavedSelection(editor, (chain) => chain.selectAll()); }}
+              onCut={() => { /* console.log('onCut called'); */ document.execCommand('cut'); }}
               onCopy={() => {
-                console.log('onCopy called');
+                // console.log('onCopy called');
                 // Fallback: use execCommand with a temp textarea
                 try {
                   const textContent = editor.state.doc.textBetween(
@@ -6975,12 +6960,48 @@ const TextEditorContent = ({
                   if (navigator.clipboard?.readText) {
                     const text = await navigator.clipboard.readText();
                     runWithSavedSelection(editor, (chain) => chain.insertContent(text));
-                    // Trigger pagination after paste settles
-                    setTimeout(() => {
+                    // 🔥 CRITICAL FIX: Trigger pagination after paste settles
+                    // Wait longer for complex content with headings to fully render
+                    
+                    // Step 1: Wait for fonts to load (critical for heading height accuracy)
+                    const waitForFontsAndLayout = () => {
+                      if (document.fonts && document.fonts.ready) {
+                        return document.fonts.ready.then(() => {
+                          // Additional delay for heading layout to settle
+                          return new Promise(resolve => setTimeout(resolve, 150));
+                        });
+                      }
+                      return Promise.resolve();
+                    };
+
+                    waitForFontsAndLayout().then(() => {
+                      if (!editor || editor.isDestroyed) return;
+                      
                       import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
                         forceRepaginate(editor);
+                        
+                        // 🔥 Additional check: Verify pagination actually happened
+                        // If content still overflows, trigger again
+                        setTimeout(() => {
+                          if (editor && !editor.isDestroyed) {
+                            const currentPage = editor.view.dom.closest('.page');
+                            const pageContent = currentPage?.querySelector('.page-content');
+                            
+                            if (currentPage && pageContent) {
+                              const contentHeight = pageContent.scrollHeight;
+                              const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
+                              const maxHeight = pageHeight - 96; // Subtract margins
+                              
+                              // If still overflowing, force another pagination
+                              if (contentHeight > maxHeight) {
+                                console.log('[onPaste] Content still overflowing, forcing repagination');
+                                forceRepaginate(editor);
+                              }
+                            }
+                          }
+                        }, 200);
                       });
-                    }, 150);
+                    });
                   } else {
                     document.execCommand('paste');
                   }
@@ -6994,11 +7015,24 @@ const TextEditorContent = ({
                   const text = await navigator.clipboard.readText();
                   runWithSavedSelection(editor, (chain) => chain.insertContent(text));
                   // Trigger pagination after paste settles
-                  setTimeout(() => {
+                  
+                  // Wait for fonts and layout to settle
+                  const waitForFontsAndLayout = () => {
+                    if (document.fonts && document.fonts.ready) {
+                      return document.fonts.ready.then(() => {
+                        return new Promise(resolve => setTimeout(resolve, 100));
+                      });
+                    }
+                    return Promise.resolve();
+                  };
+
+                  waitForFontsAndLayout().then(() => {
+                    if (!editor || editor.isDestroyed) return;
+                    
                     import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
                       forceRepaginate(editor);
                     });
-                  }, 150);
+                  });
                 } catch {
                   toast.info('Use Ctrl+Shift+V to paste as plain text');
                 }
@@ -7091,7 +7125,7 @@ const TextEditorContent = ({
 
           <div
             ref={editorContainerRef}
-            className="flex-1 bg-slate-100/50 p-4"
+            className="flex-1 bg-slate-100/50"
             onCopy={handleCopy}
             style={{ position: 'relative', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}
           >
@@ -7104,7 +7138,9 @@ const TextEditorContent = ({
                   transformOrigin: 'top center',
                   transition: 'transform 0.2s ease-out',
                   width: `${100 * (100 / effectiveZoom)}%`,
-                  marginBottom: '20px'
+                  flex: 1,
+                  minHeight: 0,
+                  padding: '16px 0'
                 }}
               >
                 <EditorContent editor={editor} />

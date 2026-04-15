@@ -1,37 +1,39 @@
 /* ===== Athena Brand Guidelines - Global CSS Variables ===== */
 
 :root {
-  /* Primary Colors */
-  --athena-deep-blue: #1e40af;
-  --athena-primary-blue: #3b82f6;
+  /* Primary Colors - Modern Blue Palette */
+  --athena-deep-blue: #0f172a;
+  --athena-primary-blue: #2563eb;
   --athena-sky-blue: #60a5fa;
+  --athena-indigo: #4f46e5;
 
-  /* Accent Colors */
+  /* Accent Colors - Vibrant Gold/Amber */
   --athena-gold: #fbbf24;
   --athena-amber: #f59e0b;
-  --athena-ambere: #d9dadf;
+  --athena-slate: #94a3b8;
 
-  /* Backgrounds */
-  --athena-bg-light: #f9fafb;
-  --athena-dark-slate: #54565a;
+  /* Backgrounds - Clean & Minimal */
+  --athena-bg-light: #f8fafc;
+  --athena-bg-white: #ffffff;
+  --athena-dark-slate: #1e293b;
 
-  /* Text */
-  --athena-text-primary2: #0c4a6e;
-  --athena-text-primary: #0b1b4a;
+  /* Text - High Contrast & Optimized */
+  --athena-text-primary: #0f172a;
   --athena-text-secondary: #475569;
-  --athena-text-light: rgb(50, 143, 224);
+  --athena-text-muted: #94a3b8;
+  --athena-link: #2563eb;
 
-  /* Global Gradients */
-  --athena-hero-gradient: linear-gradient(135deg, #1e40af 0%,#3b82f6 50%,#60a5fa 100%);
+  /* Global Gradients - Premium Feel */
+  --athena-hero-gradient: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
   --athena-btn-primary: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
   --athena-btn-secondary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --athena-bg-gradient: linear-gradient(270deg,#b2e5fd,#d3d4eb,#ceeeff);
+  --athena-glow: radial-gradient(circle at center, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
 
-  /* Standard A4 Document Margins (96 DPI) - SOURCE OF TRUTH */
-  --doc-margin-top: 72px;    /* 0.75 inch (reduced from 1.0 inch for more content space) */
-  --doc-margin-bottom: 72px; /* 0.75 inch (reduced from 1.0 inch for more content space) */
-  --doc-margin-left: 72px;   /* 0.75 inch */
-  --doc-margin-right: 72px;  /* 0.75 inch */
+  /* Professional Document Margins (Standard 1-inch at 96 DPI) */
+  --doc-margin-top: 48px;    /* 0.50 inch */
+  --doc-margin-bottom: 48px; /* 0.50 inch */
+  --doc-margin-left: 48px;   /* 0.50 inch */
+  --doc-margin-right: 48px;  /* 0.50 inch */
   
   /* Page Dimensions */
   --doc-page-height: 1123px; /* A4 Height at 96 DPI */
@@ -43,8 +45,11 @@
   --doc-usable-height: calc(var(--doc-page-height) - var(--doc-margin-top) - var(--doc-margin-bottom)); /* 931px */
   
   /* Typography */
-  --athena-font-heading: 'Georgia', serif;
-  --athena-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --athena-font-heading: 'Outfit', 'Inter', -apple-system, sans-serif;
+  --athena-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Shared Editor UI Dimensions */
+  --editor-header-height: 32px;
 }
 
 /* Global Typography Application */

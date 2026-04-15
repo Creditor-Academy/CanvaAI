@@ -7,7 +7,9 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { runWithSavedSelection } from '../editor/focusUtils';
+import focusUtils from '../components/editor/focusUtils';
+
+const { runWithSavedSelection } = focusUtils;
 import { FONT_SIZES } from '../constants/editorConstants';
 
 /**
@@ -30,11 +32,12 @@ import { FONT_SIZES } from '../constants/editorConstants';
  * 
  * @param {any} editor - TipTap editor instance
  * @param {Function} setCurrentFont - State setter for current font
+ * @param {Function} setCurrentFontSize - State setter for current font size
  * @param {Function} setCurrentTextColor - State setter for text color
  * @param {Function} setCurrentHighlight - State setter for highlight color
  * @returns {UseFormattingActionsReturn}
  */
-const useFormattingActions = (editor, setCurrentFont, setCurrentTextColor, setCurrentHighlight) => {
+const useFormattingActions = (editor, setCurrentFont, setCurrentFontSize, setCurrentTextColor, setCurrentHighlight) => {
   /**
    * Set font family with double-RAF for Radix Select compatibility
    */
@@ -134,7 +137,7 @@ const useFormattingActions = (editor, setCurrentFont, setCurrentTextColor, setCu
       return;
     }
     setCurrentFontSize(FONT_SIZES[idx + 1]);
-  }, [setCurrentFontSize]);
+  }, [editor, setCurrentFontSize]);
 
   /**
    * CRITICAL FIX: Handle custom sizes and provide user feedback at boundaries
@@ -156,7 +159,7 @@ const useFormattingActions = (editor, setCurrentFont, setCurrentTextColor, setCu
       return;
     }
     setCurrentFontSize(FONT_SIZES[idx - 1]);
-  }, [setCurrentFontSize]);
+  }, [editor, setCurrentFontSize]);
 
   /**
    * CRITICAL FIX: Centralize all link insertion through validated dialog

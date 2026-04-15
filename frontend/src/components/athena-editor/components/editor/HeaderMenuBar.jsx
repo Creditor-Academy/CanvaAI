@@ -30,6 +30,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import focusUtils from './focusUtils';
+import EnhancedTokenBadge from './EnhancedTokenBadge';
 
 // Destructure functions from default export for backward compatibility
 const { guardToolbarMouseDown, saveSelection, onMenuOpen, onMenuClose, runWithSavedSelection, preventEditorBlur } = focusUtils;
@@ -96,11 +97,13 @@ const HeaderMenuBar = React.memo(({
   
   // Debug: Log callback props on mount
   useEffect(() => {
+    /*
     console.log('🔧 [HeaderMenuBar] Zoom callbacks available:', { 
       hasEditor: !!editor, 
       hasZoom: !!zoom, 
       hasOnZoomChange: typeof onZoomChange === 'function' 
     });
+    */
   }, [zoom, onZoomChange]);
 
   // Close dropdowns when clicking outside
@@ -467,7 +470,7 @@ const HeaderMenuBar = React.memo(({
                       // Just log for debugging
                       console.log('🖱️ [MainMenu] Mouse down on:', menu.label);
                     }}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${showMenuDropdown === menu.id
+                    className={`px-2 py-1 text-[13px] font-medium rounded-md transition-colors ${showMenuDropdown === menu.id
                       ? 'bg-gray-100 text-gray-900'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }`}
@@ -485,10 +488,15 @@ const HeaderMenuBar = React.memo(({
 
         })}
 
+        {/* Token Utilization Badge */}
+        <div className="mr-4">
+          <EnhancedTokenBadge editor={editor} />
+        </div>
+        
         {/* Save Button */}
         <button
           onClick={onSave}
-          className="ml-2 flex items-center gap-1.5 px-4 py-1.5 bg-[#FFB000] hover:bg-[#e69e00] text-black rounded-full font-medium text-sm transition-colors"
+          className="ml-2 flex items-center gap-1.5 px-3 py-1 bg-[#FFB000] hover:bg-[#e69e00] text-black rounded-full font-medium text-[13px] transition-colors"
         >
           <Save className="w-4 h-4" />
           <span>Save</span>
@@ -497,7 +505,7 @@ const HeaderMenuBar = React.memo(({
         {/* Export Button */}
         <button
           onClick={onExport}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#2875FF] hover:bg-[#1d63e0] text-white rounded-full font-medium text-sm transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1 bg-[#2875FF] hover:bg-[#1d63e0] text-white rounded-full font-medium text-[13px] transition-colors"
         >
           <Download className="w-4 h-4" />
           <span>Export</span>

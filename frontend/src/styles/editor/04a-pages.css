@@ -1,0 +1,169 @@
+/* ============================================================================
+   ATHENA EDITOR - PAGE COMPONENTS
+   Page nodes, pagination, and page-specific styling
+   ============================================================================ */
+
+/* ══════════════════════════════════════════════════════════
+   PAGE NODE
+   Single source of truth - NO DUPLICATES elsewhere
+   ══════════════════════════════════════════════════════════ */
+
+.page {
+  /* Fixed page dimensions */
+  width: var(--editor-page-width);
+  height: var(--editor-page-height);
+  box-sizing: border-box;
+
+  /* ❌ REMOVED: Padding for margins - this made margins editable!
+   * Padding is inside the element, so clicks in padding area were editable.
+   * Solution: Use margin on .page-content instead (outside editable area) */
+  padding: 0;
+
+  /* Spacing between pages */
+  margin: 0 auto var(--editor-page-gap);
+
+  /* Visual styling */
+  background: var(--editor-bg-white);
+  box-shadow:
+    var(--editor-shadow-sm),
+    var(--editor-shadow-md);
+  border-radius: 2px;
+  position: relative;
+  display: block;
+
+  /* Content clipping */
+  overflow: hidden;
+
+  /* Performance optimization */
+  contain: layout style;
+
+  /* Typography root */
+  font-family: var(--editor-font-body);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  color: var(--editor-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  /* Stacking context */
+  clear: both;
+  isolation: isolate;
+  z-index: 0;
+  page-break-after: always;
+}
+
+/* First page - no top margin */
+.page:first-child {
+  margin-top: 0;
+}
+
+/* Last page - shrinks to content */
+.page:last-child {
+  height: auto;
+  min-height: calc(var(--editor-margin-top) + var(--editor-line-height-px) * 3);
+  overflow: visible;
+  /* ✅ REDUCED: Bottom margin from 40px to 20px for more compact appearance */
+  margin-bottom: 20px;
+}
+
+/* Single-page document */
+.page:only-child {
+  height: auto;
+  min-height: var(--editor-page-height);
+  overflow: visible;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE CONTENT (EDITABLE AREA)
+   ══════════════════════════════════════════════════════════ */
+
+.page-content {
+  /* ✅ MARGIN instead of padding - creates non-editable margin zones */
+  margin: var(--editor-margin-top) var(--editor-margin-right) 
+          var(--editor-margin-bottom) var(--editor-margin-left);
+  
+  /* ✅ HEIGHT: Subtract margins + safety buffer so last lines (e.g. Arial 11pt/1.15)
+     are never clipped at the overflow:hidden boundary.
+     --editor-content-buffer (24px) = ~1.4 lines of breathing room */
+  height: calc(100% - var(--editor-margin-top) - var(--editor-margin-bottom) - var(--editor-content-buffer));
+  max-height: calc(100% - var(--editor-margin-top) - var(--editor-margin-bottom) - var(--editor-content-buffer));
+  overflow: hidden;
+  
+  display: block;
+  visibility: visible;
+  white-space: normal !important;
+  position: relative;
+  z-index: 1;
+}
+
+.page-content > * {
+  margin: 0;
+  padding: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE PAGE ADJUSTMENTS
+   ══════════════════════════════════════════════════════════ */
+
+/* Tablet & Mobile - Maintain fixed coordinates, scale handles fitting */
+@media screen and (max-width: 1024px) {
+  .page {
+    width: var(--editor-page-width);
+    margin: 0 auto var(--editor-page-gap);
+  }
+}
+
+.page-number-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE BREAK INDICATOR
+   ══════════════════════════════════════════════════════════ */
+
+.page-break-indicator {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #9ca3af;
+  pointer-events: none;
+  user-select: none;
+}
+
+.page-break-indicator::before {
+  content: '';
+  display: block;
+  border-top: 2px dashed #d1d5db;
+  margin-bottom: 5px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PRINT STYLES FOR PAGES
+   ══════════════════════════════════════════════════════════ */
+
+@media print {
+  .page {
+    margin: 0;
+    box-shadow: none;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .page-break-indicator,
+  .page-number-label {
+    display: none;
+  }
+}

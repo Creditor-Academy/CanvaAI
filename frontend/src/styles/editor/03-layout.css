@@ -1,0 +1,114 @@
+/* ============================================================================
+   ATHENA EDITOR - LAYOUT
+   Editor container, workspace, and page layout
+   ============================================================================ */
+
+/* ══════════════════════════════════════════════════════════
+   EDITOR WORKSPACE CONTAINER
+   ══════════════════════════════════════════════════════════ */
+
+.editor-pages-container {
+  background: var(--editor-bg-page);
+  /* ✅ FIX: Use 100% width instead of 100vw to stay within parent container */
+  /* This prevents pages from being hidden behind outlines/sidebars */
+  /* and keeps scrollbar positioned correctly within the container */
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  /* ✅ MINIMAL: Removed bottom padding to eliminate grey space above footer */
+  /* Top: 4px, Bottom: 4px - minimal spacing */
+  padding: 4px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  /* ❌ REMOVED: viewport-width centering technique that caused layout issues */
+  /* left: 50%; */
+  /* right: 50%; */
+  /* margin-left: -50vw; */
+  /* margin-right: -50vw; */
+  box-sizing: border-box;
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+}
+
+/* Scrollbar Styling */
+.editor-pages-container::-webkit-scrollbar {
+  width: 16px;  /* ✅ INCREASED: From 12px to 16px for larger scrollbar */
+}
+
+.editor-pages-container::-webkit-scrollbar-track {
+  background: #dde1e7;
+  border-radius: 0;
+}
+
+.editor-pages-container::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 8px;  /* ✅ ADDED: Rounded corners for better appearance */
+  border: 2px solid transparent;  /* ✅ ADDED: Creates padding effect */
+  background-clip: padding-box;  /* ✅ ADDED: Makes thumb appear taller */
+  min-height: 60px;  /* ✅ ADDED: Minimum thumb height for better grab area */
+}
+
+.editor-pages-container::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.editor-pages-container::-webkit-scrollbar-corner {
+  background: #dde1e7;
+}
+
+.editor-pages-container {
+  scrollbar-width: auto;  /* ✅ CHANGED: From 'thin' to 'auto' for larger scrollbar in Firefox */
+  scrollbar-color: #9ca3af #dde1e7;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE LAYOUT ADJUSTMENTS
+   ══════════════════════════════════════════════════════════ */
+
+/* Tablet Landscape */
+@media screen and (max-width: 1024px) {
+  .editor-pages-container {
+    /* ✅ INCREASED: More height on tablet */
+    min-height: calc(100vh - 90px);
+    max-height: calc(100vh - 90px);
+  }
+}
+
+/* Mobile */
+@media screen and (max-width: 768px) {
+  .editor-pages-container {
+    /* ✅ INCREASED: More height on mobile */
+    min-height: calc(100vh - 80px);
+    max-height: calc(100vh - 80px);
+    padding: 4px 0 4px;  /* ✅ Minimal padding on mobile */
+  }
+}
+
+/* Small Mobile */
+@media screen and (max-width: 480px) {
+  .editor-pages-container {
+    /* ✅ INCREASED: More height on small mobile */
+    min-height: calc(100vh - 70px);
+    max-height: calc(100vh - 70px);
+    padding: 4px 0 4px;  /* ✅ Minimal padding on small mobile */
+  }
+}
+
+/* Landscape Orientation */
+@media screen and (max-height: 600px) and (orientation: landscape) {
+  .editor-pages-container {
+    /* ✅ INCREASED: Maximum height in landscape mode */
+    min-height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
+    padding: 4px 0 4px;  /* ✅ Minimal padding in landscape */
+  }
+}
