@@ -632,26 +632,25 @@ export default function Dashboard() {
                         {/* Type indicator badge */}
                         <div style={{
                           position: 'absolute', top: 8, left: 8,
-                          background: isPPT ? 'rgba(37,99,235,0.12)' : 'rgba(99,102,241,0.12)',
+                          background: 'rgba(0,0,0,0.35)',
                           borderRadius: 8, padding: '4px 7px',
                           display: 'flex', alignItems: 'center', gap: 5,
                           backdropFilter: 'blur(6px)',
-                          border: `1px solid ${isPPT ? 'rgba(37,99,235,0.18)' : 'rgba(99,102,241,0.18)'}`,
                         }}>
                           {isPPT ? (
-                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
                               <path d="M18 1 L18 6 L23 6" />
                               <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
                             </svg>
                           ) : (
-                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.7">
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7">
                               <rect x="3" y="3" width="18" height="18" rx="3" />
                               <circle cx="8.5" cy="8.5" r="1.5" />
                               <path d="M21 15l-5-5-4 4-3-3-6 6" />
                             </svg>
                           )}
-                          <span style={{ fontSize: 10, fontWeight: 700, color: isPPT ? '#2563eb' : '#6366f1', letterSpacing: '0.02em' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>
                             {isPPT ? 'PPT' : 'Image'}
                           </span>
                         </div>

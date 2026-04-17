@@ -30,9 +30,9 @@ const Tooltip = memo(({ text, hoveredButtonTooltip, tooltipPosition, tooltipText
 });
 
 const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, onMouseLeave, onClick, buttonRef, tooltipTexts, hoveredButtonTooltip, tooltipPosition }) => {
-  const buttonStyle = (isActive) => `relative group flex flex-col items-center justify-center gap-0 w-12 h-12 rounded-2xl transition-all duration-300 mx-1 ${isActive
-    ? 'bg-blue-600/20 text-blue-500 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-    : 'hover:bg-slate-800/50 text-slate-700 border border-transparent hover:border-slate-400 hover:text-slate-900'
+  const buttonStyle = (isActive) => `relative group flex flex-col items-center justify-center gap-0 w-14 h-14 rounded-2xl transition-all duration-300 mx-1 ${isActive
+    ? 'bg-amber-500/10 text-amber-500 border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+    : 'hover:bg-amber-500/5 text-amber-500 border-2 border-amber-500/40 hover:border-amber-500 hover:text-amber-600'
     }`;
 
   return (
@@ -45,9 +45,9 @@ const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, on
         onMouseLeave={onMouseLeave}
         onMouseDown={(e) => { e.preventDefault(); onClick(sectionKey, e.currentTarget); }}
       >
-        <span className="text-slate-700 group-hover:text-slate-900">{icon}</span>
-        <span className="text-[6px] font-medium uppercase tracking-wider text-black group-hover:text-slate-900 opacity-80 group-hover:opacity-100">{label}</span>
-        {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-500 rounded-full" />}
+        <span className="text-black group-hover:text-black">{icon}</span>
+        <span className="text-[6px] font-medium uppercase tracking-wider text-black group-hover:text-black opacity-80 group-hover:opacity-100">{label}</span>
+        {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-amber-500 rounded-full" />}
       </button>
       <Tooltip
         text={sectionKey}
@@ -61,7 +61,7 @@ const ParentButton = memo(({ sectionKey, icon, label, isActive, onMouseEnter, on
 
 const ExpandedSectionPortal = memo(({ sectionKey, expandedSection, title, children, position, onClose }) => {
   if (expandedSection !== sectionKey) return null;
-  // Use a light (white) surface for expanded panels so content reads on white backgrounds
+  // Use a dark surface for expanded panels
   const portalStyle = "fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-200 text-slate-900";
 
   return createPortal(
@@ -144,10 +144,10 @@ const LeftCanvasSidebar = memo(({
   }, [onCanvasBgImageChange]);
 
   const sidebarContainerStyle = `
-  relative pb-10 flex-[0_0_100px] flex flex-col items-center py-5 px-2 gap-3 z-[10]
+  relative pb-2 flex-[0_0_100px] flex flex-col items-center py-3 px-2 gap-2 z-[10]
   rounded-[30px]
-  border border-amber-500/50
-  backdrop-blur-2xl
+  border-[3px] border-amber-500/50
+  bg-white
   [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
 `;
 
@@ -166,7 +166,7 @@ const LeftCanvasSidebar = memo(({
     'shapes': 'Shapes & Icons',
     'drawing': 'Freehand Draw',
     'media': 'Images & AI',
-    'templates': 'Templates',
+    'templates': 'Layout',
     'canvas': 'Dimensions',
     'stockImages': 'Stock Images'
   };
@@ -437,7 +437,7 @@ const LeftCanvasSidebar = memo(({
   }, [expandedSection, toggleSection]);
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col items-center w-full mt-6">
       <div className={sidebarContainerStyle}>
         <ParentButton
           sectionKey="background" icon={<FiGrid size={16} />} label="Background"
@@ -692,7 +692,7 @@ const LeftCanvasSidebar = memo(({
         </ExpandedSectionPortal>
 
         <ExpandedSectionPortal
-          sectionKey="templates" title="Design Templates"
+          sectionKey="templates" title="Layout Panel"
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("templates")}
         >

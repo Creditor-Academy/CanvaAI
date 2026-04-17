@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiZap } from 'react-icons/fi';
 import { generateImage } from '@/services/imageEditor/imageApi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +12,7 @@ const AIImageGenerator = ({
 }) => {
   const { user } = useAuth();
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('realistic');
@@ -23,6 +25,7 @@ const AIImageGenerator = ({
     }
 
     setIsGeneratingAI(true);
+    setShowLoading(true);
     setErrorMessage('');
 
     try {
@@ -93,6 +96,7 @@ const AIImageGenerator = ({
       setErrorMessage(backendMsg || error.message || 'Failed to generate image. Please try again.');
     } finally {
       setIsGeneratingAI(false);
+      setTimeout(() => setShowLoading(false), 1000);
     }
   };
 
@@ -138,13 +142,15 @@ const AIImageGenerator = ({
         </div>
       )}
       <button
-        className={`py-5 px-4 border-2 border-dashed border-purple-500 rounded-xl w-full flex flex-col items-center justify-center gap-2.5 text-sm font-semibold text-white transition-all duration-300 min-h-[90px] ${hoveredOption === 'generate-ai' && !isGeneratingAI
-          ? 'bg-gradient-to-r from-purple-700 to-blue-600 border-purple-400'
-          : 'bg-gradient-to-r from-purple-500 to-blue-500 shadow-md shadow-purple-600/30 border-purple-500'
-          } ${isGeneratingAI
+        className={`py-5 px-4 border-2 rounded-xl w-full flex flex-col items-center justify-center gap-2.5 text-sm font-semibold text-white transition-all duration-300 min-h-[90px] border-blue-400 ${isGeneratingAI
             ? 'opacity-60 cursor-not-allowed'
-            : 'cursor-pointer hover:shadow-xl'
+            : 'cursor-pointer hover:shadow-xl hover:shadow-blue-500/30'
           }`}
+        style={{
+          background: hoveredOption === 'generate-ai' && !isGeneratingAI
+            ? 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)'
+            : 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)'
+        }}
         onMouseEnter={() => !isGeneratingAI && setHoveredOption('generate-ai')}
         onMouseLeave={() => setHoveredOption(null)}
         onClick={handleAIGenerateImage}
@@ -155,6 +161,17 @@ const AIImageGenerator = ({
           {isGeneratingAI ? 'Generating...' : 'Generate with AI'}
         </span>
       </button>
+
+      {showLoading && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-4 p-8 bg-slate-900/95 border border-slate-700 rounded-3xl shadow-2xl">
+            <div className="w-16 h-16 rounded-full animate-spin" style={{ border: '4px solid #fbbf24', borderTopColor: '#3b82f6' }} />
+            <p className="text-white text-lg font-bold tracking-tight">Generating your image...</p>
+            <p className="text-slate-400 text-sm">This may take a few seconds</p>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

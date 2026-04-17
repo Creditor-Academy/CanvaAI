@@ -9,7 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 const TopNavbar = () => {
   const navigate = useNavigate();
-  const { user: profile } = useAuth();
+  const { user: profile, logout } = useAuth();
   const [openNotif, setOpenNotif] = useState(false);
   const notifRef = useRef(null);
 
@@ -212,7 +212,7 @@ const TopNavbar = () => {
 
                 <button
                   onClick={() => {
-                    localStorage.removeItem("token");
+                    logout();
                     navigate("/login", { replace: true });
                   }}
                   className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-50 text-red-500"
@@ -295,7 +295,7 @@ const TopNavbar = () => {
 
           <button
             onClick={() => {
-              localStorage.removeItem("token");
+              logout();
               navigate("/login", { replace: true });
             }}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600"

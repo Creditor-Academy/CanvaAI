@@ -137,7 +137,7 @@ const RightSidebar = ({
   return (
     <div>
       <div
-        className={`fixed  right-0 pt-2 top-20 bg-white overflow-y-auto h-[calc(100vh-150px)] z-10 transition-all duration-300 custom-scrollbar rounded-l-[10px] border border-amber-400 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ${isRightSidebarCollapsed
+        className={`fixed  right-0 pt-2 top-20 bg-white overflow-y-auto h-[calc(100vh-150px)] z-10 transition-all duration-300 custom-scrollbar rounded-l-[10px] border-[3px] border-amber-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ${isRightSidebarCollapsed
           ? 'w-[60px] pb-20 px-2'
           : 'w-[320px] pb-20 px-3'
           }`}

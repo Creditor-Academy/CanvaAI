@@ -24,6 +24,17 @@ class ApiService {
       // console.log('Request headers:', config.headers); // Optional debug
       const response = await fetch(url, config);
       const contentType = response.headers.get('content-type') || '';
+
+      // Global 401 handler — only fires when a session token exists (not on login/signup attempts)
+      if (response.status === 401) {
+        const existingToken = localStorage.getItem('token');
+        if (existingToken) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
+        throw new Error('Session expired. Please log in again.');
+      }
+
       let data;
       if (response.status === 204) {
         data = null;

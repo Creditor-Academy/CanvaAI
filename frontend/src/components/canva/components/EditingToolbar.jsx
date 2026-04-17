@@ -148,20 +148,20 @@ const EditingToolbar = ({
     };
 
     // Style Helpers
-    const btnBase = "h-9 flex items-center justify-center gap-2 px-3 text-sm font-medium transition-all ";
-    const btnGhost = `${btnBase} text-gray-600 hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed`;
-    const btnOutline = `${btnBase} text-gray-700 hover:border-blue-400 hover:text-blue-600 bg-white         hover:shadow`;
-    const btnPrimary = "h-9 px-5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 shadow-md hover:shadow-lg transition-all";
-    const btnActive = `${btnBase} bg-blue-50 text-blue-600 border border-blue-200`;
-    const toolGroup = "flex items-center gap-1 bg-gray-50/90 p-1";
+    const btnBase = "h-7 flex items-center justify-center gap-1.5 px-2 text-xs font-medium transition-all ";
+    const btnGhost = `${btnBase} text-gray-600 hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed border-2 border-amber-500/30 rounded-lg`;
+    const btnOutline = `${btnBase} text-gray-700 hover:border-amber-500 hover:text-blue-600 bg-white border-2 border-amber-500/30 rounded-lg hover:shadow`;
+    const btnPrimary = "h-7 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all border-2 border-amber-500/30";
+    const btnActive = `${btnBase} bg-blue-50 text-blue-600 border-2 border-amber-500/50 rounded-lg`;
+    const toolGroup = "flex items-center gap-0.5 bg-gray-50/90 p-0.5 border-2 border-amber-500/30 rounded-lg";
     const verticalDivider = <div className="w-px h-6 bg-gray-200 mx-2" />;
 
     return (
         <>
             <div className="bg-white/95 backdrop-blur-sm  w-full sticky top-0 z-[100] flex flex-col antialiased ">
-                <div className="h-14 px-4 flex items-center justify-between border-b border-amber-500">
+                <div className="h-11 px-4 flex items-center justify-between border-b-[3px] border-amber-500/50">
                     {/* Left section - Project info */}
-                    <div className="flex items-center gap-3 min-w-[200px]">
+                    <div className="flex items-center gap-3 min-w-[200px] flex-shrink-0">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center">
                             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="text-amber-500">
                                 <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -200,7 +200,7 @@ const EditingToolbar = ({
                                 className={btnGhost}
                                 title="Undo (Ctrl+Z)"
                             >
-                                <FiRotateCcw size={15} />
+                                <FiRotateCcw size={13} />
                             </button>
                             <button
                                 onClick={onRedo}
@@ -208,7 +208,7 @@ const EditingToolbar = ({
                                 className={btnGhost}
                                 title="Redo (Ctrl+Y)"
                             >
-                                <FiRotateCw size={15} />
+                                <FiRotateCw size={13} />
                             </button>
                         </div>
 
@@ -219,18 +219,18 @@ const EditingToolbar = ({
                             className={btnGhost}
                             title="Duplicate"
                         >
-                            <FiCopy size={15} />
+                            <FiCopy size={13} />
                         </button>
 
                         {/* Remove Background */}
-                        <button
+                        {/* <button
                             onClick={onToggleBackground}
                             className={`${btnOutline} ${isBgRemoved ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' : ''}`}
                             title={isBgRemoved ? "Restore Background" : "Remove Background"}
                         >
-                            <FiTrash2 size={15} />
+                            <FiTrash2 size={13} />
                             <span className="hidden lg:inline text-xs">{isBgRemoved ? "Restore BG" : "Remove BG"}</span>
-                        </button>
+                        </button> */}
 
                         {/* Text Layer Specific Controls */}
                         {isTextLayer && (
@@ -357,21 +357,21 @@ const EditingToolbar = ({
                                         className={`p-1.5 ${layer.fontWeight === 'bold' ? 'text-blue-600 bg-blue-50 rounded-md' : 'hover:text-blue-600'}`}
                                         title="Bold"
                                     >
-                                        <FiBold size={15} />
+                                        <FiBold size={13} />
                                     </button>
                                     <button
                                         onClick={onToggleItalic}
                                         className={`p-1.5 ${layer.fontStyle === 'italic' ? 'text-blue-600 bg-blue-50 rounded-md' : 'hover:text-blue-600'}`}
                                         title="Italic"
                                     >
-                                        <FiItalic size={15} />
+                                        <FiItalic size={13} />
                                     </button>
                                     <button
                                         onClick={onToggleUnderline}
                                         className={`p-1.5 ${layer.textDecoration === 'underline' ? 'text-blue-600 bg-blue-50 rounded-md' : 'hover:text-blue-600'}`}
                                         title="Underline"
                                     >
-                                        <FiUnderline size={15} />
+                                        <FiUnderline size={13} />
                                     </button>
 
                                     {/* Color Picker */}
@@ -391,7 +391,7 @@ const EditingToolbar = ({
                                             title="Text Color"
                                         >
                                             <div className="relative">
-                                                <FiType size={15} />
+                                                <FiType size={13} />
                                                 <div
                                                     className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full"
                                                     style={{ backgroundColor: layer.color || '#000' }}
@@ -453,21 +453,21 @@ const EditingToolbar = ({
                                         className={`p-1.5 ${layer.textAlign === 'left' ? 'text-blue-600 bg-blue-50 rounded-md' : 'hover:text-blue-600'}`}
                                         title="Align Left"
                                     >
-                                        <FiAlignLeft size={15} />
+                                        <FiAlignLeft size={13} />
                                     </button>
                                     <button
                                         onClick={() => onTextAlignChange('center')}
                                         className={`p-1.5 ${layer.textAlign === 'center' ? 'text-blue-600 bg-blue-50 rounded-md' : 'hover:text-blue-600'}`}
                                         title="Align Center"
                                     >
-                                        <FiAlignCenter size={15} />
+                                        <FiAlignCenter size={13} />
                                     </button>
                                     <button
                                         onClick={() => onTextAlignChange('right')}
                                         className={`p-1.5 ${layer.textAlign === 'right' ? 'text-blue-600 bg-blue-50 rounded-md' : 'hover:text-blue-600'}`}
                                         title="Align Right"
                                     >
-                                        <FiAlignRight size={15} />
+                                        <FiAlignRight size={13} />
                                     </button>
                                 </div>
                             </div>
@@ -478,7 +478,7 @@ const EditingToolbar = ({
                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                                 {verticalDivider}
                                 <button onClick={onFlip} className={btnOutline}>
-                                    <FiRotateCw size={15} />
+                                    <FiRotateCw size={13} />
                                     <span className="text-xs">Flip</span>
                                 </button>
                             </div>
@@ -487,7 +487,7 @@ const EditingToolbar = ({
                     </div>
 
                     {/* Right section - Action buttons */}
-                    <div className="flex items-center gap-3 min-w-[200px] justify-end">
+                    <div className="flex items-center gap-3 min-w-[200px] justify-end flex-shrink-0">
                         {/* Export Dropdown */}
                         <div className="relative" ref={exportDropdownRef}>
                             <button
@@ -500,11 +500,11 @@ const EditingToolbar = ({
                                     });
                                     setShowExportDropdown(prev => !prev);
                                 }}
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border-2 border-amber-500/30"
                             >
-                                <FiDownload size={16} />
+                                <FiDownload size={13} />
                                 <span className="hidden sm:inline">Export</span>
-                                <FiChevronDown size={14} />
+                                <FiChevronDown size={12} />
                             </button>
 
                             {showExportDropdown && exportDropdownPos && typeof document !== 'undefined' && createPortal(
@@ -622,16 +622,17 @@ const EditingToolbar = ({
                                         const name = pendingName || 'design';
 
                                         if (!imageId) {
-                                            throw new Error('Image ID is required for export');
+                                            throw new Error('Save the project first');
                                         }
 
-                                        const blob = await exportImage(imageId, pendingFormat);
+                                        const formatLower = pendingFormat.toLowerCase();
+                                        const blob = await exportImage(imageId, formatLower);
 
                                         const url = window.URL.createObjectURL(blob);
                                         const link = document.createElement('a');
 
                                         link.href = url;
-                                        link.download = `${name}.${pendingFormat}`;
+                                        link.download = `${name}.${formatLower}`;
 
                                         document.body.appendChild(link);
                                         link.click();
@@ -644,7 +645,7 @@ const EditingToolbar = ({
                                         setPendingName('');
                                     } catch (error) {
                                         console.error('Export failed:', error);
-                                        toast.error('Failed to download image. Please try again.');
+                                        toast.error(error.message || 'Failed to download image. Please try again.');
                                         setShowNamePrompt(false);
                                         setPendingFormat(null);
                                         setPendingName('');
