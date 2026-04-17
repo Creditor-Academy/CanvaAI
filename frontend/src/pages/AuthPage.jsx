@@ -7,9 +7,16 @@ import { motion } from "framer-motion";
 
 
 const AuthPage = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // If user already has a valid session, skip login and go straight to home
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      navigate("/home", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
 
   const [isSignup, setIsSignup] = useState(false);

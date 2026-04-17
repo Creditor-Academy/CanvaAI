@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { cloneImage } from '../../../services/imageEditor/imageApi'
 import { toast } from 'sonner'
 import axios from "axios";
+import { isTransparent, getShapePath } from './shapeUtils';
 
 const handleCloneImage = async (imageId) => {
     console.log('importing image', imageId);
@@ -28,16 +29,7 @@ const handleCloneImage = async (imageId) => {
     }
 };
 
-// Helper function - check if color is transparent
-const isTransparent = (color) => {
-    if (!color) return true;
-    const c = color.replace(/\s/g, '').toLowerCase();
-    return (
-        c === 'transparent' ||
-        c === 'rgba(0,0,0,0)' ||
-        c === 'rgba(0,0,0,0.0)'
-    );
-};
+
 
 // Render image preview from data
 const renderImagePreview = (image) => {
@@ -113,38 +105,68 @@ const renderImagePreview = (image) => {
                 };
 
                 if (layer.type === 'text') {
+                    const rotation = layer.rotation || 0;
                     return (
-                        <text
+                        <foreignObject
                             key={layer.id}
-                            x={commonStyle.x + (layer.width || 0) / 2}
-                            y={commonStyle.y + (layer.height || 0) / 2}
-                            fontSize={layer.fontSize || 16}
-                            fontFamily={layer.fontFamily || 'Arial'}
-                            fontWeight={layer.fontWeight || 400}
-                            fill={layer.color || '#111827'}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
+                            x={commonStyle.x}
+                            y={commonStyle.y}
+                            width={commonStyle.width}
+                            height={commonStyle.height}
                             opacity={commonStyle.opacity}
+                            transform={rotation ? `rotate(${rotation}, ${commonStyle.x + commonStyle.width / 2}, ${commonStyle.y + commonStyle.height / 2})` : undefined}
                         >
-                            {layer.text}
-                        </text>
+                            <div
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    fontSize: `${layer.fontSize || 16}px`,
+                                    fontFamily: layer.fontFamily || 'Arial',
+                                    fontWeight: layer.fontWeight || 'normal',
+                                    fontStyle: layer.fontStyle || 'normal',
+                                    color: layer.color || '#111827',
+                                    textAlign: layer.textAlign || 'left',
+                                    textDecoration: layer.textDecoration || 'none',
+                                    lineHeight: '1.2',
+                                    whiteSpace: 'pre-wrap',
+                                    wordWrap: 'break-word',
+                                    overflow: 'hidden',
+                                    padding: '4px',
+                                    boxSizing: 'border-box',
+                                }}
+                            >
+                                {layer.text}
+                            </div>
+                        </foreignObject>
                     );
                 }
 
                 if (layer.type === 'image') {
                     const src = layer.imageUrl || layer.url || layer.src;
                     if (!src) return null;
+                    const rotation = layer.rotation || 0;
                     return (
-                        <image
+                        <foreignObject
                             key={layer.id}
-                            href={src}
                             x={commonStyle.x}
                             y={commonStyle.y}
                             width={commonStyle.width}
                             height={commonStyle.height}
                             opacity={commonStyle.opacity}
-                            preserveAspectRatio="xMidYMid slice"
-                        />
+                            transform={rotation ? `rotate(${rotation}, ${commonStyle.x + commonStyle.width / 2}, ${commonStyle.y + commonStyle.height / 2})` : undefined}
+                        >
+                            <img
+                                src={src}
+                                alt=""
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    display: 'block',
+                                    borderRadius: layer.cornerRadius || 0,
+                                }}
+                            />
+                        </foreignObject>
                     );
                 }
 
@@ -152,21 +174,58 @@ const renderImagePreview = (image) => {
                     const fill = isTransparent(layer.fillColor) ? 'none' : layer.fillColor;
                     const stroke = layer.strokeColor || '#000000';
                     const sw = layer.strokeWidth || 1;
+                    const shapeType = layer.shape || 'roundedRectangle';
+                    const pathData = getShapePath(shapeType, commonStyle.width, commonStyle.height);
+                    const hasImageFill = layer.fillType === 'image' && layer.fillImageSrc;
+                    const clipId = `shape-clip-${layer.id}`;
 
-                    // Simple rect for shape preview
                     return (
-                        <rect
+                        <g
                             key={layer.id}
-                            x={commonStyle.x}
-                            y={commonStyle.y}
-                            width={commonStyle.width}
-                            height={commonStyle.height}
-                            fill={fill}
-                            stroke={stroke}
-                            strokeWidth={sw}
+                            transform={`translate(${commonStyle.x}, ${commonStyle.y})${layer.rotation ? ` rotate(${layer.rotation}, ${commonStyle.width / 2}, ${commonStyle.height / 2})` : ''}`}
                             opacity={commonStyle.opacity}
-                            rx={layer.shape === 'roundedRectangle' ? '8' : '0'}
-                        />
+                        >
+                            {hasImageFill ? (
+                                <>
+                                    <defs>
+                                        <clipPath id={clipId}>
+                                            <path d={pathData} />
+                                        </clipPath>
+                                    </defs>
+                                    <foreignObject
+                                        width={commonStyle.width}
+                                        height={commonStyle.height}
+                                        clipPath={`url(#${clipId})`}
+                                    >
+                                        <img
+                                            src={layer.fillImageSrc}
+                                            alt=""
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
+                                                display: 'block',
+                                            }}
+                                        />
+                                    </foreignObject>
+                                    <path
+                                        d={pathData}
+                                        fill="none"
+                                        stroke={stroke}
+                                        strokeWidth={sw}
+                                        strokeLinejoin="miter"
+                                    />
+                                </>
+                            ) : (
+                                <path
+                                    d={pathData}
+                                    fill={fill}
+                                    stroke={stroke}
+                                    strokeWidth={sw}
+                                    strokeLinejoin="miter"
+                                />
+                            )}
+                        </g>
                     );
                 }
 
@@ -398,6 +457,7 @@ const popupStyles = {
         fontSize: '0.9rem',
         boxShadow: '0 4px 6px -1px rgba(99,102,241,0.2)',
     },
+
 };
 
 export default ImagePopup;

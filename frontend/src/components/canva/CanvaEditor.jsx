@@ -44,7 +44,9 @@ import { GRADIENTS } from './components/BackgroundColor';
 import { saveImage, updateImage, updateImageVisibility, exportImage, uploadTemporaryImage } from '@/services/imageEditor/imageApi';
 
 const CanvaEditor = () => {
-  const { id: projectId } = useParams();
+  const { id: routeProjectId } = useParams();
+  const [savedProjectId, setSavedProjectId] = useState(null);
+  const projectId = routeProjectId || savedProjectId;
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -589,8 +591,10 @@ const CanvaEditor = () => {
 
         toast.success("Design saved successfully!");
 
-        if (result && (result.id || result._id)) {
-          navigate(`/canva-clone/${result.id || result._id}`);
+        const newId = result?.id || result?._id || result?.data?.id || result?.data?._id;
+        if (newId) {
+          setSavedProjectId(newId);
+          navigate(`/canva-clone/${newId}`, { replace: true });
         }
       }
 

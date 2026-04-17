@@ -70,7 +70,7 @@ const BottomToolbar = ({
     ((zoomValue - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)) * 100;
 
   return (
-    <div className="h-[50px] bg-gray-100 border-t border-gray-200 flex items-center px-5 gap-4 sticky bottom-0 z-[100] shadow-sm">
+    <div className="h-[50px] bg-gray-100 border-t-[3px] border-amber-500/50 flex items-center px-5 gap-4 sticky bottom-0 z-[100] shadow-sm">
 
       <div className="flex-1" />
 
@@ -79,7 +79,7 @@ const BottomToolbar = ({
         <button
           type="button"
           onClick={() => setZoom(prev => Math.max(MIN_ZOOM, prev - 10))}
-          className="px-2 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+          className="px-2 py-1.5 border-2 border-amber-500/30 rounded-md bg-white hover:bg-gray-50"
           title="Zoom Out"
         >
           <FiZoomOut size={14} />
@@ -91,9 +91,9 @@ const BottomToolbar = ({
           onChange={handleZoomInputChange}
           onBlur={handleZoomBlur}
           onKeyDown={handleZoomEnter}
-          className={`w-[50px] h-7 px-1 border rounded text-center text-xs font-mono bg-white ${zoom.toString() === inputValue
-              ? 'border-gray-300'
-              : 'border-blue-500'
+          className={`w-[50px] h-7 px-1 border-2 rounded text-center text-xs font-mono bg-white ${zoom.toString() === inputValue
+              ? 'border-amber-500/30'
+              : 'border-amber-500'
             }`}
           onFocus={(e) => e.target.select()}
         />
@@ -103,7 +103,7 @@ const BottomToolbar = ({
         <button
           type="button"
           onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 10))}
-          className="px-2 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+          className="px-2 py-1.5 border-2 border-amber-500/30 rounded-md bg-white hover:bg-gray-50"
           title="Zoom In"
         >
           <FiZoomIn size={14} />
@@ -114,7 +114,7 @@ const BottomToolbar = ({
       <button
         type="button"
         onClick={() => setZoom(100)}
-        className="px-2 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+        className="px-2 py-1.5 border-2 border-amber-500/30 rounded-md bg-white hover:bg-gray-50"
         title="Reset Zoom"
       >
         <FiMaximize size={14} />
@@ -171,7 +171,7 @@ const BottomToolbar = ({
 
       {/* Canvas Size */}
       {canvasSize && setCanvasSize && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md bg-white">
+        <div className="flex items-center gap-2 px-3 py-1.5 border-2 border-amber-500/30 rounded-md bg-white">
           <span className="text-xs text-gray-600 font-medium">Size:</span>
           <input
             type="number"
@@ -182,7 +182,7 @@ const BottomToolbar = ({
                 width: parseInt(e.target.value) || 800
               }))
             }
-            className="w-16 h-6 px-1 border border-gray-300 rounded text-xs text-center"
+            className="w-16 h-6 px-1 border-2 border-amber-500/30 rounded text-xs text-center"
           />
           <span className="text-xs text-gray-400">×</span>
           <input
@@ -194,7 +194,7 @@ const BottomToolbar = ({
                 height: parseInt(e.target.value) || 600
               }))
             }
-            className="w-16 h-6 px-1 border border-gray-300 rounded text-xs text-center"
+            className="w-16 h-6 px-1 border-2 border-amber-500/30 rounded text-xs text-center"
           />
         </div>
       )}
@@ -203,9 +203,9 @@ const BottomToolbar = ({
       <button
         type="button"
         onClick={onToggleGrid}
-        className={`p-2 border rounded-md ${showGrid
-            ? 'bg-blue-600 text-white border-blue-400'
-            : 'bg-white text-gray-800 hover:bg-gray-50'
+        className={`p-2 border-2 rounded-md ${showGrid
+            ? 'bg-blue-600 text-white border-amber-500'
+            : 'bg-white text-gray-800 hover:bg-gray-50 border-amber-500/30'
           }`}
         title="Toggle Grid"
       >
@@ -216,19 +216,10 @@ const BottomToolbar = ({
       <button
         type="button"
         onClick={onMaximize}
-        className="p-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+        className="p-2 border-2 border-amber-500/30 rounded-md bg-white hover:bg-gray-50"
         title="Maximize"
       >
         <FiMaximize size={16} />
-      </button>
-
-      {/* Help */}
-      <button
-        type="button"
-        className="p-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
-        title="Help"
-      >
-        <FiHelpCircle size={16} />
       </button>
     </div>
   );

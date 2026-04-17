@@ -1,10 +1,32 @@
 // src/components/landing/Navbar.jsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Navbar.css";
 import logo from "../../assets/logo.png";
 
+const isTokenValid = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+};
+
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLoginClick = (e) => {
+    e.preventDefault();
+    if (isTokenValid()) {
+      navigate("/home", { replace: true });
+    } else {
+      navigate("/login");
+    }
+  };
 
   return (
     <header className="navv-root">
@@ -24,7 +46,7 @@ const Navbar = () => {
         </nav>
 
         <div className="nav-actions">
-          <a className="btn btn-ghost login-btn" href="/login">Log in</a>
+          <a className="btn btn-ghost login-btn" href="/login" onClick={handleLoginClick}>Log in</a>
 
           <button
             className={`hamburger ${open ? "is-active" : ""}`}

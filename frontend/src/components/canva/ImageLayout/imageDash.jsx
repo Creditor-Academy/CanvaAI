@@ -3,41 +3,7 @@ import { Globe, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import React, { useEffect, useState } from 'react'
-
-
-const getShapeSVG = (shape, width, height, fillColor, strokeColor, strokeWidth) => {
-
-    const w = width
-    const h = height
-    const fill = fillColor || 'none'
-    const stroke = strokeColor || '#000'
-    const sw = strokeWidth || 1
-
-    const paths = {
-        rectangle: `M0 0 L${w} 0 L${w} ${h} L0 ${h} Z`,
-        circle: `M${w / 2} 0 A${w / 2} ${h / 2} 0 1 1 ${w / 2} ${h} A${w / 2} ${h / 2} 0 1 1 ${w / 2} 0 Z`,
-        triangle: `M${w / 2} 0 L${w} ${h} L0 ${h} Z`,
-        diamond: `M${w / 2} 0 L${w} ${h / 2} L${w / 2} ${h} L0 ${h / 2} Z`
-    }
-
-    const d = paths[shape] || paths.rectangle
-
-    return `
-        <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
-            <path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />
-        </svg>
-    `
-}
-
-const isTransparent = (color) => {
-    if (!color) return true;
-    const c = color.replace(/\s/g, '').toLowerCase();
-    return (
-        c === 'transparent' ||
-        c === 'rgba(0,0,0,0)' ||
-        c === 'rgba(0,0,0,0.0)'
-    );
-};
+import { isTransparent, getShapeSVG } from './shapeUtils'
 
 export const ImageThumbPreview = React.memo(({ image }) => {
 
