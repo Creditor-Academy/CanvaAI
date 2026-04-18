@@ -1,13 +1,34 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import SafeTextEditor from '../components/athena-editor/SafeTextEditor';
 import { TooltipProvider } from '../components/athena-editor/components/ui/tooltip';
+import { useAutoCreateDocument } from '../components/athena-editor/hooks/useAutoCreateDocument';
 
 const EditorTabPage = () => {
-  const { mongoId } = useParams();
+  const { mongoId: rawMongoId } = useParams();
+  const navigate = useNavigate();
+  
+  // 🔥 CRITICAL: Convert "undefined" string to null
+  const mongoId = (rawMongoId === 'undefined' || rawMongoId === 'null') ? null : rawMongoId;
+  
+  console.log('📍 EditorTabPage - raw mongoId:', rawMongoId, 'cleaned:', mongoId);
+  
+  // 🔥 PRODUCTION: Auto-create document immediately when opening new document
+  // This follows Google Docs pattern - document exists from the first millisecond
+  const { isCreating, createdDocId } = useAutoCreateDocument(mongoId, navigate);
+  
+  // Use the created document ID if available, otherwise use mongoId from URL
+  const effectiveMongoId = createdDocId || mongoId;
+  
+  console.log('📍 EditorTabPage rendering with:', { 
+    mongoId, 
+    createdDocId, 
+    effectiveMongoId,
+    url: window.location.pathname 
+  });
   
   // Remove sidebar and other layout elements for standalone editor
-  React.useEffect(() => {
+  useEffect(() => {
     // Hide sidebar when this page loads
     const appContent = document.querySelector('.app-content');
     if (appContent) {
@@ -27,10 +48,22 @@ const EditorTabPage = () => {
     };
   }, []);
 
+  // Show loading state while creating document
+  if (isCreating && !mongoId) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Creating new document...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
       <div className="h-screen w-full overflow-hidden">
-        <SafeTextEditor mongoId={mongoId} />
+        <SafeTextEditor key={effectiveMongoId || 'new'} mongoId={effectiveMongoId} />
       </div>
     </TooltipProvider>
   );

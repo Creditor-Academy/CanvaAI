@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { useTokenCounter } from '../../hooks/useTokenCounter';
+import { useTokenCounter } from '../../../../hooks/useTokenCounter';
 import { EnhancedTokenBadge } from './EnhancedTokenBadge';
 
 export const TokenCounterDemo = ({ editor }) => {

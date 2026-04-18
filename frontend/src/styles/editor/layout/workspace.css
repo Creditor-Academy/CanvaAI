@@ -18,7 +18,8 @@
     /* Scrolling Behavior */
     overflow-y: auto !important;
     overflow-x: hidden;
-    padding: 20px 0 !important; /* ✅ Added padding for breathing room */
+    padding: 20px 0 !important; /* ✅ 20px bottom padding */
+    margin-top: 20px !important; /* ✅ 20px spacing from toolbar */
     
     /* Performance */
     scroll-behavior: auto !important;

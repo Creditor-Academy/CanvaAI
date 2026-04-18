@@ -666,6 +666,7 @@ export const EditorToolbar = ({
   const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
+  const [savedSelection, setSavedSelection] = useState(null); // Save selection when dialog opens
 
   // CRITICAL FIX: Move ALL hooks BEFORE the early return to satisfy Rules of Hooks
   const [showTablePicker, setShowTablePicker] = useState(false);
@@ -979,6 +980,11 @@ export const EditorToolbar = ({
 
   const addLink = () => {
     // 🔥 Open dialog instead of using window.prompt
+    // 🔥 CRITICAL: Save selection using focusUtils before opening dialog to prevent cursor loss
+    if (editor) {
+      saveSelection(editor);
+      console.log(' Saved selection before link dialog');
+    }
     const previousUrl = editor?.getAttributes('link').href || 'https://';
     setLinkUrlValue(previousUrl);
     setLinkDialogOpen(true);
@@ -986,8 +992,12 @@ export const EditorToolbar = ({
 
   const handleLinkDialogConfirm = () => {
     if (linkUrlValue && editor) {
-      validateAndSetLink(linkUrlValue);
+      console.log('🔗 Link dialog confirmed:', linkUrlValue);
+      // 🔥 CRITICAL: Use runWithSavedSelection to restore cursor position before inserting link
+      runWithSavedSelection(editor, (chain) => chain.setLink({ href: linkUrlValue }));
       setLinkDialogOpen(false);
+    } else if (!linkUrlValue) {
+      toast.error('Please enter a URL');
     }
   };
 
@@ -1785,11 +1795,17 @@ export const EditorToolbar = ({
           insertTable(3, 3);
           break;
         case 'link':
-          // 🔥 Use centralized validation instead of direct setLink
-          const linkUrl = prompt('Enter URL (http://, https://, mailto:, or tel:):');
-          if (linkUrl) {
-            validateAndSetLink(linkUrl);
+          // Open the link insertion dialog
+          console.log('🔗 Opening link dialog');
+          // Save current selection before opening dialog
+          if (editor) {
+            const { from, to } = editor.state.selection;
+            setSavedSelection({ from, to });
+            console.log('💾 Saved selection:', from, 'to', to);
           }
+          setShowInsertLink(true);
+          setLinkUrl('https://');
+          setLinkDisplayText('');
           break;
         case 'page_break': {
           const { state: pbState } = editor;
@@ -4718,11 +4734,85 @@ export const EditorToolbar = ({
                 <label className="text-xs font-medium text-gray-600 mb-1 block">URL</label>
                 <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://example.com"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-                  onKeyDown={e => { if (e.key === 'Enter' && linkUrl) { runWithSavedSelection(editor, (chain) => chain.setLink({ href: linkUrl })); toast.success('Link inserted'); setShowInsertLink(false); setLinkUrl(''); setLinkDisplayText(''); } }} />
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && linkUrl) {
+                      console.log('🔗 Enter key pressed, inserting link');
+                      if (savedSelection && savedSelection.from !== savedSelection.to) {
+                        editor.chain()
+                          .focus()
+                          .setTextSelection({ from: savedSelection.from, to: savedSelection.to })
+                          .setLink({ href: linkUrl })
+                          .run();
+                        toast.success('Link applied to selected text');
+                      } else if (linkDisplayText) {
+                        editor.chain()
+                          .focus()
+                          .insertContent(`<a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${linkDisplayText}</a>`)
+                          .run();
+                        toast.success('Link inserted');
+                      } else {
+                        editor.chain()
+                          .focus()
+                          .setLink({ href: linkUrl })
+                          .run();
+                        toast.success('Link inserted');
+                      }
+                      setShowInsertLink(false);
+                      setLinkUrl('');
+                      setLinkDisplayText('');
+                      setSavedSelection(null);
+                    }
+                  }} />
               </div>
               <div className="flex gap-2 justify-end mt-2">
                 <button onClick={() => setShowInsertLink(false)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-                <button onClick={() => { if (!linkUrl) return; runWithSavedSelection(editor, (chain) => chain.setLink({ href: linkUrl })); toast.success('Link inserted'); setShowInsertLink(false); setLinkUrl(''); setLinkDisplayText(''); }}
+                <button onClick={() => {
+                  if (!linkUrl) {
+                    toast.error('Please enter a URL');
+                    return;
+                  }
+                  
+                  console.log('🔗 Inserting link:', linkUrl, 'Display text:', linkDisplayText);
+                  console.log('📍 Saved selection:', savedSelection);
+                  
+                  if (!editor) {
+                    toast.error('Editor not available');
+                    return;
+                  }
+                  
+                  // Restore selection and apply link
+                  if (savedSelection && savedSelection.from !== savedSelection.to) {
+                    // There was a text selection - apply link to it
+                    console.log('✅ Applying link to selected text');
+                    editor.chain()
+                      .focus()
+                      .setTextSelection({ from: savedSelection.from, to: savedSelection.to })
+                      .setLink({ href: linkUrl })
+                      .run();
+                    toast.success('Link applied to selected text');
+                  } else if (linkDisplayText) {
+                    // No selection but has display text - insert as link
+                    console.log('✅ Inserting link with display text');
+                    editor.chain()
+                      .focus()
+                      .insertContent(`<a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${linkDisplayText}</a>`)
+                      .run();
+                    toast.success('Link inserted');
+                  } else {
+                    // No selection, no display text - insert URL as link
+                    console.log('✅ Inserting URL as link');
+                    editor.chain()
+                      .focus()
+                      .setLink({ href: linkUrl })
+                      .run();
+                    toast.success('Link inserted');
+                  }
+                  
+                  setShowInsertLink(false);
+                  setLinkUrl('');
+                  setLinkDisplayText('');
+                  setSavedSelection(null);
+                }}
                   disabled={!linkUrl} className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50">Insert</button>
               </div>
             </div>
@@ -4912,15 +5002,26 @@ const TextEditorContent = ({
   const [searchParams] = useSearchParams();
 
   const docId = useMemo(() => {
+    // Priority 1: Query parameter
     const qp = searchParams.get('docId');
     if (qp && /^[0-9a-fA-F]{24}$/.test(qp)) {
       console.log('[docId] Using query param:', qp);
       return qp;
     }
+    
+    // Priority 2: URL path parameter
     if (urlMongoId && /^[0-9a-fA-F]{24}$/.test(urlMongoId)) {
       console.log('[docId] Using URL path:', urlMongoId);
       return urlMongoId;
     }
+    
+    // Priority 3: sessionStorage (fallback for immediate persistence)
+    const sessionDocId = sessionStorage.getItem('athena_current_doc_id');
+    if (sessionDocId && /^[0-9a-fA-F]{24}$/.test(sessionDocId)) {
+      console.log('[docId] Using sessionStorage fallback:', sessionDocId);
+      return sessionDocId;
+    }
+    
     console.log('[docId] No valid docId found');
     return null;
   }, [urlMongoId, searchParams]);
@@ -4989,17 +5090,19 @@ const TextEditorContent = ({
         const jsonContent = ed.state.doc.toJSON();
         const htmlContent = ed.getHTML();
 
+        // Update existing document
         await TextEditorService.updateDocument(id, {
           data: {
             content: jsonContent, // ✅ Save TipTap JSON structure
             html: htmlContent // For compatibility/fallback
           },
+          hasBeenEdited: true, // Mark as edited to prevent cleanup
           updatedAt: new Date()
         });
 
         setSaveStatus('saved');
         setLastSaved(new Date());
-        // console.log(`✅ Document ${id} auto-saved successfully`);
+        console.log(`✅ Document ${id} auto-saved successfully`);
       } catch (error) {
         setSaveStatus('error');
         toast.error('Failed to save document. Please check your connection.');
@@ -5013,12 +5116,10 @@ const TextEditorContent = ({
     return () => {
       if (saveRef.current) {
         saveRef.current.cancel();
-        // console.log('🧹 Cancelled pending save on unmount');
+        console.log('🧹 Cancelled pending save on unmount');
       }
     };
   }, []);
-
-  // ── Sync word/character count from refs to state for footer display ───────
   //
   // The onUpdate callback stores counts in refs to avoid re-renders on every keystroke.
   // This effect periodically syncs those values to React state for UI display.
@@ -6284,7 +6385,8 @@ const TextEditorContent = ({
             data: {
               content: editor.getJSON(),
               html: editor.getHTML()
-            }
+            },
+            hasBeenEdited: true // Mark as edited to prevent cleanup
           });
 
           console.log('✅ SAVE SUCCESSFUL - Check network tab to verify backend stored JSON');
@@ -6923,11 +7025,16 @@ const TextEditorContent = ({
                 runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }));
               }}
               onInsertLink={() => {
-                // 🔥 Use centralized validation instead of direct setLink
-                const url = window.prompt('Enter link URL (http://, https://, mailto:, or tel:):');
-                if (url && editor) {
-                  validateAndSetLink(url);
+                console.log('🔗 [TextEditor] onInsertLink called');
+                // Save current selection before opening dialog
+                if (editor) {
+                  const { from, to } = editor.state.selection;
+                  setSavedSelection({ from, to });
+                  console.log('💾 Saved selection:', from, 'to', to);
                 }
+                setShowInsertLink(true);
+                setLinkUrl('https://');
+                setLinkDisplayText('');
               }}
               onUndo={() => { /* console.log('onUndo called'); */ runWithSavedSelection(editor, (chain) => chain.undo()); }}
               onRedo={() => { /* console.log('onRedo called'); */ runWithSavedSelection(editor, (chain) => chain.redo()); }}
@@ -7140,7 +7247,7 @@ const TextEditorContent = ({
                   width: `${100 * (100 / effectiveZoom)}%`,
                   flex: 1,
                   minHeight: 0,
-                  padding: '16px 0'
+                  padding: '56px 0 16px 0' // Added 40px top padding (16+40=56px) for 20px spacing from toolbar
                 }}
               >
                 <EditorContent editor={editor} />
@@ -7531,6 +7638,12 @@ const TextEditorContent = ({
             }
           }}
           selectedText={editor?.state?.selection ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') : ''}
+          onGetSelectedText={() => {
+            if (!editor) return '';
+            const text = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ');
+            console.log('📝 [TextEditor] Fetching current selection:', text.substring(0, 50));
+            return text;
+          }}
         />
       </div>
     </TooltipProvider>

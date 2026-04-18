@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { estimateTokensFast } from '../../../../utils/realtimeTokenCounter';
+import { estimateTokensSync } from '../../../../utils/realtimeTokenCounter';
 
 const TokenCounter = ({ editor, compact = true }) => {
   const [aiTokens, setAiTokens] = useState(0);
@@ -22,8 +22,7 @@ const TokenCounter = ({ editor, compact = true }) => {
       
       // Calculate tokens for AI-generated content
       if (content && typeof content === 'string') {
-        const tokenResult = estimateTokensFast(content);
-        const newTokens = tokenResult.tokens || 0;
+        const newTokens = estimateTokensSync(content);
         
         setAiTokens(prev => prev + newTokens);
         setAiContentLength(prev => prev + content.length);
@@ -41,8 +40,7 @@ const TokenCounter = ({ editor, compact = true }) => {
       const { content, action } = event.detail;
       
       if (content) {
-        const tokenResult = estimateTokensFast(content);
-        const tokens = tokenResult.tokens || 0;
+        const tokens = estimateTokensSync(content);
         
         setAiTokens(tokens);
         setAiContentLength(content.length);

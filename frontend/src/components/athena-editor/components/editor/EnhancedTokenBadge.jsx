@@ -18,7 +18,7 @@ import {
   Target,
   Database
 } from 'lucide-react';
-import { estimateTokensFast } from '../../../../utils/realtimeTokenCounter';
+import { estimateTokensSync } from '../../../../utils/realtimeTokenCounter';
 
 export const EnhancedTokenBadge = ({ editor, className = '' }) => {
   const [showDetails, setShowDetails] = useState(false);
@@ -37,8 +37,7 @@ export const EnhancedTokenBadge = ({ editor, className = '' }) => {
       const { content, type } = event.detail;
       
       if (content && typeof content === 'string') {
-        const tokenResult = estimateTokensFast(content);
-        const newTokens = tokenResult.tokens || 0;
+        const newTokens = estimateTokensSync(content);
         
         setAiTokens(prev => {
           const updated = prev + newTokens;
@@ -68,8 +67,7 @@ export const EnhancedTokenBadge = ({ editor, className = '' }) => {
       const { content, action } = event.detail;
       
       if (content) {
-        const tokenResult = estimateTokensFast(content);
-        const tokens = tokenResult.tokens || 0;
+        const tokens = estimateTokensSync(content);
         
         setAiTokens(tokens);
         setAiContentLength(content.length);
@@ -221,7 +219,7 @@ export const EnhancedTokenBadge = ({ editor, className = '' }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+            className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-[350] overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
@@ -453,7 +451,7 @@ export const EnhancedTokenBadge = ({ editor, className = '' }) => {
       {/* Click outside to close */}
       {showDetails && (
         <div
-          className="fixed inset-0 z-40"
+          className="fixed inset-0 z-[340]"
           onClick={() => setShowDetails(false)}
         />
       )}

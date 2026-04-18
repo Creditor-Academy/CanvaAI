@@ -67,6 +67,7 @@ export function useTokenCounter(editor, options = {}) {
       minDebounceMs: options.minDebounceMs || 50,
       maxDebounceMs: options.maxDebounceMs || 500,
       thresholds: options.thresholds || [1000, 2000, 3000, 4000],
+      useBlockLevel: options.useBlockLevel || false,
       onTokenUpdate: (data) => {
         const tier = getTokenTier(data.tokens);
         
@@ -123,7 +124,7 @@ export function useTokenCounter(editor, options = {}) {
       counter.destroy();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, options.debounceMs, options.thresholds?.join(','), options.onThresholdWarning]);
+  }, [editor, options.debounceMs, options.thresholds?.join(','), options.useBlockLevel, options.onThresholdWarning]);
   
   // Update output tokens (for AI response tracking)
   const setOutputTokens = useCallback((tokens) => {

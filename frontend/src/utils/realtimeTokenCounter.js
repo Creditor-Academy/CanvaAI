@@ -1,27 +1,295 @@
 /**
-* realtimeTokenCounter.js - Advanced real-time token counting for editor content
-* Optimized for performance with adaptive debouncing, differential tracking, and caching
+* realtimeTokenCounter.js - Production-level real-time token counting
+* Optimized for performance with Web Worker offloading, block-level incremental updates, and adaptive caching
 * 
 * Features:
-* - Adaptive debounce: Faster updates for small changes, slower for large edits
-* - Differential token tracking: Only recalculates changed portions
-* - Input/Output token separation for AI usage tracking
-* - Performance metrics and analytics
-* - Memory-efficient caching with LRU eviction
+* - Web Worker integration for async token estimation
+* - Block-level incremental updates (TipTap/ProseMirror node-aware)
+* - Adaptive debounce based on document size
+* - Production-ready caching with memory limits
+* - Performance monitoring and metrics
 */
 
-// Token estimation cache with LRU eviction
+// ─────────────────────────────────────────────────────────────
+// Production Configuration
+// ─────────────────────────────────────────────────────────────
+
+const PRODUCTION_CONFIG = {
+  // Cache settings
+  MAX_CACHE_SIZE: 500, // Reduced from 2000 for production memory safety
+  CACHE_ENABLED: process.env.NODE_ENV === 'production' ? true : true,
+  
+  // Debounce settings
+  DEBOUNCE_SMALL: 50,    // < 50 chars (typing)
+  DEBOUNCE_MEDIUM: 200,  // 50-500 chars (paste)
+  DEBOUNCE_LARGE: 400,   // > 500 chars (AI generation)
+  DEBOUNCE_HUGE: 500,    // > 10,000 words documents
+  
+  // Worker settings
+  USE_WORKER: true,
+  WORKER_FALLBACK_THRESHOLD: 1000, // chars - use main thread for small texts
+  WORKER_TIMEOUT: 5000, // 5 seconds
+  
+  // Block-level tracking
+  BLOCK_CACHE_ENABLED: true,
+  
+  // Performance monitoring
+  PERFORMANCE_SAMPLING_RATE: 0.1, // Sample 10% of updates for metrics
+  PERFORMANCE_BUDGET_MS: 10 // Max calculation time before warning
+};
+
+// ─────────────────────────────────────────────────────────────
+// Web Worker Manager
+// ─────────────────────────────────────────────────────────────
+
+class TokenWorkerManager {
+  constructor() {
+    this.worker = null;
+    this.pendingRequests = new Map();
+    this.isInitialized = false;
+    this.useFallback = false;
+    this.messageId = 0;
+  }
+
+  /**
+   * Initialize the Web Worker
+   */
+  initialize() {
+    if (this.isInitialized || !PRODUCTION_CONFIG.USE_WORKER) {
+      return;
+    }
+
+    try {
+      // Create worker from public path
+      this.worker = new Worker('/workers/token-worker.js');
+      
+      this.worker.onmessage = (e) => this._handleWorkerMessage(e.data);
+      this.worker.onerror = (error) => this._handleWorkerError(error);
+      
+      this.isInitialized = true;
+      console.log('[TokenCounter] ✅ Web Worker initialized');
+    } catch (error) {
+      console.warn('[TokenCounter] ⚠️ Web Worker failed, using fallback:', error.message);
+      this.useFallback = true;
+    }
+  }
+
+  /**
+   * Send full document for token calculation
+   */
+  calculateFullDocument(text) {
+    return new Promise((resolve, reject) => {
+      if (this.useFallback || !this.worker) {
+        // Fallback to main thread
+        const tokens = this._estimateTokensFastFallback(text);
+        resolve({ tokens, calculationTime: 0, usedWorker: false });
+        return;
+      }
+
+      const id = ++this.messageId;
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error('Worker timeout'));
+      }, PRODUCTION_CONFIG.WORKER_TIMEOUT);
+
+      this.pendingRequests.set(id, { resolve, reject, timeout });
+      this.worker.postMessage({
+        type: 'FULL_DOCUMENT',
+        id,
+        payload: { text }
+      });
+    });
+  }
+
+  /**
+   * Send block-level update for incremental calculation
+   */
+  calculateBlockUpdate({ nodeId, oldText, newText, currentTotal }) {
+    return new Promise((resolve, reject) => {
+      if (this.useFallback || !this.worker) {
+        const oldTokens = this._estimateTokensFastFallback(oldText);
+        const newTokens = this._estimateTokensFastFallback(newText);
+        resolve({
+          oldTokens,
+          newTokens,
+          delta: newTokens - oldTokens,
+          newTotal: currentTotal + (newTokens - oldTokens),
+          usedWorker: false
+        });
+        return;
+      }
+
+      const id = ++this.messageId;
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error('Worker timeout'));
+      }, PRODUCTION_CONFIG.WORKER_TIMEOUT);
+
+      this.pendingRequests.set(id, { resolve, reject, timeout });
+      this.worker.postMessage({
+        type: 'BLOCK_UPDATE',
+        id,
+        payload: { nodeId, oldText, newText, currentTotal }
+      });
+    });
+  }
+
+  /**
+   * Handle worker response
+   */
+  _handleWorkerMessage(data) {
+    const { id, type } = data;
+    const request = this.pendingRequests.get(id);
+
+    if (!request) return;
+
+    clearTimeout(request.timeout);
+    this.pendingRequests.delete(id);
+
+    switch (type) {
+      case 'FULL_DOCUMENT_RESPONSE':
+        request.resolve({
+          tokens: data.tokens,
+          calculationTime: data.calculationTime,
+          textLength: data.textLength,
+          usedWorker: true
+        });
+        break;
+
+      case 'BLOCK_UPDATE_RESPONSE':
+        request.resolve({
+          oldTokens: data.oldTokens,
+          newTokens: data.newTokens,
+          delta: data.delta,
+          newTotal: data.newTotal,
+          calculationTime: data.calculationTime,
+          usedWorker: true
+        });
+        break;
+
+      case 'METRICS_RESPONSE':
+        request.resolve(data.metrics);
+        break;
+
+      default:
+        request.reject(new Error(`Unknown worker response type: ${type}`));
+    }
+  }
+
+  /**
+   * Handle worker errors
+   */
+  _handleWorkerError(error) {
+    console.error('[TokenCounter] ❌ Worker error:', error);
+    this.useFallback = true;
+    
+    // Reject all pending requests
+    for (const [id, request] of this.pendingRequests) {
+      clearTimeout(request.timeout);
+      request.reject(new Error('Worker failed'));
+    }
+    this.pendingRequests.clear();
+  }
+
+  /**
+   * Fallback token estimation (main thread)
+   */
+  _estimateTokensFastFallback(text) {
+    if (!text || typeof text !== 'string') return 0;
+    return Math.ceil(text.length / 4); // Fast approximation
+  }
+
+  /**
+   * Terminate worker and cleanup
+   */
+  terminate() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+    this.pendingRequests.clear();
+    this.isInitialized = false;
+  }
+}
+
+// Singleton worker manager
+const workerManager = new TokenWorkerManager();
+
+// ─────────────────────────────────────────────────────────────
+// Token Cache with LRU Eviction (Production-Optimized)
+// ─────────────────────────────────────────────────────────────
+
+// Main token cache (for full document hashes)
 const tokenCache = new Map();
-const MAX_CACHE_SIZE = 2000;
+
+// Block-level cache: { nodeId: { text, tokens, lastUpdated } }
+const blockCache = new Map();
 
 // Performance tracking
 const performanceMetrics = {
   totalCalculations: 0,
   cacheHits: 0,
   cacheMisses: 0,
+  workerCalculations: 0,
+  fallbackCalculations: 0,
   averageCalculationTime: 0,
-  lastCalculationTime: 0
+  lastCalculationTime: 0,
+  totalTextProcessed: 0
 };
+
+/**
+ * LRU Cache management - remove oldest entry when at capacity
+ */
+function evictLRU(cache, maxSize) {
+  if (cache.size >= maxSize) {
+    const firstKey = cache.keys().next().value;
+    cache.delete(firstKey);
+  }
+}
+
+/**
+ * Get or calculate tokens for a block (paragraph, heading, etc.)
+ */
+function getBlockTokens(nodeId, text) {
+  if (!PRODUCTION_CONFIG.BLOCK_CACHE_ENABLED) {
+    return estimateTokensLocal(text);
+  }
+
+  const cached = blockCache.get(nodeId);
+  
+  // Cache hit - verify text hasn't changed
+  if (cached && cached.text === text) {
+    performanceMetrics.cacheHits++;
+    return cached.tokens;
+  }
+
+  // Cache miss - calculate and store
+  performanceMetrics.cacheMisses++;
+  const tokens = estimateTokensLocal(text);
+  
+  evictLRU(blockCache, PRODUCTION_CONFIG.MAX_CACHE_SIZE);
+  blockCache.set(nodeId, {
+    text,
+    tokens,
+    lastUpdated: Date.now()
+  });
+
+  return tokens;
+}
+
+/**
+ * Invalidate a specific block from cache
+ */
+function invalidateBlock(nodeId) {
+  blockCache.delete(nodeId);
+}
+
+/**
+ * Clear all block caches
+ */
+function clearBlockCache() {
+  blockCache.clear();
+}
 
 /**
  * Estimate tokens for text (optimized version with differential tracking)
@@ -31,26 +299,100 @@ const performanceMetrics = {
  * @param {Object} options - Calculation options
  * @returns {Object} Token count and metadata
  */
-export function estimateTokensFast(text, options = {}) {
+export async function estimateTokensFast(text, options = {}) {
   const startTime = performance.now();
 
   if (!text || typeof text !== 'string') {
-    return { tokens: 0, calculationTime: 0, cacheHit: false };
+    return { tokens: 0, calculationTime: 0, cacheHit: false, usedWorker: false };
   }
 
   // Check cache first
-  if (tokenCache.has(text)) {
+  if (PRODUCTION_CONFIG.CACHE_ENABLED && tokenCache.has(text)) {
     performanceMetrics.cacheHits++;
     performanceMetrics.totalCalculations++;
     return {
       tokens: tokenCache.get(text),
       calculationTime: performance.now() - startTime,
-      cacheHit: true
+      cacheHit: true,
+      usedWorker: false
     };
   }
 
   performanceMetrics.cacheMisses++;
   performanceMetrics.totalCalculations++;
+  performanceMetrics.totalTextProcessed += text.length;
+
+  // For small texts, use local estimation (faster than worker overhead)
+  if (text.length < PRODUCTION_CONFIG.WORKER_FALLBACK_THRESHOLD) {
+    const tokens = estimateTokensLocal(text);
+    cacheResult(text, tokens);
+    
+    const calculationTime = performance.now() - startTime;
+    performanceMetrics.fallbackCalculations++;
+    performanceMetrics.lastCalculationTime = calculationTime;
+    updateAverageCalculationTime(calculationTime);
+
+    return {
+      tokens,
+      calculationTime,
+      cacheHit: false,
+      usedWorker: false,
+      textLength: text.length
+    };
+  }
+
+  // For larger texts, use Web Worker
+  try {
+    workerManager.initialize(); // Ensure worker is initialized
+    
+    const result = await workerManager.calculateFullDocument(text);
+    performanceMetrics.workerCalculations++;
+    
+    cacheResult(text, result.tokens);
+    
+    const calculationTime = performance.now() - startTime;
+    performanceMetrics.lastCalculationTime = calculationTime;
+    updateAverageCalculationTime(calculationTime);
+
+    // ⚡ Performance Target: Warn if calculation exceeds budget
+    if (calculationTime > PRODUCTION_CONFIG.PERFORMANCE_BUDGET_MS) {
+      console.warn(`[TokenCounter] ⚠️ Performance budget exceeded: ${calculationTime.toFixed(2)}ms (> ${PRODUCTION_CONFIG.PERFORMANCE_BUDGET_MS}ms)`);
+    }
+
+    return {
+      ...result,
+      calculationTime,
+      cacheHit: false
+    };
+  } catch (error) {
+    console.warn('[TokenCounter] Worker failed, using fallback:', error.message);
+    
+    // Fallback to local estimation
+    const tokens = estimateTokensLocal(text);
+    cacheResult(text, tokens);
+    
+    const calculationTime = performance.now() - startTime;
+    performanceMetrics.fallbackCalculations++;
+    performanceMetrics.lastCalculationTime = calculationTime;
+    updateAverageCalculationTime(calculationTime);
+
+    return {
+      tokens,
+      calculationTime,
+      cacheHit: false,
+      usedWorker: false,
+      textLength: text.length,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Local token estimation (fallback and small texts)
+ * Synchronous version for backward compatibility
+ */
+function estimateTokensLocal(text) {
+  if (!text || typeof text !== 'string') return 0;
 
   // Fast estimation: ~4 chars = 1 token for English text
   let tokens = Math.ceil(text.length / 4);
@@ -64,46 +406,51 @@ export function estimateTokensFast(text, options = {}) {
   if (hasMarkdown) tokens = Math.ceil(tokens * 1.1);
   if (hasUnicode) tokens = Math.ceil(tokens * 1.2);
 
-  // Cache result with LRU eviction
-  if (tokenCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = tokenCache.keys().next().value;
-    tokenCache.delete(firstKey);
-  }
+  return tokens;
+}
+
+/**
+ * Synchronous token estimation for backward compatibility
+ * WARNING: This bypasses Web Worker and uses local estimation only
+ * Use estimateTokensFast() for production (async with Worker)
+ * 
+ * @param {string} text - Text to analyze
+ * @returns {number} Token count (NOT an object like the async version)
+ * @deprecated Use estimateTokensFast() instead for async Worker support
+ */
+export function estimateTokensSync(text) {
+  return estimateTokensLocal(text);
+}
+
+/**
+ * Cache result with LRU eviction
+ */
+function cacheResult(text, tokens) {
+  if (!PRODUCTION_CONFIG.CACHE_ENABLED) return;
+  
+  evictLRU(tokenCache, PRODUCTION_CONFIG.MAX_CACHE_SIZE);
   tokenCache.set(text, tokens);
+}
 
-  const calculationTime = performance.now() - startTime;
-
-  // Update average calculation time
-  performanceMetrics.lastCalculationTime = calculationTime;
+/**
+ * Update average calculation time (exponential moving average)
+ */
+function updateAverageCalculationTime(calculationTime) {
   performanceMetrics.averageCalculationTime =
     (performanceMetrics.averageCalculationTime * 0.9) + (calculationTime * 0.1);
-
-  // ⚡ Performance Target: Warn if calculation exceeds 10ms
-  if (calculationTime > 10) {
-    console.warn(`[TokenCounter] ⚠️ Performance budget exceeded: ${calculationTime.toFixed(2)}ms (> 10ms)`);
-  }
-
-  return {
-    tokens,
-    calculationTime,
-    cacheHit: false,
-    textLength: text.length,
-    hasCode,
-    hasMarkdown,
-    hasUnicode
-  };
 }
 
 /**
  * Advanced Real-time token counter class
  * Manages adaptive debouncing, caching, callbacks, and analytics
+ * Supports both full document and block-level incremental updates
  */
 export class RealtimeTokenCounter {
   constructor(options = {}) {
-    // Adaptive debounce configuration
+    // Adaptive debounce configuration (production-optimized)
     this.baseDebounceMs = options.debounceMs || 300;
-    this.minDebounceMs = options.minDebounceMs || 50;
-    this.maxDebounceMs = options.maxDebounceMs || 500;
+    this.minDebounceMs = options.minDebounceMs || PRODUCTION_CONFIG.DEBOUNCE_SMALL;
+    this.maxDebounceMs = options.maxDebounceMs || PRODUCTION_CONFIG.DEBOUNCE_HUGE;
 
     this.onTokenUpdate = options.onTokenUpdate || (() => { });
     this.onThresholdWarning = options.onThresholdWarning || (() => { });
@@ -127,24 +474,40 @@ export class RealtimeTokenCounter {
     // Change detection for differential updates
     this.lastText = '';
     this.lastTextHash = this._hashText('');
+    
+    // Block-level tracking
+    this.blockTokens = new Map(); // nodeId -> token count
+    this.totalBlockTokens = 0;
+    this.useBlockLevelTracking = options.useBlockLevel || false;
+    
+    // Initialize worker on construction
+    if (PRODUCTION_CONFIG.USE_WORKER) {
+      workerManager.initialize();
+    }
   }
 
   /**
-   * Calculate adaptive debounce delay based on change size
-   * Small changes = faster updates, large changes = slower updates
+   * Calculate adaptive debounce delay based on change size and document length
+   * Production-optimized thresholds
    */
   _calculateAdaptiveDebounce(text) {
     const changeSize = Math.abs(text.length - this.lastText.length);
+    const documentLength = text.length;
+
+    // Large documents need more debounce to prevent CPU overload
+    if (documentLength > 50000) { // > 10,000 words
+      return PRODUCTION_CONFIG.DEBOUNCE_HUGE;
+    }
 
     if (changeSize < 50) {
       // Small change (typing): fast response
-      return this.minDebounceMs;
+      return PRODUCTION_CONFIG.DEBOUNCE_SMALL;
     } else if (changeSize < 500) {
       // Medium change (paste): moderate response
-      return this.baseDebounceMs;
+      return PRODUCTION_CONFIG.DEBOUNCE_MEDIUM;
     } else {
       // Large change (AI generation): slower but more stable
-      return this.maxDebounceMs;
+      return PRODUCTION_CONFIG.DEBOUNCE_LARGE;
     }
   }
 
@@ -152,7 +515,7 @@ export class RealtimeTokenCounter {
    * Update token count with adaptive debouncing
    * Call this on every editor change
    */
-  update(text) {
+  async update(text) {
     // Clear existing timer
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -162,8 +525,8 @@ export class RealtimeTokenCounter {
     const debounceDelay = this._calculateAdaptiveDebounce(text);
 
     // Set new debounce timer
-    this.debounceTimer = setTimeout(() => {
-      this._calculateAndNotify(text);
+    this.debounceTimer = setTimeout(async () => {
+      await this._calculateAndNotify(text);
     }, debounceDelay);
   }
 
@@ -171,12 +534,63 @@ export class RealtimeTokenCounter {
    * Immediate update (no debounce)
    * Use for final calculations
    */
-  updateImmediate(text) {
+  async updateImmediate(text) {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
-    this._calculateAndNotify(text);
+    await this._calculateAndNotify(text);
+  }
+
+  /**
+   * Block-level update for TipTap/ProseMirror nodes
+   * Only recalculates the changed block, not the entire document
+   */
+  async updateBlock({ nodeId, oldText, newText }) {
+    const oldTokens = this.blockTokens.get(nodeId) || 0;
+    
+    // Calculate new tokens for this block
+    const newTokens = await estimateTokensFast(newText);
+    
+    // Update block cache
+    this.blockTokens.set(nodeId, newTokens.tokens);
+    
+    // Update total
+    const delta = newTokens.tokens - oldTokens;
+    this.totalBlockTokens += delta;
+    this.currentTokens = this.totalBlockTokens;
+    
+    // Notify update
+    this.onTokenUpdate({
+      tokens: this.currentTokens,
+      delta,
+      deltaFormatted: delta >= 0 ? `+${delta}` : `${delta}`,
+      thresholdsTriggered: [],
+      estimatedCost: this._estimateCost(this.currentTokens),
+      inputTokens: this.inputTokens,
+      outputTokens: this.outputTokens,
+      totalTokens: this.inputTokens + this.outputTokens,
+      efficiency: this._calculateEfficiency(),
+      performance: {
+        calculationTime: newTokens.calculationTime,
+        cacheHit: newTokens.cacheHit,
+        averageCalculationTime: performanceMetrics.averageCalculationTime,
+        isBlockUpdate: true,
+        nodeId
+      }
+    });
+  }
+
+  /**
+   * Remove a block from tracking
+   */
+  removeBlock(nodeId) {
+    const removedTokens = this.blockTokens.get(nodeId) || 0;
+    this.blockTokens.delete(nodeId);
+    this.totalBlockTokens -= removedTokens;
+    this.currentTokens = this.totalBlockTokens;
+    
+    invalidateBlock(nodeId);
   }
 
   /**
@@ -193,6 +607,8 @@ export class RealtimeTokenCounter {
     this.currentTokens = 0;
     this.previousTokens = 0;
     this.triggeredThresholds.clear();
+    this.blockTokens.clear();
+    this.totalBlockTokens = 0;
 
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -227,12 +643,15 @@ export class RealtimeTokenCounter {
     }
     this.onTokenUpdate = () => {};
     this.onThresholdWarning = () => {};
+    
+    // Clear caches
+    clearBlockCache();
   }
 
   /**
    * Internal: Calculate tokens and trigger callbacks with analytics
    */
-  _calculateAndNotify(text) {
+  async _calculateAndNotify(text) {
     const startTime = performance.now();
 
     // Check if text actually changed (optimization)
@@ -245,8 +664,8 @@ export class RealtimeTokenCounter {
     this.lastText = text;
     this.lastTextHash = currentHash;
 
-    // Calculate tokens with metadata
-    const result = estimateTokensFast(text);
+    // Calculate tokens with metadata (async - may use Worker)
+    const result = await estimateTokensFast(text);
     this.currentTokens = result.tokens;
     this.inputTokens = result.tokens;
 
@@ -292,7 +711,8 @@ export class RealtimeTokenCounter {
       performance: {
         calculationTime: result.calculationTime,
         cacheHit: result.cacheHit,
-        averageCalculationTime: performanceMetrics.averageCalculationTime
+        averageCalculationTime: performanceMetrics.averageCalculationTime,
+        usedWorker: result.usedWorker
       }
     });
 

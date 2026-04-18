@@ -7,6 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [tailwindcss(),react()],
+  // Web Worker configuration for token counter
+  worker: {
+    format: 'es',
+  },
   server: {
     proxy: {
       '/api': {
@@ -19,6 +23,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // Ensure worker files are properly named
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.worker.js')) {
+            return 'workers/[name][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
         manualChunks: {
           // Force all React-related code into a single chunk
           'react-vendor': ['react', 'react-dom'],

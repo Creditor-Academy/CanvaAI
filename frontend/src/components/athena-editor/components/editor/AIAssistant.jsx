@@ -185,6 +185,7 @@ export const AIAssistant = ({
   onInlineAction,
   onImageInsert,
   selectedText = '',
+  onGetSelectedText, // New callback to fetch current selection from editor
 }) => {
   // ── Tab state ─────────────────────────────────────────────────────────────
   const [mode, setMode] = useState('image');
@@ -236,6 +237,52 @@ export const AIAssistant = ({
 
   // ── Shared ────────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState(false);
+  const [currentSelectedText, setCurrentSelectedText] = useState(selectedText);
+  const [selectionUpdated, setSelectionUpdated] = useState(false);
+
+  // Update currentSelectedText when selectedText prop changes
+  useEffect(() => {
+    console.log('📝 [AIAssistant] selectedText prop changed:', selectedText.substring(0, 50));
+    setCurrentSelectedText(selectedText);
+  }, [selectedText]);
+
+  // Listen for selection changes in the editor when AI Assistant is open
+  useEffect(() => {
+    if (!open || !onGetSelectedText) return;
+
+    // Set up a polling mechanism to check for selection changes
+    const checkSelection = () => {
+      const freshText = onGetSelectedText();
+      if (freshText !== currentSelectedText) {
+        console.log('👁️ [AIAssistant] Detected selection change:', freshText.substring(0, 50));
+        setCurrentSelectedText(freshText);
+        // Show visual indicator
+        setSelectionUpdated(true);
+        setTimeout(() => setSelectionUpdated(false), 1000);
+      }
+    };
+
+    // Check every 500ms when panel is open
+    const intervalId = setInterval(checkSelection, 500);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [open, onGetSelectedText, currentSelectedText]);
+
+  // Function to refresh selected text from editor
+  const refreshSelectedText = useCallback(() => {
+    console.log('🔄 [AIAssistant] refreshSelectedText called');
+    if (onGetSelectedText) {
+      const freshText = onGetSelectedText();
+      console.log('✅ [AIAssistant] Got fresh text:', freshText.substring(0, 50));
+      setCurrentSelectedText(freshText);
+      console.log('🔄 [AIAssistant] Refreshed selection:', freshText.substring(0, 50));
+      return freshText;
+    }
+    console.log('⚠️ [AIAssistant] No onGetSelectedText callback, using current:', currentSelectedText.substring(0, 50));
+    return currentSelectedText;
+  }, [onGetSelectedText, currentSelectedText]);
 
   // ── Panel position & drag ──────────────────────────────────────────────────
   const [panelPosition, setPanelPosition] = useState(() => {
@@ -480,7 +527,9 @@ export const AIAssistant = ({
   // ─── Quick Transform ───────────────────────────────────────────────────────
 
   const runTransform = useCallback(async (actionId) => {
-    if (!selectedText?.trim()) { toast.error('Select text first'); return; }
+    // Refresh selection before running action to get latest text
+    const textToTransform = refreshSelectedText();
+    if (!textToTransform?.trim()) { toast.error('Select text first'); return; }
     const systemPrompt = PROMPTS[actionId];
     if (!systemPrompt) return;
     setActiveAction(actionId);
@@ -491,7 +540,7 @@ export const AIAssistant = ({
     const { signal } = abortRef.current;
     try {
       await TextEditorService.callAI({
-        systemPrompt, userPrompt: selectedText, temperature: ACTION_TEMPERATURE[actionId] ?? 0.6, signal,
+        systemPrompt, userPrompt: textToTransform, temperature: ACTION_TEMPERATURE[actionId] ?? 0.6, signal,
       }).then((result) => {
         setActionResult(result);
         window.dispatchEvent(new CustomEvent('athena:ai-tokens', { detail: { tokens: countTokensStatic(result) } }));
@@ -502,7 +551,7 @@ export const AIAssistant = ({
     } finally {
       setActiveAction(null);
     }
-  }, [selectedText]);
+  }, [refreshSelectedText]);
 
   const handleQuickAction = useCallback((id) => {
     runTransform(id);
@@ -526,7 +575,9 @@ export const AIAssistant = ({
   }, [inlineActionType, inlineSelectedTone, inlineCustomPrompt]);
 
   const handleInlineTransform = useCallback(async () => {
-    if (!selectedText?.trim()) { toast.error('No text selected'); return; }
+    // Refresh selection before running action to get latest text
+    const textToTransform = refreshSelectedText();
+    if (!textToTransform?.trim()) { toast.error('No text selected'); return; }
     if (inlineActionType === 'custom' && !inlineCustomPrompt.trim()) { toast.error('Enter your instruction'); return; }
     const systemPrompt = buildSystemPrompt();
     if (!systemPrompt) { toast.error('Please configure the action'); return; }
@@ -539,7 +590,7 @@ export const AIAssistant = ({
     try {
       let result = '';
       await TextEditorService.transformText({
-        text: selectedText, action: inlineActionType, customPrompt: inlineCustomPrompt.trim(),
+        text: textToTransform, action: inlineActionType, customPrompt: inlineCustomPrompt.trim(),
         tone: inlineSelectedTone, language: inlineTargetLang,
         creativity: ACTION_TEMPERATURE[inlineActionType] ?? inlineCreativity[0], signal,
       }).then((transformed) => { 
@@ -551,7 +602,7 @@ export const AIAssistant = ({
       setInlineHistory(prev => [{
         id: Date.now().toString(), timestamp: new Date(), action: inlineActionType,
         label: INLINE_ACTIONS.find(a => a.value === inlineActionType)?.label ?? inlineActionType,
-        originalText: selectedText.slice(0, 120), result: result.trim(),
+        originalText: textToTransform.slice(0, 120), result: result.trim(),
         creativity: inlineCreativity[0], tone: inlineSelectedTone, language: inlineTargetLang,
       }, ...prev].slice(0, 30));
       toast.success('Transformation complete');
@@ -563,7 +614,7 @@ export const AIAssistant = ({
     } finally {
       setInlineLoading(false);
     }
-  }, [selectedText, inlineActionType, inlineCustomPrompt, inlineCreativity, inlineSelectedTone, inlineTargetLang, buildSystemPrompt]);
+  }, [refreshSelectedText, inlineActionType, inlineCustomPrompt, inlineCreativity, inlineSelectedTone, inlineTargetLang, buildSystemPrompt]);
 
   const handleInlineApply = useCallback((behavior) => {
     if (!inlineResult) return;
@@ -943,13 +994,34 @@ export const AIAssistant = ({
           {mode === 'transform' && (
             <div className="p-3 space-y-2.5">
               {/* Selected text preview */}
-              {selectedText?.trim() ? (
-                <div className="p-2 bg-amber-50 rounded-lg border border-amber-100">
+              {currentSelectedText?.trim() ? (
+                <div className={`p-2 rounded-lg border transition-all ${
+                  selectionUpdated 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-amber-50 border-amber-100'
+                }`}>
                   <div className="flex items-center justify-between mb-1">
-                    <SectionLabel className="text-amber-700">Selected</SectionLabel>
-                    <Badge className="bg-amber-100 text-amber-700">{selectedText.trim().split(/\s+/).filter(Boolean).length} words</Badge>
+                    <div className="flex items-center gap-2">
+                      <SectionLabel className={selectionUpdated ? 'text-green-700' : 'text-amber-700'}>
+                        {selectionUpdated ? '✓ Updated' : 'Selected'}
+                      </SectionLabel>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className={selectionUpdated ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>
+                        {currentSelectedText.trim().split(/\s+/).filter(Boolean).length} words
+                      </Badge>
+                      {onGetSelectedText && (
+                        <button
+                          onClick={refreshSelectedText}
+                          className="p-1 hover:bg-amber-100 rounded transition-colors"
+                          title="Refresh selection"
+                        >
+                          <RefreshCw className="w-3 h-3 text-amber-600" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-600 line-clamp-2 italic border-l-2 border-amber-300 pl-2">{selectedText.trim()}</p>
+                  <p className="text-[10px] text-slate-600 line-clamp-2 italic border-l-2 border-amber-300 pl-2">{currentSelectedText.trim()}</p>
                 </div>
               ) : (
                 <div className="p-2.5 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-center">
@@ -963,7 +1035,7 @@ export const AIAssistant = ({
                   <button
                     key={id}
                     onClick={() => handleQuickAction(id)}
-                    disabled={!!activeAction || !selectedText?.trim()}
+                    disabled={!!activeAction || !currentSelectedText?.trim()}
                     className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all disabled:opacity-40
                       ${activeAction === id ? `${bg} ${border} scale-95` : `bg-white border-slate-150 hover:${border} ${bg} transition-all`}`}
                   >
