@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import usePresentationStore from "../../store/usePresentationStore";
 import { useUIStore } from "../../store/useUIStore";
@@ -143,7 +144,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
 
   const handleAddImageFromUrl = () => {
     if (imageUrlInput.trim()) {
-      addImageLayer(imageUrlInput);
+      addImageLayer(null, imageUrlInput, null);
       setImageUrlInput("");
       setShowUrlModal(false);
     }
@@ -463,8 +464,8 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
             }}
           />
 
-          {/* URL Input Modal */}
-          {showUrlModal && (
+          {/* URL Input Modal — rendered in a portal to escape pointer-events:none on .topbar-row-2 */}
+          {showUrlModal && createPortal(
             <div className="modal-overlay" onClick={() => setShowUrlModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <h3>Add Image from URL</h3>
@@ -491,7 +492,8 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
 
