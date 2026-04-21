@@ -436,6 +436,11 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
               const file = e.target.files[0];
               if (!file) return;
 
+              // Reset the input synchronously before any await so the
+              // synthetic event's target reference is never accessed after
+              // the async boundary (avoids stale/nullified target in prod).
+              e.target.value = "";
+
               try {
                 await withHybridLoader(
                   async () => {
@@ -444,10 +449,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
                     const { url, key } = await uploadFile(file, user?._id, pptId);
 
                     // Add the image layer with S3 URL and Key
-                    // We don't store base64 in the store
                     addImageLayer(null, url, key);
-
-                    e.target.value = "";
 
                     return { url, key };
                   },
@@ -455,6 +457,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
                   "Uploading image..."
                 );
               } catch (error) {
+                console.error("Image upload error:", error);
                 alert("Failed to upload image.");
               }
             }}
