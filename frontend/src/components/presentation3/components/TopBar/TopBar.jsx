@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import usePresentationStore from "../../store/usePresentationStore";
+import { useUIStore } from "../../store/useUIStore";
 import { withHybridLoader } from "../../utils/withHybridLoader";
 import "./topbar.css";
 import {
@@ -43,6 +44,7 @@ const formatTimeAgo = (date) => {
 
 const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     addTextLayer,
     addShapeLayer,
@@ -55,6 +57,8 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
     copySelectedLayer,
     deleteSelectedLayer,
     selectedLayerId,
+    slides,
+    activeSlideId,
     futureCount,
     presentationId,
     title,
@@ -64,7 +68,10 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
 
   const { uploadFile, isUploading } = useImageUpload();
 
+  const activeSlide = slides.find((s) => s.id === activeSlideId);
+
   const [showShapes, setShowShapes] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [showTablePopup, setShowTablePopup] = useState(false);
@@ -94,15 +101,18 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
   }, [lastSavedAt]);
 
   const shapesRef = useRef(null);
+  const themeRef = useRef(null);
   const imageOptionsRef = useRef(null);
   const downloadRef = useRef(null);
   const tablePopupRef = useRef(null);
-  const imageUploadInputRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (shapesRef.current && !shapesRef.current.contains(event.target)) {
         setShowShapes(false);
+      }
+      if (themeRef.current && !themeRef.current.contains(event.target)) {
+        setShowTheme(false);
       }
       if (imageOptionsRef.current && !imageOptionsRef.current.contains(event.target)) {
         setShowImageOptions(false);
@@ -121,46 +131,21 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
     };
   }, []);
 
-  const insertImageLayer = ({ url, key = null }) => {
-    const resolvedUrl = url?.trim();
-    if (!resolvedUrl) {
-      throw new Error("Image URL is required");
-    }
-
-    addImageLayer(resolvedUrl, resolvedUrl, key);
-    return { url: resolvedUrl, key };
+  const handleDebugSave = () => {
+    const presentationData = usePresentationStore.getState();
+    const dataToLog = {
+      slides: presentationData.slides,
+      // You can add other relevant top-level data here if needed, like presentation ID or title
+    };
+    console.log("--- DEBUG SAVE: Current Presentation JSON ---");
+    console.log(JSON.stringify(dataToLog, null, 2)); // null, 2 for pretty printing
   };
 
-  const handleTopBarImageUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    event.target.value = "";
-
-    try {
-      await withHybridLoader(
-        async () => {
-          const pptId = presentationId || "new";
-          const { url, key } = await uploadFile(file, user?._id, pptId);
-          return insertImageLayer({ url, key });
-        },
-        "top",
-        "Uploading image..."
-      );
-    } catch (error) {
-      console.error("Image upload error:", error);
-      alert("Failed to upload image.");
-    }
-  };
-
-  const handleAddImageFromUrl = async () => {
-    try {
-      insertImageLayer({ url: imageUrlInput });
+  const handleAddImageFromUrl = () => {
+    if (imageUrlInput.trim()) {
+      addImageLayer(imageUrlInput);
       setImageUrlInput("");
       setShowUrlModal(false);
-    } catch (error) {
-      console.error("Image URL insert error:", error);
-      alert("Failed to add image from URL.");
     }
   };
 
@@ -445,14 +430,38 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
             type="file"
             accept="image/*"
             id="image-upload"
-            ref={imageUploadInputRef}
             className="hidden-input"
             disabled={isUploading}
-            onChange={handleTopBarImageUpload}
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              try {
+                await withHybridLoader(
+                  async () => {
+                    // presentationId might be null for new presentations
+                    const pptId = presentationId || "new";
+                    const { url, key } = await uploadFile(file, user?._id, pptId);
+
+                    // Add the image layer with S3 URL and Key
+                    // We don't store base64 in the store
+                    addImageLayer(null, url, key);
+
+                    e.target.value = "";
+
+                    return { url, key };
+                  },
+                  "top",
+                  "Uploading image..."
+                );
+              } catch (error) {
+                alert("Failed to upload image.");
+              }
+            }}
           />
 
-          {/* URL Input Modal — rendered in a portal to escape pointer-events:none on .topbar-row-2 */}
-          {showUrlModal && createPortal(
+          {/* URL Input Modal */}
+          {showUrlModal && (
             <div className="modal-overlay" onClick={() => setShowUrlModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <h3>Add Image from URL</h3>
@@ -479,8 +488,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
                   </button>
                 </div>
               </div>
-            </div>,
-            document.body
+            </div>
           )}
 
 
@@ -498,7 +506,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
             {showImageOptions && (
               <div className="dropdown-menu">
                 <button onClick={() => {
-                  imageUploadInputRef.current?.click();
+                  document.getElementById("image-upload").click();
                   setShowImageOptions(false);
                 }}>
                   <Upload size={16} /> Upload from Computer
