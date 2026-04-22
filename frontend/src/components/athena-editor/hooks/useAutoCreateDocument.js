@@ -9,6 +9,7 @@
  * 
  * @param {string} mongoId - Current document ID (null for new documents)
  * @param {Function} navigate - React Router navigate function
+ * @param {string} templateType - Optional template type (blank, resume, report, etc.)
  * @returns {Object} { isCreating, error }
  */
 
@@ -16,7 +17,74 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { TextEditorService } from '../../../services/Text-Editor/text.service.js';
 
-export function useAutoCreateDocument(mongoId, navigate) {
+// Template content map for initial document content
+const TEMPLATE_CONTENT = {
+  blank: {
+    content: {
+      type: 'doc',
+      content: [
+        {
+          type: 'page',
+          content: [
+            { type: 'paragraph' }
+          ]
+        }
+      ]
+    },
+    html: '<p></p>'
+  },
+  resume: {
+    content: {
+      type: 'doc',
+      content: [
+        {
+          type: 'page',
+          content: [
+            { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Your Name' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'Email: you@email.com | Phone: +1 555-000-0000' }] },
+            { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Summary' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'Experienced professional with a track-record of delivering results...' }] }
+          ]
+        }
+      ]
+    },
+    html: '<h1>Your Name</h1><p>Email: you@email.com | Phone: +1 555-000-0000</p><h2>Summary</h2><p>Experienced professional with a track-record of delivering results...</p>'
+  },
+  report: {
+    content: {
+      type: 'doc',
+      content: [
+        {
+          type: 'page',
+          content: [
+            { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Project Proposal' }] },
+            { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Executive Summary' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'This proposal outlines the plan for [Project Name]...' }] }
+          ]
+        }
+      ]
+    },
+    html: '<h1>Project Proposal</h1><h2>Executive Summary</h2><p>This proposal outlines the plan for [Project Name]...</p>'
+  },
+  letter: {
+    content: {
+      type: 'doc',
+      content: [
+        {
+          type: 'page',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: new Date().toLocaleDateString() }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'Dear [Name],' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'I am writing to [purpose of the letter]...' }] }
+          ]
+        }
+      ]
+    },
+    html: `<p>${new Date().toLocaleDateString()}</p><p>Dear [Name],</p><p>I am writing to [purpose of the letter]...</p>`
+  }
+};
+
+export function useAutoCreateDocument(mongoId, navigate, templateType = 'blank') {
   const [isCreating, setIsCreating] = useState(false);
   const [createdDocId, setCreatedDocId] = useState(null);
   const [error, setError] = useState(null);
@@ -29,6 +97,7 @@ export function useAutoCreateDocument(mongoId, navigate) {
     console.log('🔍 useAutoCreateDocument called with:', { 
       mongoId, 
       actualMongoId,
+      templateType,
       hasAttempted: hasAttemptedCreation.current, 
       isCreating 
     });
@@ -53,25 +122,17 @@ export function useAutoCreateDocument(mongoId, navigate) {
       setError(null);
 
       try {
-        console.log('🆕 Auto-creating new document for persistence...');
+        console.log(`🆕 Auto-creating new document for persistence (template: ${templateType})...`);
 
-        // Create empty document immediately
+        // Get template content or default to blank
+        const effectiveTemplate = templateType || 'blank';
+        const template = TEMPLATE_CONTENT[effectiveTemplate] || TEMPLATE_CONTENT.blank;
+        const title = effectiveTemplate === 'blank' ? 'Untitled Document' : `New ${effectiveTemplate.charAt(0).toUpperCase() + effectiveTemplate.slice(1)}`;
+
+        // Create document with template content
         const result = await TextEditorService.saveDocument({
-          title: 'Untitled Document',
-          data: {
-            content: {
-              type: 'doc',
-              content: [
-                {
-                  type: 'page',
-                  content: [
-                    { type: 'paragraph' }
-                  ]
-                }
-              ]
-            },
-            html: '<p></p>'
-          },
+          title,
+          data: template,
           hasBeenEdited: false // Mark as not edited - will be cleaned up if user doesn't interact
         });
 
@@ -103,7 +164,7 @@ export function useAutoCreateDocument(mongoId, navigate) {
         
         console.log('✅ Navigation initiated');
 
-        toast.success('New document created');
+        toast.success(`New ${effectiveTemplate} document created`);
       } catch (err) {
         console.error('❌ Failed to auto-create document:', err);
         setError(err);
@@ -130,7 +191,7 @@ export function useAutoCreateDocument(mongoId, navigate) {
     return () => {
       clearTimeout(creationTimer);
     };
-  }, [mongoId, navigate, isCreating]);
+  }, [mongoId, navigate, isCreating, templateType]);
 
   return { isCreating, createdDocId, error };
 }

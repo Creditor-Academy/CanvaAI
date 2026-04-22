@@ -6,9 +6,13 @@
 * - Web Worker integration for async token estimation
 * - Block-level incremental updates (TipTap/ProseMirror node-aware)
 * - Adaptive debounce based on document size
-* - Production-ready caching with memory limits
-* - Performance monitoring and metrics
+* - Production-ready LRU caching with TTL eviction
+* - Performance monitoring with P99 tracking
+* - Circuit breaker for worker failures
+* - Chunked processing for large documents
 */
+
+import { workerBreaker } from './workerCircuitBreaker';
 
 // ─────────────────────────────────────────────────────────────
 // Production Configuration
@@ -216,36 +220,162 @@ class TokenWorkerManager {
 const workerManager = new TokenWorkerManager();
 
 // ─────────────────────────────────────────────────────────────
-// Token Cache with LRU Eviction (Production-Optimized)
+// Content Fingerprinting (Robust: head + mid + tail)
 // ─────────────────────────────────────────────────────────────
 
-// Main token cache (for full document hashes)
-const tokenCache = new Map();
+/**
+ * Build robust content fingerprint to detect actual changes
+ * Uses head, middle, and tail samples for collision resistance
+ * Edge case: "Hello world" → "World hello" caught by mid/tail samples
+ */
+export function buildFingerprint(text) {
+  if (!text) return 'empty';
+  
+  const len = text.length;
+  const head = text.slice(0, 60);
+  const mid  = text.slice(Math.floor(len / 2 - 30), Math.floor(len / 2 + 30));
+  const tail = text.slice(-60);
+  
+  return `${len}|${head}|${mid}|${tail}`;
+}
 
-// Block-level cache: { nodeId: { text, tokens, lastUpdated } }
-const blockCache = new Map();
-
-// Performance tracking
-const performanceMetrics = {
-  totalCalculations: 0,
-  cacheHits: 0,
-  cacheMisses: 0,
-  workerCalculations: 0,
-  fallbackCalculations: 0,
-  averageCalculationTime: 0,
-  lastCalculationTime: 0,
-  totalTextProcessed: 0
-};
+// ─────────────────────────────────────────────────────────────
+// Fast Hash for LRU Cache (djb2 variant)
+// ─────────────────────────────────────────────────────────────
 
 /**
- * LRU Cache management - remove oldest entry when at capacity
+ * Fast 32-bit hash — no crypto overhead
+ * Used for cache keys instead of full text comparison
  */
-function evictLRU(cache, maxSize) {
-  if (cache.size >= maxSize) {
-    const firstKey = cache.keys().next().value;
-    cache.delete(firstKey);
+function fastHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 33 ^ str.charCodeAt(i)) >>> 0;
   }
+  return h.toString(36);
 }
+
+// ─────────────────────────────────────────────────────────────
+// LRU Cache with TTL Eviction (Production-Optimized)
+// ─────────────────────────────────────────────────────────────
+
+const CACHE_MAX = 500;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const tokenCache = new Map(); // JS Map preserves insertion order → natural LRU
+const cacheTimers = new Map(); // key → TTL timer id
+
+/**
+ * Get cached tokens with LRU touch (moves to end)
+ */
+export function getCachedTokens(text) {
+  const key = fastHash(text);
+  if (!tokenCache.has(key)) return null;
+  
+  // LRU touch: delete + re-insert moves to end
+  const val = tokenCache.get(key);
+  tokenCache.delete(key);
+  tokenCache.set(key, val);
+  
+  return val.tokens;
+}
+
+/**
+ * Set cached tokens with TTL eviction
+ */
+export function setCachedTokens(text, tokens) {
+  const key = fastHash(text);
+  
+  // Clear existing TTL if re-inserting
+  if (cacheTimers.has(key)) clearTimeout(cacheTimers.get(key));
+  
+  // Evict LRU (first entry) if at capacity
+  if (tokenCache.size >= CACHE_MAX) {
+    const lruKey = tokenCache.keys().next().value;
+    clearTimeout(cacheTimers.get(lruKey));
+    cacheTimers.delete(lruKey);
+    tokenCache.delete(lruKey);
+  }
+  
+  tokenCache.set(key, { tokens, ts: Date.now() });
+  cacheTimers.set(key, setTimeout(() => {
+    tokenCache.delete(key);
+    cacheTimers.delete(key);
+  }, CACHE_TTL));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Performance Monitoring with P99 Tracking
+// ─────────────────────────────────────────────────────────────
+
+export const perf = {
+  calculations: 0,
+  totalTime: 0,
+  cacheHits: 0,
+  cacheMisses: 0,
+  workerUse: 0,
+  syncFallbacks: 0,
+  timeouts: 0,
+  slowCalcs: 0,
+  p99Buffer: [], // rolling window for P99
+
+  record({ time, cacheHit, usedWorker, timedOut }) {
+    this.calculations++;
+    this.totalTime += time;
+    if (cacheHit) this.cacheHits++;
+    else this.cacheMisses++;
+    if (usedWorker) this.workerUse++;
+    else this.syncFallbacks++;
+    if (timedOut) this.timeouts++;
+    if (time > 50) this.slowCalcs++;
+    
+    // P99 rolling window (last 100 calcs)
+    this.p99Buffer.push(time);
+    if (this.p99Buffer.length > 100) this.p99Buffer.shift();
+    
+    if (time > 50) {
+      console.warn(`⚠️ Slow token calc: ${time.toFixed(1)}ms`, { cacheHit, usedWorker });
+    }
+  },
+
+  p99() {
+    if (!this.p99Buffer.length) return 0;
+    const sorted = [...this.p99Buffer].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length * 0.99)];
+  },
+
+  summary() {
+    const total = this.cacheHits + this.cacheMisses;
+    return {
+      avgMs: (this.totalTime / this.calculations).toFixed(2),
+      p99Ms: this.p99().toFixed(2),
+      cacheRate: (this.cacheHits / total * 100).toFixed(1) + '%',
+      workerRate: (this.workerUse / this.calculations * 100).toFixed(1) + '%',
+      timeouts: this.timeouts,
+      slowCalcs: this.slowCalcs,
+    };
+  }
+};
+
+// Expose to DevTools in development
+if (process.env.NODE_ENV !== 'production') {
+  window.__editorPerf = perf; // DevTools: window.__editorPerf.summary()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Legacy performance metrics (backward compatibility)
+// ─────────────────────────────────────────────────────────────
+
+const performanceMetrics = {
+  get totalCalculations() { return perf.calculations; },
+  get cacheHits() { return perf.cacheHits; },
+  get cacheMisses() { return perf.cacheMisses; },
+  get workerCalculations() { return perf.workerUse; },
+  get fallbackCalculations() { return perf.syncFallbacks; },
+  get averageCalculationTime() { return perf.calculations > 0 ? perf.totalTime / perf.calculations : 0; },
+  get lastCalculationTime() { return 0; },
+  get totalTextProcessed() { return 0; }
+};
 
 /**
  * Get or calculate tokens for a block (paragraph, heading, etc.)
@@ -267,7 +397,8 @@ function getBlockTokens(nodeId, text) {
   performanceMetrics.cacheMisses++;
   const tokens = estimateTokensLocal(text);
   
-  evictLRU(blockCache, PRODUCTION_CONFIG.MAX_CACHE_SIZE);
+  // Use new LRU cache with TTL
+  setCachedTokens(nodeId, tokens);
   blockCache.set(nodeId, {
     text,
     tokens,
@@ -306,31 +437,25 @@ export async function estimateTokensFast(text, options = {}) {
     return { tokens: 0, calculationTime: 0, cacheHit: false, usedWorker: false };
   }
 
-  // Check cache first
-  if (PRODUCTION_CONFIG.CACHE_ENABLED && tokenCache.has(text)) {
-    performanceMetrics.cacheHits++;
-    performanceMetrics.totalCalculations++;
+  // Check cache first (LRU with TTL)
+  const cached = getCachedTokens(text);
+  if (cached !== null) {
+    perf.record({ time: performance.now() - startTime, cacheHit: true, usedWorker: false });
     return {
-      tokens: tokenCache.get(text),
+      tokens: cached,
       calculationTime: performance.now() - startTime,
       cacheHit: true,
       usedWorker: false
     };
   }
 
-  performanceMetrics.cacheMisses++;
-  performanceMetrics.totalCalculations++;
-  performanceMetrics.totalTextProcessed += text.length;
-
-  // For small texts, use local estimation (faster than worker overhead)
-  if (text.length < PRODUCTION_CONFIG.WORKER_FALLBACK_THRESHOLD) {
+  // For short text: sync is fast enough (< 500 chars)
+  if (text.length < 500) {
     const tokens = estimateTokensLocal(text);
-    cacheResult(text, tokens);
+    setCachedTokens(text, tokens);
     
     const calculationTime = performance.now() - startTime;
-    performanceMetrics.fallbackCalculations++;
-    performanceMetrics.lastCalculationTime = calculationTime;
-    updateAverageCalculationTime(calculationTime);
+    perf.record({ time: calculationTime, cacheHit: false, usedWorker: false });
 
     return {
       tokens,
@@ -341,23 +466,35 @@ export async function estimateTokensFast(text, options = {}) {
     };
   }
 
-  // For larger texts, use Web Worker
+  // For larger texts, use Web Worker with circuit breaker
+  if (workerBreaker.isOpen()) {
+    // Circuit breaker open — use sync fallback
+    const tokens = estimateTokensLocal(text);
+    setCachedTokens(text, tokens);
+    
+    const calculationTime = performance.now() - startTime;
+    perf.record({ time: calculationTime, cacheHit: false, usedWorker: false });
+    
+    return {
+      tokens,
+      calculationTime,
+      cacheHit: false,
+      usedWorker: false,
+      textLength: text.length,
+      circuitBreakerOpen: true
+    };
+  }
+
   try {
     workerManager.initialize(); // Ensure worker is initialized
     
     const result = await workerManager.calculateFullDocument(text);
-    performanceMetrics.workerCalculations++;
+    workerBreaker.onSuccess();
     
-    cacheResult(text, result.tokens);
+    setCachedTokens(text, result.tokens);
     
     const calculationTime = performance.now() - startTime;
-    performanceMetrics.lastCalculationTime = calculationTime;
-    updateAverageCalculationTime(calculationTime);
-
-    // ⚡ Performance Target: Warn if calculation exceeds budget
-    if (calculationTime > PRODUCTION_CONFIG.PERFORMANCE_BUDGET_MS) {
-      console.warn(`[TokenCounter] ⚠️ Performance budget exceeded: ${calculationTime.toFixed(2)}ms (> ${PRODUCTION_CONFIG.PERFORMANCE_BUDGET_MS}ms)`);
-    }
+    perf.record({ time: calculationTime, cacheHit: false, usedWorker: true });
 
     return {
       ...result,
@@ -365,16 +502,15 @@ export async function estimateTokensFast(text, options = {}) {
       cacheHit: false
     };
   } catch (error) {
+    workerBreaker.onFailure();
     console.warn('[TokenCounter] Worker failed, using fallback:', error.message);
     
     // Fallback to local estimation
     const tokens = estimateTokensLocal(text);
-    cacheResult(text, tokens);
+    setCachedTokens(text, tokens);
     
     const calculationTime = performance.now() - startTime;
-    performanceMetrics.fallbackCalculations++;
-    performanceMetrics.lastCalculationTime = calculationTime;
-    updateAverageCalculationTime(calculationTime);
+    perf.record({ time: calculationTime, cacheHit: false, usedWorker: false });
 
     return {
       tokens,
@@ -385,6 +521,31 @@ export async function estimateTokensFast(text, options = {}) {
       error: error.message
     };
   }
+}
+
+/**
+ * Chunked token estimation for very large documents (>20k chars)
+ * Processes in chunks using async generator so main thread is never blocked >16ms
+ */
+export async function estimateTokensChunked(text, { chunkSize = 5000 } = {}) {
+  if (text.length < 20_000) {
+    return estimateTokensFast(text); // not worth chunking
+  }
+
+  let totalTokens = 0;
+  let offset = 0;
+
+  while (offset < text.length) {
+    const chunk = text.slice(offset, offset + chunkSize);
+    const { tokens } = await estimateTokensFast(chunk);
+    totalTokens += tokens;
+    offset += chunkSize;
+
+    // Yield to browser — prevent jank between chunks
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  return { tokens: totalTokens, usedWorker: false, cacheHit: false };
 }
 
 /**
@@ -420,24 +581,6 @@ function estimateTokensLocal(text) {
  */
 export function estimateTokensSync(text) {
   return estimateTokensLocal(text);
-}
-
-/**
- * Cache result with LRU eviction
- */
-function cacheResult(text, tokens) {
-  if (!PRODUCTION_CONFIG.CACHE_ENABLED) return;
-  
-  evictLRU(tokenCache, PRODUCTION_CONFIG.MAX_CACHE_SIZE);
-  tokenCache.set(text, tokens);
-}
-
-/**
- * Update average calculation time (exponential moving average)
- */
-function updateAverageCalculationTime(calculationTime) {
-  performanceMetrics.averageCalculationTime =
-    (performanceMetrics.averageCalculationTime * 0.9) + (calculationTime * 0.1);
 }
 
 /**

@@ -55,24 +55,50 @@ export function useDocument(documentId) {
     queryKey: ['document', documentId],
     queryFn: async () => {
       if (!documentId) return null;
+
+      // 🔥 HANDLE TEMPORARY DOCUMENTS (from Import/AI)
+      // These documents are stored in sessionStorage with a 'doc_' prefix ID
+      if (typeof documentId === 'string' && documentId.startsWith('doc_')) {
+        console.log('📦 [useDocument] Loading temporary document from localStorage:', documentId);
+        const storedDoc = localStorage.getItem(`doc_${documentId}`);
+        if (storedDoc) {
+          try {
+            const parsed = JSON.parse(storedDoc);
+            console.log('✅ [useDocument] Successfully loaded temporary document:', parsed.title);
+            return {
+              ...parsed,
+              id: documentId,
+              _id: documentId,
+              isTemporary: true
+            };
+          } catch (e) {
+            console.error('❌ [useDocument] Failed to parse stored temporary document:', e);
+          }
+        } else {
+          console.warn('⚠️ [useDocument] Temporary document NOT found in sessionStorage:', documentId);
+        }
+      }
+
+      // Regular backend fetch for permanent documents
       return await TextEditorService.getDocumentById(documentId);
     },
-    
+
     // 🚀 OPTIMIZED: Instant loading from cache
     staleTime: 30 * 60 * 1000,  // 30 minutes - keep data fresh longer
     gcTime: 60 * 60 * 1000,     // 1 hour - keep in memory
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     retry: 2,
-    
+
     // Don't fetch if no ID
     enabled: !!documentId,
-    
+
     meta: {
       errorMessage: 'Failed to load document'
     }
   });
 }
+
 
 /**
  * Mutation for saving a new document

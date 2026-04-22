@@ -1,21 +1,25 @@
 import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import SafeTextEditor from '../components/athena-editor/SafeTextEditor';
 import { TooltipProvider } from '../components/athena-editor/components/ui/tooltip';
 import { useAutoCreateDocument } from '../components/athena-editor/hooks/useAutoCreateDocument';
 
 const EditorTabPage = () => {
   const { mongoId: rawMongoId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  // Extract template type from URL query params
+  const templateType = searchParams.get('template');
   
   // 🔥 CRITICAL: Convert "undefined" string to null
   const mongoId = (rawMongoId === 'undefined' || rawMongoId === 'null') ? null : rawMongoId;
   
-  console.log('📍 EditorTabPage - raw mongoId:', rawMongoId, 'cleaned:', mongoId);
+  console.log('📍 EditorTabPage - raw mongoId:', rawMongoId, 'cleaned:', mongoId, 'template:', templateType);
   
   // 🔥 PRODUCTION: Auto-create document immediately when opening new document
   // This follows Google Docs pattern - document exists from the first millisecond
-  const { isCreating, createdDocId } = useAutoCreateDocument(mongoId, navigate);
+  const { isCreating, createdDocId } = useAutoCreateDocument(mongoId, navigate, templateType);
   
   // Use the created document ID if available, otherwise use mongoId from URL
   const effectiveMongoId = createdDocId || mongoId;
@@ -24,6 +28,7 @@ const EditorTabPage = () => {
     mongoId, 
     createdDocId, 
     effectiveMongoId,
+    templateType,
     url: window.location.pathname 
   });
   

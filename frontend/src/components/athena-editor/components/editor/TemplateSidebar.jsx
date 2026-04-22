@@ -39,7 +39,7 @@ const PURIFY_CONFIG = {
 const sanitize = (html) => DOMPurify.sanitize(html, PURIFY_CONFIG);
 
 // ─── Template data ────────────────────────────────────────────────────────────
-const TEMPLATES = [
+export const TEMPLATES = [
   // ── General ──────────────────────────────────────────────────────────────
   {
     id: 'blank',

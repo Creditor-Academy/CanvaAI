@@ -80,6 +80,7 @@ import {
 } from '../ai/aiUtils.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { DocumentExporter } from '../../../utils/documentExporter.js';
+import { saveTokenUsage, getTokenUsageForSave } from '../../../utils/tokenPersistence.js';
 import { DocumentOutline } from './editor/DocumentOutline';
 import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
 import HeaderMenuBar from './editor/HeaderMenuBar';
@@ -5002,16 +5003,20 @@ const TextEditorContent = ({
   const [searchParams] = useSearchParams();
 
   const docId = useMemo(() => {
-    // Priority 1: Query parameter
+    // Priority 1: Query parameter (must be valid MongoDB ObjectId)
     const qp = searchParams.get('docId');
     if (qp && /^[0-9a-fA-F]{24}$/.test(qp)) {
       console.log('[docId] Using query param:', qp);
       return qp;
     }
     
-    // Priority 2: URL path parameter
-    if (urlMongoId && /^[0-9a-fA-F]{24}$/.test(urlMongoId)) {
-      console.log('[docId] Using URL path:', urlMongoId);
+    // Priority 2: URL path parameter (accept ANY docId, not just MongoDB ObjectIds)
+    // This allows template documents with IDs like "doc_123456_random" to work
+    if (urlMongoId && urlMongoId !== 'undefined' && urlMongoId !== 'null') {
+      console.log('[docId] Using URL path:', urlMongoId, {
+        isMongoObjectId: /^[0-9a-fA-F]{24}$/.test(urlMongoId),
+        isTemplateDoc: urlMongoId.startsWith('doc_')
+      });
       return urlMongoId;
     }
     
@@ -5036,14 +5041,29 @@ const TextEditorContent = ({
   const cachedDoc = useMemo(() => {
     if (!docId) return null;
     try {
-      const raw = sessionStorage.getItem(`doc_${docId}`);
-      if (!raw) return null;
+      const storageKey = `doc_${docId}`;
+      console.log('🔍 Checking sessionStorage for:', storageKey);
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) {
+        console.log('❌ No cached document found in sessionStorage');
+        return null;
+      }
+      console.log('✅ Found cached document, length:', raw.length);
       const doc = JSON.parse(raw);
       // Validate minimum shape before trusting
       if (!doc || typeof doc !== 'object' || (!doc._id && !doc.id)) {
-        sessionStorage.removeItem(`doc_${docId}`); // evict corrupt entry
+        console.warn('⚠️ Invalid cached document, evicting');
+        sessionStorage.removeItem(storageKey); // evict corrupt entry
         return null;
       }
+      console.log('✅ Parsed cached document:', {
+        id: doc.id || doc._id,
+        title: doc.title,
+        hasContent: !!doc.content,
+        hasHtml: !!doc.html,
+        hasDataContent: !!doc.data?.content,
+        contentLength: (doc.content || doc.html || doc.data?.content || '').length
+      });
       return doc;
     } catch (error) {
       console.error('❌ Failed to parse cached document:', error);
@@ -5085,10 +5105,41 @@ const TextEditorContent = ({
         return;
       }
 
+      // 🔥 CRITICAL: Validate that docId is a proper MongoDB ObjectId
+      // Temporary IDs (doc_*) should not be saved to backend
+      const isValidMongoId = /^[0-9a-fA-F]{24}$/.test(id);
+      if (!isValidMongoId) {
+        console.log('⏭️ Skipping save - invalid MongoDB ObjectId:', id);
+        return;
+      }
+
+      // Skip auto-save for template documents ONLY if they haven't been saved to backend yet
+      // Template documents start with 'doc_' but get a MongoDB ObjectId after first save
+      // We check sessionStorage to see if this is still a temporary document
+      const isTemporaryDoc = id.startsWith('doc_');
+      
+      if (isTemporaryDoc) {
+        // Check if document exists in sessionStorage (temporary, not yet saved)
+        const tempDoc = sessionStorage.getItem(`doc_${id}`);
+        if (tempDoc) {
+          console.log('⏭️ Skipping auto-save for temporary template document:', id);
+          setSaveStatus('saved');
+          setLastSaved(new Date());
+          return;
+        }
+        // If not in sessionStorage, it means it was saved to backend - continue with auto-save
+        console.log('📝 Template document was saved to backend - continuing auto-save');
+      }
+
       try {
         // 🔥 Save as TipTap JSON, NOT HTML or Markdown
         const jsonContent = ed.state.doc.toJSON();
         const htmlContent = ed.getHTML();
+
+        // Get token usage data to persist
+        const tokenUsageData = getTokenUsageForSave(id);
+
+        console.log('💾 Auto-saving document:', id);
 
         // Update existing document
         await TextEditorService.updateDocument(id, {
@@ -5097,16 +5148,35 @@ const TextEditorContent = ({
             html: htmlContent // For compatibility/fallback
           },
           hasBeenEdited: true, // Mark as edited to prevent cleanup
+          ...(tokenUsageData && { metadata: { tokenUsage: tokenUsageData } }), // 🔥 Persist token usage
           updatedAt: new Date()
         });
 
         setSaveStatus('saved');
         setLastSaved(new Date());
-        console.log(`✅ Document ${id} auto-saved successfully`);
+        console.log(`✅ Document ${id} auto-saved successfully`, tokenUsageData ? 'with token usage' : '');
       } catch (error) {
         setSaveStatus('error');
-        toast.error('Failed to save document. Please check your connection.');
         console.error('❌ Auto-save failed:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          documentId: id
+        });
+        
+        // Show more specific error message
+        if (error.response?.status === 400) {
+          toast.error('Invalid document ID format. Please refresh and try again.');
+        } else if (error.response?.status === 404) {
+          toast.error('Document not found. It may have been deleted.');
+        } else if (error.response?.status >= 500) {
+          toast.error('Server error. Please try again later.');
+        } else if (!error.response) {
+          toast.error('Cannot connect to server. Please check your internet connection.');
+        } else {
+          toast.error('Failed to save document. Please check your connection.');
+        }
       }
     }, 1000); // Wait 1 second after user stops typing
   }
@@ -5896,33 +5966,71 @@ const TextEditorContent = ({
   // 🚀 OPTIMIZATION: Synchronize editor content when document data arrives from cache/backend
   useEffect(() => {
     // Skip if editor not ready or no document to load
-    if (!editor || !fetchedDoc) return;
+    if (!editor || !fetchedDoc) {
+      console.log('⏭️ Skipping content load - editor or fetchedDoc not ready:', {
+        hasEditor: !!editor,
+        hasFetchedDoc: !!fetchedDoc
+      });
+      return;
+    }
 
     // Check if we've already loaded this document to avoid re-setting and losing focus
     const docId = fetchedDoc.id || fetchedDoc._id;
-    if (editor.storage.athena_loaded_id === docId) return;
+    if (editor.storage.athena_loaded_id === docId) {
+      console.log('⏭️ Skipping content load - already loaded this document:', docId);
+      return;
+    }
 
-    console.log('✅ Loading document:', fetchedDoc.title || 'Untitled');
+    console.log('🔥 CONTENT LOAD TRIGGERED:', {
+      fromCache: !!cachedDoc,
+      isDocLoaded,
+      hasFetchedDoc: !!fetchedDoc,
+      hasContent: !!fetchedDoc.content,
+      hasHtml: !!fetchedDoc.html,
+      hasDataContent: !!fetchedDoc.data?.content,
+      docId: docId,
+      editorReady: !!editor
+    });
 
     const jsonContent = fetchedDoc.data?.content || fetchedDoc.content;
     const htmlContent = fetchedDoc.data?.html || fetchedDoc.html || '';
 
+    console.log('📝 Content extraction:', {
+      jsonContentType: typeof jsonContent,
+      htmlContentType: typeof htmlContent,
+      jsonContentLength: typeof jsonContent === 'string' ? jsonContent.length : 'N/A',
+      htmlContentLength: typeof htmlContent === 'string' ? htmlContent.length : 'N/A',
+      willUse: jsonContent ? 'jsonContent' : (htmlContent ? 'htmlContent' : 'NOTHING')
+    });
+
     // Defer setContent to avoid flushSync warning in React 19
     requestAnimationFrame(() => {
 
-      // 🔥 CRITICAL FIX: Use Markdown transformer for string content
-      const content = jsonContent || htmlContent;
+    // 🔥 CRITICAL FIX: Use Markdown transformer for string content
+    const content = jsonContent || htmlContent;
 
-      if (!content) {
-        console.warn('⚠️ No content available to display!');
-        return;
+    console.log('📝 TextEditor Content Loading:', {
+      hasJson: !!jsonContent,
+      hasHtml: !!htmlContent,
+      docId: mongoId,
+      isTemporary: mongoId?.startsWith('doc_'),
+      contentLength: typeof content === 'string' ? content.length : 'object'
+    });
+
+    if (!content) {
+      console.warn('⚠️ No content available to display in editor!');
+      if (mongoId?.startsWith('doc_')) {
+        console.error('❌ Temporary document content missing from sessionStorage!');
       }
+      return;
+    }
 
-      console.log('📝 Processing content:', {
-        type: typeof content,
-        length: typeof content === 'string' ? content.length : 'N/A',
-        first100Chars: typeof content === 'string' ? content.substring(0, 100) : 'object'
-      });
+    console.log('📝 Processing content:', {
+      type: typeof content,
+      length: typeof content === 'string' ? content.length : 'N/A',
+      first100Chars: typeof content === 'string' ? content.substring(0, 100) : 'object'
+    });
+
 
       // Try to parse JSON if content is a string
       let parsedJsonContent = null;
@@ -6000,7 +6108,7 @@ const TextEditorContent = ({
       // Mark as loaded in editor storage to prevent re-runs
       editor.storage.athena_loaded_id = fetchedDoc.id || fetchedDoc._id;
     });
-  }, [editor, isDocLoaded, fetchedDoc, setDocumentTitle, setIsAiGeneratedDoc]);
+  }, [editor, isDocLoaded, fetchedDoc, cachedDoc, setDocumentTitle, setIsAiGeneratedDoc]);
 
   // 🔥 CRITICAL FIX: Removed localStorage usage - URL is single source of truth
   // Document ID is now tracked ONLY via URL path and React props
@@ -6352,10 +6460,12 @@ const TextEditorContent = ({
       // 🔥 CRITICAL FIX: Always use the mongoId from URL if available
       // This prevents creating duplicate documents when editing existing ones
       const docIdToUpdate = effectiveMongoId || activeDocId;
+      const isTemporaryId = typeof docIdToUpdate === 'string' && docIdToUpdate.startsWith('doc_');
 
-      // If we have ANY document ID (activeDocId OR mongoId), update existing document
-      if (docIdToUpdate) {
+      // If we have a permanent document ID, update existing document
+      if (docIdToUpdate && !isTemporaryId) {
         console.log('📝 Updating existing document with ID:', docIdToUpdate);
+
         console.log('🔍 Document ID source:', {
           from_mongoId_prop: !!mongoId,
           from_url_path: !!(function () {

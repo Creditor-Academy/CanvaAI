@@ -6,11 +6,24 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { estimateTokensSync } from '../../../../utils/realtimeTokenCounter';
+import { saveTokenUsage, loadTokenUsage } from '../../../../utils/tokenPersistence';
 
-const TokenCounter = ({ editor, compact = true }) => {
+const TokenCounter = ({ editor, docId, compact = true }) => {
   const [aiTokens, setAiTokens] = useState(0);
   const [aiContentLength, setAiContentLength] = useState(0);
   const [lastAiUpdate, setLastAiUpdate] = useState(0);
+
+  // Load saved token usage when document opens
+  useEffect(() => {
+    if (!docId) return;
+    
+    const savedTokens = loadTokenUsage(docId);
+    if (savedTokens) {
+      console.log('[TokenCounter] 📂 Restored token usage from previous session:', savedTokens);
+      setAiTokens(savedTokens.outputTokens || 0);
+      setLastAiUpdate(Date.now());
+    }
+  }, [docId]);
 
   // Track AI-generated content
   useEffect(() => {
@@ -24,7 +37,17 @@ const TokenCounter = ({ editor, compact = true }) => {
       if (content && typeof content === 'string') {
         const newTokens = estimateTokensSync(content);
         
-        setAiTokens(prev => prev + newTokens);
+        setAiTokens(prev => {
+          const updated = prev + newTokens;
+          // Save to persistence
+          if (docId) {
+            saveTokenUsage(docId, {
+              outputTokens: updated,
+              totalTokensUsed: updated
+            });
+          }
+          return updated;
+        });
         setAiContentLength(prev => prev + content.length);
         setLastAiUpdate(Date.now());
         
@@ -57,7 +80,17 @@ const TokenCounter = ({ editor, compact = true }) => {
       const { tokens } = event.detail;
       
       if (tokens && typeof tokens === 'number') {
-        setAiTokens(prev => prev + tokens);
+        setAiTokens(prev => {
+          const updated = prev + tokens;
+          // Save to persistence
+          if (docId) {
+            saveTokenUsage(docId, {
+              outputTokens: updated,
+              totalTokensUsed: updated
+            });
+          }
+          return updated;
+        });
         setLastAiUpdate(Date.now());
         
         console.log(`🤖 AI Quick Action: +${tokens} tokens`);
