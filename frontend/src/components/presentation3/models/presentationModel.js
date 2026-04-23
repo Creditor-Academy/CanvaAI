@@ -1,5 +1,7 @@
+import { nanoid } from 'nanoid';
+
 export const createShapeLayer = (shapeType) => ({
-  id: crypto.randomUUID(),
+  id: nanoid(),
   type: "shape",
 
   // shape identity
@@ -27,7 +29,7 @@ export const createShapeLayer = (shapeType) => ({
 });
 
 export const createImageLayer = (src, imageUrl, imageKey) => ({
-  id: crypto.randomUUID(),
+  id: nanoid(),
   type: "image",
   src, // Keep for backward compatibility or direct URL addition
   imageUrl,
