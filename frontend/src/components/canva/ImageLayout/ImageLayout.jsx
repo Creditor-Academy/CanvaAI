@@ -6,6 +6,7 @@ import { FiPlus, FiZap, FiLayout } from 'react-icons/fi'
 import { Sparkles, Trash2 } from 'lucide-react'
 import ImagePopup from './imagePopup'
 import { isTransparent, getShapeSVG } from './shapeUtils'
+import ChooseImageLayout from '../components/ChooseImageLayout'
 
 // ─── Thumbnail Preview ───────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ const ImageLayout = () => {
     const [selectedImage, setSelectedImage] = useState(null)
     const [showDeletePopup, setShowDeletePopup] = useState(false)
     const [selectedDeleteId, setSelectedDeleteId] = useState(null)
+    const [showImageLayoutModal, setShowImageLayoutModal] = useState(false)
 
     // ── CSS injection (identical to Presentation.jsx) ──────────────────────
     useEffect(() => {
@@ -374,6 +376,19 @@ const ImageLayout = () => {
         }
     }
 
+    const handleLayoutSelect = (layout) => {
+        setShowImageLayoutModal(false)
+        try {
+            // Store the desired dimensions in sessionStorage for the editor to pick up
+            sessionStorage.setItem('new_layout_prefill', JSON.stringify({
+                width: layout.width,
+                height: layout.height,
+                name: layout.name
+            }))
+        } catch (e) { console.error(e) }
+        window.open('/canva-clone', '_blank')
+    }
+
     const filteredImages = images
         .filter(img => (img.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase()))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -431,7 +446,7 @@ const ImageLayout = () => {
 
                             <div
                                 className="fresh-btn-wrapper"
-                                onClick={() => window.open('/canva-clone', '_blank')}
+                                onClick={() => setShowImageLayoutModal(true)}
                             >
                                 <div className="fresh-btn-inner">
                                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-800 via-blue-500 to-sky-500 shadow-[0_10px_20px_rgba(59,130,246,0.35)]">
@@ -684,9 +699,17 @@ const ImageLayout = () => {
                 onClose={() => setSelectedImage(null)}
                 onImport={handleImport}
             />
+
+            <ChooseImageLayout
+                open={showImageLayoutModal}
+                onClose={() => setShowImageLayoutModal(false)}
+                onSelect={handleLayoutSelect}
+            />
         </>
     )
 }
 
 export default ImageLayout
+
+
 

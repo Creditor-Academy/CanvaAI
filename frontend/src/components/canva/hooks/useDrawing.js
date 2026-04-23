@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect  } from 'react';
 import { initialDrawingSettings } from '../state/initialState';
 
 /**
@@ -10,6 +10,12 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
   const [currentPath, setCurrentPath] = useState([]);
   const lastPointRef = useRef(null);
   const lastTimeRef = useRef(0);
+  const layersRef = useRef(layers);
+
+  // Keep layersRef updated from prop
+  useEffect(() => {
+    layersRef.current = layers;
+  }, [layers]);
 
   const handleDrawingSettingsChange = useCallback((property, value) => {
     setDrawingSettings(prev => ({ ...prev, [property]: value }));
@@ -24,50 +30,82 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
     return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
   };
 
+  // Helper: Rotate a point around a center
+  const rotatePoint = (p, center, angleDeg) => {
+    if (!angleDeg) return p;
+    const angleRad = (angleDeg * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    const dx = p.x - center.x;
+    const dy = p.y - center.y;
+    return {
+      x: center.x + dx * cos - dy * sin,
+      y: center.y + dx * sin + dy * cos
+    };
+  };
+
   const handleEraserAction = useCallback((x, y) => {
     const eraserRadius = drawingSettings.brushSize / 2;
     const lastPoint = lastPointRef.current || { x, y };
 
-    // Find layers that might be hit
-    const minX = Math.min(x, lastPoint.x) - eraserRadius;
-    const maxX = Math.max(x, lastPoint.x) + eraserRadius;
-    const minY = Math.min(y, lastPoint.y) - eraserRadius;
-    const maxY = Math.max(y, lastPoint.y) + eraserRadius;
+    // Update last point immediately for the next event
+    lastPointRef.current = { x, y };
 
-    const layersToUpdate = layers.filter(layer => {
-      if (!layer.visible || layer.type !== 'drawing') return false;
-      const layerLeft = layer.x;
-      const layerRight = layer.x + layer.width;
-      const layerTop = layer.y;
-      const layerBottom = layer.y + layer.height;
-      return !(layerLeft > maxX || layerRight < minX || layerTop > maxY || layerBottom < minY);
-    });
+    setLayers(currentLayers => {
+      // Find layers that might be hit
+      const minX = Math.min(x, lastPoint.x) - eraserRadius - 100; 
+      const maxX = Math.max(x, lastPoint.x) + eraserRadius + 100;
+      const minY = Math.min(y, lastPoint.y) - eraserRadius - 100;
+      const maxY = Math.max(y, lastPoint.y) + eraserRadius + 100;
 
-    if (layersToUpdate.length > 0) {
-      let hasChanges = false;
+      const layersToUpdate = currentLayers.filter(layer => {
+        if (!layer.visible || layer.type !== 'drawing') return false;
+        return !(layer.x > maxX || (layer.x + layer.width) < minX || layer.y > maxY || (layer.y + layer.height) < minY);
+      });
 
-      const newLayers = layers.map(layer => {
+      if (layersToUpdate.length === 0) return currentLayers;
+
+      let hasGlobalChanges = false;
+      const nextLayers = currentLayers.map(layer => {
         const layerToErase = layersToUpdate.find(l => l.id === layer.id);
         if (!layerToErase) return layer;
 
-        // Densify with finer granularity for smoother erasure
+        const drawingRadius = (layer.brushSize || 0) / 2;
+        const totalEraserRadius = eraserRadius; // Match the visual eraser icon exactly
+
+        // --- ROTATION SUPPORT ---
+        // Calculate layer center for rotation transform
+        const cx = layer.x + layer.width / 2;
+        const cy = layer.y + layer.height / 2;
+        const rotation = layer.rotation || 0;
+
+        // Transform eraser segment to layer's local (unrotated) space
+        const localLast = rotatePoint(lastPoint, { x: cx, y: cy }, -rotation);
+        const localCurrent = rotatePoint({ x, y }, { x: cx, y: cy }, -rotation);
+        
+        // Adjust for layer top-left position (points in layer.path are relative to this)
+        const p1 = { x: localLast.x - layer.x, y: localLast.y - layer.y };
+        const p2 = { x: localCurrent.x - layer.x, y: localCurrent.y - layer.y };
+
+        // Optimized densification
+        const path = layer.path;
         const densifiedPath = [];
-        const maxSegmentLength = Math.max(eraserRadius * 0.3, 2); // Finer density
+        const maxSegmentLength = 1; // Extremely fine for "pixel-perfect" erasure
 
-        for (let i = 0; i < layer.path.length; i++) {
-          const point = layer.path[i];
-          densifiedPath.push({ ...point });
+        for (let i = 0; i < path.length; i++) {
+          const point = path[i];
+          densifiedPath.push(point);
 
-          if (i < layer.path.length - 1 && !layer.path[i + 1].forceMove) {
-            const nextPoint = layer.path[i + 1];
+          if (i < path.length - 1 && !path[i+1].forceMove) {
+            const nextPoint = path[i+1];
             const dx = nextPoint.x - point.x;
             const dy = nextPoint.y - point.y;
-            const segmentLength = Math.hypot(dx, dy);
+            const dist = Math.hypot(dx, dy);
 
-            if (segmentLength > maxSegmentLength) {
-              const numIntermediatePoints = Math.ceil(segmentLength / maxSegmentLength);
-              for (let j = 1; j < numIntermediatePoints; j++) {
-                const t = j / numIntermediatePoints;
+            if (dist > maxSegmentLength) {
+              const steps = Math.ceil(dist / maxSegmentLength);
+              for (let j = 1; j < steps; j++) {
+                const t = j / steps;
                 densifiedPath.push({
                   x: point.x + dx * t,
                   y: point.y + dy * t,
@@ -78,49 +116,41 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
           }
         }
 
-        // Process with smoother boundary detection
         const newPath = [];
-        let pathChanged = false;
+        let layerChanged = false;
         let wasErased = false;
 
         for (let i = 0; i < densifiedPath.length; i++) {
-          const point = densifiedPath[i];
-          const absPoint = { x: point.x + layer.x, y: point.y + layer.y };
-          const distance = distToSegment(absPoint, lastPoint, { x, y });
-          const isErased = distance <= eraserRadius;
-
-          if (isErased) {
-            pathChanged = true;
+          const p = densifiedPath[i];
+          // Check distance in local space
+          const dist = distToSegment(p, p1, p2);
+          
+          if (dist <= totalEraserRadius) {
+            layerChanged = true;
             wasErased = true;
           } else {
-            // Keep this point
             if (wasErased && newPath.length > 0) {
-              // Transition from erased to non-erased - start new segment
-              newPath.push({ ...point, forceMove: true });
-              wasErased = false;
+              newPath.push({ ...p, forceMove: true });
             } else {
-              newPath.push({ ...point });
+              newPath.push(p);
             }
+            wasErased = false;
           }
         }
 
-        if (!pathChanged) return layer;
-        hasChanges = true;
-
-        if (newPath.length === 0) return null; // Remove empty layers
-
+        if (!layerChanged) return layer;
+        hasGlobalChanges = true;
+        if (newPath.length === 0) return null;
         return { ...layer, path: newPath };
       }).filter(Boolean);
 
-      if (hasChanges) {
-        setLayers(newLayers);
+      if (hasGlobalChanges) {
+        layersRef.current = nextLayers; // Sync ref immediately
+        return nextLayers;
       }
-    }
-
-    // Update last point for continuity
-    lastPointRef.current = { x, y, pressure: 1 };
-
-  }, [layers, drawingSettings.brushSize, setLayers]);
+      return currentLayers;
+    });
+  }, [drawingSettings.brushSize, setLayers]);
 
   const handleDrawingMouseDown = useCallback((e) => {
     if (!['brush', 'pen', 'eraser'].includes(selectedTool)) return;
@@ -159,6 +189,7 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
   const finishDrawing = useCallback(() => {
     if (drawingSettings.isDrawing && selectedTool === 'eraser') {
       setDrawingSettings(prev => ({ ...prev, isDrawing: false }));
+      saveToHistory(layersRef.current);
       return;
     }
 
@@ -208,7 +239,7 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
       setDrawingSettings(prev => ({ ...prev, isDrawing: false }));
       setCurrentPath([]);
     }
-  }, [drawingSettings, currentPath, selectedTool, setLayers, saveToHistory, setSelectedLayer]);
+  }, [drawingSettings, currentPath, selectedTool, setLayers, saveToHistory, setSelectedLayer, layers]);
 
   return {
     drawingSettings,

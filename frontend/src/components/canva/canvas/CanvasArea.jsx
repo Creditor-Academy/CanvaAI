@@ -35,6 +35,25 @@ const LayerComponent = memo(({
     setLocalText(layer.text || '');
   }, [layer.text]);
 
+  const [measuredHeight, setMeasuredHeight] = useState(layer.height);
+
+  // Sync UI layer height with content layer height for text layers
+  useEffect(() => {
+    if (renderLayerUIOnly && layer.type === 'text') {
+      const contentEl = document.getElementById(`layer-content-${layer.id}`);
+      if (contentEl) {
+        setMeasuredHeight(contentEl.offsetHeight);
+        const observer = new ResizeObserver(() => {
+          if (contentEl.offsetHeight > 0) {
+            setMeasuredHeight(contentEl.offsetHeight);
+          }
+        });
+        observer.observe(contentEl);
+        return () => observer.disconnect();
+      }
+    }
+  }, [renderLayerUIOnly, layer.id, layer.type, layer.text]);
+
   // Focus and move cursor to end when editing starts
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -43,6 +62,16 @@ const LayerComponent = memo(({
       el.setSelectionRange(el.value.length, el.value.length);
     }
   }, [isEditing]);
+
+  // Auto-resize textarea height as content changes
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      const el = textareaRef.current;
+      el.style.height = '0px';
+      const scrollHeight = el.scrollHeight;
+      el.style.height = scrollHeight + 'px';
+    }
+  }, [localText, isEditing]);
 
   const handleDoubleClick = useCallback((e) => {
     e.stopPropagation();
@@ -118,7 +147,7 @@ const LayerComponent = memo(({
           return (
             <textarea
               ref={textareaRef}
-              className="w-full h-full bg-transparent resize-none outline-none overflow-hidden"
+              className="w-full bg-transparent resize-none outline-none"
               style={{
                 ...textStyle,
                 // FIX: Match the exact padding/margin of the div
@@ -131,14 +160,13 @@ const LayerComponent = memo(({
                 // FIX: Align text properly
                 verticalAlign: 'top',
                 // FIX: Remove default textarea styles
-                overflow: 'hidden',
+                overflow: 'visible',
                 // FIX: Match the display properties
                 display: 'flex',
                 alignItems: 'center',
-                // FIX: Ensure it takes full height
-                height: '100%',
+                // FIX: Ensure it grows with content
+                height: 'auto',
                 minHeight: '100%',
-                maxHeight: '100%',
               }}
               value={localText}
               onChange={(e) => setLocalText(e.target.value)}
@@ -156,12 +184,13 @@ const LayerComponent = memo(({
         return (
           <div
             ref={textDivRef}
-            className={`w-full h-full p-1 overflow-hidden cursor-move ${isEditing ? 'select-text' : 'select-none'
+            className={`w-full h-auto p-1 overflow-visible cursor-move ${isEditing ? 'select-text' : 'select-none'
               }`}
             style={{
               ...textStyle,
               padding: '0.25rem',
               margin: '0',
+              minHeight: '100%',
             }}
             onDoubleClick={handleDoubleClick}
           >
@@ -417,12 +446,14 @@ const LayerComponent = memo(({
 
   return (
     <div
-      className="absolute select-none"
+      id={`layer-${renderLayerUIOnly ? 'ui' : 'content'}-${layer.id}`}
+      className={`absolute select-none ${layer.type === 'shape' && !renderLayerUIOnly ? 'p-4' : ''}`}
       style={{
         left: layer.x,
         top: layer.y,
         width: layer.width,
-        height: layer.height,
+        height: layer.type === 'text' ? (renderLayerUIOnly ? measuredHeight : 'auto') : layer.height,
+        minHeight: layer.type === 'text' ? layer.height : undefined,
         border: (isSelected && renderLayerUIOnly) ? '2px dashed #3182ce' : 'none',
         zIndex: isSelected ? 1000 : layer.zIndex,
         display: layer.visible ? 'block' : 'none',
@@ -437,6 +468,9 @@ const LayerComponent = memo(({
       onClick={handleLayerClick}
       onMouseDown={renderLayerUIOnly ? undefined : handleLayerMouseDown} // Only handle drag in content mode
     >
+      {isSelected && renderLayerUIOnly && (
+        <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none" />
+      )}
       {!renderLayerUIOnly && renderContent}
 
       {/* 🔴 Handles only appear in UI Mode */}
@@ -459,43 +493,43 @@ const LayerComponent = memo(({
             {/* 🔵 Corner Resize Handles */}
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-left')}
-              className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+              className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-right')}
-              className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+              className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-left')}
-              className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+              className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-right')}
-              className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+              className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1550]"
             />
 
             {/* 🔵 Edge Center Resize Handles */}
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-center')}
-              className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+              className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-center')}
-              className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+              className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'left-center')}
-              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'right-center')}
-              className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+              className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1550]"
             />
 
             {/* 🔄 Rotate Handle (moved below) */}
@@ -503,7 +537,7 @@ const LayerComponent = memo(({
 
             <div
               onMouseDown={(e) => onRotateMouseDown(e, layer)}
-              className="absolute -bottom-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
+              className="absolute -bottom-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1550]"
             >
               <FiRotateCw size={12} color="#3182ce" />
             </div>
@@ -515,6 +549,8 @@ const LayerComponent = memo(({
     </div>
   );
 });
+
+
 const CanvasArea = ({
   canvasAreaRef, contentWrapperRef, canvasRef, canvasSize, zoom, showGrid, pan,
   handleCanvasClick, handleDrawingMouseDown, handleCanvasMouseMove, handleCanvasMouseLeave,
@@ -631,8 +667,8 @@ const CanvasArea = ({
             />
           )}
 
-          {/* 1. Content Layer (Clipped) */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* 1. Content Layer (Overflow Visible to allow interaction outside canvas) */}
+          <div className="absolute inset-0 overflow-visible pointer-events-none">
             {/* Pointer events none on wrapper? No, users need to click content. 
                   But overflow-hidden might clip interactions? 
                   If interactions are strictly inside, it's fine.
@@ -643,7 +679,7 @@ const CanvasArea = ({
                   key={layer.id}
                   layer={layer}
                   zoom={zoom}
-                  isSelected={false} // 🔴 Don't render UI here
+                  isSelected={layer.id === selectedLayer}
                   selectedTool={selectedTool}
                   getShapeDisplayProps={getShapeDisplayProps}
                   onLayerSelect={handleLayerSelect}
@@ -671,7 +707,7 @@ const CanvasArea = ({
               On top is fine, clipped? Drawing usually stays on canvas.
           */}
           {currentPath.length > 1 && (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 overflow-visible pointer-events-none">
               <svg
                 className="absolute top-0 left-0"
                 style={{
@@ -698,8 +734,8 @@ const CanvasArea = ({
             </div>
           )}
 
-          {/* 2. UI Layer (Visible Overflow, Top Level) */}
-          <div className="absolute inset-0 overflow-visible pointer-events-none">
+          {/* 2. UI Layer (Visible Overflow, Top Level, Above Mask) */}
+          <div className="absolute inset-0 overflow-visible pointer-events-none z-[1500]">
             {layers.filter(l => l.id === selectedLayer).map(layer => (
               <LayerComponent
                 key={`ui-${layer.id}`}
@@ -726,7 +762,7 @@ const CanvasArea = ({
           </div>
 
           {/* 3. Alignment Guides Layer */}
-          <div className="absolute inset-0 pointer-events-none z-[1400]">
+          <div className="absolute inset-0 pointer-events-none z-[1600]">
             {alignmentGuides && alignmentGuides.x.map((val, i) => (
               <div
                 key={`guide-x-${i}`}
@@ -742,7 +778,7 @@ const CanvasArea = ({
               />
             ))}
             {rotateLine && (
-              <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1501 }}>
+              <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1601 }}>
                 <line
                   x1={rotateLine.x1}
                   y1={rotateLine.y1}
@@ -756,6 +792,13 @@ const CanvasArea = ({
               </svg>
             )}
           </div>
+
+          {/* 4. Visual Clipping Mask (Hides content outside canvas, but allows clicks) */}
+          <div 
+            className="absolute inset-0 pointer-events-none z-[1350]" 
+            style={{ boxShadow: '0 0 0 10000px #f8f9fa' }} 
+            data-html2canvas-ignore="true"
+          />
 
           {selectedTool === 'eraser' && isMouseOverCanvas && (
             <div

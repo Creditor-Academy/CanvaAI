@@ -1,17 +1,26 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
+// Restored missing Typography, Drawing, and Utility icons
 import {
-  FiType, FiImage, FiSquare, FiCircle, FiTriangle, FiEdit3,
-  FiUpload, FiGrid, FiMaximize, FiStar, FiHeart, FiX,
-  FiArrowUp, FiArrowDown, FiArrowLeft, FiArrowRight,
-  FiCloud, FiMousePointer, FiLayers
-} from 'react-icons/fi'
+  FiSquare, FiCircle, FiTriangle, FiStar, FiHeart,
+  FiArrowRight, FiArrowLeft, FiArrowUp, FiArrowDown,
+  FiCloud, FiMinus, FiHexagon, FiType, FiImage,
+  FiEdit3, FiUpload, FiGrid, FiX
+} from 'react-icons/fi';
+import { LuPentagon, LuDiamond, LuEraser } from "react-icons/lu";
+import { VscTriangleRight } from "react-icons/vsc";
+
 import AIImageGenerator from '../AIImageGenerator'
 import { uploadTemporaryImage } from '@/services/imageEditor/imageApi'
-import BackgroundColor from './BackgroundColor'
 import { useAuth } from '@/contexts/AuthContext'
+// ... rest of imports
+
+
+import BackgroundColor from './BackgroundColor'
 import { MdDisabledVisible } from 'react-icons/md'
 import { designTemplates } from './DesignLibrary';
+
+
 
 // --- Sub-components moved outside to prevent unmounting on parent re-renders ---
 
@@ -106,8 +115,6 @@ const LeftCanvasSidebar = memo(({
   imageSettings,
   onCanvasBgColorChange,
   onCanvasBgImageChange,
-  templates,
-  handleTemplateSelect,
   drawingSettings,
   handleDrawingSettingsChange,
   handleAddSticker,
@@ -115,8 +122,7 @@ const LeftCanvasSidebar = memo(({
   onSave,
   handleSaveClick,
   layers,
-  hasUnsavedChanges,
-  activeTemplateId
+  hasUnsavedChanges
 }) => {
   const { user } = useAuth();
   const currentUserId = user?._id || user?.id || '';
@@ -171,82 +177,91 @@ const LeftCanvasSidebar = memo(({
     'stockImages': 'Stock Images'
   };
 
-
   const shapeConfigs = [
     {
-      key: 'line', label: 'Line', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      ), size: [200, 6]
+      key: 'line',
+      label: 'Line',
+      icon: <FiMinus size={20} style={{ transform: 'rotate(-45deg)' }} />,
+      size: [240, 2]
     },
-    { key: 'rectangle', label: 'Rectangle', icon: <FiSquare size={18} />, size: [120, 120] },
     {
-      key: 'roundedRectangle', label: 'Rounded Rect', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="3" y="6" width="18" height="12" rx="3" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      ), size: [180, 120]
+      key: 'rectangle',
+      label: 'Rectangle',
+      icon: <FiSquare size={18} />,
+      size: [120, 120]
     },
-    { key: 'circle', label: 'Circle', icon: <FiCircle size={18} />, size: [160, 160] },
     {
-      key: 'ellipse', label: 'Ellipse', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="12" cy="12" rx="8" ry="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      ), size: [160, 100]
+      key: 'roundedRectangle',
+      label: 'Rounded Rect',
+      icon: <FiSquare size={18} style={{ borderRadius: '4px' }} />,
+      size: [180, 120]
     },
-    { key: 'triangle', label: 'Triangle', icon: <FiTriangle size={18} />, size: [200, 200] },
     {
-      key: 'rightTriangle', label: 'Right Triangle', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 4v16h16L4 4z" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      ), size: [200, 200]
+      key: 'circle',
+      label: 'Circle',
+      icon: <FiCircle size={18} />,
+      size: [160, 160]
     },
-    { key: 'star', label: 'Star', icon: <FiStar size={18} />, size: [240, 240] },
-    { key: 'star6', label: '6-Point Star', icon: <FiStar size={18} />, size: [260, 260] },
+    {
+      key: 'ellipse',
+      label: 'Ellipse',
+      icon: <FiCircle size={18} style={{ transform: 'scaleX(1.4)' }} />,
+      size: [160, 100]
+    },
+    {
+      key: 'triangle',
+      label: 'Triangle',
+      icon: <FiTriangle size={18} />,
+      size: [200, 200]
+    },
+    {
+      key: 'rightTriangle',
+      label: 'Right Triangle',
+      icon: <VscTriangleRight size={18} />,
+      size: [200, 200]
+    },
+    {
+      key: 'star',
+      label: 'Star',
+      icon: <FiStar size={18} />,
+      size: [240, 240]
+    },
     {
       key: 'heart',
       label: 'Heart',
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-          />
-        </svg>
-      ),
+      icon: <FiHeart size={18} />,
       size: [280, 280]
     },
     {
-      key: 'diamond', label: 'Diamond', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="12,3 20,12 12,21 4,12" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      ), size: [160, 160]
+      key: 'diamond',
+      label: 'Diamond',
+      icon: <LuDiamond size={18} />,
+      size: [160, 160]
     },
     {
-      key: 'pentagon', label: 'Pentagon', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="12,3 20,9 16,20 8,20 4,9" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      ), size: [180, 180]
+      key: 'pentagon',
+      label: 'Pentagon',
+      icon: <LuPentagon size={18} />,
+      size: [180, 180]
     },
     {
-      key: 'hexagon', label: 'Hexagon', icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="12,2 20,7 20,17 12,22 4,17 4,7" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-      ), size: [180, 180]
+      key: 'hexagon',
+      label: 'Hexagon',
+      icon: <FiHexagon size={18} />,
+      size: [180, 180]
     },
-    { key: 'arrow', label: 'Arrow', icon: <FiArrowRight size={18} />, size: [360, 360] },
-
-    { key: 'arrowLeft', label: 'Left Arrow', icon: <FiArrowLeft size={18} />, size: [200, 200] },
-    { key: 'arrowUp', label: 'Up Arrow', icon: <FiArrowUp size={18} />, size: [200, 200] },
-    { key: 'arrowDown', label: 'Down Arrow', icon: <FiArrowDown size={18} />, size: [200, 200] },
-    { key: 'cloud', label: 'Cloud', icon: <FiCloud size={18} />, size: [440, 440] },
+    {
+      key: 'arrow',
+      label: 'Arrow',
+      icon: <FiArrowRight size={18} />,
+      size: [200, 200]
+    },
+    {
+      key: 'cloud',
+      label: 'Cloud',
+      icon: <FiCloud size={18} />,
+      size: [440, 440]
+    },
   ];
 
   const textConfigs = [
@@ -258,7 +273,7 @@ const LeftCanvasSidebar = memo(({
   const drawingConfigs = [
     { key: 'brush', label: 'Soft Brush', icon: <FiEdit3 size={18} /> },
     { key: 'pen', label: 'Sharp Pen', icon: <FiEdit3 size={18} /> },
-    { key: 'eraser', label: 'Eraser', icon: <FiX size={18} /> }
+    { key: 'eraser', label: 'Eraser', icon: <LuEraser size={18} /> }
   ];
 
   const stockImages = [
@@ -462,6 +477,7 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
+
         <ParentButton
           sectionKey="shapes" icon={<FiSquare size={16} />} label="Shapes"
           isActive={expandedSection === "shapes"}
@@ -473,6 +489,7 @@ const LeftCanvasSidebar = memo(({
           hoveredButtonTooltip={hoveredButtonTooltip}
           tooltipPosition={tooltipPosition}
         />
+
         <ParentButton
           sectionKey="drawing" icon={<FiEdit3 size={16} />} label="Draw"
           isActive={expandedSection === "drawing"}
@@ -496,17 +513,6 @@ const LeftCanvasSidebar = memo(({
           tooltipPosition={tooltipPosition}
         />
 
-        <ParentButton
-          sectionKey="templates" icon={<FiStar size={16} />} label="Layout"
-          isActive={expandedSection === "templates"}
-          onMouseEnter={handleButtonMouseEnter}
-          onMouseLeave={handleButtonMouseLeave}
-          onClick={handleSectionToggleInternal}
-          buttonRef={(el) => buttonRefs.current["templates"] = el}
-          tooltipTexts={tooltipTexts}
-          hoveredButtonTooltip={hoveredButtonTooltip}
-          tooltipPosition={tooltipPosition}
-        />
         {/* <ParentButton
           sectionKey="emoji" icon={<FiStar size={16} />} label="Emoji"
           isActive={expandedSection === "emoji"}
@@ -691,36 +697,6 @@ const LeftCanvasSidebar = memo(({
 
         </ExpandedSectionPortal>
 
-        <ExpandedSectionPortal
-          sectionKey="templates" title="Layout Panel"
-          expandedSection={expandedSection} position={expandedSectionPosition}
-          onClose={() => handleCloseSection("templates")}
-        >
-          <div className="flex flex-col gap-3 pb-10">
-            {templates.map(template => (
-              <div key={template.id} className="flex flex-col gap-2">
-                <button
-                  className={`flex flex-col p-4 rounded-xl border transition-all text-left group ${activeTemplateId === template.id ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/40 border-slate-700 hover:border-slate-500'}`}
-                  onClick={() => {
-                    if (hasUnsavedChanges) {
-                      setPendingTemplate(template);
-                      setShowSaveConfirm(true);
-                    } else {
-                      handleTemplateSelect(template);
-                    }
-                  }}
-                >
-                  <div className="flex justify-between items-center w-full">
-                    <div>
-                      <p className="text-sm font-bold text-white">{template.name}</p>
-                      <p className="text-[10px] text-slate-400 capitalize">{template.category} • {template.width} × {template.height}</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            ))}
-          </div>
-        </ExpandedSectionPortal>
 
         <ExpandedSectionPortal
           sectionKey="emoji"

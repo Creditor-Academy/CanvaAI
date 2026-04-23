@@ -543,16 +543,14 @@ const EditingToolbar = ({
                                         <button
                                             key={item.format}
                                             onClick={() => {
-                                                // ask for filename before downloading
                                                 setPendingFormat(item.format);
                                                 setPendingName((projectName || 'design').toString().replace(/\s+/g, '-'));
                                                 setShowNamePrompt(true);
                                                 setShowExportDropdown(false);
                                             }}
-                                            className="w-full px-4 py-3 text-left hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-150 flex items-center gap-3 group border-b last:border-b-0 border-gray-50 cursor-pointer hover:shadow-md rounderd-lg"
+                                            className="w-full px-4 py-3 text-left 
+                                            hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-150 flex items-center gap-3 group border-b last:border-b-0 border-gray-50 cursor-pointer hover:shadow-md rounderd-lg"
                                         >
-
-
                                             {/* Content */}
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2">
@@ -589,6 +587,7 @@ const EditingToolbar = ({
                                 </div>
                             )}
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -600,6 +599,7 @@ const EditingToolbar = ({
                 onConfirm={handleProjectNameConfirm}
                 initialName={projectName}
             />
+
             {/* Filename prompt modal rendered as a top-level portal to center on whole screen */}
             {showNamePrompt && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center">

@@ -388,7 +388,7 @@ const RightSidebar = ({
                       <input
                         type="number"
                         min="0"
-                        value={shapeSettings.strokeWidth ?? 0}
+                        value={shapeSettings.strokeWidth ?? 4}
                         onChange={(e) =>
                           handleShapeSettingsChange(
                             'strokeWidth',

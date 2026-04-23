@@ -283,6 +283,17 @@ const CanvaEditor = () => {
       if (projectId) {
         const flag = typeof window !== 'undefined' && sessionStorage.getItem(`prefill_import_flag_${projectId}`);
         setIsPrefillImport(!!flag);
+      } else {
+        // Check for new layout prefill if we're on a fresh canvas
+        const newLayout = sessionStorage.getItem('new_layout_prefill');
+        if (newLayout) {
+          const parsed = JSON.parse(newLayout);
+          if (parsed.width && parsed.height) {
+            setCanvasSize({ width: parsed.width, height: parsed.height });
+            if (parsed.name) setProjectName(parsed.name);
+          }
+          sessionStorage.removeItem('new_layout_prefill');
+        }
       }
     } catch (e) { }
   }, [projectId]);
@@ -589,12 +600,23 @@ const CanvaEditor = () => {
         const result = await saveImage(newProjectPayload);
         console.log("Saved response:", result);
 
-        toast.success("Design saved successfully!");
+        const newId =
+          result?.imageId ||
+          result?.id ||
+          result?._id ||
+          result?.data?.imageId ||
+          result?.data?.id ||
+          result?.data?._id;
 
-        const newId = result?.id || result?._id || result?.data?.id || result?.data?._id;
         if (newId) {
           setSavedProjectId(newId);
+
+          // Change URL after save
           navigate(`/canva-clone/${newId}`, { replace: true });
+
+          toast.success("Design saved successfully!");
+        } else {
+          toast.error("Image saved but ID not found");
         }
       }
 
@@ -769,7 +791,7 @@ const CanvaEditor = () => {
     layers,
     setLayers,
     saveToHistory,
-    false
+    true
   );
 
   const handleTextContentChangeWithResize = createTextContentHandler(
@@ -1784,8 +1806,6 @@ const CanvaEditor = () => {
             handleAIGeneratedImage={handleAIGeneratedImage}
             handleAddUploadedImage={handleAddUploadedImage}
             imageSettings={imageSettings}
-            templates={templates}
-            handleTemplateSelect={handleTemplateSelect}
             drawingSettings={drawingSettings}
             handleDrawingSettingsChange={handleDrawingSettingsChange}
             onCanvasBgColorChange={onCanvasBgColorChange}
@@ -1795,7 +1815,6 @@ const CanvaEditor = () => {
             onSave={handleSave}
             layers={layers}
             hasUnsavedChanges={hasUnsavedChanges}
-            activeTemplateId={activeTemplateId}
             handleSaveClick={handleSaveClick}
           />
         </div>
