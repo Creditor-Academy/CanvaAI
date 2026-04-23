@@ -1,6 +1,7 @@
 //import { title } from "node:process";
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_BASE_URL = `${BASE_URL}/api/pp`;
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+// Fallback to same-origin when VITE_API_BASE_URL is not provided.
+const API_BASE_URL = BASE_URL ? `${BASE_URL}/api/pp` : '/api/pp';
 
 // const API_BASE_URL = '/api/pp';
 
@@ -152,11 +153,30 @@ export const finalizePresentation = async (outlineData) => {
     firstSlide: slides[0]
   });
 
-  const response = await fetch(`${API_BASE_URL}/finalize-ppt`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(requestBody)
-  });
+  const controller = new AbortController();
+  const timeoutMs = 120000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/finalize-ppt`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Finalize request timed out after ${Math.round(timeoutMs / 1000)}s. Please retry.`);
+    }
+
+    // Browser reports CORS/network failures as TypeError: Failed to fetch.
+    throw new Error(
+      'Unable to reach finalize API. Possible causes: backend timeout (504) or missing CORS headers. Check server logs for /api/pp/finalize-ppt.'
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) { 
     let errorData;

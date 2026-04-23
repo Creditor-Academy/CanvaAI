@@ -188,28 +188,28 @@ const SideBar = () => {
 
   return (
     <aside
+      className="hide-scrollbar"
       style={{
         position: "fixed",
         left: isMobile ? "50%" : 18,
-        top: isMobile ? "auto" : "55%",
+        top: isMobile ? "auto" : 86,
         bottom: isMobile ? 14 : "auto",
-        transform: isMobile ? "translateX(-50%)" : "translateY(-50%)",
+        transform: isMobile ? "translateX(-50%)" : "none",
         width: isMobile ? "92%" : 64,
-        height: isTablet ? "55vh" : "auto",
+        maxHeight: isMobile ? "auto" : "calc(100vh - 104px)",
         background: "rgba(255,255,255,0.35)",
         backdropFilter: "blur(16px)",
         border: "1px solid rgba(59,130,246,0.28)",
         borderRadius: 22,
-        padding: isMobile ? "10px 12px" : isTablet ? "18px 0" : "10px 0",
+        padding: isMobile ? "10px 12px" : "10px 0",
         display: "flex",
         flexDirection: isMobile ? "row" : "column",
         alignItems: "center",
-        justifyContent: isMobile
-          ? "space-around"
-          : isTablet
-          ? "space-between"
-          : "center",
-        gap: isTablet ? 14 : 10,
+        justifyContent: isMobile ? "space-around" : "center",
+        overflowY: isMobile ? "visible" : "auto",
+        overflowX: "visible",
+        scrollbarWidth: "none",
+        gap: 6,
         boxShadow:
           "0 18px 45px rgba(15,23,42,0.10), 0 0 0 1px rgba(255,255,255,0.45) inset",
         zIndex: 9999
