@@ -122,12 +122,19 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
   }, []);
 
   const insertImageLayer = ({ url, key = null }) => {
-    const resolvedUrl = url?.trim();
+    const resolvedUrl = typeof url === 'string' ? url.trim() : url;
     if (!resolvedUrl) {
       throw new Error("Image URL is required");
     }
 
-    addImageLayer(resolvedUrl, resolvedUrl, key);
+    // AgentPanel uses `null` for the `src` arg and passes the URL to `imageUrl`.
+    // Doing the same ensures we skip any conflicts with how 'src' is loaded.
+    if (typeof addImageLayer === 'function') {
+      addImageLayer(null, resolvedUrl, key);
+    } else {
+      throw new Error("addImageLayer is not defined in the store. Please contact support.");
+    }
+    
     return { url: resolvedUrl, key };
   };
 
@@ -149,7 +156,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
       );
     } catch (error) {
       console.error("Image upload error:", error);
-      alert("Failed to upload image.");
+      alert(`Failed to upload image. Error: ${error.message || "Unknown error"}`);
     }
   };
 
@@ -160,7 +167,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
       setShowUrlModal(false);
     } catch (error) {
       console.error("Image URL insert error:", error);
-      alert("Failed to add image from URL.");
+      alert(`Failed to add image from URL. Error: ${error.message || "Unknown error"}`);
     }
   };
 
