@@ -6,7 +6,7 @@ import { FiPlus, FiZap, FiLayout } from 'react-icons/fi'
 import { Sparkles, Trash2 } from 'lucide-react'
 import ImagePopup from './imagePopup'
 import { isTransparent, getShapeSVG } from './shapeUtils'
-import ChooseImageLayout from '../components/ChooseImageLayout'
+import ChooseImageLayout from './ChooseImageLayout'
 
 // ─── Thumbnail Preview ───────────────────────────────────────────────────────
 

@@ -542,18 +542,11 @@ const CanvaEditor = () => {
     setProjectName(title);
 
     try {
-      // Attach canvas metadata to each layer
-      const layersWithCanvasMeta = layers.map(l => ({
-        ...l,
-        canvasBgColor,
-        canvasBgImage,
-        zoom,
-        pan,
-        canvasSize
-      }));
+      // Keep layers clean, don't inject canvas metadata into them
+      const layersToProcess = layers;
 
       // Convert any base64 image layers to temporary URLs before saving
-      const processedLayers = await Promise.all(layersWithCanvasMeta.map(async (lay) => {
+      const processedLayers = await Promise.all(layersToProcess.map(async (lay) => {
         try {
           // detect common base64/data URLs
           const src = lay?.src || lay?.url || lay?.image || '';
@@ -578,7 +571,18 @@ const CanvaEditor = () => {
       const updatePayload = {
         title: title,
         data: {
-          layer: processedLayers,
+          layer: [
+            {
+              id: 'canvas-metadata',
+              type: 'metadata',
+              canvasBgColor,
+              canvasBgImage,
+              canvasSize,
+              zoom,
+              pan
+            },
+            ...processedLayers
+          ],
           canvasSize
         }
       };
@@ -593,7 +597,18 @@ const CanvaEditor = () => {
           title: title,
           isPublic: false,
           data: {
-            layer: processedLayers,
+            layer: [
+              {
+                id: 'canvas-metadata',
+                type: 'metadata',
+                canvasBgColor,
+                canvasBgImage,
+                canvasSize,
+                zoom,
+                pan
+              },
+              ...processedLayers
+            ],
             canvasSize
           }
         };
@@ -645,86 +660,45 @@ const CanvaEditor = () => {
     if (isExporting) return;
     setIsExporting(true);
 
+    const fmt = format || exportFormat;
+    const safeName = fileName || `design-${Date.now()}`;
+    const ext = fmt === "jpeg" ? "jpg" : fmt;
+
     try {
-      const fmt = format || exportFormat;
+      toast.loading("Preparing high-quality export...", { id: 'export-toast' });
 
-      // 1) Export image from canvas (data URL)
+      // 1) Capture current canvas state as a data URL
       const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
-      if (!dataUrl) return;
+      if (!dataUrl) throw new Error("Failed to capture canvas");
 
-      const safeName = fileName || `design-${Date.now()}`;
-      const ext = fmt === "jpeg" ? "jpg" : fmt;
+      // 2) Upload to S3 as a temporary source image
+      const payload = {
+        userId: user?._id || user?.id || '',
+        base64Image: dataUrl,
+        serviceId: `tmp-${Date.now()}`,
+      };
 
-      // 2) If we have a saved project/image id, ask backend to export the stored image
-      // otherwise upload temporary image and ask backend to export the S3 URL
-      const hasValidImageId = projectId || false;
+      const resp = await uploadTemporaryImage(payload);
+      const s3Url = resp?.url || resp?.data?.url;
 
-      if (hasValidImageId) {
-        try {
-          const blob = await exportImage(projectId, ext);
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `${safeName}.${ext}`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-          toast.success('Image downloaded successfully');
-          return;
-        } catch (e) {
-          console.warn('Backend export by projectId failed, falling back to temporary upload', e);
-        }
-      }
+      if (!s3Url) throw new Error("Failed to upload temporary image for export");
 
-      // 3) Fallback: upload temporary image and ask api.exportS3Image to generate requested format
-      // convert dataUrl to base64 payload expected by uploadTemporaryImage
-      try {
-        const payload = {
-          userId: user?._id || user?.id || '',
-          base64Image: dataUrl,
-          serviceId: `tmp-${Date.now()}`,
-        };
+      // 3) Call the optimized S3 Export API
+      const blob = await api.exportS3Image(s3Url, ext);
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeName}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-        const resp = await uploadTemporaryImage(payload);
-        // resp may contain { url: 'https://s3...'}
-        const s3Url = resp?.url || resp?.data?.url;
-        if (s3Url) {
-          const blob = await api.exportS3Image(s3Url, ext);
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `${safeName}.${ext}`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-          toast.success('Image downloaded successfully');
-          return;
-        }
-
-        // if server didn't return an S3 url, fallback to client-side download
-        const link = document.createElement('a');
-        link.download = `${safeName}.${ext}`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Image downloaded successfully (local)');
-      } catch (e) {
-        console.error('Temporary upload / backend export failed, falling back to local download', e);
-        const link = document.createElement('a');
-        link.download = `${safeName}.${ext}`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Image downloaded successfully (local)');
-      }
-
+      toast.success('Image downloaded successfully', { id: 'export-toast' });
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to export image');
+      console.error('Export failed:', error);
+      toast.error(`Export failed: ${error.message}`, { id: 'export-toast' });
     } finally {
       setIsExporting(false);
     }

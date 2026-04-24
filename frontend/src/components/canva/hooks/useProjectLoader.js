@@ -137,32 +137,59 @@ export const useProjectLoader = (
               setZoom(80);
               setPan({ x: 0, y: 0 });
             }
-            // Determine and apply canvas background (image or color) from layer metadata
+            // Determine and apply canvas background (image or color)
             try {
-              const layerWithBgImage = layers.find(l => l.canvasBgImage && (l.canvasBgColor === 'transparent' || l.canvasBgColor === 'rgba(0,0,0,0)' || !l.canvasBgColor));
-              if (layerWithBgImage) {
-                if (setCanvasBgImage) setCanvasBgImage(layerWithBgImage.canvasBgImage);
-                if (setCanvasBgColor) setCanvasBgColor(layerWithBgImage.canvasBgColor || 'transparent');
-              } else {
-                // Prefer a non-transparent bg color if present
-                const layerWithBgColor = layers.find(l => l.canvasBgColor && l.canvasBgColor !== 'transparent' && l.canvasBgColor !== 'rgba(0,0,0,0)');
-                if (layerWithBgColor) {
-                  if (setCanvasBgColor) setCanvasBgColor(layerWithBgColor.canvasBgColor);
-                } else if (layers[0]) {
-                  // Fallback to first layer's bg settings if available
-                  if (setCanvasBgImage) setCanvasBgImage(layers[0].canvasBgImage || null);
-                  if (setCanvasBgColor) setCanvasBgColor(layers[0].canvasBgColor || '#ffffff');
+              const rootData = imageProject.data;
+              
+              // 1. Check for specialized 'metadata' layer FIRST (Latest Structure)
+              const metadataLayer = layers.find(l => l.type === 'metadata');
+              if (metadataLayer) {
+                if (setCanvasBgColor) setCanvasBgColor(metadataLayer.canvasBgColor || '#ffffff');
+                if (setCanvasBgImage) setCanvasBgImage(metadataLayer.canvasBgImage || null);
+                if (metadataLayer.zoom && setZoom) setZoom(metadataLayer.zoom);
+                if (metadataLayer.pan && setPan) setPan(metadataLayer.pan);
+                if (metadataLayer.canvasSize && setCanvasSize) setCanvasSize(metadataLayer.canvasSize);
+                
+                // Filter out the metadata layer so it doesn't appear as an element
+                const contentLayers = layers.filter(l => l.type !== 'metadata');
+                setLayers(contentLayers);
+              } 
+              // 2. Check root level data (Intermediate Structure)
+              else if (rootData && (rootData.canvasBgColor !== undefined || rootData.canvasBgImage !== undefined)) {
+                if (setCanvasBgColor) setCanvasBgColor(rootData.canvasBgColor || '#ffffff');
+                if (setCanvasBgImage) setCanvasBgImage(rootData.canvasBgImage || null);
+                if (rootData.zoom && setZoom) setZoom(rootData.zoom);
+                if (rootData.pan && setPan) setPan(rootData.pan);
+                if (rootData.canvasSize && setCanvasSize) setCanvasSize(rootData.canvasSize);
+                setLayers(layers);
+              } 
+              // 3. Fallback to scanning layers (Legacy Structure)
+              else if (layers && layers.length > 0) {
+                const layerWithBgImage = layers.find(l => l.canvasBgImage && (l.canvasBgColor === 'transparent' || l.canvasBgColor === 'rgba(0,0,0,0)' || !l.canvasBgColor));
+                if (layerWithBgImage) {
+                  if (setCanvasBgImage) setCanvasBgImage(layerWithBgImage.canvasBgImage);
+                  if (setCanvasBgColor) setCanvasBgColor(layerWithBgImage.canvasBgColor || 'transparent');
+                } else {
+                  const layerWithBgColor = layers.find(l => l.canvasBgColor && l.canvasBgColor !== 'transparent' && l.canvasBgColor !== 'rgba(0,0,0,0)');
+                  if (layerWithBgColor) {
+                    if (setCanvasBgColor) setCanvasBgColor(layerWithBgColor.canvasBgColor);
+                  } else {
+                    if (setCanvasBgImage) setCanvasBgImage(layers[0].canvasBgImage || null);
+                    if (setCanvasBgColor) setCanvasBgColor(layers[0].canvasBgColor || '#ffffff');
+                  }
                 }
 
-                // If individual layers carry zoom/pan/canvasSize metadata, apply a sample
+                // Apply sample zoom/pan/size from layers if found
                 const sample = layers[0];
                 if (sample) {
                   if (sample.zoom && setZoom) setZoom(sample.zoom);
                   if (sample.pan && setPan) setPan(sample.pan);
                   if (sample.canvasSize && setCanvasSize) setCanvasSize(sample.canvasSize);
                 }
+                setLayers(layers);
               }
-            } catch (err) {
+            }
+ catch (err) {
               console.warn('Error applying canvas background from imageProject', err);
             }
           }

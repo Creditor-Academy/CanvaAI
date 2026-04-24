@@ -556,12 +556,9 @@ const EditingToolbar = ({
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-semibold text-gray-700">{item.format}</span>
                                                 </div>
-
                                             </div>
                                         </button>
                                     ))}
-                                    {/* Filename prompt modal moved to top-level portal for full-screen centering */}
-
                                 </div>, document.body)
                             }
                         </div>
@@ -620,25 +617,53 @@ const EditingToolbar = ({
                                 onClick={async () => {
                                     try {
                                         const name = pendingName || 'design';
-
-                                        if (!imageId) {
-                                            throw new Error('Save the project first');
-                                        }
-
                                         const formatLower = pendingFormat.toLowerCase();
-                                        const blob = await exportImage(imageId, formatLower);
+                                        
+                                        // Log the complete export payload (Metadata + Layers)
+                                        console.log(`%c Preparing Export: ${name}.${formatLower} `, 'background: #059669; color: #fff; font-weight: bold; padding: 4px; border-radius: 4px;');
+                                        
+                                        const finalPayload = {
+                                            imageId: imageId,
+                                            projectName: name,
+                                            format: formatLower,
+                                            // This matches exactly what the backend 'layer' array will see
+                                            layer: [
+                                                {
+                                                    id: 'canvas-metadata',
+                                                    type: 'metadata',
+                                                    canvasBgColor,
+                                                    canvasBgImage,
+                                                    canvasSize,
+                                                    zoom,
+                                                    pan
+                                                },
+                                                ...(layers || [])
+                                            ],
+                                            canvasSize: canvasSize
+                                        };
 
-                                        const url = window.URL.createObjectURL(blob);
-                                        const link = document.createElement('a');
+                                        console.log("--- FINAL EXPORT PAYLOAD (SENT TO ENGINE) ---");
+                                        console.log(finalPayload);
+                                        console.log("-----------------------------------------");
 
-                                        link.href = url;
-                                        link.download = `${name}.${formatLower}`;
-
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-
-                                        window.URL.revokeObjectURL(url);
+                                        if (onDownload) {
+                                            // onDownload handles client-side rendering with current state
+                                            await onDownload(formatLower, name);
+                                        } else {
+                                            // Fallback to direct API if prop is missing (uses saved state)
+                                            if (!imageId) {
+                                                throw new Error('Save the project first');
+                                            }
+                                            const blob = await exportImage(imageId, formatLower);
+                                            const url = window.URL.createObjectURL(blob);
+                                            const link = document.createElement('a');
+                                            link.href = url;
+                                            link.download = `${name}.${formatLower}`;
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                            window.URL.revokeObjectURL(url);
+                                        }
 
                                         setShowNamePrompt(false);
                                         setPendingFormat(null);

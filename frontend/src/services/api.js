@@ -600,13 +600,13 @@ class ApiService {
   }
 
   // ============= PAYMENT API =============
-async createPayment(planName) {
-  return this.request(`/api/payment/create-payment/${planName}`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-}
-  
+  async createPayment(planName) {
+    return this.request(`/api/payment/create-payment/${planName}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+  }
+
 }
 
 export default new ApiService();
