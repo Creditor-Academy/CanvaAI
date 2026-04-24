@@ -1,4 +1,4 @@
-/**
+   /**
  * RealtimeTokenBadge.jsx - Display real-time token usage in editor
  * Shows live token count with color-coded tiers and estimated cost
  */

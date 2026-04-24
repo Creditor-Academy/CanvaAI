@@ -31,6 +31,24 @@ const documentSchema = new mongoose.Schema({
     },
     lastEditedBy: {
       type: String
+    },
+    // Token usage tracking for AI features
+    tokenUsage: {
+      inputTokens: {
+        type: Number,
+        default: 0
+      },
+      outputTokens: {
+        type: Number,
+        default: 0
+      },
+      totalTokensUsed: {
+        type: Number,
+        default: 0
+      },
+      lastTokenUpdate: {
+        type: Date
+      }
     }
   }
 }, {
@@ -40,6 +58,39 @@ const documentSchema = new mongoose.Schema({
 // Index for faster queries
 documentSchema.index({ createdAt: -1 });
 documentSchema.index({ updatedAt: -1 });
+
+// TTL index to auto-delete empty documents after 24 hours
+// Only applies to documents that have never been edited (content is empty/untouched)
+documentSchema.index(
+  { createdAt: 1 },
+  {
+    expireAfterSeconds: 86400, // 24 hours (24 * 60 * 60)
+    partialFilterExpression: {
+      // Document is considered "empty" if it has the default structure with no real content
+      'data.content.content.0.content.0.text': { $exists: false },
+      'metadata.wordCount': { $lte: 0 }
+    }
+  }
+);
+
+// Add a field to track if document has been edited by user
+documentSchema.add({
+  hasBeenEdited: {
+    type: Boolean,
+    default: false,
+    index: true
+  }
+});
+
+// Update the TTL index to use hasBeenEdited flag
+// Remove the previous partialFilterExpression index and use this simpler approach
+documentSchema.index(
+  { createdAt: 1 },
+  {
+    expireAfterSeconds: 86400, // 24 hours
+    partialFilterExpression: { hasBeenEdited: false }
+  }
+);
 
 // Pre-save middleware to calculate content metrics
 documentSchema.pre('save', function(next) {

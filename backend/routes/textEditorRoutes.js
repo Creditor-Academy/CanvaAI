@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Document = require('../models/Document');
+const AIUsage = require('../models/AIUsage');
 const jwt = require('jsonwebtoken');
 const { OpenAI } = require('openai');
 const { trackAIUsage, recordAIUsage, getQuotaStatus } = require('../middleware/aiUsageMiddleware');
@@ -144,6 +145,7 @@ router.post('/save', authenticateToken, async (req, res) => {
       title,
       data,
       userId: req.userId,
+      hasBeenEdited: req.body.hasBeenEdited || false, // Track if document has been edited
       metadata: {
         lastEditedBy: req.userId || 'anonymous'
       }
@@ -155,6 +157,7 @@ router.post('/save', authenticateToken, async (req, res) => {
 
     res.status(201).json({
       id: document._id,
+      documentId: document._id, // Include documentId for frontend compatibility
       title: document.title,
       message: 'Document saved successfully'
     });
@@ -269,6 +272,19 @@ router.put('/document/:id', authenticateToken, async (req, res) => {
     
     if (data !== undefined) {
       document.data = data;
+      
+      // Mark document as edited if it has actual content
+      // Check if content has more than just an empty paragraph
+      const hasRealContent = data.content?.content?.some(page => 
+        page.content?.some(block => 
+          block.type !== 'paragraph' || 
+          (block.text && block.text.trim().length > 0)
+        )
+      );
+      
+      if (hasRealContent || data.html?.trim().length > 10) {
+        document.hasBeenEdited = true;
+      }
     }
     
     if (req.userId) {
@@ -610,7 +626,12 @@ router.post('/ai/generate', authenticateToken, monitorAIRequest, trackAIUsage, r
     // Cache the result
     setCache('generate', { prompt: userPrompt, temperature }, text);
     
-    res.json({ text, fromCache: false });
+    // Return actual token usage from API
+    res.json({ 
+      text, 
+      fromCache: false,
+      usage: response.usage // Actual token counts from OpenAI
+    });
   } catch (error) {
     console.error('❌ AI Generate error:', error.message || error);
     if (!res.headersSent) {
@@ -671,7 +692,12 @@ router.post('/ai/chat', authenticateToken, monitorAIRequest, trackAIUsage, recor
     });
 
     const text = response.choices[0]?.message?.content || '';
-    res.json({ text });
+    
+    // Return actual token usage
+    res.json({ 
+      text,
+      usage: response.usage // Actual token counts from OpenAI
+    });
   } catch (error) {
     console.error('❌ AI Chat error:', error.message || error);
     if (!res.headersSent) {
@@ -766,7 +792,12 @@ router.post('/ai/transform', authenticateToken, monitorAIRequest, trackAIUsage, 
     // Cache the transformation
     setCache('transform', { action, text, temperature }, result);
     
-    res.json({ result, fromCache: false });
+    // Return actual token usage
+    res.json({ 
+      result, 
+      fromCache: false,
+      usage: response.usage // Actual token counts from OpenAI
+    });
   } catch (error) {
     console.error('❌ AI Transform error:', error.message || error);
     if (!res.headersSent) {
@@ -801,6 +832,224 @@ router.post('/ai/cache/clear', authenticateToken, (req, res) => {
   const { endpoint } = req.body;
   clearCache(endpoint);
   res.json({ success: true, message: endpoint ? `Cleared ${endpoint} cache` : 'Cleared all cache' });
+});
+
+/**
+ * DELETE /api/text-editor/cleanup-empty
+ * Manually trigger cleanup of empty documents (admin endpoint)
+ * This is a fallback - TTL index should handle most cleanup automatically
+ */
+router.delete('/cleanup-empty', authenticateToken, async (req, res) => {
+  try {
+    // Only allow admin users to trigger cleanup
+    // Add your admin check here
+    // if (!req.user || !req.user.isAdmin) {
+    //   return res.status(403).json({ error: 'Admin access required' });
+    // }
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Find and delete documents that:
+    // 1. Were created more than 24 hours ago
+    // 2. Have never been edited
+    // 3. Have empty or minimal content
+    const result = await Document.deleteMany({
+      hasBeenEdited: false,
+      createdAt: { $lt: twentyFourHoursAgo },
+      $or: [
+        { 'metadata.wordCount': { $lte: 0 } },
+        { 'data.content.content.0.content.0.text': { $exists: false } }
+      ]
+    });
+
+    console.log(`🧹 Cleaned up ${result.deletedCount} empty documents`);
+
+    res.json({
+      success: true,
+      deletedCount: result.deletedCount,
+      message: `Cleaned up ${result.deletedCount} empty documents`
+    });
+  } catch (error) {
+    console.error('❌ Cleanup error:', error);
+    res.status(500).json({ 
+      error: 'Failed to cleanup empty documents',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/text-editor/stats
+ * Get document statistics (admin endpoint)
+ */
+router.get('/stats', authenticateToken, async (req, res) => {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [
+      totalDocuments,
+      emptyDocuments,
+      editedDocuments,
+      recentDocuments
+    ] = await Promise.all([
+      Document.countDocuments(),
+      Document.countDocuments({ hasBeenEdited: false }),
+      Document.countDocuments({ hasBeenEdited: true }),
+      Document.countDocuments({ createdAt: { $gte: twentyFourHoursAgo } })
+    ]);
+
+    res.json({
+      totalDocuments,
+      emptyDocuments,
+      editedDocuments,
+      recentDocuments,
+      storageEfficiency: editedDocuments > 0 ? ((editedDocuments / totalDocuments) * 100).toFixed(2) + '%' : '0%'
+    });
+  } catch (error) {
+    console.error('❌ Stats error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get document stats',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/text-editor/ai-usage
+ * Get actual AI token usage for the current user from backend
+ * Used for reconciling frontend token counter with actual usage
+ */
+router.get('/ai-usage', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const currentMonth = new Date().toISOString().slice(0, 7); // "2024-01"
+    
+    // Get AI usage from database
+    const usage = await AIUsage.aggregate([
+      { $match: { userId, month: currentMonth } },
+      {
+        $group: {
+          _id: null,
+          totalInputTokens: { $sum: '$inputTokens' },
+          totalOutputTokens: { $sum: '$outputTokens' },
+          totalTokens: { $sum: '$totalTokens' },
+          totalCost: { $sum: '$cost' },
+          totalRequests: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const usageData = usage[0] || {
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalTokens: 0,
+      totalCost: 0,
+      totalRequests: 0
+    };
+
+    res.json({
+      success: true,
+      usage: usageData,
+      period: currentMonth
+    });
+  } catch (error) {
+    console.error('❌ AI Usage retrieval error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get AI usage',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/text-editor/ai-usage/predict
+ * Get usage predictions and forecasting
+ */
+router.get('/ai-usage/predict', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userTier = req.userTier || 'free';
+    
+    const usagePredictor = require('../utils/usagePredictor');
+    const prediction = await usagePredictor.predictMonthEnd(userId, userTier);
+    
+    res.json({
+      success: true,
+      prediction
+    });
+  } catch (error) {
+    console.error('❌ Usage prediction error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get usage prediction',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/text-editor/ai-usage/recommendations
+ * Get personalized usage recommendations
+ */
+router.get('/ai-usage/recommendations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userTier = req.userTier || 'free';
+    
+    const usagePredictor = require('../utils/usagePredictor');
+    const recommendations = await usagePredictor.getPersonalizedRecommendations(userId, userTier);
+    
+    res.json({
+      success: true,
+      recommendations
+    });
+  } catch (error) {
+    console.error('❌ Recommendations error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get recommendations',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/text-editor/ai-usage/trends
+ * Get usage trend analysis
+ */
+router.get('/ai-usage/trends', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { months = 3 } = req.query;
+    
+    const usagePredictor = require('../utils/usagePredictor');
+    const trends = await usagePredictor.getTrendAnalysis(userId, parseInt(months));
+    
+    res.json({
+      success: true,
+      trends
+    });
+  } catch (error) {
+    console.error('❌ Trends error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get trends',
+      details: error.message 
+    });
+  }
 });
 
 module.exports = router;

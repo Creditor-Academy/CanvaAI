@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
@@ -8,7 +9,44 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for large documents
+
+// Token estimation endpoint (public)
+const { estimateTokensEndpoint } = require('./middleware/tokenUsageMiddleware');
+app.post('/api/tokens/estimate', estimateTokensEndpoint);
+
+// Cost optimization endpoint
+const costOptimizationEngine = require('./utils/costOptimizationEngine');
+app.post('/api/tokens/optimize', (req, res) => {
+  try {
+    const { prompt, model = 'gpt-4o-mini', options = {} } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+    
+    const estimation = costOptimizationEngine.estimateBeforeGeneration(prompt, model, options);
+    
+    res.json({
+      success: true,
+      ...estimation
+    });
+  } catch (error) {
+    console.error('[Cost Optimization] Error:', error);
+    res.status(500).json({ error: 'Failed to estimate cost' });
+  }
+});
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/canva-ai';
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+  })
+  .catch((error) => {
+    console.error('❌ MongoDB connection error:', error);
+  });
 
 // Mock user data
 const mockUser = {
@@ -249,6 +287,10 @@ app.post('/api/ai/image-generate', async (req, res) => {
   }
 });
 
+
+// ─── Text Editor Routes ─────────────────────────────────────────────────────
+const textEditorRoutes = require('./routes/textEditorRoutes');
+app.use('/api/text-editor', textEditorRoutes);
 
 // Fallback for other routes
 app.use('*', (req, res) => {

@@ -159,7 +159,11 @@ const recordAIUsage = async (req, res, next) => {
         model: req.body.model || 'gpt-4o-mini',
         success,
         errorMessage,
-        responseTime
+        responseTime,
+        // Store actual API token counts if available in response
+        actualInputTokens: res.locals.actualTokens?.prompt_tokens || 0,
+        actualOutputTokens: res.locals.actualTokens?.completion_tokens || 0,
+        cachedTokens: res.locals.actualTokens?.prompt_tokens_details?.cached_tokens || 0
       }).catch(err => {
         console.error('[AI Usage Recording] Error:', err);
       });
@@ -175,6 +179,28 @@ const recordAIUsage = async (req, res, next) => {
     
     // Call original end
     originalEnd.call(this, chunk, encoding);
+  };
+  
+  next();
+};
+
+/**
+ * Middleware to capture actual token usage from API responses
+ * Must be used AFTER the AI endpoint handler
+ */
+const captureActualTokens = (req, res, next) => {
+  // Override res.json to capture token usage
+  const originalJson = res.json.bind(res);
+  
+  res.json = (body) => {
+    // If response contains usage data from OpenAI, store it
+    if (body.usage && typeof body.usage === 'object') {
+      res.locals.actualTokens = body.usage;
+      
+      console.log(`[Token Capture] Actual tokens - Input: ${body.usage.prompt_tokens}, Output: ${body.usage.completion_tokens}, Cached: ${body.usage.prompt_tokens_details?.cached_tokens || 0}`);
+    }
+    
+    return originalJson(body);
   };
   
   next();
@@ -225,5 +251,6 @@ const getQuotaStatus = async (req, res) => {
 module.exports = {
   trackAIUsage,
   recordAIUsage,
-  getQuotaStatus
+  getQuotaStatus,
+  captureActualTokens
 };

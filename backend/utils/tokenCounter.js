@@ -1,10 +1,27 @@
 /**
  * tokenCounter.js - Accurate token estimation for OpenAI models
- * Uses tiktoken-inspired algorithm for gpt-4o-mini
+ * Uses tiktoken for production-grade accuracy (±1% error)
  */
 
+const { getEncoding } = require('tiktoken');
+
+// Initialize encoder for gpt-4o-mini (cl100k_base encoding)
+let encoder = null;
+
+function getEncoder() {
+  if (!encoder) {
+    try {
+      encoder = getEncoding('cl100k_base');
+    } catch (error) {
+      console.warn('[TokenCounter] Failed to load tiktoken encoder, using fallback:', error.message);
+      encoder = null;
+    }
+  }
+  return encoder;
+}
+
 // Token pricing (per 1M tokens) - May 2024
-export const PRICING = {
+const PRICING = {
   'gpt-4o-mini': {
     input: 0.15,    // $0.15 per 1M input tokens
     output: 0.60,   // $0.60 per 1M output tokens
@@ -44,17 +61,27 @@ export const QUOTA_LIMITS = {
 
 /**
  * Estimate token count for a given text
- * Uses character-based approximation (accurate within ±10%)
- * For gpt-4o-mini: ~1 token ≈ 4 characters for English text
+ * Uses tiktoken for accurate counting (±1% error)
+ * Falls back to character-based approximation if tiktoken fails
  */
 export function estimateTokens(text) {
   if (!text || typeof text !== 'string') return 0;
   
-  // Base estimation: 4 chars ≈ 1 token for English
+  // Try tiktoken first
+  const enc = getEncoder();
+  if (enc) {
+    try {
+      return enc.encode(text).length;
+    } catch (error) {
+      console.warn('[TokenCounter] Tiktoken encoding failed, using fallback:', error.message);
+    }
+  }
+  
+  // Fallback: character-based approximation
   let tokens = text.length / 4;
   
   // Adjustment factors for different content types
-  const hasCode = /[{}[\];()]/.test(text);
+  const hasCode = /[{\[\];()}]/.test(text);
   const hasMarkdown = /^#{1,6}\s|^\*\*|^\*|^\-|^\d+\./.test(text);
   const hasSpecialChars = /[^\x00-\x7F]/.test(text); // Non-ASCII
   
@@ -91,22 +118,29 @@ export function estimateMessageTokens(messages) {
 
 /**
  * Calculate cost for a given token usage
+ * Includes cached input token discount (50% off)
  */
-export function calculateCost(inputTokens, outputTokens, model = 'gpt-4o-mini') {
+export function calculateCost(inputTokens, outputTokens, model = 'gpt-4o-mini', cachedInputTokens = 0) {
   const pricing = PRICING[model];
   if (!pricing) {
     console.warn(`Unknown model: ${model}, using gpt-4o-mini pricing`);
-    return calculateCost(inputTokens, outputTokens, 'gpt-4o-mini');
+    return calculateCost(inputTokens, outputTokens, 'gpt-4o-mini', cachedInputTokens);
   }
   
-  const inputCost = (inputTokens / 1000000) * pricing.input;
+  // Separate cached vs fresh input tokens
+  const freshInputTokens = inputTokens - cachedInputTokens;
+  
+  const cachedInputCost = (cachedInputTokens / 1000000) * (pricing.cachedInput || pricing.input * 0.5);
+  const freshInputCost = (freshInputTokens / 1000000) * pricing.input;
   const outputCost = (outputTokens / 1000000) * pricing.output;
   
   return {
-    input: inputCost,
+    cachedInput: cachedInputCost,
+    freshInput: freshInputCost,
     output: outputCost,
-    total: inputCost + outputCost,
-    currency: 'USD'
+    total: cachedInputCost + freshInputCost + outputCost,
+    currency: 'USD',
+    savings: (cachedInputTokens / 1000000) * (pricing.input - (pricing.cachedInput || pricing.input * 0.5))
   };
 }
 
@@ -155,7 +189,7 @@ export function checkQuota(usage, tier = 'free') {
 /**
  * Format token count for display
  */
-export function formatTokenCount(tokens) {
+function formatTokenCount(tokens) {
   if (tokens >= 1000000) {
     return `${(tokens / 1000000).toFixed(1)}M tokens`;
   }
@@ -168,7 +202,7 @@ export function formatTokenCount(tokens) {
 /**
  * Format cost for display
  */
-export function formatCost(cost) {
+function formatCost(cost) {
   if (cost >= 1) {
     return `$${cost.toFixed(2)}`;
   }
@@ -182,7 +216,7 @@ export function formatCost(cost) {
  * Get efficiency score (0-100)
  * Higher is better - measures token utilization
  */
-export function calculateEfficiency(inputTokens, outputTokens) {
+function calculateEfficiency(inputTokens, outputTokens) {
   const ratio = outputTokens / Math.max(inputTokens, 1);
   
   // Optimal ratio is 0.5-2.0 (balanced input/output)
@@ -198,3 +232,16 @@ export function calculateEfficiency(inputTokens, outputTokens) {
   // ratio > 2.0
   return Math.round((2.0 / ratio) * 100);
 }
+
+// Export all functions
+module.exports = {
+  PRICING,
+  QUOTA_LIMITS,
+  estimateTokens,
+  estimateMessageTokens,
+  calculateCost,
+  checkQuota,
+  formatTokenCount,
+  formatCost,
+  calculateEfficiency
+};

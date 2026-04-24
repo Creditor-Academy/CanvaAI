@@ -28,6 +28,31 @@ const aiUsageSchema = new mongoose.Schema({
     default: 0
   },
   
+  // Actual API token counts (from OpenAI response.usage)
+  actualInputTokens: {
+    type: Number,
+    default: 0
+  },
+  actualOutputTokens: {
+    type: Number,
+    default: 0
+  },
+  actualTotalTokens: {
+    type: Number,
+    default: 0
+  },
+  cachedTokens: {
+    type: Number,
+    default: 0
+  },
+  
+  // Token source tracking
+  tokenSource: {
+    type: String,
+    enum: ['estimated', 'actual', 'hybrid'],
+    default: 'estimated'
+  },
+  
   // Cost tracking
   cost: {
     type: Number,
@@ -91,7 +116,18 @@ aiUsageSchema.index({ action: 1, date: 1 });
 
 // Pre-save hook to calculate derived fields
 aiUsageSchema.pre('save', function(next) {
+  // Calculate total tokens
   this.totalTokens = this.inputTokens + this.outputTokens;
+  
+  // If actual tokens are provided, use them; otherwise estimate
+  if (this.actualInputTokens > 0 || this.actualOutputTokens > 0) {
+    this.actualTotalTokens = this.actualInputTokens + this.actualOutputTokens;
+    this.tokenSource = 'actual';
+    // Use actual tokens for billing
+    this.totalTokens = this.actualTotalTokens;
+  } else {
+    this.tokenSource = 'estimated';
+  }
   
   const date = this.date || new Date();
   this.month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
