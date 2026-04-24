@@ -10,6 +10,8 @@
 * - Performance monitoring with P99 tracking
 * - Circuit breaker for worker failures
 * - Chunked processing for large documents
+* - Block-level memoization with content hashing
+* - Lazy loading for performance optimization
 */
 
 import { workerBreaker } from './workerCircuitBreaker';
@@ -22,6 +24,10 @@ const PRODUCTION_CONFIG = {
   // Cache settings
   MAX_CACHE_SIZE: 500, // Reduced from 2000 for production memory safety
   CACHE_ENABLED: process.env.NODE_ENV === 'production' ? true : true,
+  
+  // Block-level cache settings
+  BLOCK_CACHE_MAX_SIZE: 1000,
+  BLOCK_CACHE_TTL: 300000, // 5 minutes TTL for block cache
   
   // Debounce settings
   DEBOUNCE_SMALL: 50,    // < 50 chars (typing)
@@ -41,6 +47,103 @@ const PRODUCTION_CONFIG = {
   PERFORMANCE_SAMPLING_RATE: 0.1, // Sample 10% of updates for metrics
   PERFORMANCE_BUDGET_MS: 10 // Max calculation time before warning
 };
+
+// ─────────────────────────────────────────────────────────────
+// Block-Level Memoization Cache
+// ─────────────────────────────────────────────────────────────
+
+class BlockTokenMemoization {
+  constructor(maxSize = PRODUCTION_CONFIG.BLOCK_CACHE_MAX_SIZE) {
+    this.cache = new Map(); // nodeId -> { hash, tokens, timestamp }
+    this.maxSize = maxSize;
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  /**
+   * Fast hash function for content comparison
+   */
+  _hashContent(text) {
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString(36);
+  }
+
+  /**
+   * Get or compute token count for a block
+   * Returns cached value if content hasn't changed
+   */
+  getOrUpdate(nodeId, text, computeFn) {
+    const hash = this._hashContent(text);
+    const cached = this.cache.get(nodeId);
+
+    // Check cache hit
+    if (cached && cached.hash === hash) {
+      // Check TTL
+      const now = Date.now();
+      if (now - cached.timestamp < PRODUCTION_CONFIG.BLOCK_CACHE_TTL) {
+        this.hits++;
+        return { tokens: cached.tokens, cacheHit: true };
+      }
+    }
+
+    // Cache miss or expired - compute
+    this.misses++;
+    const tokens = computeFn(text);
+    
+    // Update cache
+    this.cache.set(nodeId, {
+      hash,
+      tokens,
+      timestamp: Date.now()
+    });
+
+    // Evict oldest entries if cache is too large
+    if (this.cache.size > this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+    }
+
+    return { tokens, cacheHit: false };
+  }
+
+  /**
+   * Clear cache for a specific node
+   */
+  invalidate(nodeId) {
+    this.cache.delete(nodeId);
+  }
+
+  /**
+   * Clear entire cache
+   */
+  clear() {
+    this.cache.clear();
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getStats() {
+    const total = this.hits + this.misses;
+    const hitRate = total > 0 ? (this.hits / total) * 100 : 0;
+    
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: hitRate.toFixed(2) + '%',
+      utilization: ((this.cache.size / this.maxSize) * 100).toFixed(2) + '%'
+    };
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 // Web Worker Manager
@@ -623,6 +726,9 @@ export class RealtimeTokenCounter {
     this.totalBlockTokens = 0;
     this.useBlockLevelTracking = options.useBlockLevel || false;
     
+    // Block-level memoization cache
+    this.blockMemoCache = new BlockTokenMemoization();
+    
     // Initialize worker on construction
     if (PRODUCTION_CONFIG.USE_WORKER) {
       workerManager.initialize();
@@ -688,18 +794,26 @@ export class RealtimeTokenCounter {
   /**
    * Block-level update for TipTap/ProseMirror nodes
    * Only recalculates the changed block, not the entire document
+   * Uses memoization to avoid redundant calculations
    */
   async updateBlock({ nodeId, oldText, newText }) {
     const oldTokens = this.blockTokens.get(nodeId) || 0;
     
-    // Calculate new tokens for this block
-    const newTokens = await estimateTokensFast(newText);
+    // Use memoization cache to avoid redundant calculations
+    const memoResult = this.blockMemoCache.getOrUpdate(
+      nodeId,
+      newText,
+      (text) => estimateTokensLocal(text) // Synchronous fallback for blocks
+    );
+    
+    const newTokens = memoResult.tokens;
+    const cacheHit = memoResult.cacheHit;
     
     // Update block cache
-    this.blockTokens.set(nodeId, newTokens.tokens);
+    this.blockTokens.set(nodeId, newTokens);
     
     // Update total
-    const delta = newTokens.tokens - oldTokens;
+    const delta = newTokens - oldTokens;
     this.totalBlockTokens += delta;
     this.currentTokens = this.totalBlockTokens;
     
@@ -715,11 +829,12 @@ export class RealtimeTokenCounter {
       totalTokens: this.inputTokens + this.outputTokens,
       efficiency: this._calculateEfficiency(),
       performance: {
-        calculationTime: newTokens.calculationTime,
-        cacheHit: newTokens.cacheHit,
+        calculationTime: cacheHit ? 0 : 1, // Near-instant if cached
+        cacheHit,
         averageCalculationTime: performanceMetrics.averageCalculationTime,
         isBlockUpdate: true,
-        nodeId
+        nodeId,
+        memoizationStats: this.blockMemoCache.getStats()
       }
     });
   }
@@ -733,7 +848,8 @@ export class RealtimeTokenCounter {
     this.totalBlockTokens -= removedTokens;
     this.currentTokens = this.totalBlockTokens;
     
-    invalidateBlock(nodeId);
+    // Invalidate memoization cache
+    this.blockMemoCache.invalidate(nodeId);
   }
 
   /**
@@ -867,19 +983,31 @@ export class RealtimeTokenCounter {
 
   /**
    * Estimate cost based on token count (input + output)
+   * Includes cached token discount tracking
    */
   _estimateCost(inputTokens) {
     // gpt-4o-mini pricing (May 2024)
     const inputCostPerToken = 0.15 / 1000000;    // $0.15 per 1M input tokens
     const outputCostPerToken = 0.60 / 1000000;   // $0.60 per 1M output tokens
+    const cachedInputCostPerToken = 0.075 / 1000000; // 50% discount for cached
 
-    const inputCost = inputTokens * inputCostPerToken;
+    // Estimate cached tokens (typically 30-50% of input for repeated prompts)
+    const estimatedCachedTokens = Math.floor(inputTokens * 0.3);
+    const freshInputTokens = inputTokens - estimatedCachedTokens;
+    
+    const cachedInputCost = estimatedCachedTokens * cachedInputCostPerToken;
+    const freshInputCost = freshInputTokens * inputCostPerToken;
     const outputCost = this.outputTokens * outputCostPerToken;
+    const savings = estimatedCachedTokens * (inputCostPerToken - cachedInputCostPerToken);
 
     return {
-      input: inputCost,
+      cachedInput: cachedInputCost,
+      freshInput: freshInputCost,
+      input: cachedInputCost + freshInputCost, // Total input for backward compatibility
       output: outputCost,
-      total: inputCost + outputCost
+      total: cachedInputCost + freshInputCost + outputCost,
+      savings,
+      cachedPercentage: ((estimatedCachedTokens / Math.max(inputTokens, 1)) * 100).toFixed(0) + '%'
     };
   }
 
@@ -963,6 +1091,44 @@ export class RealtimeTokenCounter {
       totalTokens: this.inputTokens + this.outputTokens,
       efficiency: this._calculateEfficiency(),
       totalTokensUsed: this.totalTokensUsed
+    });
+  }
+
+  /**
+   * Reconcile local token count with server actual usage
+   * Called when discrepancy is detected between local and server counts
+   * @param {number} serverTotalTokens - Actual token count from server
+   */
+  reconcileUsage(serverTotalTokens) {
+    const previousTotal = this.totalTokensUsed;
+    const adjustment = serverTotalTokens - previousTotal;
+    
+    console.log(`[TokenCounter] Reconciling usage: local=${previousTotal}, server=${serverTotalTokens}, adjustment=${adjustment}`);
+    
+    // Update total tokens used to match server
+    this.totalTokensUsed = serverTotalTokens;
+    
+    // Adjust output tokens proportionally (since input tokens are from editor content)
+    if (this.inputTokens > 0) {
+      this.outputTokens = Math.max(0, serverTotalTokens - this.inputTokens);
+    } else {
+      // If no input tokens, all server tokens are output tokens
+      this.outputTokens = serverTotalTokens;
+    }
+    
+    // Trigger update to notify UI components
+    this.onTokenUpdate({
+      tokens: this.currentTokens,
+      delta: adjustment,
+      deltaFormatted: adjustment >= 0 ? `+${adjustment}` : `${adjustment}`,
+      thresholdsTriggered: [],
+      estimatedCost: this._estimateCost(this.inputTokens),
+      inputTokens: this.inputTokens,
+      outputTokens: this.outputTokens,
+      totalTokens: this.inputTokens + this.outputTokens,
+      efficiency: this._calculateEfficiency(),
+      totalTokensUsed: this.totalTokensUsed,
+      reconciled: true
     });
   }
 
@@ -1060,6 +1226,67 @@ export function getTokenTier(tokens) {
   if (tokens < 1500) return { level: 'medium', color: 'yellow', label: 'Medium Usage' };
   if (tokens < 3000) return { level: 'high', color: 'orange', label: 'High Usage' };
   return { level: 'critical', color: 'red', label: 'Very High Usage' };
+}
+
+/**
+ * Get smart notification based on usage and tier limits
+ */
+export function getTokenNotification(usage, tier = 'free') {
+  const limits = {
+    free: { monthly: 10000, daily: 500 },
+    pro: { monthly: 100000, daily: 5000 },
+    enterprise: { monthly: 1000000, daily: 50000 }
+  };
+  
+  const tierLimits = limits[tier] || limits.free;
+  const monthlyPercentage = (usage.monthlyUsed / tierLimits.monthly) * 100;
+  const dailyPercentage = (usage.dailyUsed / tierLimits.daily) * 100;
+  
+  // Critical: Over 90%
+  if (monthlyPercentage > 90 || dailyPercentage > 90) {
+    return {
+      level: 'critical',
+      icon: '🚨',
+      title: 'Token Limit Almost Reached',
+      message: `You've used ${monthlyPercentage.toFixed(0)}% of your monthly quota. Only ${(tierLimits.monthly - usage.monthlyUsed).toLocaleString()} tokens remaining.`,
+      action: 'Upgrade Plan',
+      color: 'red'
+    };
+  }
+  
+  // Warning: Over 75%
+  if (monthlyPercentage > 75 || dailyPercentage > 75) {
+    return {
+      level: 'warning',
+      icon: '⚠️',
+      title: 'High Token Usage',
+      message: `You've used ${monthlyPercentage.toFixed(0)}% of your monthly quota. Consider optimizing AI usage.`,
+      action: 'View Usage',
+      color: 'orange'
+    };
+  }
+  
+  // Info: Over 50%
+  if (monthlyPercentage > 50 || dailyPercentage > 50) {
+    return {
+      level: 'info',
+      icon: '📊',
+      title: 'Token Usage Update',
+      message: `You've used ${monthlyPercentage.toFixed(0)}% of your monthly quota. ${formatTokenCount(tierLimits.monthly - usage.monthlyUsed)} remaining.`,
+      action: null,
+      color: 'blue'
+    };
+  }
+  
+  // Good: Under 50%
+  return {
+    level: 'success',
+    icon: '✅',
+    title: 'Token Usage Healthy',
+    message: `You're using tokens efficiently. ${formatTokenCount(tierLimits.monthly - usage.monthlyUsed)} remaining this month.`,
+    action: null,
+    color: 'green'
+  };
 }
 
 /**

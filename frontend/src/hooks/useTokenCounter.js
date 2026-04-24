@@ -241,6 +241,68 @@ export function useTokenCounter(editor, options = {}) {
     return () => window.removeEventListener('athena:ai-tokens', handleAIOutput);
   }, [setOutputTokens]);
   
+  // ── Server Reconciliation: Sync with backend actual usage ──
+  useEffect(() => {
+    if (!editor) return;
+    
+    const reconcileWithServer = async () => {
+      try {
+        // Get frontend local usage
+        const localUsage = getTokenUsageSummary();
+        
+        // Fetch actual usage from backend
+        const response = await fetch('/api/text-editor/ai-usage', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          console.warn('[TokenCounter] Failed to fetch server usage for reconciliation');
+          return;
+        }
+        
+        const data = await response.json();
+        const serverUsage = data.usage;
+        
+        // Check for significant discrepancy (>10% or >500 tokens)
+        const discrepancy = Math.abs(localUsage.totalTokensUsed - serverUsage.totalTokens);
+        const threshold = Math.max(500, localUsage.totalTokensUsed * 0.1);
+        
+        if (discrepancy > threshold && serverUsage.totalTokens > 0) {
+          console.log(`[TokenCounter] Reconciling: local=${localUsage.totalTokensUsed}, server=${serverUsage.totalTokens}, diff=${discrepancy}`);
+          
+          // Reconcile by adjusting local counter to match server
+          if (counterRef.current) {
+            counterRef.current.reconcileUsage(serverUsage.totalTokens);
+          }
+          
+          // Dispatch event for UI components to update
+          window.dispatchEvent(new CustomEvent('athena:token-reconciled', {
+            detail: {
+              local: localUsage.totalTokensUsed,
+              server: serverUsage.totalTokens,
+              discrepancy
+            }
+          }));
+        }
+      } catch (error) {
+        console.warn('[TokenCounter] Reconciliation error:', error.message);
+      }
+    };
+    
+    // Reconcile every 2 minutes
+    const interval = setInterval(reconcileWithServer, 2 * 60 * 1000);
+    
+    // Initial reconciliation after 30 seconds
+    const initialTimeout = setTimeout(reconcileWithServer, 30 * 1000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialTimeout);
+    };
+  }, [editor, getTokenUsageSummary]);
+  
   // Get current token count immediately
   const getCurrentTokens = useCallback(() => {
     return counterRef.current?.getTokenCount() || 0;

@@ -701,18 +701,20 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
 
                     {/* Document grid with vertical scrollbar */}
                     {recentDocs.length === 0 ? (
-                        <div className="py-16 px-6 text-center">
-                            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <FileText className="w-6 h-6 text-slate-300" />
+                        <div className="py-16 px-6 text-center flex-1 flex items-center justify-center">
+                            <div>
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                    <FileText className="w-6 h-6 text-slate-300" />
+                                </div>
+                                <p className="font-semibold text-slate-600 text-sm">
+                                    {searchQuery ? `No results for "${searchQuery}"` : 'No documents yet'}
+                                </p>
+                                <p className="text-slate-400 text-xs mt-1">Create a new document or import a file to get started</p>
                             </div>
-                            <p className="font-semibold text-slate-600 text-sm">
-                                {searchQuery ? `No results for "${searchQuery}"` : 'No documents yet'}
-                            </p>
-                            <p className="text-slate-400 text-xs mt-1">Create a new document or import a file to get started</p>
                         </div>
                     ) : (
                         <div 
-                            className="p-6 overflow-y-auto recent-docs-scroll"
+                            className="p-6 overflow-y-auto recent-docs-scroll flex-1 relative"
                             style={{ 
                                 maxHeight: '500px', 
                                 scrollBehavior: 'smooth',
@@ -720,7 +722,7 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                                 scrollbarColor: '#cbd5e1 #f1f5f9'
                             }}
                         >
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 relative">
                                 {recentDocs.map((doc, idx) => (
                                 <motion.div
                                     key={doc.id}
@@ -816,12 +818,12 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                     </div>
 
                     {filteredTemplates.length === 0 ? (
-                        <div className="py-14 text-center text-sm text-slate-400">
+                        <div className="py-14 text-center text-sm text-slate-400 flex-1 flex items-center justify-center">
                             No templates match your search.
                         </div>
                     ) : (
                         <div 
-                            className="p-6 overflow-y-auto recent-docs-scroll"
+                            className="p-6 overflow-y-auto recent-docs-scroll flex-1 relative"
                             style={{ 
                                 maxHeight: '500px', 
                                 scrollBehavior: 'smooth',
@@ -829,7 +831,7 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                                 scrollbarColor: '#cbd5e1 #f1f5f9'
                             }}
                         >
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 relative">
                             {filteredTemplates.map((template, idx) => {
                                 const Icon = template.icon || FileText;
                                 return (
