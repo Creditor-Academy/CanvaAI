@@ -10,7 +10,9 @@ import {
   FiFileText,
   FiImage,
   FiMonitor,
-  FiLayout
+  FiLayout,
+  FiFilter,
+  FiChevronDown
 } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 import { listPresentations, deletePresentation } from "../services/presentation";
@@ -28,6 +30,7 @@ export default function AllProjects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("All");
   const [page, setPage] = useState(0);
   const [modal, setModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
@@ -147,10 +150,12 @@ export default function AllProjects() {
 
   // Filter & Pagination
   const filtered = useMemo(() => {
-    return projects.filter(p =>
-      p.title.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [projects, search]);
+    return projects.filter(p => {
+      const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase());
+      const matchesType = filterType === "All" ? true : (filterType === "PPT" ? p.type === "ppt" : p.type === "image");
+      return matchesSearch && matchesType;
+    });
+  }, [projects, search, filterType]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const paginated = filtered.slice(
@@ -218,40 +223,65 @@ export default function AllProjects() {
   );
 
   return (
-    <div className="w-full min-h-screen px-30 py-26 bg-[#e9f4ff]">
-      <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-sm border border-white/40">
+    <div className="w-full min-h-screen px-4 md:px-10 lg:px-24 py-10 md:py-20 bg-[#e9f4ff]">
+      <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-sm border border-white/40">
         
         {/* HEADER */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Your Creative Projects</h1>
-          <p className="text-slate-500 mt-2">
+        <div className="text-center mb-10" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+          <h1 className="text-4xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontWeight: 400, letterSpacing: '-0.02em' }}>Your Creative Projects</h1>
+          <p className="text-slate-500 mt-3 text-[1.1rem]">
             Total Projects – {projects.length}
           </p>
         </div>
 
         {/* SEARCH + CREATE */}
-        <div className="flex items-center justify-between mb-10 flex-wrap gap-4">
-          <div className="relative w-80 max-w-full">
-            <FiSearch className="absolute left-4 top-3.5 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            />
+        <div className="flex flex-col md:flex-row items-center justify-between mb-10 gap-6">
+          
+          {/* Unified Search & Filter Container */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto bg-white p-1.5 rounded-[1.25rem] shadow-sm border border-slate-200/60 transition-all hover:shadow-md focus-within:shadow-md focus-within:border-blue-400 group">
+            
+            <div className="relative w-full sm:flex-1 sm:w-72">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search projects..."
+                className="w-full bg-transparent border-none py-2.5 pl-11 pr-4 text-sm font-semibold text-slate-700 placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-0"
+              />
+            </div>
+
+            <div className="w-[1px] h-8 bg-slate-200 hidden sm:block"></div>
+
+            <div className="relative w-full sm:w-auto flex-shrink-0">
+              <select
+                value={filterType}
+                onChange={(e) => {
+                  setFilterType(e.target.value);
+                  setPage(0); // reset page
+                }}
+                className="appearance-none w-full bg-slate-50/80 hover:bg-slate-100 border border-slate-200/60 rounded-xl py-2 pl-4 pr-10 text-sm font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer h-full outline-none"
+              >
+                <option value="All">All Projects</option>
+                <option value="PPT">Presentations</option>
+                <option value="Image">Images</option>
+              </select>
+              <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+            </div>
           </div>
 
+          {/* Elevated Create Button */}
           <button
             onClick={() => setModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95 font-semibold"
+            className="group relative flex items-center justify-center gap-2 w-full md:w-auto bg-gradient-to-r from-blue-600 to-blue-500 text-white px-7 py-3 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0.5 transition-all duration-300 font-semibold"
           >
-            <FiPlus />
-            Create Design
+            <div className="absolute inset-0 w-full h-full bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+            <FiPlus className="transition-transform group-hover:rotate-90 duration-300" size={20} />
+            <span>Create Design</span>
           </button>
         </div>
 
         {/* PROJECT GRID */}
-        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+        <h2 className="text-[1.6rem] font-normal text-slate-900 mb-6 flex items-center gap-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '-0.01em' }}>
           Recent Designs
         </h2>
 
@@ -269,14 +299,14 @@ export default function AllProjects() {
             </div>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {paginated.map(p => (
               <div
                 key={`${p.type}-${p.id}`}
                 onClick={() => handleProjectClick(p)}
-                className="group bg-white border border-slate-100 rounded-2xl overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                className="group bg-white border border-blue-200/60 rounded-2xl overflow-hidden hover:border-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
               >
-                <div className="relative aspect-[16/10] bg-slate-100 h-44 overflow-hidden">
+                <div className="relative aspect-[16/9] bg-slate-50 overflow-hidden border-b border-blue-100 group-hover:border-blue-400/50">
                   {p.type === "ppt" ? (
                     getSlideData(p) ? (
                       <PresentationThumbnail slide={getSlideData(p)} width="100%" height="100%" />
@@ -287,7 +317,7 @@ export default function AllProjects() {
                     )
                   ) : (
                     thumbnails[p.id] ? (
-                      <img src={thumbnails[p.id]} alt={p.title} className="w-full h-full object-cover" />
+                      <img src={thumbnails[p.id]} alt={p.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -296,25 +326,25 @@ export default function AllProjects() {
                   )}
 
                   {/* Type Tag */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-sm shadow-sm rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 bg-white/90 border border-blue-200 rounded-sm text-[10px] font-black uppercase tracking-wider text-blue-800 group-hover:border-blue-400 group-hover:text-blue-600 transition-colors">
                     {p.type === 'ppt' ? <PPTIcon size={12} /> : <ImageIcon size={12} />}
                     {p.type}
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <h3 className="font-bold text-sm text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                <div className="p-4 sm:p-5">
+                  <h3 className="font-extrabold text-[16px] text-slate-900 truncate group-hover:text-blue-600 transition-colors mb-1">
                     {p.title}
                   </h3>
 
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex flex-col">
-                      <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                  <div className="flex items-end justify-between mt-3">
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs text-slate-500 font-semibold flex items-center gap-1">
                         Edited {new Date(p.updatedAt).toLocaleDateString()}
                       </p>
                       {p.type === 'ppt' && getSlideCount(p) > 0 && (
-                        <div className="flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md w-fit">
-                           <FiLayout size={10} />
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-bold text-blue-700 border border-blue-200 bg-blue-50 px-2 py-0.5 rounded-sm w-fit group-hover:border-blue-400 transition-colors">
+                           <FiLayout size={12} />
                            {getSlideCount(p)} {getSlideCount(p) === 1 ? 'Slide' : 'Slides'}
                         </div>
                       )}
@@ -322,9 +352,10 @@ export default function AllProjects() {
                     
                     <button
                       onClick={(e) => openDeleteModal(e, p)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      className="p-1.5 sm:p-2 text-red-600 bg-red-50 border border-red-200 hover:bg-red-500 hover:text-white hover:border-red-600 rounded-md transition-all font-bold"
+                      title="Delete Project"
                     >
-                      <FiTrash2 size={16} />
+                      <FiTrash2 size={15} strokeWidth={2} />
                     </button>
                   </div>
                 </div>
@@ -358,7 +389,7 @@ export default function AllProjects() {
 
         {/* TEMPLATE SECTION */}
         {/* <div className="mt-16 border-t border-slate-100 pt-12">
-          <h2 className="text-2xl font-bold text-slate-800 mb-8 text-center italic">
+          <h2 className="text-[1.6rem] text-slate-900 mb-8 text-center italic" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '-0.01em', fontWeight: 400 }}>
             Need inspiration? Start with a template
           </h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
@@ -389,20 +420,20 @@ export default function AllProjects() {
 
       {/* CREATE MODAL */}
       {modal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-6">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setModal(false)} />
-          <div className="relative w-full max-w-2xl rounded-[32px] bg-white p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+          <div className="relative w-full max-w-2xl rounded-2xl md:rounded-[32px] bg-white p-6 md:p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
             <button
               onClick={() => setModal(false)}
-              className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
+              className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
             >
               ✕
             </button>
-            <h3 className="text-3xl font-bold text-slate-900 text-center mb-10">Select Design Type</h3>
-            <div className="grid grid-cols-2 gap-8">
+            <h3 className="text-2xl md:text-3xl text-slate-900 text-center mb-8 md:mb-10 font-normal" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '-0.01em' }}>Select Design Type</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
               <div
                 onClick={() => window.open('/presentation', '_blank')}
-                className="group cursor-pointer p-8 rounded-3xl bg-slate-50 border-2 border-transparent hover:border-blue-500 hover:bg-white hover:shadow-xl transition-all text-center"
+                className="group cursor-pointer p-6 md:p-8 rounded-2xl md:rounded-3xl bg-slate-50 border-2 border-transparent hover:border-blue-500 hover:bg-white hover:shadow-xl transition-all text-center"
               >
                 <div className="w-16 h-16 flex items-center justify-center rounded-2xl bg-blue-100 text-blue-600 mb-4 mx-auto group-hover:scale-110 transition-transform">
                   <FiMonitor size={32} />
@@ -413,7 +444,7 @@ export default function AllProjects() {
 
               <div
                 onClick={() => window.open('/create-image', '_blank')}
-                className="group cursor-pointer p-8 rounded-3xl bg-slate-50 border-2 border-transparent hover:border-indigo-500 hover:bg-white hover:shadow-xl transition-all text-center"
+                className="group cursor-pointer p-6 md:p-8 rounded-2xl md:rounded-3xl bg-slate-50 border-2 border-transparent hover:border-indigo-500 hover:bg-white hover:shadow-xl transition-all text-center"
               >
                 <div className="w-16 h-16 flex items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 mb-4 mx-auto group-hover:scale-110 transition-transform">
                   <FiImage size={32} />
@@ -428,13 +459,13 @@ export default function AllProjects() {
 
       {/* DELETE CONFIRMATION MODAL */}
       {deleteModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-6">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDeleteModal(false)} />
-          <div className="relative bg-white rounded-[32px] p-10 w-full max-w-md shadow-2xl text-center">
-            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-red-500">
+          <div className="relative bg-white rounded-2xl md:rounded-[32px] p-6 md:p-10 w-full max-w-md shadow-2xl text-center">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-red-50 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-4 md:mb-6 text-red-500">
               <FiTrash2 size={40} />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-4">Delete Project?</h3>
+            <h3 className="text-[1.6rem] text-slate-900 font-normal mb-4" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '-0.01em' }}>Delete Project?</h3>
             <p className="text-slate-500 mb-8 px-4">
               Are you sure? This action cannot be undone and your design will be permanently lost.
             </p>

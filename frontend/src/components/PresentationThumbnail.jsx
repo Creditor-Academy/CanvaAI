@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 /**
  * Self-contained thumbnail renderer for a single slide.
@@ -180,10 +180,24 @@ const ShapeLayer = ({ layer }) => {
 /* ─── Main Component ─── */
 
 const PresentationThumbnail = ({ slide, width = "100%", height = "100%" }) => {
+    const containerRef = useRef(null);
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        const resizeObserver = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (entry) setScale(entry.contentRect.width / CANVAS_W);
+        });
+
+        if (containerRef.current) resizeObserver.observe(containerRef.current);
+        return () => resizeObserver.disconnect();
+    }, []);
+
     if (!slide) return null;
 
     return (
         <div
+            ref={containerRef}
             style={{
                 width,
                 height,
@@ -205,7 +219,7 @@ const PresentationThumbnail = ({ slide, width = "100%", height = "100%" }) => {
                     left: 0,
                     width: CANVAS_W,
                     height: CANVAS_H,
-                    transform: `scale(${1 / (CANVAS_W / 260)})`, // ~260px target width
+                    transform: `scale(${scale})`, // Dynamically scales to container width
                     transformOrigin: "top left",
                     pointerEvents: "none",
                 }}
