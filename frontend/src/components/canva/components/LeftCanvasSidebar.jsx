@@ -537,7 +537,7 @@ const LeftCanvasSidebar = memo(({
             onClick={() => bgFileInputRef.current?.click()}
             className="w-full py-4 px-4 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-300 group mb-6 cursor-pointer text-slate-200"
           >
-            Insert Stock Images
+            Insert Background Image
           </div>
 
           <BackgroundColor onColorChange={onCanvasBgColorChange} />
@@ -635,17 +635,9 @@ const LeftCanvasSidebar = memo(({
           expandedSection={expandedSection} position={expandedSectionPosition}
           onClose={() => handleCloseSection("media")}
         >
-          <button
-            className={uploadButtonStyle}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-              <FiUpload size={20} />
-            </div>
-            <span className="text-sm font-semibold text-slate-200">Upload Media</span>
-            <span className="text-[10px] text-slate-500">PNG, JPG, SVG up to 10MB</span>
-          </button>
 
+
+          
           <div className="mt-6">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">AI Generator</h4>
             <AIImageGenerator
@@ -656,37 +648,6 @@ const LeftCanvasSidebar = memo(({
             />
           </div>
 
-
-
-          {uploadedImages.length > 0 && (
-            <div className="mt-6">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Recently Uploaded</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {uploadedImages.map(img => (
-                  <div
-                    key={img.id}
-                    className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-blue-500 transition-all"
-                  >
-                    <img src={img.src} alt={img.name || 'Uploaded image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleAddUploadedImage ? handleAddUploadedImage(img) : handleLayerDuplicate(img.id); }}
-                        className="w-full py-1.5 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
-                      >
-                        <FiArrowUp size={12} /> Add to Page
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onCanvasBgImageChange ? onCanvasBgImageChange(img.src) : null; }}
-                        className="w-full py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
-                      >
-                        <FiImage size={12} /> Set as BG
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </ExpandedSectionPortal>
 
         <ExpandedSectionPortal
@@ -726,55 +687,7 @@ const LeftCanvasSidebar = memo(({
 
 
       </div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={async (e) => {
-          // If parent provided a custom handler, delegate to it
-          if (typeof handleImageUpload === 'function') {
-            handleImageUpload(e);
-            return;
-          }
 
-          const file = e.target.files?.[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = async (ev) => {
-            try {
-              const base64 = ev.target.result;
-
-              const userIdVal = currentUserId
-              const serviceIdVal = (typeof activeTemplateId !== 'undefined' && activeTemplateId) ? activeTemplateId : `srv-${Date.now()}`;
-
-              const payload = {
-                userId: userIdVal,
-                base64Image: base64,
-                serviceId: serviceIdVal,
-              };
-
-              const json = await uploadTemporaryImage(payload);
-              if (json && json.url) {
-                // Add uploaded image to library/list if handler provided
-                if (typeof handleAddUploadedImage === 'function') {
-                  handleAddUploadedImage({ src: json.url, name: file.name });
-                }
-                // Also notify canvas background setter if available (optional)
-                if (typeof onCanvasBgImageChange === 'function') {
-                  // Do not auto-set background by default; keep commented for optional usage
-                  // onCanvasBgImageChange(json.url);
-                }
-              }
-            } catch (err) {
-              console.error('Error uploading temporary image', err);
-            }
-          };
-          reader.readAsDataURL(file);
-          e.target.value = '';
-        }}
-        className="hidden"
-      />
       <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgFileChange} className="hidden" />
 
       {/* Save Changes Confirmation Modal */}

@@ -51,6 +51,8 @@ const EditingToolbar = ({
     projectName,
     isExistingProject,
     userRole,
+    fileInputRef,
+    handleImageUpload
 }) => {
     const [showFontDropdown, setShowFontDropdown] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -211,6 +213,16 @@ const EditingToolbar = ({
                                 <FiRotateCw size={13} />
                             </button>
                         </div>
+
+                        {/* Insert Image Button */}
+                        <button
+                            className={btnGhost}
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Insert Image"
+                        >
+                            <FiImage size={13} />
+                            <span className="text-xs font-semibold text-slate-700">Insert</span>
+                        </button>
 
                         {/* Duplicate */}
                         <button
@@ -686,6 +698,14 @@ const EditingToolbar = ({
                 </div>,
                 document.body
             )}
+            {/* Hidden File Input for Image Upload */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+            />
         </>
     );
 };

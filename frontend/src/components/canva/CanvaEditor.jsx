@@ -1850,6 +1850,8 @@ const CanvaEditor = () => {
           projectName={projectName}
           isExistingProject={!!projectId && !isPrefillImport}
           userRole={user?.role}
+          fileInputRef={fileInputRef}
+          handleImageUpload={handleImageUpload}
         />
 
         {/* Canvas Area - scrollable container with all pages */}

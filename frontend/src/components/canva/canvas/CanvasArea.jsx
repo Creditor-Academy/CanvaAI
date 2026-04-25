@@ -794,9 +794,9 @@ const CanvasArea = ({
           </div>
 
           {/* 4. Visual Clipping Mask (Hides content outside canvas, but allows clicks) */}
-          <div 
-            className="absolute inset-0 pointer-events-none z-[1350]" 
-            style={{ boxShadow: '0 0 0 10000px #f8f9fa' }} 
+          <div
+            className="absolute inset-0 pointer-events-none z-[1350]"
+            style={{ boxShadow: '0 0 0 10000px #f8f9fa' }}
             data-html2canvas-ignore="true"
           />
 

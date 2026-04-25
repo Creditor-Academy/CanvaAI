@@ -77,10 +77,10 @@ const AppContent = () => {
       <div
         style={{
           flex: 1,
-          width:"100%",
-          minheight:"100vh",
-          
-         
+          width: "100%",
+          minheight: "100vh",
+
+
         }}
       >
 
@@ -136,7 +136,7 @@ const AppContent = () => {
           <Route path="/presentation" element={<Presentation />} />
           <Route path="/PresentationTemplates" element={<PresentationTemplates />} />
           <Route path="/documentTemplates" element={<DocumentTemplates />} />
-          <Route path="/imageTemplates" element={<ImageTemplates/>} />
+          <Route path="/imageTemplates" element={<ImageTemplates />} />
           <Route path="/pricing" element={<Pricing />} />
         </Routes>
 
@@ -152,7 +152,7 @@ function App() {
       <AuthProvider>
         <SidebarProvider>
           <Router>
-            <Toaster position="top-right" richColors />
+            <Toaster position="top-right" richColors closeButton={true} duration={2000} />
 
             <Routes>
 

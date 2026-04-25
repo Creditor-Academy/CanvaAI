@@ -113,6 +113,28 @@ const drawCloudPath = (ctx, x, y, w, h) => {
  * Export canvas as image (PNG/JPEG)
  */
 
+// Helper to get proxied URL for S3 images to avoid CORS issues
+const getProxiedUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  if (url.startsWith('data:')) return url;
+
+  // Check if it's an S3 URL from our bucket
+  if (url.includes('s3.us-east-1.amazonaws.com')) {
+    try {
+      const parsed = new URL(url);
+      const pathParts = parsed.pathname.split('/').filter(Boolean); // [folder, userId, serviceId, fileName]
+      if (pathParts.length >= 4) {
+        const [folder, userId, serviceId, fileName] = pathParts;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        return `${baseUrl}/api/image/view/${folder}/${userId}/${serviceId}/${fileName}`;
+      }
+    } catch (e) {
+      return url;
+    }
+  }
+  return url;
+};
+
 export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', quality = 0.92, bgColor = '#ffffff', bgImage = null) => {
   const width = canvasSize.width;
   const height = canvasSize.height;
@@ -121,6 +143,28 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+
+  // Helper to get proxied URL for S3 images to avoid CORS issues
+  const getProxiedUrl = (url) => {
+    if (!url || typeof url !== 'string') return url;
+    if (url.startsWith('data:')) return url;
+
+    // Check if it's an S3 URL from our bucket
+    if (url.includes('s3.us-east-1.amazonaws.com')) {
+      try {
+        const parsed = new URL(url);
+        const pathParts = parsed.pathname.split('/').filter(Boolean); // [folder, userId, serviceId, fileName]
+        if (pathParts.length >= 4) {
+          const [folder, userId, serviceId, fileName] = pathParts;
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+          return `${baseUrl}/api/image/view/${folder}/${userId}/${serviceId}/${fileName}`;
+        }
+      } catch (e) {
+        return url;
+      }
+    }
+    return url;
+  };
 
   // Background
   ctx.save();
@@ -147,7 +191,13 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         resolve();
       };
       img.onerror = () => resolve();
-      img.src = bgImage;
+      const finalSrc = getProxiedUrl(bgImage);
+      if (finalSrc && typeof finalSrc === 'string' && !finalSrc.startsWith('data:')) {
+        const timestamp = Date.now();
+        img.src = finalSrc.includes('?') ? `${finalSrc}&t=${timestamp}` : `${finalSrc}?t=${timestamp}`;
+      } else {
+        img.src = finalSrc;
+      }
     });
   }
 
@@ -167,6 +217,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     ctx.filter = getFilterCSS({
       brightness: layer.brightness ?? 100,
       contrast: layer.contrast ?? 100,
+      saturation: layer.saturation ?? 100,
       blur: layer.blur ?? 0
     });
 
@@ -289,6 +340,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         ctx.filter = getFilterCSS({
           brightness: layer.brightness ?? 100,
           contrast: layer.contrast ?? 100,
+          saturation: layer.saturation ?? 100,
           blur: layer.blur ?? 0
         });
 
@@ -349,7 +401,13 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         resolve();
       };
       img.onerror = () => resolve();
-      img.src = layer.fillImageSrc;
+      const finalSrc = getProxiedUrl(layer.fillImageSrc);
+      if (finalSrc && typeof finalSrc === 'string' && !finalSrc.startsWith('data:')) {
+        const timestamp = Date.now();
+        img.src = finalSrc.includes('?') ? `${finalSrc}&t=${timestamp}` : `${finalSrc}?t=${timestamp}`;
+      } else {
+        img.src = finalSrc;
+      }
     });
   };
 
@@ -369,6 +427,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         ctx.filter = getFilterCSS({
           brightness: layer.brightness ?? 100,
           contrast: layer.contrast ?? 100,
+          saturation: layer.saturation ?? 100,
           blur: layer.blur ?? 0
         });
 
@@ -433,8 +492,31 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         ctx.restore();
         resolve();
       };
-      img.onerror = () => resolve();
-      img.src = layer.src;
+      const finalSrc = getProxiedUrl(layer.src);
+
+      const loadImage = async (src) => {
+        if (src.startsWith('data:')) {
+          img.src = src;
+          return;
+        }
+
+        try {
+          const timestamp = Date.now();
+          const srcWithTimestamp = src.includes('?') ? `${src}&t=${timestamp}` : `${src}?t=${timestamp}`;
+
+          // Use fetch to ensure image is fully loaded and CORS is handled
+          const resp = await fetch(srcWithTimestamp, { mode: 'cors' });
+          if (!resp.ok) throw new Error('Fetch failed');
+          const blob = await resp.blob();
+          img.src = URL.createObjectURL(blob);
+        } catch (e) {
+          console.warn('Fetch failed, falling back to direct src:', e);
+          const timestamp = Date.now();
+          img.src = src.includes('?') ? `${src}&t=${timestamp}` : `${src}?t=${timestamp}`;
+        }
+      };
+
+      loadImage(finalSrc);
     });
   };
 
@@ -446,6 +528,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     ctx.filter = getFilterCSS({
       brightness: layer.brightness ?? 100,
       contrast: layer.contrast ?? 100,
+      saturation: layer.saturation ?? 100,
       blur: layer.blur ?? 0
     });
 

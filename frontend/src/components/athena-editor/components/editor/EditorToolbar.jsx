@@ -1486,6 +1486,7 @@ export const EditorToolbar = ({
 
         </div>
       </div>
+      
 
       {/* Compact Single-Row Toolbar */}
       <div className="flex items-center px-4 py-2 gap-1 border-t border-gray-200 bg-white overflow-x-auto">
