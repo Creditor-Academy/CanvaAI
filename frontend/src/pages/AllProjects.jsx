@@ -18,9 +18,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { listPresentations, deletePresentation } from "../services/presentation";
 import { getUserImages, deleteImage } from "../services/imageEditor/imageApi";
 import PresentationThumbnail from "../components/PresentationThumbnail";
+import { ImageThumbPreview } from "../components/canva/ImageLayout/ImageLayout";
 import SkeletonCard from "../components/SkeletonCard";
 import { toast } from "sonner";
-import { exportCanvasAsImage } from "../components/canva/export/exportCanvasAsImage";
 
 export default function AllProjects() {
   const navigate = useNavigate();
@@ -35,7 +35,6 @@ export default function AllProjects() {
   const [modal, setModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [thumbnails, setThumbnails] = useState({});
 
   const itemsPerPage = 8;
 
@@ -89,43 +88,7 @@ export default function AllProjects() {
     fetchData();
   }, [userId]);
 
-  // 2. Image Thumbnail Generation (Incremental)
-  useEffect(() => {
-    let mounted = true;
-    const imagesToProcess = projects.filter(p => p.type === "image" && !thumbnails[p.id]);
-
-    const gen = async () => {
-      const map = {};
-      for (const project of imagesToProcess) {
-        if (!mounted) break;
-        try {
-          const image = project.original;
-          const layers = image.data?.layer || [];
-          const canvasSize = image.data?.canvasSize || { width: 800, height: 600 };
-          const bgColor = image.data?.canvasBgColor || layers[0]?.canvasBgColor || '#ffffff';
-          const bgImage = image.data?.canvasBgImage || layers[0]?.canvasBgImage || null;
-
-          let dataUrl = null;
-          try {
-            dataUrl = await exportCanvasAsImage(layers, canvasSize, 'png', 1, bgColor, bgImage);
-          } catch (err) { }
-
-          if (!dataUrl) {
-            const firstImgLayer = (layers || []).find(l => l && l.type === 'image' && l.src);
-            if (firstImgLayer && firstImgLayer.src) dataUrl = firstImgLayer.src;
-          }
-
-          if (mounted && dataUrl) map[project.id] = dataUrl;
-        } catch (err) { }
-      }
-      if (mounted && Object.keys(map).length) {
-        setThumbnails(prev => ({ ...prev, ...map }));
-      }
-    };
-
-    if (imagesToProcess.length) gen();
-    return () => { mounted = false };
-  }, [projects, thumbnails]);
+  // 2. No separate thumbnail extraction needed - ImageThumbPreview renders directly
 
   // Helper to get PPT slide data
   const getSlideData = (ppt) => {
@@ -306,7 +269,7 @@ export default function AllProjects() {
                 onClick={() => handleProjectClick(p)}
                 className="group bg-white border border-blue-200/60 rounded-2xl overflow-hidden hover:border-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
               >
-                <div className="relative aspect-[16/9] bg-slate-50 overflow-hidden border-b border-blue-100 group-hover:border-blue-400/50">
+                <div className="relative aspect-[16/9] bg-slate-50 overflow-hidden border-b border-blue-100 group-hover:border-blue-400/50 flex items-center justify-center">
                   {p.type === "ppt" ? (
                     getSlideData(p) ? (
                       <PresentationThumbnail slide={getSlideData(p)} width="100%" height="100%" />
@@ -316,11 +279,25 @@ export default function AllProjects() {
                       </div>
                     )
                   ) : (
-                    thumbnails[p.id] ? (
-                      <img src={thumbnails[p.id]} alt={p.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    p.original?.data ? (
+                      <div
+                        className="absolute inset-0"
+                        ref={el => {
+                          if (!el) return;
+                          const rect = el.getBoundingClientRect();
+                          const canvasSize = p.original.data?.canvasSize || { width: 800, height: 600 };
+                          const scale = Math.min(
+                            rect.width / (canvasSize.width || 800),
+                            rect.height / (canvasSize.height || 600)
+                          );
+                          el.style.setProperty('--thumb-scale', String(scale));
+                        }}
+                      >
+                        <ImageThumbPreview image={p.original} />
+                      </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <FiImage size={40} className="text-slate-300" />
                       </div>
                     )
                   )}
