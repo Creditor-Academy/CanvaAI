@@ -260,6 +260,35 @@ async function getDocumentById(documentId) {
 }
 
 /**
+ * Update existing document with keepalive (for tab-close saves)
+ * Uses native fetch as axios doesn't support keepalive well
+ * @param {string} documentId - Document ID
+ * @param {Object} documentData - Updated document data
+ */
+async function updateDocumentKeepAlive(documentId, documentData) {
+  const token = localStorage.getItem('token');
+  const url = `${API_BASE_URL}/api/text-editor/document/${documentId}`;
+  
+  try {
+    // Use native fetch with keepalive: true
+    // This ensures the request completes even if the page is closed
+    await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(documentData),
+      keepalive: true // 🔥 CRITICAL: Prevents browser from aborting on tab close
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Keep-alive save failed:", error);
+    return { success: false, error };
+  }
+}
+
+/**
  * Update existing document
  * @param {string} documentId - Document ID
  * @param {Object} documentData - Updated document data
@@ -486,6 +515,7 @@ export const TextEditorService = {
   saveDocument,
   getDocumentById,
   updateDocument,
+  updateDocumentKeepAlive,
   deleteDocument,
   getAllDocuments,
   

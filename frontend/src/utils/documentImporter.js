@@ -51,7 +51,13 @@ export class DocumentImporter {
     }
 
     return {
-      html: html ? DOMPurify.sanitize(html) : '',
+      html: html ? DOMPurify.sanitize(html, {
+        ADD_TAGS: ['style', 'iframe', 'embed', 'object', 'math'],
+        ADD_ATTR: ['style', 'allowfullscreen', 'frameborder', 'data-text-align', 'data-font-size', 'data-font-family'],
+        ALLOW_UNKNOWN_PROTOCOLS: true,
+        FORBID_TAGS: ['script'],
+        FORBID_ATTR: ['onerror', 'onclick', 'onload']
+      }) : '',
       json,
       title
     };
@@ -101,22 +107,60 @@ export class DocumentImporter {
   }
 
 
+  /**
+   * Helper to read file as text with encoding detection fallback
+   * @param {File} file 
+   * @returns {Promise<string>}
+   */
+  static async readAsTextRobust(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        const text = event.target.result;
+        // Basic heuristic: check for many replacement characters or junk
+        const replacementCharCount = (text.match(/\uFFFD/g) || []).length;
+        
+        // If we see too many replacement characters, it's probably wrong encoding
+        if (replacementCharCount > 5 && reader.encoding !== 'ISO-8859-1') {
+          console.warn('UTF-8 likely incorrect, retrying with ISO-8859-1');
+          const retryReader = new FileReader();
+          retryReader.onload = (e) => resolve(e.target.result);
+          retryReader.onerror = (e) => reject(new Error('Failed to read file even with fallback'));
+          retryReader.readAsText(file, 'ISO-8859-1');
+          return;
+        }
+        resolve(text);
+      };
+      
+      reader.onerror = (event) => reject(new Error('File read failed'));
+      reader.encoding = 'UTF-8';
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+
   static async importMarkdown(file) {
-    const text = await file.text();
+    const text = await this.readAsTextRobust(file);
     return marked.parse(text);
   }
 
   static async importHtml(file) {
-    return await file.text();
+    return await this.readAsTextRobust(file);
   }
 
   static async importPlainText(file) {
-    const text = await file.text();
-    return text.split('\n').map(line => `<p>${this.escapeHtml(line)}</p>`).join('');
+    // 🔥 ROBUST ENCODING: Use the helper to handle UTF-8/ISO-8859-1 fallback
+    try {
+      const text = await this.readAsTextRobust(file);
+      return text.split('\n').map(line => `<p>${this.escapeHtml(line)}</p>`).join('');
+    } catch (e) {
+      console.error('Robust read failed:', e);
+      return '<p>(Error reading file content - possible encoding issue)</p>';
+    }
   }
 
   static async importJson(file) {
-    const text = await file.text();
+    const text = await this.readAsTextRobust(file);
     try {
       const json = JSON.parse(text);
       // If it's TipTap JSON, return the object directly

@@ -136,21 +136,33 @@ export const normalizeInlineStyles = (html) => {
   if (!html || typeof html !== 'string') return html;
 
   try {
-    // Regex-based replacement - NO DOM parsing, much faster!
-    // Replace inline text-align styles with data-text-align attributes
-    return html.replace(
+    // 🔥 ROBUST ENCODING: Enhanced regex pass for common alignment and size patterns
+    let normalized = html;
+    
+    // 1. Convert inline text-align to data-text-align (consistent with our backend schema)
+    normalized = normalized.replace(
       /style="([^"]*text-align:\s*(left|center|right|justify)[^"]*)"/gi,
       (_, style, align) => {
-        // Remove text-align from style attribute
         const cleaned = style.replace(/text-align:\s*[^;]+;?\s*/gi, '').trim();
-
-        // Return data-text-align attribute + remaining styles (if any)
         return `data-text-align="${align.toLowerCase()}"${cleaned ? ` style="${cleaned}"` : ''}`;
       }
     );
+
+    // 2. Map legacy font-size styles to data-font-size (prevents stripping by some extensions)
+    normalized = normalized.replace(
+      /style="([^"]*font-size:\s*([^;"]+)[^"]*)"/gi,
+      (match, style, size) => {
+        if (size.includes('pt') || size.includes('em') || size.includes('px')) {
+           return `data-font-size="${size}" ${match}`;
+        }
+        return match;
+      }
+    );
+
+    return normalized;
   } catch (error) {
     console.error('Failed to normalize inline styles:', error);
-    return html; // Return original if parsing fails
+    return html;
   }
 };
 

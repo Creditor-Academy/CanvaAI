@@ -67,29 +67,218 @@ const sanitizeFilename = (name) =>
 // ── Document thumbnail skeleton ───────────────────────────────────────────────
 const DocThumbnail = ({ title, template, pinned }) => {
     const isAI = template === 'ai-generated';
+    
+    // ── Template-specific mini layouts ───────────────────────────────────────
+    const renderContent = () => {
+        switch (template) {
+            case 'resume':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-6 h-6 rounded-full bg-slate-200" />
+                            <div className="flex-1 space-y-1">
+                                <div className="h-2 w-full rounded bg-slate-200" />
+                                <div className="h-1 w-2/3 rounded bg-slate-100" />
+                            </div>
+                        </div>
+                        <div className="h-1.5 w-1/3 rounded bg-blue-100" />
+                        <div className="flex gap-2">
+                            <div className="flex-1 space-y-1.5">
+                                <div className="h-1 w-full rounded bg-slate-100" />
+                                <div className="h-1 w-full rounded bg-slate-100" />
+                                <div className="h-1 w-4/5 rounded bg-slate-100" />
+                            </div>
+                            <div className="w-1/3 space-y-1.5">
+                                <div className="h-1 w-full rounded bg-slate-100" />
+                                <div className="h-1 w-full rounded bg-slate-100" />
+                            </div>
+                        </div>
+                        <div className="h-1.5 w-1/3 rounded bg-blue-100 mt-1" />
+                        <div className="space-y-1.5">
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-5/6 rounded bg-slate-100" />
+                        </div>
+                    </div>
+                );
+            case 'meeting-notes':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-2.5 overflow-hidden">
+                        <div className="h-2.5 w-3/4 rounded bg-purple-100" />
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-200" />
+                                <div className="h-1 w-1/2 rounded bg-slate-100" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-200" />
+                                <div className="h-1 w-2/3 rounded bg-slate-100" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-200" />
+                                <div className="h-1 w-1/3 rounded bg-slate-100" />
+                            </div>
+                        </div>
+                        <div className="h-px w-full bg-slate-100" />
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="h-4 rounded bg-slate-50 border border-slate-100" />
+                            <div className="h-4 rounded bg-slate-50 border border-slate-100" />
+                        </div>
+                    </div>
+                );
+            case 'cover-letter':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-2 overflow-hidden">
+                        <div className="self-end w-1/2 space-y-1 mb-2">
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-4/5 rounded bg-slate-100" />
+                        </div>
+                        <div className="w-1/3 h-1.5 rounded bg-cyan-100 mb-1" />
+                        <div className="space-y-1.5">
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-5/6 rounded bg-slate-100" />
+                        </div>
+                        <div className="mt-2 w-1/4 h-1.5 rounded bg-slate-200" />
+                    </div>
+                );
+            case 'project-proposal':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-2 overflow-hidden">
+                        <div className="h-3 w-4/5 rounded bg-blue-100 mb-1" />
+                        <div className="h-1.5 w-1/2 rounded bg-slate-100" />
+                        <div className="mt-2 space-y-2">
+                            <div className="h-8 rounded bg-slate-50 border border-slate-100 flex flex-col p-1 gap-1">
+                                <div className="h-1 w-3/4 rounded bg-slate-200" />
+                                <div className="h-1 w-full rounded bg-slate-100" />
+                            </div>
+                            <div className="h-6 rounded bg-slate-50 border border-slate-100" />
+                        </div>
+                    </div>
+                );
+            case 'newsletter':
+                return (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="h-10 w-full bg-amber-100 flex items-center justify-center">
+                            <Newspaper className="w-5 h-5 text-amber-500/50" />
+                        </div>
+                        <div className="p-3 space-y-2">
+                            <div className="h-2 w-3/4 rounded bg-slate-200" />
+                            <div className="flex gap-2">
+                                <div className="flex-1 space-y-1">
+                                    <div className="h-1 w-full rounded bg-slate-100" />
+                                    <div className="h-1 w-full rounded bg-slate-100" />
+                                </div>
+                                <div className="w-8 h-8 rounded bg-slate-100" />
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'essay':
+            case 'academic-essay':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-1.5 overflow-hidden">
+                        <div className="h-2 w-1/2 rounded bg-emerald-100 self-center mb-2" />
+                        <div className="space-y-1">
+                            {Array.from({ length: 10 }).map((_, i) => (
+                                <div key={i} className={`h-1 rounded bg-slate-100 ${i % 4 === 3 ? 'w-4/5' : 'w-full'}`} />
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 'research-report':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-1.5 overflow-hidden">
+                        <div className="h-2.5 w-5/6 rounded bg-emerald-100 mb-1" />
+                        <div className="h-1 w-1/2 rounded bg-slate-200 mb-2" />
+                        <div className="h-1.5 w-1/4 rounded bg-slate-200 mb-1" />
+                        <div className="p-1.5 rounded bg-slate-50 border border-slate-100 space-y-1">
+                            <div className="h-0.5 w-full rounded bg-slate-200" />
+                            <div className="h-0.5 w-full rounded bg-slate-200" />
+                            <div className="h-0.5 w-4/5 rounded bg-slate-200" />
+                        </div>
+                        <div className="h-1.5 w-1/3 rounded bg-slate-200 mt-2" />
+                        <div className="space-y-1">
+                            <div className="h-0.5 w-full rounded bg-slate-100" />
+                            <div className="h-0.5 w-full rounded bg-slate-100" />
+                        </div>
+                    </div>
+                );
+            case 'press-release':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-2 overflow-hidden">
+                        <div className="h-1 w-1/3 rounded bg-orange-200 mb-1" />
+                        <div className="h-2.5 w-full rounded bg-orange-100" />
+                        <div className="h-2.5 w-4/5 rounded bg-orange-100 mb-2" />
+                        <div className="h-1 w-1/4 rounded bg-slate-300" />
+                        <div className="space-y-1">
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                        </div>
+                        <div className="mt-auto self-center flex gap-1">
+                            <div className="w-1 h-1 rounded-full bg-slate-300" />
+                            <div className="w-1 h-1 rounded-full bg-slate-300" />
+                            <div className="w-1 h-1 rounded-full bg-slate-300" />
+                        </div>
+                    </div>
+                );
+            case 'blog-post':
+                return (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="h-12 w-full bg-pink-100 relative overflow-hidden">
+                            <div className="absolute top-2 left-2 w-8 h-1 rounded-full bg-white/50" />
+                            <div className="absolute bottom-2 left-2 right-2 space-y-1">
+                                <div className="h-1.5 w-3/4 rounded bg-white/80" />
+                                <div className="h-1 w-1/2 rounded bg-white/60" />
+                            </div>
+                        </div>
+                        <div className="p-3 space-y-1.5">
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-full rounded bg-slate-100" />
+                            <div className="h-1 w-4/5 rounded bg-slate-100" />
+                            <div className="h-2 w-1/3 rounded bg-pink-50 mt-1" />
+                        </div>
+                    </div>
+                );
+            case 'ai-generated':
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-1.5 overflow-hidden relative">
+                        <div className="h-2 w-3/4 rounded bg-amber-200/50" />
+                        <div className="space-y-1.5">
+                            <div className="h-1.5 w-full rounded bg-amber-50" />
+                            <div className="h-1.5 w-5/6 rounded bg-amber-50" />
+                            <div className="h-1.5 w-full rounded bg-amber-50" />
+                        </div>
+                        <div className="flex-1" />
+                        <div className="flex items-center gap-1 mt-auto">
+                            <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                            <div className="h-1.5 w-10 rounded bg-amber-100" />
+                        </div>
+                        {/* Glow effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
+                    </div>
+                );
+            default: // Blank or generic
+                return (
+                    <div className="flex-1 p-3 flex flex-col gap-1.5 overflow-hidden">
+                        <div className="h-2 w-3/4 rounded bg-slate-200" />
+                        <div className="h-1.5 w-full rounded bg-slate-100" />
+                        <div className="h-1.5 w-5/6 rounded bg-slate-100" />
+                        <div className="h-1.5 w-2/3 rounded bg-slate-100" />
+                        <div className="h-px w-full bg-slate-100 my-1" />
+                        <div className="h-1.5 w-full rounded bg-slate-100" />
+                        <div className="h-1.5 w-3/4 rounded bg-slate-100" />
+                    </div>
+                );
+        }
+    };
+
     return (
         <div className="aspect-[3/4] rounded-xl overflow-hidden border border-slate-100 bg-white flex flex-col shadow-sm group-hover:shadow-md transition-shadow duration-200">
             {/* Header stripe */}
             <div className={`h-1.5 w-full ${isAI ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`} />
-            {/* Content lines */}
-            <div className="flex-1 p-3 flex flex-col gap-1.5">
-                <div className="h-2 w-3/4 rounded bg-slate-200" />
-                <div className="h-1.5 w-full rounded bg-slate-100" />
-                <div className="h-1.5 w-5/6 rounded bg-slate-100" />
-                <div className="h-1.5 w-2/3 rounded bg-slate-100" />
-                <div className="h-px w-full bg-slate-100 my-1" />
-                <div className="h-1.5 w-full rounded bg-slate-100" />
-                <div className="h-1.5 w-3/4 rounded bg-slate-100" />
-                <div className="h-1.5 w-full rounded bg-slate-100" />
-                <div className="h-1.5 w-4/5 rounded bg-slate-100" />
-                <div className="flex-1" />
-                {isAI && (
-                    <div className="flex items-center gap-1 mt-auto">
-                        <Sparkles className="w-2.5 h-2.5 text-amber-400" />
-                        <div className="h-1.5 w-10 rounded bg-amber-100" />
-                    </div>
-                )}
-            </div>
+            {renderContent()}
         </div>
     );
 };
@@ -287,7 +476,7 @@ const EditorIntro = () => {
                 const doc = response.document || response;
                 sessionStorage.setItem(`doc_${docId}`, JSON.stringify(doc));
                 
-                // Open the editor with the document ID
+                // Open the editor with the document ID in a new tab
                 window.open(`/editor/${docId}`, '_blank');
             } catch (error) {
                 console.error('Failed to open document:', error);
@@ -845,29 +1034,14 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                                         className="group cursor-pointer"
                                     >
                                         {/* Template thumbnail */}
-                                        <div
-                                            className="aspect-[3/4] rounded-xl overflow-hidden border border-slate-100 flex flex-col shadow-sm group-hover:shadow-md group-hover:border-blue-200 transition-all duration-200"
-                                            style={{ backgroundColor: template.color }}
-                                        >
-                                            <div className="p-3 flex flex-col h-full gap-1.5 relative">
-                                                <div className="flex items-start justify-between mb-1">
-                                                    <div className="w-7 h-7 rounded-lg bg-white/50 backdrop-blur-sm flex items-center justify-center">
-                                                        <Icon className="w-3.5 h-3.5 text-slate-600" />
-                                                    </div>
-                                                </div>
-                                                <div className="h-2 w-3/4 rounded bg-white/60" />
-                                                <div className="h-1.5 w-full rounded bg-white/40" />
-                                                <div className="h-1.5 w-5/6 rounded bg-white/40" />
-                                                <div className="h-px w-full bg-white/30 my-0.5" />
-                                                <div className="h-1.5 w-full rounded bg-white/35" />
-                                                <div className="h-1.5 w-2/3 rounded bg-white/35" />
-                                                <div className="flex-1" />
-                                                {/* Hover CTA */}
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute inset-0 flex items-center justify-center bg-black/5 rounded-xl">
-                                                    <span className="text-[11px] font-bold text-slate-700 bg-white rounded-full px-3 py-1 shadow-sm">
-                                                        Use template
-                                                    </span>
-                                                </div>
+                                        <div className="relative group">
+                                            <DocThumbnail title={template.title} template={template.id} />
+                                            
+                                            {/* Hover CTA */}
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute inset-0 flex items-center justify-center bg-black/5 rounded-xl">
+                                                <span className="text-[11px] font-bold text-slate-700 bg-white rounded-full px-3 py-1 shadow-sm border border-slate-200">
+                                                    Use template
+                                                </span>
                                             </div>
                                         </div>
 

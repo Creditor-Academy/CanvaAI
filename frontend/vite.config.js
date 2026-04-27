@@ -30,6 +30,7 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash][extname]';
         },
+        experimentalMinChunkSize: 10000,
         manualChunks: {
           // Force all React-related code into a single chunk
           'react-vendor': ['react', 'react-dom'],

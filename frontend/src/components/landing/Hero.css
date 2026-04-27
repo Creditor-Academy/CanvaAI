@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+/* Inter font is loaded globally in index.html - no need to import here */
 
 .hero{
   position:relative;
