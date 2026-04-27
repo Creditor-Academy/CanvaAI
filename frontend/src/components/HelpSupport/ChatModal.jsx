@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import "./ChatModal.css";
-import {marked} from 'marked';
+import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
 const ChatModal = () => {
@@ -37,7 +37,8 @@ const ChatModal = () => {
       ];
 
       // ✅ Send message to backend
-      const response = await axios.post("http://localhost:5000/api/chatbot/chat", {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const response = await axios.post(`${API_BASE_URL}/api/chatbot/chat`, {
         message: input,
         history: fullHistory,
       });
@@ -85,8 +86,9 @@ const ChatModal = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(msg.text || "")),
-             }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(marked.parse(msg.text || "")),
+            }}
           />
         ))}
 

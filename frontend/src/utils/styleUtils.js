@@ -13,10 +13,13 @@ export const getShadowCSS = (shadows) => {
   return `${x}px ${y}px ${blur}px ${spread}px ${hexToRgba(color, opacity / 100)}`;
 };
 
-export const getFilterCSS = ({ brightness = 100, contrast = 100, blur = 0 }) => {
+export const getFilterCSS = ({ brightness = 100, contrast = 100, blur = 0, saturation = 100 }) => {
   const filters = [];
   if (brightness !== 100) filters.push(`brightness(${brightness}%)`);
   if (contrast !== 100) filters.push(`contrast(${contrast}%)`);
+  if (saturation !== 100) filters.push(`saturate(${saturation}%)`);
   if (blur > 0) filters.push(`blur(${blur}px)`);
   return filters.length ? filters.join(' ') : 'none';
 };
+
+

@@ -68,7 +68,8 @@ const EmailSupport = ({ onClose }) => {
         formData.append(`attachments`, file);
       });
 
-      const res = await fetch("http://localhost:5000/api/email/send-email", {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const res = await fetch(`${API_BASE_URL}/api/email/send-email`, {
         method: "POST",
         body: formData,
       });

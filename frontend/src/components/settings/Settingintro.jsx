@@ -146,16 +146,30 @@ const Settingintro = () => {
 
   // Sync profile data from AuthContext instead of API call
   useEffect(() => {
-    if (user) {
-      console.log('Profile data received from AuthContext:', user);
-      setProfileData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || ''
-      });
-      setLoading(false);
-    }
-  }, [user]);
+    const fetchProfile = async () => {
+      try {
+        const data = await api.getProfile();
+        setProfileData({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || ''
+        });
+
+        // ADD THIS
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+
+      } catch (error) {
+        alert('Failed to load profile. Please refresh the page.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleSaveProfile = async () => {
     try {
@@ -473,7 +487,7 @@ const Settingintro = () => {
                   <input
                     type={showPasswords.current ? "text" : "password"}
                     name="current-password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     id="current-password"
                     value={passwordData.currentPassword}
                     onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}

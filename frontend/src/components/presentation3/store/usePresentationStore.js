@@ -4,6 +4,11 @@ import { createShapeLayer, createImageLayer } from "../models/presentationModel"
 import useHistoryStore from "./useHistoryStore";
 import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
 
+// Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
+// Not persisted to the store state so it is never saved to the database.
+const _aiGeneratedSlideIds = new Set();
+export const isAIGeneratedSlide = (slideId) => _aiGeneratedSlideIds.has(slideId);
+export const clearAIGeneratedSlide = (slideId) => _aiGeneratedSlideIds.delete(slideId);
 
 // Helper to ensure colors are in #rrggbb format for <input type="color">
 export const normalizeColor = (color) => {
@@ -171,6 +176,60 @@ const normalizeCells = (cells, rows, cols) => {
    NORMALIZATION HELPERS
 ========================= */
 
+/**
+ * Normalizes an AI-generated layer to remove invalid absolute positioning
+ * from list item children and text nodes, ensuring flow layout works correctly.
+ */
+export function normalizeAILayer(layer) {
+  if (!layer || layer.type !== "text" || !Array.isArray(layer?.content)) {
+    return layer;
+  }
+
+  const hasList = layer.content.some(
+    (node) => node?.type === "bulleted-list" || node?.type === "numbered-list"
+  );
+
+  if (!hasList) {
+    return layer;
+  }
+
+  const cleanNode = (node) => {
+    if (node === null || node === undefined) return null;
+
+    if (typeof node.text === "string") {
+      if (node.text.trim() === "") return null;
+
+      const validTextNode = { text: node.text };
+      if (node.color !== undefined) validTextNode.color = node.color;
+      if (node.fontSize !== undefined) validTextNode.fontSize = node.fontSize;
+      if (node.fontFamily !== undefined) validTextNode.fontFamily = node.fontFamily;
+      if (node.fontWeight !== undefined) validTextNode.fontWeight = node.fontWeight;
+      if (node.fontStyle !== undefined) validTextNode.fontStyle = node.fontStyle;
+      if (node.textDecoration !== undefined) validTextNode.textDecoration = node.textDecoration;
+
+      return validTextNode;
+    }
+
+    if (Array.isArray(node.children)) {
+      const cleanedChildren = node.children.map(cleanNode).filter((child) => child !== null);
+      if (cleanedChildren.length === 0) return null;
+
+      const { x, y, width, height, rotation, ...safeProps } = node;
+      return { ...safeProps, children: cleanedChildren };
+    }
+
+    const { x, y, width, height, rotation, ...safeProps } = node;
+    if (Object.keys(safeProps).length === 0) return null;
+
+    return safeProps;
+  };
+
+  return {
+    ...layer,
+    content: layer.content.map(cleanNode).filter((node) => node !== null),
+  };
+}
+
 const normalizeLayer = (layer, forceNewId = false) => {
   if (!layer) return layer;
 
@@ -226,17 +285,70 @@ const normalizeLayer = (layer, forceNewId = false) => {
   // 4. Migration for old text layers without content
   if (normalizedLayer.type === "text" && normalizedLayer.text !== undefined && !normalizedLayer.content) {
     const { text, ...rest } = normalizedLayer;
-    return {
+    normalizedLayer = {
       ...rest,
       content: convertTextToSlate(text),
     };
   }
+
+  // 5. Shapes (migration and defaults)
+  if (normalizedLayer.type === "shape") {
+    // Migrate old names
+    if (normalizedLayer.fill !== undefined && normalizedLayer.fillColor === undefined) {
+      normalizedLayer.fillColor = normalizedLayer.fill;
+    }
+    if (normalizedLayer.stroke !== undefined && normalizedLayer.strokeColor === undefined) {
+      normalizedLayer.strokeColor = normalizedLayer.stroke;
+    }
+
+    // Ensure defaults
+    if (normalizedLayer.strokeWidth === undefined) {
+      normalizedLayer.strokeWidth = (normalizedLayer.shapeType === "line" || normalizedLayer.shapeType === "arrow") ? 8 : 1;
+    }
+    if (normalizedLayer.fillColor === undefined) {
+      normalizedLayer.fillColor = (normalizedLayer.shapeType === "line" || normalizedLayer.shapeType === "arrow") ? "transparent" : "#ffffff";
+    }
+    if (normalizedLayer.strokeColor === undefined) {
+      normalizedLayer.strokeColor = "#1e40af";
+    }
+  }
+
+  // APPLY AI LIST NORMALIZATION
+  if (normalizedLayer.type === "text") {
+    normalizedLayer = normalizeAILayer(normalizedLayer);
+
+    // Safeguard: Force width and height to be strictly numbers. 
+    // AI often sends 'auto', '100%', or leaves it undefined which breaks drag rendering completely.
+    const safeWidth = Number(normalizedLayer.width);
+    const safeHeight = Number(normalizedLayer.height);
+
+    normalizedLayer.width = isNaN(safeWidth) || safeWidth < 200 ? 700 : safeWidth;
+    normalizedLayer.height = isNaN(safeHeight) || safeHeight < 40 ? 100 : safeHeight;
+  }
+
+  // Safeguard: x/y must always be valid numbers for all layer types.
+  // AI often sends null/undefined which makes the drag offset calculation produce NaN,
+  // causing the element to snap to (0,0) and showing "NaN, NaN" in the position readout.
+  const rawX = Number(normalizedLayer.x);
+  const rawY = Number(normalizedLayer.y);
+  normalizedLayer.x = isNaN(rawX) ? 0 : rawX;
+  normalizedLayer.y = isNaN(rawY) ? 0 : rawY;
 
   return normalizedLayer;
 };
 
 const normalizeSlide = (slide, forceNewId = false) => {
   if (!slide) return slide;
+
+  // Slides produced by the layout engine carry layoutProcessed: true.
+  // Their x/y/width/height are final — do NOT re-normalize layers.
+  // Only regenerate the slide id if requested (e.g. duplicate).
+  if (slide.layoutProcessed) {
+    return {
+      ...slide,
+      id: forceNewId ? nanoid() : (slide.id || nanoid()),
+    };
+  }
 
   return {
     ...slide,
@@ -304,9 +416,9 @@ const createDefaultTextLayers = () => [
     id: nanoid(),
     type: "text",
     content: createInitialValue(),
-    placeholder: "Click to add title",
+    placeholder: "Double click to add title",
     hasBeenEdited: false,
-    x: 120,
+    x: 180,
     y: 160,
     width: 600,
     height: 80,
@@ -324,10 +436,10 @@ const createDefaultTextLayers = () => [
     id: nanoid(),
     type: "text",
     content: createInitialValue(),
-    placeholder: "Click to add subtitle",
+    placeholder: "Double click to add subtitle",
     hasBeenEdited: false,
     x: 180,
-    y: 260,
+    y: 280,
     width: 600,
     height: 60,
     fontSize: 24,
@@ -487,6 +599,8 @@ const usePresentationStore = create((set, get) => {
     appendSlide: (slideData) => {
       get().saveToHistory();
       const normalizedSlide = normalizeSlide(slideData, true);
+      // Flag this slide so CanvasShell runs auto-stack exactly once for AI content.
+      _aiGeneratedSlideIds.add(normalizedSlide.id);
       set((state) => ({
         slides: [...state.slides, normalizedSlide],
         activeSlideId: normalizedSlide.id,
@@ -507,6 +621,8 @@ const usePresentationStore = create((set, get) => {
     appendLayersToSlide: (slideId, layersData) => {
       if (!layersData) return;
       get().saveToHistory();
+      // Flag this slide so CanvasShell runs auto-stack exactly once for AI content.
+      _aiGeneratedSlideIds.add(slideId);
 
       // Safe extraction of layers
       const incomingLayers = Array.isArray(layersData.layers)
@@ -574,6 +690,26 @@ const usePresentationStore = create((set, get) => {
         activeSlideId: duplicatedSlide.id,
         selectedLayerId: null,
       });
+    },
+
+    moveSlide: (dragIndex, hoverIndex, saveHistory = false) => {
+      if (saveHistory) get().saveToHistory();
+      const { slides } = get();
+      if (
+        dragIndex < 0 ||
+        dragIndex >= slides.length ||
+        hoverIndex < 0 ||
+        hoverIndex >= slides.length
+      ) {
+        return;
+      }
+
+      const draggedSlide = slides[dragIndex];
+      const updatedSlides = [...slides];
+      updatedSlides.splice(dragIndex, 1);
+      updatedSlides.splice(hoverIndex, 0, draggedSlide);
+
+      set({ slides: updatedSlides });
     },
 
     updateSlideBackground: (slideId, color, saveHistory = true) => {
@@ -757,7 +893,7 @@ const usePresentationStore = create((set, get) => {
                   width: 260,
                   height: 80,
                   content: createInitialValue(),
-                  placeholder: "Click to add text",
+                  placeholder: "Double click to add text",
                   hasBeenEdited: false,
                   fontSize: 24,
                   color: "#000000",
@@ -793,8 +929,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    applyGlobalTextStyle: (layerId, style) => {
-      get().saveToHistory();
+    applyGlobalTextStyle: (layerId, style, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => {
         const slides = state.slides.map((slide) => ({
           ...slide,
@@ -803,42 +939,54 @@ const usePresentationStore = create((set, get) => {
             let updatedLayer = { ...layer, ...style };
 
             if (layer.type === "text" && layer.content) {
-              let updatedContent = [...layer.content];
+              // Build a flat map of Slate-mark keys → values from the style object
+              const markUpdates = {};
               Object.entries(style).forEach(([key, value]) => {
-                let slateKey = key;
-                let slateValue = value;
-
                 if (key === "fontWeight") {
-                  slateKey = "bold";
-                  slateValue = value === "bold" ? true : undefined;
+                  markUpdates.bold = value === "bold" ? true : undefined;
                 } else if (key === "fontStyle") {
-                  slateKey = "italic";
-                  slateValue = value === "italic" ? true : undefined;
+                  markUpdates.italic = value === "italic" ? true : undefined;
                 } else if (key === "textDecoration") {
-                  slateKey = "underline";
-                  slateValue = value === "underline" ? true : undefined;
-                }
-
-                if (["bold", "italic", "underline", "fontSize", "color", "fontFamily"].includes(slateKey)) {
-                  updatedContent = updatedContent.map((block) => ({
-                    ...block,
-                    children: block.children
-                      ? block.children.map((child) => {
-                        const newChild = { ...child };
-                        if (slateValue === undefined) delete newChild[slateKey];
-                        else newChild[slateKey] = slateValue;
-                        return newChild;
-                      })
-                      : [],
-                  }));
-                } else if (slateKey === "textAlign") {
-                  updatedContent = updatedContent.map((block) => ({
-                    ...block,
-                    textAlign: slateValue,
-                  }));
+                  markUpdates.underline = value === "underline" ? true : undefined;
+                } else if (["color", "fontFamily", "fontSize"].includes(key)) {
+                  markUpdates[key] = value;
                 }
               });
-              updatedLayer.content = updatedContent;
+
+              const textAlign = style.textAlign;
+              const hasMarkUpdates = Object.keys(markUpdates).length > 0;
+
+              // Recursively walk every node in the Slate tree.
+              // - True leaf: has a "text" string property → apply inline marks.
+              // - Element: has a "children" array → recurse into children; set textAlign if needed.
+              // - Malformed AI node { text:"...", children:[] }: treat as leaf (text takes priority).
+              const applyToNode = (node) => {
+                // It's a leaf if it has a "text" string (even if it also has empty children)
+                if (typeof node.text === "string") {
+                  if (!hasMarkUpdates) return node;
+                  const newNode = { ...node };
+                  Object.entries(markUpdates).forEach(([k, v]) => {
+                    if (v === undefined) delete newNode[k];
+                    else newNode[k] = v;
+                  });
+                  return newNode;
+                }
+
+                // It's an element node with children to recurse into
+                if (Array.isArray(node.children)) {
+                  const newNode = {
+                    ...node,
+                    children: node.children.map(applyToNode),
+                  };
+                  if (textAlign !== undefined) newNode.textAlign = textAlign;
+                  return newNode;
+                }
+
+                // Unknown node shape — return as-is
+                return node;
+              };
+
+              updatedLayer.content = layer.content.map(applyToNode);
             }
             return updatedLayer;
           }),
@@ -960,13 +1108,20 @@ const usePresentationStore = create((set, get) => {
     updateShapeLayer: (layerId, updates, saveHistory = true) => {
       if (saveHistory) get().saveToHistory();
       const { slides, activeSlideId } = get();
+
+      // Safety: Clamp strokeWidth if it's being updated
+      let safeUpdates = { ...updates };
+      if (safeUpdates.strokeWidth !== undefined) {
+        safeUpdates.strokeWidth = Math.max(0, Number(safeUpdates.strokeWidth));
+      }
+
       set({
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? {
               ...slide,
               layers: slide.layers.map((layer) =>
-                layer.id === layerId ? { ...layer, ...updates } : layer
+                layer.id === layerId ? { ...layer, ...safeUpdates } : layer
               ),
             }
             : slide
@@ -1144,7 +1299,8 @@ const usePresentationStore = create((set, get) => {
       });
     },
 
-    updateTableCell: (tableId, row, col, updates) => {
+    updateTableCell: (tableId, row, col, updates, saveHistory = false) => {
+      if (saveHistory) get().saveToHistory();
       set((state) => ({
         slides: state.slides.map((slide) =>
           slide.id !== state.activeSlideId

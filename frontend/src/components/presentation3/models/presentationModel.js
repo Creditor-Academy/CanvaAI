@@ -1,5 +1,7 @@
+import { nanoid } from 'nanoid';
+
 export const createShapeLayer = (shapeType) => ({
-  id: crypto.randomUUID(),
+  id: nanoid(),
   type: "shape",
 
   // shape identity
@@ -14,9 +16,9 @@ export const createShapeLayer = (shapeType) => ({
   height: shapeType === "line" || shapeType === "arrow" ? 40 : 80, // Increased hit area
 
   // style
-  fill: (shapeType === "line" || shapeType === "arrow") ? "transparent" : "#3b82f6",
-  stroke: "#1e40af",
-  strokeWidth: (shapeType === "line" || shapeType === "arrow") ? 8 : 2, // Thicker default
+  fillColor: (shapeType === "line" || shapeType === "arrow") ? "transparent" : "#ffffff",
+  strokeColor: "#1e40af",
+  strokeWidth: (shapeType === "line" || shapeType === "arrow") ? 8 : 1, // Thicker default for line/arrow, 1 otherwise
 
   // transforms
   rotation: 0,
@@ -27,7 +29,7 @@ export const createShapeLayer = (shapeType) => ({
 });
 
 export const createImageLayer = (src, imageUrl, imageKey) => ({
-  id: crypto.randomUUID(),
+  id: nanoid(),
   type: "image",
   src, // Keep for backward compatibility or direct URL addition
   imageUrl,

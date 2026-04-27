@@ -8,6 +8,7 @@ const API_ENDPOINT = '/api/text-style/generate';
  * @param {string} text - The text to style
  * @returns {Promise<Object>} - Promise resolving to { images: string[] }
  */
+
 export const generateTextStyles = async (text) => {
   if (!text || !text.trim()) {
     throw new Error('Text is required');
@@ -52,3 +53,4 @@ export const generateTextStyles = async (text) => {
 
   return data;
 };
+

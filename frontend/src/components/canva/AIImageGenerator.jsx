@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiZap } from 'react-icons/fi';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { generateImage } from '@/services/imageEditor/imageApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AIImageGenerator = ({
   onImageGenerated,
@@ -9,9 +10,13 @@ const AIImageGenerator = ({
   setHoveredOption,
   imageSettings
 }) => {
+  const { user } = useAuth();
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('realistic');
+
 
   const handleAIGenerateImage = async () => {
     if (!aiPrompt.trim()) {
@@ -20,172 +25,157 @@ const AIImageGenerator = ({
     }
 
     setIsGeneratingAI(true);
+    setShowLoading(true);
     setErrorMessage('');
 
     try {
       setIsGeneratingAI(true);
       setErrorMessage('');
-      // Use environment variable for API base URL instead of hardcoded localhost
-      const response = await fetch(`${API_BASE_URL}/api/image/generate-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to generate image' }));
-        const errorMsg = errorData.error || errorData.message || 'Failed to generate image';
+      const userId = user?._id || user?.id;
+      const imageId = Date.now().toString();
+      const data = await generateImage(userId, imageId, aiPrompt, selectedFilter);
 
-        // Check for specific error types and provide user-friendly messages
-        let userFriendlyMessage = errorMsg;
-        if (errorMsg.toLowerCase().includes('billing') || errorMsg.toLowerCase().includes('limit')) {
-          userFriendlyMessage = 'AI image generation is currently unavailable due to billing limits. Please contact the administrator or try again later.';
-        } else if (errorMsg.toLowerCase().includes('quota') || errorMsg.toLowerCase().includes('rate limit')) {
-          userFriendlyMessage = 'AI image generation quota has been reached. Please try again later.';
-        } else if (errorMsg.toLowerCase().includes('api key') || errorMsg.toLowerCase().includes('authentication')) {
-          userFriendlyMessage = 'AI service authentication failed. Please contact support.';
-        }
-
-        setErrorMessage(userFriendlyMessage);
-        throw new Error(userFriendlyMessage);
+      if (data && data.success === false) {
+        setErrorMessage(data.message || 'Image generation failed.');
+        return;
       }
 
-      const data = await response.json();
-      const imageB64 = data.data?.[0]?.b64_json || "";
+      let respItem = null;
+      if (Array.isArray(data) && data.length > 0) respItem = data[0];
+      else if (data && Array.isArray(data.data) && data.data.length > 0) respItem = data.data[0];
+      else if (data && (data.url || data.imageUrl)) respItem = data;
+      else respItem = {};
 
-      if (imageB64 && imageB64.length > 50) {
-        const imgSrc = `data:image/png;base64,${imageB64}`;
+      const imageUrl = respItem.url || respItem.imageUrl;
+      if (!imageUrl) {
+        console.error('AI generate returned unexpected response:', data);
+        throw new Error('Invalid image data received from server: missing url');
+      }
 
-        // Create a new image object
-        const newImage = {
-          id: Date.now().toString(),
-          type: 'image',
-          name: `AI Generated: ${aiPrompt.substring(0, 20)}...`,
-          src: imgSrc,
-          x: 100,
-          y: 100,
-          width: 200,
-          height: 200,
-          visible: true,
-          locked: false,
-          rotation: 0,
-          ...imageSettings
-        };
+      const imgSrc = imageUrl;
 
-        // Call the callback to add image to canvas
-        if (onImageGenerated) {
-          onImageGenerated(newImage);
-        }
+      // Create a new image object (wait to add until URL is confirmed loadable)
 
-        // Clear the prompt and error after successful generation
+      const newImage = {
+        id: imageId,
+        type: 'image',
+        name: `AI Generated: ${aiPrompt.substring(0, 20)}...`,
+        filter: selectedFilter,
+        src: imgSrc,
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 200,
+        visible: true,
+        locked: false,
+        rotation: 0,
+        ...imageSettings
+      };
+
+      try {
+        await new Promise((resolve, reject) => {
+          const probe = new Image();
+
+          probe.onload = () => resolve();
+          probe.onerror = (e) => reject(new Error('Failed to load generated image URL: ' + (e?.message || 'error')));
+          probe.src = imgSrc;
+          if (probe.complete) resolve();
+        });
+
+        if (onImageGenerated) onImageGenerated(newImage);
         setAiPrompt('');
         setErrorMessage('');
-      } else {
-        throw new Error('Invalid image data received from server');
+      } catch (err) {
+        console.error('Generated image failed to load:', err);
+        setErrorMessage('Generated image not accessible (CORS or missing file).');
       }
     } catch (error) {
       console.error('Error generating image:', error);
-      if (!errorMessage) {
-        setErrorMessage(error.message || 'Failed to generate image. Please try again.');
-      }
+      const backendMsg = error.response?.data?.message;
+      setErrorMessage(backendMsg || error.message || 'Failed to generate image. Please try again.');
     } finally {
       setIsGeneratingAI(false);
+      setTimeout(() => setShowLoading(false), 1000);
     }
   };
 
   return (
-    <div style={{ marginTop: '12px', width: '100%' }}>
+    <div className="mt-3 w-full">
       <input
         type="text"
         placeholder="Enter prompt for AI image..."
         value={aiPrompt}
         onChange={(e) => {
           setAiPrompt(e.target.value);
-          if (errorMessage) setErrorMessage(''); // Clear error when user types
+          if (errorMessage) setErrorMessage('');
         }}
         onKeyPress={(e) => {
           if (e.key === 'Enter' && !isGeneratingAI) {
             handleAIGenerateImage();
           }
         }}
-        style={{
-          width: '100%',
-          padding: '10px 12px',
-          borderRadius: '8px',
-          border: errorMessage ? '1px solid #ef4444' : '1px solid #475569',
-          backgroundColor: '#1e293b',
-          color: '#ffffff',
-          fontSize: '13px',
-          marginBottom: '8px',
-          outline: 'none',
-          boxSizing: 'border-box'
-        }}
+        className={`w-full mb-4 px-3 py-2.5 rounded-lg text-sm text-white bg-slate-800 outline-none box-border transition-colors ${errorMessage
+          ? 'border border-red-500 focus:border-red-500'
+          : 'border border-slate-600 focus:border-purple-500'
+          } ${isGeneratingAI ? 'opacity-60 cursor-not-allowed' : ''}`}
         disabled={isGeneratingAI}
       />
+      <div className="mb-3">
+        <label className="text-xs text-slate-300 mb-1 block">Image Style</label>
+        <select
+          value={selectedFilter}
+          onChange={(e) => setSelectedFilter(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg text-sm text-white bg-slate-800 border border-slate-600 outline-none"
+          disabled={isGeneratingAI}
+        >
+          <option value="realistic">Realistic</option>
+          <option value="anime">Anime</option>
+          <option value="cartoon">Cartoon</option>
+          <option value="sketch">Sketch</option>
+          <option value="painting">Painting</option>
+        </select>
+      </div>
       {errorMessage && (
-        <div style={{
-          padding: '8px 12px',
-          marginBottom: '8px',
-          borderRadius: '6px',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          color: '#fca5a5',
-          fontSize: '12px',
-          lineHeight: '1.4'
-        }}>
+        <div className="p-2 mb-2 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed">
           {errorMessage}
         </div>
       )}
       <button
+        className={`py-5 px-4 border-2 rounded-xl w-full flex flex-col items-center justify-center gap-2.5 text-sm font-semibold text-white transition-all duration-300 min-h-[90px] border-blue-400 ${isGeneratingAI
+            ? 'opacity-60 cursor-not-allowed'
+            : 'cursor-pointer hover:shadow-xl hover:shadow-blue-500/30'
+          }`}
         style={{
-          padding: '20px 16px',
-          border: '2px dashed #8b5cf6',
-          borderRadius: '12px',
-          background: hoveredOption === 'generate-ai'
-            ? 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)'
-            : 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)',
-          cursor: isGeneratingAI ? 'not-allowed' : 'pointer',
-          margin: '0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '14px',
-          fontWeight: '600',
-          width: '100%',
-          justifyContent: 'center',
-          transition: 'all 0.3s ease',
-          color: '#ffffff',
-          boxShadow: hoveredOption === 'generate-ai'
-            ? '0 6px 16px rgba(139, 92, 246, 0.4)'
-            : '0 4px 12px rgba(139, 92, 246, 0.3)',
-          minHeight: '90px',
-          borderColor: hoveredOption === 'generate-ai' ? '#a855f7' : '#8b5cf6',
-          transform: hoveredOption === 'generate-ai' ? 'translateY(-2px)' : 'translateY(0)',
-          opacity: isGeneratingAI ? 0.6 : 1
+          background: hoveredOption === 'generate-ai' && !isGeneratingAI
+            ? 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)'
+            : 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)'
         }}
         onMouseEnter={() => !isGeneratingAI && setHoveredOption('generate-ai')}
         onMouseLeave={() => setHoveredOption(null)}
         onClick={handleAIGenerateImage}
         disabled={isGeneratingAI}
       >
-        <FiZap size={20} color="#ffffff" />
-        <span style={{
-          color: '#ffffff',
-          fontSize: '13px',
-          fontWeight: '600',
-          textAlign: 'center',
-          lineHeight: '1.2'
-        }}>
+        <FiZap size={20} className="text-white" />
+        <span className="text-white text-xs font-semibold text-center leading-tight">
           {isGeneratingAI ? 'Generating...' : 'Generate with AI'}
         </span>
       </button>
+
+      {showLoading && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-4 p-8 bg-slate-900/95 border border-slate-700 rounded-3xl shadow-2xl">
+            <div className="w-16 h-16 rounded-full animate-spin" style={{ border: '4px solid #fbbf24', borderTopColor: '#3b82f6' }} />
+            <p className="text-white text-lg font-bold tracking-tight">Generating your image...</p>
+            <p className="text-slate-400 text-sm">This may take a few seconds</p>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
 
 export default AIImageGenerator;
-
-
 
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { FiMove, FiChevronDown, FiChevronRight, FiFilter, FiZap, FiCrop } from 'react-icons/fi';
 import api from '../../services/api';
 import { getFilterCSS, getShadowCSS, hexToRgba } from '../../utils/styleUtils';
@@ -11,8 +12,10 @@ import TextStyleModal from './TextStyleModal';
 import RightSidebar from './components/RightSidebar';
 import CanvasArea from './canvas/CanvasArea';
 import LeftCanvasSidebar from './components/LeftCanvasSidebar';
+import ProjectNameModal from './components/ProjectNameModal';
 
 // Import hooks
+import { useAuth } from '../../contexts/AuthContext';
 import { useHistory } from './hooks/useHistory';
 import { useCanvasTransforms } from './hooks/useCanvasTransforms';
 import { useLayerActions } from './hooks/useLayerActions';
@@ -38,10 +41,14 @@ import {
   SCROLLER_MARGIN
 } from './state/initialState';
 import { GRADIENTS } from './components/BackgroundColor';
+import { saveImage, updateImage, updateImageVisibility, exportImage, uploadTemporaryImage } from '@/services/imageEditor/imageApi';
 
 const CanvaEditor = () => {
-  const { id: projectId } = useParams();
+  const { id: routeProjectId } = useParams();
+  const [savedProjectId, setSavedProjectId] = useState(null);
+  const projectId = routeProjectId || savedProjectId;
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Core state
   const [selectedTool, setSelectedTool] = useState('select');
@@ -52,14 +59,17 @@ const CanvaEditor = () => {
   const [shapeSettings, setShapeSettings] = useState(initialShapeSettings);
   const [imageSettings, setImageSettings] = useState(initialImageSettings);
   const [openSections, setOpenSections] = useState(initialOpenSections);
-  const [hasChosenTemplate, setHasChosenTemplate] = useState(false);
+  const [hasChosenTemplate, setHasChosenTemplate] = useState(true);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState(GRADIENTS[0].value);
+  const [canvasBgColor, setCanvasBgColor] = useState(projectId ? '#ffffff' : 'linear-gradient(135deg, #00F260 0%, #0575E6 100%)');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
   const [isHeading, setIsHeading] = useState(false);
+  const [tempBgState, setTempBgState] = useState(null);
+  const [projectName, setProjectName] = useState('Untitled Design');
+  const [isProjectNameModalOpen, setIsProjectNameModalOpen] = useState(false);
 
   // Save/Export modal state
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -73,8 +83,10 @@ const CanvaEditor = () => {
   const [pages, setPages] = useState([{ id: 1, layers: [] }]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [cropState, setCropState] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [activeTemplateId, setActiveTemplateId] = useState(initialTemplates[0]?.id || 'default');
 
   // Refs - store refs per page
   const canvasAreaRefs = useRef({});
@@ -109,11 +121,22 @@ const CanvaEditor = () => {
     history,
     historyIndex,
     saveToHistory,
+    resetHistory,
     undo,
     redo,
     canUndo,
     canRedo
   } = useHistory(layers);
+
+  // Track changes for "Save Changes" prompt
+  useEffect(() => {
+    // If we're at index 0, it's either just loaded or just reset
+    if (historyIndex > 0) {
+      setHasUnsavedChanges(true);
+    } else {
+      setHasUnsavedChanges(false);
+    }
+  }, [historyIndex]);
 
   const {
     zoom,
@@ -155,6 +178,7 @@ const CanvaEditor = () => {
     handleQuickColorChange
   } = useLayerActions(layers, setLayers, saveToHistory);
 
+
   const {
     drawingSettings,
     setDrawingSettings,
@@ -187,7 +211,9 @@ const CanvaEditor = () => {
     handleRotateMouseDown,
     handleCanvasMouseMove: handleCanvasMouseMoveBase,
     handleCanvasMouseLeave,
-    handleCanvasClick: handleCanvasClickBase
+    handleCanvasClick: handleCanvasClickBase,
+    alignmentGuides,
+    rotateGuide
   } = useCanvasInteractions(
     layers,
     setLayers,
@@ -195,7 +221,8 @@ const CanvaEditor = () => {
     setSelectedLayer,
     selectedTool,
     getCanvasPoint,
-    saveToHistory
+    saveToHistory,
+    canvasSize
   );
 
   // 🔴 Wrapper for handleCanvasMouseMove to handle drawing
@@ -214,6 +241,12 @@ const CanvaEditor = () => {
     }
   }, [handleCanvasMouseMoveBase, drawingSettings.isDrawing, selectedTool, getCanvasPoint, handleEraserAction, addPointToPath]);
 
+
+  const handleSaveClick = () => {
+    setIsProjectNameModalOpen(true);
+  };
+
+
   // 🔴 Finish drawing on global mouse up
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -224,6 +257,11 @@ const CanvaEditor = () => {
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
   }, [drawingSettings.isDrawing, finishDrawing]);
+
+  useEffect(() => {
+    console.log("Logged in user:", user);
+  }, [user]);
+
 
   const { handleAddElement } = useElementCreation(
     layers,
@@ -236,7 +274,29 @@ const CanvaEditor = () => {
   );
 
   // Load project data
-  useProjectLoader(setLayers, setCanvasSize, setZoom, setPan);
+  useProjectLoader(setLayers, setCanvasSize, setZoom, setPan, setCanvasBgColor, setCanvasBgImage, setProjectName);
+
+  // Determine whether this project was opened via import-prefill (treat as new)
+  const [isPrefillImport, setIsPrefillImport] = useState(false);
+  useEffect(() => {
+    try {
+      if (projectId) {
+        const flag = typeof window !== 'undefined' && sessionStorage.getItem(`prefill_import_flag_${projectId}`);
+        setIsPrefillImport(!!flag);
+      } else {
+        // Check for new layout prefill if we're on a fresh canvas
+        const newLayout = sessionStorage.getItem('new_layout_prefill');
+        if (newLayout) {
+          const parsed = JSON.parse(newLayout);
+          if (parsed.width && parsed.height) {
+            setCanvasSize({ width: parsed.width, height: parsed.height });
+            if (parsed.name) setProjectName(parsed.name);
+          }
+          sessionStorage.removeItem('new_layout_prefill');
+        }
+      }
+    } catch (e) { }
+  }, [projectId]);
 
   // Add default heading when page opens and there are no layers
   const hasInitializedRef = useRef(false);
@@ -249,6 +309,16 @@ const CanvaEditor = () => {
   }, [layers]);
 
   useEffect(() => {
+    // For existing/imported projects, never inject default heading or gradient placeholders.
+    if (projectId) {
+      if (!hasInitializedRef.current && layers.length === 0) {
+        hasInitializedRef.current = true;
+        resetHistory([]);
+        setHasUnsavedChanges(false);
+      }
+      return;
+    }
+
     // Only add default heading if:
     // 1. We haven't initialized yet
     // 2. There are no layers
@@ -260,15 +330,32 @@ const CanvaEditor = () => {
       }
 
       // Wait a bit to ensure project loader has finished (if loading a project)
-      // If no projectId, this will still work for new projects
       projectLoadTimeoutRef.current = setTimeout(() => {
-        // Check current layers state (not closure value)
         if (layersRef.current.length === 0 && !hasInitializedRef.current) {
-          // Create a default heading at center-top of canvas
           const centerX = Math.max(100, (canvasSize.width - 300) / 2);
           const centerY = 100;
-          handleAddElement(centerX, centerY, 'heading');
+
+          const defaultHeading = {
+            id: Date.now(),
+            type: 'text',
+            name: 'Heading',
+            text: 'Add a heading',
+            x: centerX,
+            y: centerY,
+            width: 300,
+            height: 80,
+            ...textSettings,
+            fontSize: 32,
+            fontWeight: '700',
+            visible: true,
+            locked: false,
+            rotation: 0,
+          };
+
+          setLayers([defaultHeading]);
           hasInitializedRef.current = true;
+          resetHistory([defaultHeading]);
+          setHasUnsavedChanges(false);
         }
       }, projectId ? 1000 : 300); // Longer delay if loading a project
 
@@ -281,7 +368,7 @@ const CanvaEditor = () => {
       // If layers exist, mark as initialized so we don't add heading
       hasInitializedRef.current = true;
     }
-  }, [layers.length, handleAddElement, saveToHistory, canvasSize, projectId]);
+  }, [layers.length, handleAddElement, resetHistory, textSettings, canvasSize, projectId, saveToHistory]);
 
   // Keep right sidebar open when text layer is selected (only on selection, not on every state change)
   useEffect(() => {
@@ -324,6 +411,13 @@ const CanvaEditor = () => {
   };
 
   const handleToolSelect = (toolId) => {
+    // If clicking the same tool again, toggle it off (set to 'select' mode)
+    if (selectedTool === toolId) {
+      setSelectedTool('select');
+      setSelectedLayer(null);
+      return;
+    }
+
     setSelectedTool(toolId);
     setSelectedLayer(null);
     // Set drawing mode when selecting drawing tools
@@ -332,7 +426,7 @@ const CanvaEditor = () => {
         ...prev,
         drawingMode: toolId,
         // Set default sizes based on tool
-        brushSize: toolId === 'brush' ? 12 : (toolId === 'pen' ? 4 : prev.brushSize)
+        brushSize: toolId === 'brush' ? 12 : (toolId === 'pen' ? 4 : (toolId === 'eraser' ? 16 : prev.brushSize))
       }));
     }
   };
@@ -418,34 +512,136 @@ const CanvaEditor = () => {
   };
 
   //Handle save canva design (new + existing)
-  const handleSave = async () => {
-    const design = { layers, canvasSize, zoom, pan };
+  const handleSave = (title) => {
+    if (!user) {
+      alert("Please login to save your design");
+      return;
+    }
+
+    // If caller provided a title (e.g. from ProjectNameModal), use it.
+    if (title && typeof title === 'string') {
+      confirmSave(title);
+      return;
+    }
+
+    // If this is an existing project, save immediately using current project name
+    if (projectId) {
+      confirmSave(projectName);
+      return;
+    }
+
+    // No title and not an existing project: open project-name modal (fallback)
+    setIsProjectNameModalOpen(true);
+  };
+
+  // Assuming updateImage and updateImageVisibility are imported from a service file
+  // import { updateImage, updateImageVisibility } from '../services/api'; // Add this import at the top of your file
+
+  const confirmSave = async (title) => {
+    setIsProjectNameModalOpen(false);
+    setProjectName(title);
 
     try {
+      // Keep layers clean, don't inject canvas metadata into them
+      const layersToProcess = layers;
+
+      // Convert any base64 image layers to temporary URLs before saving
+      const processedLayers = await Promise.all(layersToProcess.map(async (lay) => {
+        try {
+          // detect common base64/data URLs
+          const src = lay?.src || lay?.url || lay?.image || '';
+          if (typeof src === 'string' && src.startsWith('data:')) {
+            const payload = {
+              userId: user?._id || user?.id || '',
+              base64Image: src,
+              serviceId: lay.id || `srv-${Date.now()}`,
+            };
+            const resp = await uploadTemporaryImage(payload);
+            if (resp && resp.url) {
+              // replace base64 with returned URL
+              return { ...lay, src: resp.url, url: resp.url, imageUrl: resp.url };
+            }
+          }
+        } catch (e) {
+          console.error('Failed to upload temporary image for layer', lay.id, e);
+        }
+        return lay;
+      }));
+
+      const updatePayload = {
+        title: title,
+        data: {
+          layer: [
+            {
+              id: 'canvas-metadata',
+              type: 'metadata',
+              canvasBgColor,
+              canvasBgImage,
+              canvasSize,
+              zoom,
+              pan
+            },
+            ...processedLayers
+          ],
+          canvasSize
+        }
+      };
+
+
       if (projectId) {
-        await api.updateProjectDesign(projectId, design);
-        alert('Design saved successfully!');
+        await updateImage(projectId, updatePayload);
+        toast.success("Design updated successfully!");
       } else {
-        const newProjectData = {
-          title: "Untitled Design",
-          desc: "Created in Canva Clone",
-          icon: "🎨",
-          category: "General",
-          status: "Active",
-          design: design,
+        const newProjectPayload = {
+          userId: user?._id || user?.id,
+          title: title,
+          isPublic: false,
+          data: {
+            layer: [
+              {
+                id: 'canvas-metadata',
+                type: 'metadata',
+                canvasBgColor,
+                canvasBgImage,
+                canvasSize,
+                zoom,
+                pan
+              },
+              ...processedLayers
+            ],
+            canvasSize
+          }
         };
+        const result = await saveImage(newProjectPayload);
+        console.log("Saved response:", result);
 
-        const newProject = await api.createProject(newProjectData);
+        const newId =
+          result?.imageId ||
+          result?.id ||
+          result?._id ||
+          result?.data?.imageId ||
+          result?.data?.id ||
+          result?.data?._id;
 
-        if (newProject && newProject._id) {
-          alert('Project created successfully!');
+        if (newId) {
+          setSavedProjectId(newId);
 
-          navigate(`/canva-clone/${newProject._id}`, { replace: true });
+          // Change URL after save
+          navigate(`/canva-clone/${newId}`, { replace: true });
+
+          toast.success("Design saved successfully!");
+        } else {
+          toast.error("Image saved but ID not found");
         }
       }
+
+      resetHistory(layers);
+      setHasUnsavedChanges(false);
+
     } catch (error) {
-      console.error('Failed to save design:', error);
-      alert('Error saving design. Please try again.');
+      console.error("Failed to save design:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Error saving design. Please try again.";
+      alert(errorMessage);
     }
   };
 
@@ -457,42 +653,54 @@ const CanvaEditor = () => {
 
   // Export function wrapper
   const exportCanvasAsImageWrapper = async (format = 'png', quality = 0.92) => {
-    return await exportCanvasAsImage(layers, canvasSize, format, quality);
+    return await exportCanvasAsImage(layers, canvasSize, format, quality, canvasBgColor, canvasBgImage);
   };
 
-  const handleDownloadExport = async () => {
+  const handleDownloadExport = async (format, fileName) => {
     if (isExporting) return;
     setIsExporting(true);
+
+    const fmt = format || exportFormat;
+    const safeName = fileName || `design-${Date.now()}`;
+    const ext = fmt === "jpeg" ? "jpg" : fmt;
+
     try {
-      const dataUrl = await exportCanvasAsImageWrapper(exportFormat, exportQuality);
-      if (!dataUrl) return;
+      toast.loading("Preparing high-quality export...", { id: 'export-toast' });
+
+      // 1) Capture current canvas state as a data URL
+      const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
+      if (!dataUrl) throw new Error("Failed to capture canvas");
+
+      // 2) Upload to S3 as a temporary source image
+      const payload = {
+        userId: user?._id || user?.id || '',
+        base64Image: dataUrl,
+        serviceId: `tmp-${Date.now()}`,
+      };
+
+      const resp = await uploadTemporaryImage(payload);
+      const s3Url = resp?.url || resp?.data?.url;
+
+      if (!s3Url) throw new Error("Failed to upload temporary image for export");
+
+      // 3) Call the optimized S3 Export API
+      const blob = await api.exportS3Image(s3Url, ext);
+      const url = window.URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const ext = exportFormat === 'jpeg' ? 'jpg' : 'png';
-      link.download = `design-${timestamp}.${ext}`;
-      link.href = dataUrl;
+      link.href = url;
+      link.download = `${safeName}.${ext}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      // Optionally persist and download project file (worksheet)
-      try {
-        const design = { layers, canvasSize, zoom: 100, pan: { x: 0, y: 0 }, savedAt: Date.now() };
-        localStorage.setItem('canvaDesign', JSON.stringify(design));
-        if (includeProjectFile) {
-          const blob = new Blob([JSON.stringify(design, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const jsonLink = document.createElement('a');
-          jsonLink.href = url;
-          jsonLink.download = `design-${timestamp}.json`;
-          document.body.appendChild(jsonLink);
-          jsonLink.click();
-          document.body.removeChild(jsonLink);
-          URL.revokeObjectURL(url);
-        }
-      } catch { }
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Image downloaded successfully', { id: 'export-toast' });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error(`Export failed: ${error.message}`, { id: 'export-toast' });
     } finally {
       setIsExporting(false);
-      setIsSaveModalOpen(false);
     }
   };
 
@@ -502,7 +710,15 @@ const CanvaEditor = () => {
     setIsSavingWorksheet(true);
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const design = { layers, canvasSize, zoom, pan, savedAt: Date.now() };
+      const layersWithCanvasMeta = layers.map(l => ({
+        ...l,
+        canvasBgColor,
+        canvasBgImage,
+        zoom,
+        pan,
+        canvasSize
+      }));
+      const design = { layers: layersWithCanvasMeta, canvasSize, savedAt: Date.now() };
       const fileName = `design-${timestamp}.json`;
 
       // Feature-detect the File System Access API
@@ -549,7 +765,7 @@ const CanvaEditor = () => {
     layers,
     setLayers,
     saveToHistory,
-    false
+    true
   );
 
   const handleTextContentChangeWithResize = createTextContentHandler(
@@ -757,22 +973,92 @@ const CanvaEditor = () => {
     }
   }, [layers, currentPageIndex]); // Save layers whenever they change
 
-  const handleAddPage = useCallback(() => {
-    // Save current page first
-    setPages(prevPages => {
-      const updatedPages = [...prevPages];
-      if (updatedPages[currentPageIndex]) {
-        updatedPages[currentPageIndex] = { ...updatedPages[currentPageIndex], layers: [...layers] };
+
+
+  const handleApplyDesignTemplate = (template) => {
+    // Set canvas size
+    const newSize = {
+      width: template.width,
+      height: template.height
+    };
+    setCanvasSize(newSize);
+
+    // Add layers with unique IDs
+    // Get random image if template has image list
+    let selectedImage = null;
+
+    if (template.images && template.images.length > 0) {
+      selectedImage =
+        template.images[Math.floor(Math.random() * template.images.length)];
+    }
+
+    const newLayers = template.layers.map(layer => {
+      if (layer.type === "image" && selectedImage) {
+        return {
+          ...layer,
+          src: selectedImage,
+          id: Date.now() + Math.random(),
+          visible: true,
+          locked: false,
+          rotation: 0
+        };
       }
 
-      const newPage = {
-        id: Date.now(),
-        layers: []
+      return {
+        ...layer,
+        id: Date.now() + Math.random(),
+        visible: true,
+        locked: false,
+        rotation: 0
       };
-      const newPages = [...updatedPages, newPage];
-      return newPages;
     });
-  }, [currentPageIndex, layers]);
+
+    setLayers(newLayers);
+    resetHistory(newLayers);
+    setHasUnsavedChanges(false);
+    // Find matching template if any to set as active
+    const matchingTemplate = templates.find(t => t.width === newSize.width && t.height === newSize.height);
+    if (matchingTemplate) setActiveTemplateId(matchingTemplate.id);
+
+    setSelectedLayer(null);
+    setHasChosenTemplate(true);
+    hasInitializedRef.current = true;
+
+    // Ensure a heading exists in the applied template, if not add one
+    const hasHeading = newLayers.some(l => l.type === 'text' && (l.name === 'Heading' || l.fontSize >= 30));
+    if (!hasHeading) {
+      const centerX = Math.max(100, (newSize.width - 300) / 2);
+      const defaultHeading = {
+        id: Date.now() + 1,
+        type: 'text',
+        name: 'Heading',
+        text: 'Add a heading',
+        x: centerX,
+        y: 50,
+        width: 300,
+        height: 80,
+        ...textSettings,
+        fontSize: 32,
+        fontWeight: '700',
+        visible: true,
+        locked: false,
+        rotation: 0,
+      };
+      const layersWithHeading = [...newLayers, defaultHeading];
+      setLayers(layersWithHeading);
+      resetHistory(layersWithHeading);
+    }
+
+    // Auto-fit to screen after small delay to allow DOM to catch up
+    setTimeout(() => {
+      const pageId = pages[currentPageIndex]?.id || 1;
+      const ref = canvasAreaRefs.current[pageId];
+      if (ref) {
+        handleFitToScreen(ref, newSize);
+      }
+    }, 50);
+  };
+
 
   const handlePageChange = useCallback((index) => {
     if (index >= 0 && index < pages.length && index !== currentPageIndex) {
@@ -783,11 +1069,14 @@ const CanvaEditor = () => {
 
       // Load new page layers
       isLoadingPageRef.current = true;
-      setCurrentPageIndex(index);
-      setLayers(pages[index].layers || []);
+      const newLayers = pages[index].layers || [];
+      setLayers(newLayers);
+      resetHistory(newLayers);
+      setHasUnsavedChanges(false);
       setSelectedLayer(null);
+      setCurrentPageIndex(index);
     }
-  }, [pages, currentPageIndex, layers]);
+  }, [pages, currentPageIndex, layers, resetHistory, setHasUnsavedChanges]);
 
   const handleMaximize = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -803,41 +1092,131 @@ const CanvaEditor = () => {
     }
   }, []);
 
-  // Add styled image to canvas
+  // Add styled image to canvas (robust: validates URL, preloads to get dimensions)
   const handleAddStyledImageToCanvas = (imageUrl) => {
-    const newLayer = {
-      id: Date.now().toString(),
-      type: 'image',
-      src: imageUrl,
-      x: canvasSize.width / 2 - 100,
-      y: canvasSize.height / 2 - 100,
-      width: 200,
-      height: 200,
-      opacity: 100,
-      brightness: 100,
-      contrast: 100,
-      blur: 0,
-      cornerRadius: 0,
-      strokeWidth: 0,
-      strokeColor: '#000000',
-      shadows: { enabled: false }
-    };
-    setLayers(prev => [...prev, newLayer]);
-    saveToHistory();
+    try {
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        console.error('handleAddStyledImageToCanvas: invalid imageUrl', imageUrl);
+        return;
+      }
+
+      const id = Date.now().toString();
+
+      const addLayer = (width = 200, height = 200) => {
+        const newLayer = {
+          id,
+          type: 'image',
+          src: imageUrl,
+          x: Math.max(0, Math.round(canvasSize.width / 2 - width / 2)),
+          y: Math.max(0, Math.round(canvasSize.height / 2 - height / 2)),
+          width: Math.round(width),
+          height: Math.round(height),
+          opacity: 100,
+          brightness: 100,
+          contrast: 100,
+          blur: 0,
+          cornerRadius: 0,
+          strokeWidth: 0,
+          strokeColor: '#000000',
+          shadows: { enabled: false },
+          visible: true,
+          locked: false,
+          rotation: 0,
+          name: 'AI Styled Image'
+        };
+
+        setLayers(prev => {
+          const newLayers = [...prev, newLayer];
+          saveToHistory(newLayers);
+          return newLayers;
+        });
+        setSelectedLayer(id);
+      };
+
+      // Try to preload the image to get natural dimensions
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const maxWidth = Math.min(canvasSize.width * 0.6, img.naturalWidth || 200);
+          const maxHeight = Math.min(canvasSize.height * 0.6, img.naturalHeight || 200);
+          let width = img.naturalWidth || 200;
+          let height = img.naturalHeight || 200;
+
+          if (width > maxWidth || height > maxHeight) {
+            const scale = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.max(100, width * scale);
+            height = Math.max(100, height * scale);
+          }
+
+          if (width < 100) {
+            const scale = 100 / width;
+            width = 100;
+            height = Math.round(height * scale);
+          }
+          if (height < 100) {
+            const scale = 100 / height;
+            height = 100;
+            width = Math.round(width * scale);
+          }
+
+          addLayer(width, height);
+        } catch (err) {
+          console.error('Error sizing preloaded image, falling back to defaults', err);
+          addLayer();
+        }
+      };
+      img.onerror = (err) => {
+        console.warn('Failed to preload styled image, adding with default size', err);
+        addLayer();
+      };
+      img.src = imageUrl;
+    } catch (err) {
+      console.error('handleAddStyledImageToCanvas error', err);
+    }
   };
 
   // Shape settings handler
-  const handleShapeSettingsChange = useCallback((property, value) => {
+  const handleShapeSettingsChange = useCallback((propertyOrUpdates, value) => {
     if (!selectedLayer) return;
+
     const layer = layers.find(l => l.id === selectedLayer);
-    if (layer && layer.type === 'shape') {
-      const newLayers = layers.map(l =>
-        l.id === selectedLayer ? { ...l, [property]: value } : l
-      );
-      setLayers(newLayers);
-      saveToHistory(newLayers);
+    if (!layer || layer.type !== 'shape') return;
+
+    let updates = {};
+
+    if (typeof propertyOrUpdates === 'object' && propertyOrUpdates !== null) {
+      updates = propertyOrUpdates;
+    } else {
+      updates = { [propertyOrUpdates]: value };
     }
-  }, [selectedLayer, layers, setLayers, saveToHistory]);
+
+    // If setting image fill, ensure fillType is set to 'image'
+    if (updates.fillImageSrc) {
+      updates.fillType = 'image';
+    }
+
+    // If setting fill color, ensure fillType is set to 'color' and clear image
+    if (updates.fillColor && !updates.fillType) {
+      updates.fillType = 'color';
+      updates.fillImageSrc = null;
+    }
+
+    const newLayers = layers.map(l =>
+      l.id === selectedLayer ? { ...l, ...updates } : l
+    );
+
+    setLayers(newLayers);
+
+    // Update shapeSettings state
+    setShapeSettings(prev => ({
+      ...prev,
+      ...updates
+    }));
+
+    saveToHistory(newLayers);
+  }, [selectedLayer, layers, setLayers, saveToHistory, setShapeSettings]);
+
 
   // Image upload handler
   const handleImageUpload = (e) => {
@@ -965,7 +1344,7 @@ const CanvaEditor = () => {
     };
 
     reader.onerror = () => {
-      alert('Failed to read image file. Please try again.');
+      toast.error('Failed to read image file. Please try again.');
       e.target.value = ''; // Reset input
     };
 
@@ -984,6 +1363,43 @@ const CanvaEditor = () => {
     });
     setSelectedLayer(newImage.id);
   };
+
+  // -----------------------------
+  // GIF Emoji Handler (NEW)
+
+
+  const handleAddSticker = useCallback((src) => {
+    const newLayer = {
+      id: Date.now().toString(),
+      type: 'image',
+      src: src,
+      x: canvasSize.width / 2 - 60,
+      y: canvasSize.height / 2 - 60,
+      width: 120,
+      height: 120,
+      opacity: 100,
+      rotation: 0,
+      brightness: 100,
+      contrast: 100,
+      blur: 0,
+      cornerRadius: 0,
+      strokeWidth: 0,
+      strokeColor: '#000000',
+      shadows: { enabled: false },
+      visible: true,
+      locked: false,
+      name: 'Sticker'
+    };
+
+    setLayers(prev => {
+      const newLayers = [...prev, newLayer];
+      saveToHistory(newLayers);
+      return newLayers;
+    });
+
+    setSelectedLayer(newLayer.id);
+  }, [canvasSize, saveToHistory]);
+
 
   // Handler to add uploaded image from "Recently Uploaded" section to canvas
   const handleAddUploadedImage = useCallback((uploadedImage) => {
@@ -1064,20 +1480,79 @@ const CanvaEditor = () => {
 
   // Template selection handler
   const handleTemplateSelect = (template) => {
+    // Clear previous layers/text
+    setLayers([]);
+    resetHistory([]);
+    setHasUnsavedChanges(false);
+
     if (template.name === 'Default Canvas') {
       resetEditorToInitialState();
+      setActiveTemplateId(template.id);
       return;
     }
 
-    // Normal template behavior
-    setCanvasSize({ width: template.width, height: template.height });
-    setLayers([]);
+    // Only change canvas size
+    const newSize = {
+      width: template.width,
+      height: template.height
+    };
+    setCanvasSize(newSize);
+
+    setActiveTemplateId(template.id);
     setSelectedLayer(null);
     setHasChosenTemplate(true);
-    hasInitializedRef.current = false;
-    saveToHistory([]);
-  };
 
+    // Add default heading centered
+    const centerX = Math.max(100, (newSize.width - 300) / 2);
+    const centerY = (newSize.height > 400) ? 100 : 50;
+
+    const defaultHeading = {
+      id: Date.now(),
+      type: 'text',
+      name: 'Heading',
+      text: 'Add a heading',
+      x: centerX,
+      y: centerY,
+      width: 300,
+      height: 80,
+      ...textSettings,
+      fontSize: 32,
+      fontWeight: '700',
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    const defaultDate = {
+      id: Date.now() + 1,
+      type: 'text',
+      name: 'Current Date',
+      text: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+      x: newSize.width - 160,
+      y: newSize.height - 40,
+      width: 150,
+      height: 30,
+      fontSize: 12,
+      color: '#ffffff',
+      textAlign: 'right',
+      opacity: 70,
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    setLayers([defaultHeading, defaultDate]);
+    resetHistory([defaultHeading, defaultDate]);
+
+    // Auto-fit to screen
+    setTimeout(() => {
+      const pageId = pages[currentPageIndex]?.id || 1;
+      const ref = canvasAreaRefs.current[pageId];
+      if (ref) {
+        handleFitToScreen(ref, newSize);
+      }
+    }, 50);
+  };
 
   // Fit to screen wrapper
   const handleFitToScreenWrapper = useCallback(() => {
@@ -1087,14 +1562,19 @@ const CanvaEditor = () => {
   // Image settings handler
   const handleImageSettingsChange = (property, value) => {
     if (!selectedLayer) return;
-    const layer = layers.find(l => l.id === selectedLayer);
-    if (layer && layer.type === 'image') {
-      const newLayers = layers.map(l =>
-        l.id === selectedLayer ? { ...l, [property]: value } : l
+
+    setLayers(prevLayers => {
+      const updatedLayers = prevLayers.map(layer =>
+        layer.id === selectedLayer && layer.type === 'image'
+          ? { ...layer, [property]: value }
+          : layer
       );
-      setLayers(newLayers);
-      saveToHistory(newLayers);
-    }
+
+      // ⚠️ IMPORTANT: call history AFTER state calculation
+      saveToHistory(updatedLayers);
+
+      return updatedLayers;
+    });
   };
 
   // Generic effects handler
@@ -1110,7 +1590,6 @@ const CanvaEditor = () => {
     }
   };
 
-  // Canvas click handler
   // Canvas click handler
   const handleCanvasClick = (e) => {
     e.stopPropagation();
@@ -1129,16 +1608,52 @@ const CanvaEditor = () => {
     }
   };
 
-
   const resetEditorToInitialState = useCallback(() => {
     // Reset canvas
     setCanvasSize(initialCanvasSize);
     setZoom(80);
     setPan({ x: 0, y: 0 });
 
-    // Reset layers & pages
-    setLayers([]);
-    setPages([{ id: Date.now(), layers: [] }]);
+    const centerX = Math.max(100, (initialCanvasSize.width - 300) / 2);
+    const centerY = 100;
+    const defaultHeading = {
+      id: Date.now(),
+      type: 'text',
+      name: 'Heading',
+      text: 'Add a heading',
+      x: centerX,
+      y: centerY,
+      width: 300,
+      height: 80,
+      ...textSettings,
+      fontSize: 32,
+      fontWeight: '700',
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    const defaultDate = {
+      id: Date.now() + 1,
+      type: 'text',
+      name: 'Current Date',
+      text: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+      x: initialCanvasSize.width - 160,
+      y: initialCanvasSize.height - 40,
+      width: 150,
+      height: 30,
+      fontSize: 12,
+      color: '#ffffff',
+      textAlign: 'right',
+      opacity: 70,
+      visible: true,
+      locked: false,
+      rotation: 0,
+    };
+
+    // Reset layers & pages with a default heading and date
+    setLayers([defaultHeading, defaultDate]);
+    setPages([{ id: Date.now() + 2, layers: [defaultHeading, defaultDate] }]);
     setCurrentPageIndex(0);
 
     // Reset selections & tools
@@ -1149,49 +1664,105 @@ const CanvaEditor = () => {
     setHasChosenTemplate(false);
     setIsRightSidebarCollapsed(false);
     setIsRightSidebarOpen(false);
-    setIsLeftSidebarOpen(false);
+    setOpenSections(initialOpenSections);
 
     // Reset background
     setCanvasBgColor(GRADIENTS[0].value);
     setCanvasBgImage(null);
 
-    // 🔑 THIS IS VERY IMPORTANT
-    hasInitializedRef.current = false;
+    // 🔑 Mark as initialized
+    hasInitializedRef.current = true;
 
-    // Reset history
-    saveToHistory([]);
+    // Reset history with the initial layer as the base state
+    resetHistory([defaultHeading, defaultDate]);
+    setHasUnsavedChanges(false);
 
-  }, [setZoom, setPan, saveToHistory]);
+  }, [setZoom, setPan, resetHistory, textSettings]);
 
 
   // Drawing mouse handlers are provided by useDrawing hook
   // No need to redeclare handleDrawingMouseDown
 
+  const onCanvasBgColorChange = useCallback((color) => {
+    setCanvasBgColor(color);
+    setCanvasBgImage(null);
+  }, [setCanvasBgColor, setCanvasBgImage]);
+
+  const onCanvasBgImageChange = useCallback((imageUrl) => {
+    setCanvasBgImage(imageUrl);
+    setCanvasBgColor('transparent');
+  }, [setCanvasBgImage, setCanvasBgColor]);
+
+  // Handle toggle background (Remove BG)
+  const handleToggleBackground = useCallback(() => {
+    if (tempBgState) {
+      // Restore previous background
+      setCanvasBgColor(tempBgState.color);
+      setCanvasBgImage(tempBgState.image);
+      setTempBgState(null);
+    } else {
+      // Save current background and set to white
+      setTempBgState({
+        color: canvasBgColor,
+        image: canvasBgImage
+      });
+      setCanvasBgColor('#ffffff');
+      setCanvasBgImage(null);
+    }
+  }, [canvasBgColor, canvasBgImage, tempBgState]);
+
+  // Crop handlers
+  const handleStartCrop = useCallback(() => {
+    if (!selectedLayer) return;
+    const layer = layers.find(l => l.id === selectedLayer);
+    if (layer && layer.type === 'image') {
+      setCropState({ layerId: selectedLayer });
+    }
+  }, [selectedLayer, layers]);
+
+  const handleApplyCrop = useCallback((cropRect) => {
+    if (!cropState) return;
+
+    const layer = layers.find(l => l.id === cropState.layerId);
+    if (!layer) return;
+
+    // Update layer with cropped dimensions
+    const newLayers = layers.map(l => {
+      if (l.id === cropState.layerId) {
+        return {
+          ...l,
+          x: l.x + cropRect.x,
+          y: l.y + cropRect.y,
+          width: cropRect.width,
+          height: cropRect.height
+        };
+      }
+      return l;
+    });
+
+    setLayers(newLayers);
+    saveToHistory(newLayers);
+
+    const layerId = cropState.layerId;
+    setCropState(null);
+    setSelectedLayer(null); // Explicitly clear selection first
+
+    // Re-select after a brief delay to force UI components to remount/refresh
+    setTimeout(() => {
+      setSelectedLayer(layerId);
+    }, 50);
+  }, [cropState, layers, setLayers, saveToHistory, setSelectedLayer]);
+
+  const handleCancelCrop = useCallback(() => {
+    setCropState(null);
+  }, []);
+
   // Return JSX
   return (
     <div className="flex h-screen bg-gray-50 font-sans relative z-[1] ml-0 pl-0 w-full max-w-full overflow-hidden touch-none">
 
-      {/* Mobile Left Sidebar Toggle Button */}
-      <button
-        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-        className="lg:hidden fixed top-20 left-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
-        aria-label="Toggle left sidebar"
-      >
-        <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
-      {/* Mobile Left Sidebar Overlay */}
-      {isLeftSidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-[15]"
-          onClick={() => setIsLeftSidebarOpen(false)}
-        />
-      )}
-
       {/* Left Sidebar - Hidden on mobile, visible on desktop */}
-      <div className={`${isLeftSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:absolute left-0 lg:left-4 top-0 lg:top-40 bottom-0 z-[16] lg:z-[10] transition-transform duration-300 ease-in-out`}>
+      <div className="fixed left-2 top-20 bottom-0 z-[10]">
         <div className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <LeftCanvasSidebar
             toggleSection={toggleSection}
@@ -1209,30 +1780,18 @@ const CanvaEditor = () => {
             handleAIGeneratedImage={handleAIGeneratedImage}
             handleAddUploadedImage={handleAddUploadedImage}
             imageSettings={imageSettings}
-            templates={templates}
-            handleTemplateSelect={handleTemplateSelect}
             drawingSettings={drawingSettings}
             handleDrawingSettingsChange={handleDrawingSettingsChange}
-            onCanvasBgColorChange={(color) => {
-              setCanvasBgColor(color);
-              setCanvasBgImage(null); // Clear background image when color is set
-            }}
-            onCanvasBgImageChange={(imageUrl) => {
-              setCanvasBgImage(imageUrl);
-              setCanvasBgColor('transparent'); // Clear background color when image is set
-            }}
+            onCanvasBgColorChange={onCanvasBgColorChange}
+            onCanvasBgImageChange={onCanvasBgImageChange}
+            handleAddSticker={handleAddSticker}
+            handleApplyDesignTemplate={handleApplyDesignTemplate}
+            onSave={handleSave}
+            layers={layers}
+            hasUnsavedChanges={hasUnsavedChanges}
+            handleSaveClick={handleSaveClick}
           />
         </div>
-        {/* Close button for mobile */}
-        <button
-          onClick={() => setIsLeftSidebarOpen(false)}
-          className="lg:hidden absolute top-2 right-2 bg-white border border-gray-300 rounded-full p-1.5 shadow-lg hover:bg-gray-50 z-[17]"
-          aria-label="Close sidebar"
-        >
-          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
 
       {/* Main Area */}
@@ -1240,6 +1799,7 @@ const CanvaEditor = () => {
         {/* Toolbar Section - Sticky positioned, always shows */}
         {/* Editing Toolbar - Contains Selection, Effects, and Layer-specific controls */}
         <EditingToolbar
+          imageId={projectId}
           selectedLayer={selectedLayer}
           layer={selectedLayer ? layers.find(l => l.id === selectedLayer) : null}
           textSettings={textSettings}
@@ -1266,6 +1826,7 @@ const CanvaEditor = () => {
           canRedo={canRedo}
           onSave={handleSave}
           onExport={handleExport}
+          onDownload={handleDownloadExport}
           onDuplicate={handleDuplicateSelected}
           hasSelection={!!selectedLayer}
           toggleSection={toggleSection}
@@ -1276,12 +1837,27 @@ const CanvaEditor = () => {
           handleToolSelect={handleToolSelect}
           drawingSettings={drawingSettings}
           handleDrawingSettingsChange={handleDrawingSettingsChange}
+          onToggleBackground={handleToggleBackground}
+          isBgRemoved={!!tempBgState}
+          onStartCrop={handleStartCrop}
+          isCropping={!!cropState}
+          layers={layers}
+          canvasSize={canvasSize}
+          zoom={zoom}
+          pan={pan}
+          canvasBgColor={canvasBgColor}
+          canvasBgImage={canvasBgImage}
+          projectName={projectName}
+          isExistingProject={!!projectId && !isPrefillImport}
+          userRole={user?.role}
+          fileInputRef={fileInputRef}
+          handleImageUpload={handleImageUpload}
         />
 
         {/* Canvas Area - scrollable container with all pages */}
         <div
           onClick={handleOutsideClick}
-          className="flex-1 flex flex-col justify-start py-3 sm:py-6 items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
+          className="flex-1 flex flex-col justify-start items-center min-h-0 h-full overflow-y-auto overflow-x-hidden"
         >
           {pages.map((page, pageIndex) => {
             const isActivePage = pageIndex === currentPageIndex;
@@ -1289,8 +1865,8 @@ const CanvaEditor = () => {
             const pageLayers = isActivePage ? layers : (page.layers || []);
 
             return (
-              <div key={page.id} className="w-full flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
-                <div className="flex justify-center items-center">
+              <div key={page.id} className="w-full mt-8 flex justify-center items-center mb-8 sm:mb-16 last:mb-3 sm:last:mb-6 px-2 sm:px-4">
+                <div className="flex justify-center items-center mr-40">
                   <CanvasArea
                     canvasAreaRef={pageRefs.canvasAreaRef}
                     contentWrapperRef={pageRefs.contentWrapperRef}
@@ -1340,6 +1916,11 @@ const CanvaEditor = () => {
                     pageId={page.id}
                     onPageRemove={handlePageRemove}
                     canRemovePage={pages.length > 1}
+                    alignmentGuides={isActivePage ? alignmentGuides : { x: [], y: [] }}
+                    rotateGuide={isActivePage ? rotateGuide : null}
+                    cropState={isActivePage ? cropState : null}
+                    onApplyCrop={isActivePage ? handleApplyCrop : () => { }}
+                    onCancelCrop={isActivePage ? handleCancelCrop : () => { }}
                   />
                 </div>
               </div>
@@ -1354,7 +1935,6 @@ const CanvaEditor = () => {
           setZoom={setZoom}
           currentPage={currentPageIndex + 1}
           totalPages={pages.length}
-          onAddPage={handleAddPage}
           onPageChange={handlePageChange}
           showGrid={showGrid}
           onToggleGrid={() => setShowGrid(!showGrid)}
@@ -1391,20 +1971,7 @@ const CanvaEditor = () => {
         onDownload={handleDownloadExport}
         onSaveWorksheet={handleSaveWorksheetToLocation}
       />
-      {/* Mobile Right Sidebar Toggle Button */}
-      {/* {layers.length > 0 && (
-        <button
-          onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-          className="lg:hidden fixed top-20 right-2 z-[20] bg-white border border-gray-300 rounded-lg p-2 shadow-lg hover:bg-gray-50 transition-all"
-          aria-label="Toggle right sidebar"
-        >
-          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        </button>
-      )} */}
 
-      {/* Mobile Right Sidebar Overlay */}
       {isRightSidebarOpen && layers.length > 0 && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[15]"
@@ -1425,6 +1992,8 @@ const CanvaEditor = () => {
               handleLayerToggleVisibility={handleLayerToggleVisibility}
               handleLayerDuplicate={handleLayerDuplicate}
               handleLayerDelete={handleLayerDelete}
+              handleLayerMoveUp={handleLayerMoveUp}
+              handleLayerMoveDown={handleLayerMoveDown}
               textSettings={textSettings}
               handleTextContentChange={handleTextContentChange}
               handleTextSettingsChange={handleTextSettingsChange}
@@ -1480,9 +2049,20 @@ const CanvaEditor = () => {
           onAddToCanvas={handleAddStyledImageToCanvas}
         />
       )}
+
+      <ProjectNameModal
+        open={isProjectNameModalOpen}
+        onClose={() => setIsProjectNameModalOpen(false)}
+        onConfirm={(name) => {
+          confirmSave(name);
+        }}
+        initialName={projectName}
+      />
+
     </div>
   );
 };
 
 export default CanvaEditor;
+
 

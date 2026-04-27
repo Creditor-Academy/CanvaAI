@@ -1,96 +1,138 @@
-import React, { useRef } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import "./Features.css";
 
+import {
+  FaFilePowerpoint,
+  FaImage,
+  FaFileWord
+} from "react-icons/fa";
+
 const features = [
-  { 
-    title: "AI Design Generator",
-    desc: "Create logos, layouts, posters from text prompts.",
-    img: "https://plus.unsplash.com/premium_photo-1727009856408-0ed31ef1e28d?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8QUklMjBkZXNpZ24lMjBnZW5lcmF0aW9ufGVufDB8fDB8fHww"
+  {
+    icon: <FaFilePowerpoint />,
+    number: "01",
+    title: "Presentation Creator",
+    desc: "Create beautiful presentations automatically with layouts and smart content."
   },
-  { 
-    title: "Image Creator",
-    desc: "Generate stylized art and product mockups instantly.",
-    img: "https://plus.unsplash.com/premium_photo-1661720325684-5475dd284cb4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8SW1hZ2UlMjBDcmVhdG9yfGVufDB8fDB8fHww"
+  {
+    icon: <FaImage />,
+    number: "02",
+    title: "Image Generator",
+    desc: "Turn text prompts into high-quality visuals and artwork instantly."
   },
-  { 
-    title: "Content Writer",
-    desc: "Write SEO-optimized blogs, captions and emails.",
-    img: "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8Q29udGVudCUyMFdyaXRlcnxlbnwwfHwwfHx8MA%3D%3D"
-  },
-  { 
-    title: "Code Generator",
-    desc: "Produce frontend or backend snippets from instructions.",
-    img: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&w=1280&q=80"
-  },
-  { 
-    title: "Video Producer",
-    desc: "Convert ideas or text into short videos.",
-    img: "https://images.unsplash.com/photo-1535223289827-42f1e9919769?ixlib=rb-4.0.3&w=1280&q=80"
-  },
-  { 
-    title: "Brand Builder",
-    desc: "Define palettes, typography and brand identity assets.",
-    img: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8QnJhbmRpbmd8ZW58MHx8MHx8fDA%3D"
-  },
-  { 
-    title: "Image Editor",
-    desc: "Remove backgrounds, apply filters and enhance images.",
-    img: "https://images.unsplash.com/photo-1604345982373-7b0f0241b5b8?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzJ8fEltYWdlJTIwRWRpdG9yfGVufDB8fDB8fHww"
-  },
-  { 
-    title: "Canvas for Designing",
-    desc: "Design freely on a full drag-and-drop canvas.",
-    img: "https://media.istockphoto.com/id/2198117853/photo/concept-of-business-ideas-and-startups-strategic-thinking-in-marketing.webp?a=1&b=1&s=612x612&w=0&k=20&c=dJsDlccdC-tliLQ5EIA10iho4GEFTYgwyxp0Bm1galM="
-  },
+  // {
+  //   icon: <FaFileWord />,
+  //   number: "03",
+  //   title: "Document Generator",
+  //   desc: "Generate blogs, reports and professional documents within seconds."
+  // }
 ];
 
-const Features = () => {
-  const trackRef = useRef(null);
-
-  const scroll = (delta) => {
-    if (trackRef.current) {
-      trackRef.current.scrollBy({ left: delta, behavior: "smooth" });
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.25
     }
-  };
+  }
+};
 
+const cardVariants = {
+  hidden: {
+    opacity: 0,
+    y: 60,
+    scale: 0.9
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.6
+    }
+  }
+};
+
+const Features = () => {
   return (
-    <section className="features section" id="features">
-      <div className="center">
-        <div className="kicker">Core Tools</div>
-        <h2 className="h2">Built for creators & teams</h2>
-        <p className="muted">Design, write, code, edit and collaborate — all in Athena.</p>
-      </div>
+    <section className="features-section" id="features">
 
-      <div className="slider-wrapper">
-        <button className="arrow left" onClick={() => scroll(-300)}>
-        </button>
+      <div className="features-container">
 
-        <motion.div className="features-slider" ref={trackRef}>
-          <motion.div className="features-track" drag="x" dragConstraints={{ left: -2000, right: 0 }}>
-            {features.map((f, i) => {
-              return (
-                <motion.div
-                  key={i}
-                  className="feature-card"
-                  style={{ backgroundImage: `url(${f.img})` }}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <div className="feature-overlay">
-                    <h3>{f.title}</h3>
-                    <p>{f.desc}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+        <motion.div
+          className="features-header"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ amount: 0.3 }}
+          transition={{ duration: 0.7 }}
+        >
+          <h2>Features</h2>
+          <p>
+            Generate, edit and design presentations and images 
+            with powerful AI tools.
+          </p>
         </motion.div>
 
-        <button className="arrow right" onClick={() => scroll(300)}>
-        </button>
+        <motion.div
+          className="features-grid"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ amount: 0.3 }}
+        >
+
+          {features.map((item, index) => (
+            <motion.div
+              key={index}
+              className="feature-card"
+              variants={cardVariants}
+              
+            >
+
+              <div className="card-shadow"></div>
+
+              <div className="card-box">
+                <div className="card-content">
+
+                  <h2>{item.number}</h2>
+
+                  <div className="icon">
+                    {item.icon}
+                  </div>
+
+                  <h3>{item.title}</h3>
+
+                  <p>{item.desc}</p>
+
+                  <a href="/login">Try Now</a>
+
+                </div>
+              </div>
+
+            </motion.div>
+          ))}
+
+        </motion.div>
+
       </div>
+
+      <svg
+        className="features-wave"
+        viewBox="0 0 1440 200"
+        preserveAspectRatio="none"
+      >
+        <path
+          d="M0,80 
+             C240,160 480,0 720,80 
+             C960,160 1200,0 1440,80 
+             L1440,200 
+             L0,200 
+             Z"
+          fill="#f9fafb"
+        />
+      </svg>
+
     </section>
   );
 };

@@ -1,564 +1,237 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FiGrid, FiPlus, FiFolder, FiStar, FiZap, FiImage, FiFileText, FiVideo, FiUsers, FiBarChart, FiHelpCircle, FiSettings, FiMenu, FiX, FiShield, FiLayout, FiArrowLeft } from 'react-icons/fi';
-import { useSidebar } from '../contexts/SidebarContext';
-import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
+import React from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
-const NAV_ITEMS = [
-  {
-    label: "Dashboard",
-    key: "dashboard",
-    icon: <FiGrid size={18} />,
-    section: "Navigation",
-    path: "/home"
-  },
-  {
-    label: "Create",
-    key: "create",
-    icon: <FiPlus size={18} />,
-    section: "Navigation",
-    sublabel: "New",
-    sublabelClass: "new",
-    path: "/create"
-  },
-  {
-    label: "Presentation",
-    key: "presentation",
-    icon: <FiLayout size={18} />,
-    section: "Navigation",
-    path: "/presentation"
-  },
-  {
-    label: "Projects",
-    key: "projects",
-    icon: <FiFolder size={18} />,
-    section: "Navigation",
-    path: "/projects"
-  },
-  {
-    label: "AI Generator",
-    key: "aiGenerator",
-    icon: <FiZap size={18} />,
-    section: "AI Tools",
-    sublabel: "Pro",
-    sublabelClass: "pro",
-    path: "/ai-generator"
-  },
-  {
-    label: "Image Editor",
-    key: "imageEditor",
-    icon: <FiImage size={18} />,
-    section: "AI Tools",
-    path: "/image-editor"
-  },
-  {
-    label: "Canva Clone",
-    key: "canvaClone",
-    icon: <FiGrid size={18} />,
-    section: "AI Tools",
-    sublabel: "New",
-    sublabelClass: "new",
-    path: "/canva-clone"
-  },
-  {
-    label: "Content Writer",
-    key: "contentWriter",
-    icon: <FiFileText size={18} />,
-    section: "AI Tools",
-    path: "/create/content-writer"
-  },
-  {
-    label: "Video Maker",
-    key: "videoMaker",
-    icon: <FiVideo size={18} />,
-    section: "AI Tools",
-    sublabel: "Beta",
-    sublabelClass: "beta",
-    path: "/video-maker"
-  },
-  {
-    label: "Editor",
-    key: "editor",
-    icon: <FiFileText size={18} />,
-    section: "AI Tools",
-    sublabel: "New",
-    sublabelClass: "new",
-    path: "/editor-intro"
-  },
-  {
-    label: "Team",
-    key: "team",
-    icon: <FiUsers size={18} />,
-    section: "Workspace",
-    path: "/team"
-  },
-  {
-    label: "Analytics",
-    key: "analytics",
-    icon: <FiBarChart size={18} />,
-    section: "Workspace",
-    path: "/analytics"
-  },
-  {
-    label: "Help & Support",
-    key: "helpSupport",
-    icon: <FiHelpCircle size={18} />,
-    section: "Workspace",
-    path: "/help-support"
-  },
-  {
-    label: "Settings",
-    key: "settings",
-    icon: <FiSettings size={18} />,
-    section: "Workspace",
-    path: "/settings"
-  },
+/* ---------- ICONS ---------- */
+
+const HomeIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 10.5L12 3l9 7.5"></path>
+    <path d="M5 10v10h5v-6h4v6h5V10"></path>
+  </svg>
+);
+
+const PPTIcon = ({ size = 20, active }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={active ? "white" : "black"}
+    strokeWidth="1.176"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
+    <path d="M18 1 L18 6 L23 6" />
+    <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
+  </svg>
+);
+
+
+const EditorIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M4 20h4l10-10a2.5 2.5 0 10-4-4L4 16v4z"></path>
+  </svg>
+);
+
+const ImageIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+    <path d="M21 15l-5-5-4 4-3-3-6 6"></path>
+  </svg>
+);
+
+const FolderIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path>
+  </svg>
+);
+
+const AnalyticsIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M4 20V10"></path>
+    <path d="M10 20V4"></path>
+    <path d="M16 20v-6"></path>
+    <path d="M22 20v-3"></path>
+  </svg>
+);
+
+const AdminIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M12 3l7 4v5c0 5-3 8-7 9-4-1-7-4-7-9V7l7-4z"></path>
+    <circle cx="12" cy="12" r="2"></circle>
+  </svg>
+);
+
+/* ---------------- NAV ITEMS ---------------- */
+
+const BASE_ITEMS = [
+  { label: "Home", path: "/home", icon: <HomeIcon /> },
+  { label: "PPT", path: "/presentation", icon: <PPTIcon /> },
+  { label: "Editor", path: "/editor-intro", icon: <EditorIcon /> },
+  { label: "Image", path: "/create-image", icon: <ImageIcon /> },
+  { label: "Files", path: "/projects", icon: <FolderIcon /> },
+  { label: "Analytics", path: "/analytics", icon: <AnalyticsIcon /> }
 ];
 
-const SECTIONS = ["Navigation", "AI Tools", "Workspace"];
+/* ---------------- RAIL ITEM ---------------- */
 
-const sidebarBg = "#5f5aad";
-const activeBg = "#4a4594";
-const iconColor = "#ffffff";
-const textColor = "#ffffff";
-const sectionColor = "#b8b5d6";
-const activeTextColor = "#ffffff";
+const RailItem = ({ active, label, icon, onClick }) => {
+  const [hovered, setHovered] = React.useState(false);
 
-const sublabelStyles = {
-  pro: {
-    background: "#ffffff",
-    color: "#5f5aad",
-    fontWeight: 600,
-    fontSize: "0.70rem",
-    borderRadius: "8px",
-    padding: "2px 8px",
-    marginLeft: "8px",
-  },
-  beta: {
-    background: "#ff6b6b",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "0.70rem",
-    borderRadius: "8px",
-    padding: "2px 8px",
-    marginLeft: "8px",
-  },
-  new: {
-    background: "#51cf66",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "0.70rem",
-    borderRadius: "8px",
-    padding: "2px 8px",
-    marginLeft: "8px",
-  },
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: 56,
+        border: "none",
+        background: hovered ? "rgba(59,130,246,0.08)" : "transparent",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        padding: "10px 0",
+        cursor: "pointer",
+        color: active ? "#1d4ed8" : "#4b5563",
+        borderRadius: 16,
+        transition: "background 160ms ease, transform 160ms ease"
+      }}
+    >
+      <div
+        style={{
+          width: 25,
+          height: 25,
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: active
+            ? "linear-gradient(135deg, rgba(37,99,235,0.95), rgba(6,182,212,0.90))"
+            : hovered
+            ? "rgba(255,255,255,0.75)"
+            : "rgba(255,255,255,0.55)",
+          color: active ? "#fff" : "#374151",
+          backdropFilter: "blur(10px)",
+          boxShadow: active
+            ? "0 12px 30px rgba(37,99,235,0.35), 0 0 0 6px rgba(59,130,246,0.10)"
+            : hovered
+            ? "0 10px 22px rgba(15,23,42,0.10)"
+            : "none",
+          transition:
+            "background 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+          transform: hovered ? "translateY(-1px)" : "translateY(0)"
+        }}
+      >
+        {React.cloneElement(icon, { active })}
+      </div>
+
+      <span
+        style={{
+          fontSize: 10,
+          textAlign: "center",
+          fontWeight: active ? 700 : 600,
+          letterSpacing: 0.2,
+          opacity: active ? 1 : 0.9
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
 };
+
+/* ---------------- SIDEBAR ---------------- */
 
 const SideBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const activePath = location.pathname;
-  const { isCollapsed, setIsCollapsed, isMobile, setIsMobile } = useSidebar();
+
   const { isAdmin } = useAuth();
 
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [profile, setProfile] = React.useState(null);
-  const [isHoveringProfile, setIsHoveringProfile] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [isTablet, setIsTablet] = React.useState(false);
 
-  // Dynamically add Admin Dash if user is admin
-  const navItems = React.useMemo(() => {
-    if (!isAdmin) return NAV_ITEMS;
+  React.useEffect(() => {
+    const checkScreen = () => {
+      const width = window.innerWidth;
+
+      setIsMobile(width <= 768);
+      setIsTablet(width > 768 && width <= 1024);
+    };
+
+    checkScreen(); // run on load
+    window.addEventListener("resize", checkScreen);
+
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
+
+  const ITEMS = React.useMemo(() => {
+    if (!isAdmin) return BASE_ITEMS;
+
     return [
       ...NAV_ITEMS,
       {
         label: "Admin Dash",
         key: "adminDash",
-        icon: <FiShield size={18} />,
+   
         section: "Workspace",
         path: "/admin-dash",
-        sublabel: "Admin",
-        sublabelClass: "pro",
-      },
+        icon: <AdminIcon />
+      }
     ];
   }, [isAdmin]);
 
-  // Detect viewport size
-  React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setIsMobile]);
-
-  // Auto close drawer on route change for mobile
-  React.useEffect(() => {
-    if (isMobile) setIsOpen(false);
-  }, [activePath, isMobile]);
-
-  // Prevent background scroll when mobile drawer is open
-  React.useEffect(() => {
-    if (!isMobile) return;
-    const originalOverflow = document.body.style.overflow;
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = originalOverflow || '';
-    }
-    return () => {
-      document.body.style.overflow = originalOverflow || '';
-    };
-  }, [isOpen, isMobile]);
-
-  // Fetch profile for avatar and basic info
-  React.useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const data = await api.getProfile();
-        if (!isMounted) return;
-        setProfile(data || null);
-      } catch {
-        // Ignore silently if not authenticated or endpoint unavailable
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const drawerWidth = isMobile ? Math.min(window.innerWidth, 420) : (isCollapsed ? 60 : 260);
-  const sidebarStyle = {
-    width: drawerWidth,
-    background: sidebarBg,
-    color: textColor,
-    height: "100vh",
-    position: "fixed",
-    top: 0,
-    left: 0,
-    borderRight: "1px solid #e5e5e9",
-    display: "flex",
-    flexDirection: "column",
-    transition: isMobile ? "transform 0.25s ease" : "width 0.25s ease",
-    transform: isMobile ? (isOpen ? "translateX(0)" : "translateX(-100%)") : "none",
-    willChange: isMobile ? "transform" : "width",
-    zIndex: 1000,
-    boxShadow: isMobile && isOpen ? "0 10px 30px rgba(0,0,0,0.15)" : "none",
+  const go = (path) => {
+    navigate(path);
   };
 
   return (
-    <>
-      {/* Mobile hamburger */}
-      {isMobile && (
-        <button
-          aria-label={isOpen ? 'Close menu' : 'Open menu'}
-          onClick={() => setIsOpen((v) => !v)}
-          style={{
-            position: "fixed",
-            top: 12,
-            left: 12,
-            zIndex: 1100,
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            border: "1px solid #e5e5e9",
-            background: "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(0,0,0,0.06)",
-            cursor: "pointer",
-            color: '#5f5aad',
-          }}
-        >
-          {isOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-        </button>
-      )}
-
-      {/* Overlay */}
-      {isMobile && isOpen && (
-        <div
-          onClick={() => setIsOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.25)",
-            zIndex: 900,
-          }}
+    <aside
+      className="hide-scrollbar"
+      style={{
+        position: "fixed",
+        left: isMobile ? "50%" : 18,
+        top: isMobile ? "auto" : "calc(50% + 36px)",
+        bottom: isMobile ? 14 : "auto",
+        transform: isMobile ? "translateX(-50%)" : "translateY(-50%)",
+        width: isMobile ? "92%" : 64,
+        maxHeight: isMobile ? "auto" : "calc(100vh - 100px)",
+        background: "rgba(255,255,255,0.35)",
+        backdropFilter: "blur(16px)",
+        border: "1px solid rgba(59,130,246,0.28)",
+        borderRadius: 22,
+        padding: isMobile ? "10px 12px" : "10px 0",
+        display: "flex",
+        flexDirection: isMobile ? "row" : "column",
+        alignItems: "center",
+        justifyContent: isMobile ? "space-around" : "flex-start",
+        overflowY: isMobile ? "visible" : "auto",
+        overflowX: "visible",
+        scrollbarWidth: "none",
+        gap: 6,
+        boxShadow:
+          "0 18px 45px rgba(15,23,42,0.10), 0 0 0 1px rgba(255,255,255,0.45) inset",
+        zIndex: 9999
+      }}
+    >
+      {ITEMS.map((item) => (
+        <RailItem
+          key={item.path}
+          label={item.label}
+          icon={item.icon}
+          active={location.pathname === item.path}
+          onClick={() => go(item.path)}
+          // compact={isCompactRail}
+          // mobile={isMobile}
         />
-      )}
-
-      <div style={sidebarStyle} className="custom-scrollbar">
-
-        {/* --- NEW DESKTOP TOGGLE BUTTON --- */}
-        {!isMobile && (
-          <button
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            style={{
-              position: 'absolute',
-              top: '24px',
-              right: '-16px',
-              zIndex: 1001,
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              border: '1px solid #e5e5e9',
-              background: '#ffffff',
-              color: '#5f5aad',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
-              transition: 'transform 0.25s ease',
-            }}
-          >
-            <FiArrowLeft
-              size={20}
-              style={{
-                transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.25s ease'
-              }}
-            />
-          </button>
-        )}
-
-        {/* Header */}
-        <div style={{
-          padding: isCollapsed && !isMobile ? "28px 12px 12px 12px" : "28px 20px 12px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          justifyContent: isCollapsed && !isMobile ? "center" : "flex-start"
-        }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "12px",
-              background: "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span style={{ color: "#ffffff", fontWeight: 700, fontSize: "1.35rem" }}>🧭</span>
-          </div>
-          {(!isCollapsed || isMobile) && (
-            <span style={{ fontWeight: 700, fontSize: "1.12rem", color: "#ffffff" }}>Athena AI</span>
-          )}
-        </div>
-
-        {/* Sections */}
-        <div style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-        }} className="custom-scrollbar">
-          {SECTIONS.map((section) => (
-            <div key={section}>
-              {(!isCollapsed || isMobile) && (
-                <div
-                  style={{
-                    fontSize: "0.78rem",
-                    letterSpacing: 1,
-                    textTransform: "uppercase",
-                    fontWeight: 600,
-                    margin: "20px 0 6px 20px",
-                    color: sectionColor,
-                  }}
-                >
-                  {section}
-                </div>
-              )}
-              <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
-                {navItems.filter((item) => item.section === section).map((item) => {
-                  const isActive = activePath === item.path;
-                  return (
-                    <li key={item.key}>
-                      <button
-                        onClick={() => {
-                          // Open canva-clone or editor in a new tab
-                          if (item.key === 'canvaClone') {
-                            const baseUrl = window.location.origin;
-                            window.open(`${baseUrl}${item.path}`, '_blank');
-                          } else {
-                            navigate(item.path);
-                          }
-                          if (isMobile) setIsOpen(false);
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          width: "100%",
-                          border: "none",
-                          outline: "none",
-                          padding: isCollapsed && !isMobile ? "11px 12px" : "11px 20px",
-                          cursor: "pointer",
-                          backgroundColor: isActive ? activeBg : "transparent",
-                          color: isActive ? activeTextColor : textColor,
-                          fontWeight: isActive ? 600 : 500,
-                          fontSize: "1rem",
-                          transition: "background 0.15s",
-                          justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
-                        }}
-                        title={isCollapsed && !isMobile ? item.label : undefined}
-                      >
-                        <span
-                          style={{
-                            color: iconColor,
-                            display: "flex",
-                            alignItems: "center",
-                            marginRight: isCollapsed && !isMobile ? "0" : "14px",
-                          }}
-                        >
-                          {item.icon}
-                        </span>
-                        {(!isCollapsed || isMobile) && (
-                          <>
-                            <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-                            {item.sublabel && (
-                              <span style={sublabelStyles[item.sublabelClass || "new"]}>{item.sublabel}</span>
-                            )}
-                          </>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: isCollapsed && !isMobile ? "16px 12px" : "16px 20px",
-            borderTop: "1px solid #4a4594",
-            background: "#4a4594",
-            position: "relative"
-          }}
-        >
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            justifyContent: isCollapsed && !isMobile ? "center" : "flex-start"
-          }}
-            onMouseEnter={() => setIsHoveringProfile(true)}
-            onMouseLeave={() => setIsHoveringProfile(false)}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: "50%",
-                background: "#ffffff",
-                color: "#5f5aad",
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.0rem",
-                overflow: "hidden"
-              }}
-            >
-              {profile && profile.avatar && String(profile.avatar).startsWith('http') ? (
-                <img
-                  src={profile.avatar}
-                  alt="avatar"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <span>
-                  {(profile?.firstName?.[0] || 'A').toUpperCase()}
-                  {(profile?.lastName?.[0] || 'T').toUpperCase()}
-                </span>
-              )}
-            </div>
-            {(!isCollapsed || isMobile) && (
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "0.96rem", color: "#ffffff" }}>
-                  {profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'User' : 'User'}
-                </div>
-                {profile?.plan && (
-                  <div style={{ fontSize: "0.8rem", color: "#b8b5d6" }}>
-                    {profile.plan}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Hover profile mini-card */}
-          {isHoveringProfile && isCollapsed && !isMobile && (
-            <div
-              style={{
-                position: "absolute",
-                left: 68,
-                bottom: 16,
-                background: "#ffffff",
-                color: "#0f172a",
-                border: "1px solid #e2e8f0",
-                borderRadius: 12,
-                boxShadow: "0 12px 32px rgba(15,23,42,0.18)",
-                padding: 12,
-                minWidth: 220,
-                zIndex: 1200,
-              }}
-              role="dialog"
-              aria-label="Profile preview"
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    background: "#f1f5f9",
-                    color: "#5f5aad",
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.95rem",
-                    overflow: "hidden"
-                  }}
-                >
-                  {profile && profile.avatar && String(profile.avatar).startsWith('http') ? (
-                    <img
-                      src={profile.avatar}
-                      alt="avatar"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <span>
-                      {(profile?.firstName?.[0] || 'A').toUpperCase()}
-                      {(profile?.lastName?.[0] || 'T').toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>
-                    {profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'User' : 'User'}
-                  </div>
-                  <div style={{ fontSize: "0.82rem", color: "#475569", overflow: "hidden", textOverflow: "ellipsis" }} title={profile?.email || ''}>
-                    {profile?.email || '—'}
-                  </div>
-                </div>
-              </div>
-              {profile?.plan && (
-                <div style={{ fontSize: "0.82rem", color: "#64748b" }}>
-                  Plan: <span style={{ color: "#111827", fontWeight: 600 }}>{profile.plan}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      ))}
+    </aside>
   );
 };
 

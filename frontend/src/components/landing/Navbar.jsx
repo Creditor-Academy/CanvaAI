@@ -1,51 +1,52 @@
 // src/components/landing/Navbar.jsx
 import React, { useState } from "react";
-import { FiMoon, FiSun } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 import "./Navbar.css";
+import logo from "../../assets/logo.png";
+
+const isTokenValid = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+};
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLoginClick = (e) => {
+    e.preventDefault();
+    if (isTokenValid()) {
+      navigate("/home", { replace: true });
+    } else {
+      navigate("/login");
+    }
+  };
 
   return (
-    <header className="nav-root">
-      <div className="nav-inner">
-        <div className="nav-left">
-          <a href="/" className="brand">
-            <div className="brand-mark">D</div>
-            <div className="brand-text">
-              <strong>Designova AI</strong>
-            </div>
+    <header className="navv-root">
+      <div className="navv-inner">
+        <div className="navv-left">
+          <a className="brand">
+            <img src={logo} alt="Designova AI" className="brand-logo" />
+            <div className="brand-text"> <strong>Designova </strong> </div>
+            
           </a>
         </div>
 
-        <nav className={`nav-links ${open ? "open" : ""}`}>
-          <a href="#features" className="nav-link">Features</a>
-          <a href="#create" className="nav-link">Create</a>
-          <a href="#projects" className="nav-link">Projects</a>
-          <a href="#favorites" className="nav-link">Favorites</a>
-          <a href="#team" className="nav-link">Team</a>
-          <a href="#analytics" className="nav-link">Analytics</a>
+        <nav className={`navv-links ${open ? "open" : ""}`}>
+          <a href="#features" className="navv-link">Features</a>
+          <a href="#how-it-works" className="navv-link">How It Works</a>
+          <a href="#faq" className="navv-link">FAQ</a>
         </nav>
 
         <div className="nav-actions">
-          <a className="btn btn-ghost nav-btn" href="/login">Log in</a>
-          <a className="btn btn-cta nav-btn" href="/login">Get Started</a>
-
-          <button
-            className="theme-btn"
-            aria-label="Toggle dark mode"
-            onClick={() => {
-              const root = document.querySelector('.landing-page');
-              if (!root) return;
-              const isDark = root.classList.contains('dark');
-              root.classList.toggle('dark', !isDark);
-              localStorage.setItem('landingTheme', !isDark ? 'dark' : 'light');
-            }}
-          >
-            {document.querySelector('.landing-page')?.classList.contains('dark') ? <FiSun /> : <FiMoon />}
-          </button>
-
-          {/* removed unused alternate theme button */}
+          <a className="btn btn-ghost login-btn" href="/login" onClick={handleLoginClick}>Log in</a>
 
           <button
             className={`hamburger ${open ? "is-active" : ""}`}

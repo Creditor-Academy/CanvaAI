@@ -1,6 +1,12 @@
 //import { title } from "node:process";
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+// Fallback to same-origin when VITE_API_BASE_URL is not provided.
+const API_BASE_URL = BASE_URL ? `${BASE_URL}/api/pp` : '/api/pp';
 
-const API_BASE_URL = '/api/pp';
+// const API_BASE_URL = '/api/pp';
+
+import { buildLayoutFromAIResponse } from './ai/aiLayoutService';
+import { autoAlignAISlides } from '../components/presentation3/layout/aiAutoAlign';
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -17,23 +23,38 @@ const getAuthHeaders = () => {
  * @returns {Promise<Object>} - Finalized presentation data
  */
 export const finalizePresentation = async (outlineData) => {
-  // Transform outlineData to backend format
-  // Backend expects: { meta: { topic, tone, slideCount }, slides: [...] }
-  const meta = {
-    topic: outlineData.meta?.topic || outlineData.topic || '',
-    tone: outlineData.meta?.tone || outlineData.tone || 'professional',
-    slideCount:outlineData.slides ? outlineData.slides.length : 0,
-    mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'minimal'
-  };
+  // Use the exact meta object that was sent to get-presentation-outline (preserved in originalMeta).
+  // Note: `topic` is a top-level payload field (not inside meta), so we inject it separately.
+  // Fall back to reconstructing meta only if originalMeta is unavailable.
+  const meta = outlineData.originalMeta
+    ? {
+      ...outlineData.originalMeta,
+      topic: outlineData.meta?.topic || outlineData.topic || '',
+      slideCount: outlineData.slides ? outlineData.slides.length : (outlineData.originalMeta.slideCount || 0)
+    }
+    : {
+      topic: outlineData.meta?.topic || outlineData.topic || '',
+      tone: outlineData.meta?.tone || outlineData.tone || 'professional',
+      slideCount: outlineData.slides ? outlineData.slides.length : 0,
+      mediaStyle: outlineData.meta?.mediaStyle || outlineData.mediaStyle || 'no-media',
+      theme: outlineData.meta?.theme || {
+        name: 'Default',
+        slideBackground: '#ffffff',
+        titleColor: '#000000',
+        bodyColor: '#333333',
+        accentColor: '#3b82f6'
+      }
+    };
+
 
   // Transform slides to backend format
   // Backend expects content as: string (paragraph), array (bullets), or object (comparison)
   const slides = outlineData.slides.map(slide => {
     let content = slide.content;
-    
+
     // Normalize contentType to match backend enum: 'paragraph', 'bullets', 'comparison'
     let contentType = slide.contentType || 'paragraph';
-    
+
     // Map invalid values to valid enum values
     if (contentType === 'list') {
       contentType = 'bullets';
@@ -71,7 +92,7 @@ export const finalizePresentation = async (outlineData) => {
           const rightMatch = rawText.match(/Right:\s*([\s\S]*?)$/i);
           const leftText = leftMatch ? leftMatch[1].trim() : '';
           const rightText = rightMatch ? rightMatch[1].trim() : '';
-          
+
           content = {
             left: leftText ? leftText.split('\n').map(l => l.replace(/^[•\-*]\s*/, '').trim()).filter(l => l) : [],
             right: rightText ? rightText.split('\n').map(l => l.replace(/^[•\-*]\s*/, '').trim()).filter(l => l) : []
@@ -116,7 +137,7 @@ export const finalizePresentation = async (outlineData) => {
   if (!meta.topic || meta.topic.trim() === '') {
     throw new Error('Topic is required to finalize presentation');
   }
-  
+
   if (slides.length === 0) {
     throw new Error('At least one slide is required to finalize presentation');
   }
@@ -132,27 +153,46 @@ export const finalizePresentation = async (outlineData) => {
     firstSlide: slides[0]
   });
 
-  const response = await fetch(`${API_BASE_URL}/finalize-ppt`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(requestBody)
-  });
+  const controller = new AbortController();
+  const timeoutMs = 120000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/finalize-ppt`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Finalize request timed out after ${Math.round(timeoutMs / 1000)}s. Please retry.`);
+    }
+
+    // Browser reports CORS/network failures as TypeError: Failed to fetch.
+    throw new Error(
+      'Unable to reach finalize API. Possible causes: backend timeout (504) or missing CORS headers. Check server logs for /api/pp/finalize-ppt.'
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!response.ok) { 
     let errorData;
     try {
       errorData = await response.json();
     } catch (e) {
       errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
     }
-    
+
     const errorMessage = errorData.details || errorData.error || `Failed to finalize presentation: ${response.status}`;
     console.error('Finalize presentation error:', {
       status: response.status,
       statusText: response.statusText,
       errorData: errorData
     });
-    
+
     throw new Error(errorMessage);
   }
 
@@ -162,13 +202,42 @@ export const finalizePresentation = async (outlineData) => {
   // Backend returns: { success: true, presentationId, data: { meta, slides, ... } }
   // Frontend expects: { success: true, presentationId, meta, slides }
   if (responseData.success && responseData.data) {
-    return {
+    let finalPayload = {
       success: true,
       presentationId: responseData.presentationId,
       meta: responseData.data.meta,
       // title: responseData.data.title || responseData.data.meta?.topic || '',
       slides: responseData.data.data.slides
     };
+
+    try {
+      // 1. Convert raw AI structure to base coordinates
+      let { slides } = buildLayoutFromAIResponse(finalPayload);
+      
+      // 2. Hydrate metadata flags for the transformer
+      slides = slides.map(slide => ({
+          ...slide,
+          meta: { ...(slide.meta || {}), isAIGenerated: true }
+      }));
+      
+      // 3. Auto Aligned layout recomposition
+      try {
+          slides = slides.map((slide, index) => {
+              if (slide.meta?.isAIGenerated) {
+                  return autoAlignAISlides([slide], { slideIndex: index })[0];
+              }
+              return slide;
+          });
+      } catch (alignErr) {
+          console.error("AutoAlign step failed:", alignErr);
+      }
+
+      finalPayload.slides = slides;
+    } catch (err) {
+        console.error("Layout normalization pipeline completely failed:", err);
+    }
+
+    return finalPayload;
   }
 
   return responseData;

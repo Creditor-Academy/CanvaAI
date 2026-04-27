@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import usePresentationStore from "../../store/usePresentationStore";
-import { useUIStore } from "../../store/useUIStore";
 import { withHybridLoader } from "../../utils/withHybridLoader";
 import "./topbar.css";
 import {
@@ -28,15 +27,22 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowDown,
-  Sparkles
+  Sparkles,
+  Loader
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
-import { exportToPDF, exportToPPTX } from "../../utils/PresentationExportService";
 
-const TopBar = ({ onPresent, onAgentClick }) => {
+const formatTimeAgo = (date) => {
+  if (!date) return "";
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return `${seconds} sec ago`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ago`;
+};
+
+const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const {
     addTextLayer,
     addShapeLayer,
@@ -49,8 +55,6 @@ const TopBar = ({ onPresent, onAgentClick }) => {
     copySelectedLayer,
     deleteSelectedLayer,
     selectedLayerId,
-    slides,
-    activeSlideId,
     futureCount,
     presentationId,
     title,
@@ -60,10 +64,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
 
   const { uploadFile, isUploading } = useImageUpload();
 
-  const activeSlide = slides.find((s) => s.id === activeSlideId);
-
   const [showShapes, setShowShapes] = useState(false);
-  const [showTheme, setShowTheme] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [showTablePopup, setShowTablePopup] = useState(false);
@@ -72,20 +73,36 @@ const TopBar = ({ onPresent, onAgentClick }) => {
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
 
+  const {
+    isSaving,
+    hasUnsavedChanges,
+    lastSavedAt,
+    saveError,
+    markUnsaved,
+    manualSave
+  } = autoSaveState || { hasUnsavedChanges: false };
+
+  const [lastSavedText, setLastSavedText] = useState("");
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const interval = setInterval(() => {
+      setLastSavedText(`Last saved ${formatTimeAgo(lastSavedAt)}`);
+    }, 10000); // update every 10s
+    setLastSavedText(`Last saved ${formatTimeAgo(lastSavedAt)}`);
+    return () => clearInterval(interval);
+  }, [lastSavedAt]);
 
   const shapesRef = useRef(null);
-  const themeRef = useRef(null);
   const imageOptionsRef = useRef(null);
   const downloadRef = useRef(null);
   const tablePopupRef = useRef(null);
+  const imageUploadInputRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (shapesRef.current && !shapesRef.current.contains(event.target)) {
         setShowShapes(false);
-      }
-      if (themeRef.current && !themeRef.current.contains(event.target)) {
-        setShowTheme(false);
       }
       if (imageOptionsRef.current && !imageOptionsRef.current.contains(event.target)) {
         setShowImageOptions(false);
@@ -104,21 +121,53 @@ const TopBar = ({ onPresent, onAgentClick }) => {
     };
   }, []);
 
-  const handleDebugSave = () => {
-    const presentationData = usePresentationStore.getState();
-    const dataToLog = {
-      slides: presentationData.slides,
-      // You can add other relevant top-level data here if needed, like presentation ID or title
-    };
-    console.log("--- DEBUG SAVE: Current Presentation JSON ---");
-    console.log(JSON.stringify(dataToLog, null, 2)); // null, 2 for pretty printing
+  const insertImageLayer = ({ url, key = null }) => {
+    const resolvedUrl = typeof url === 'string' ? url.trim() : url;
+    if (!resolvedUrl) {
+      throw new Error("Image URL is required");
+    }
+
+    // AgentPanel uses `null` for the `src` arg and passes the URL to `imageUrl`.
+    // Doing the same ensures we skip any conflicts with how 'src' is loaded.
+    if (typeof addImageLayer === 'function') {
+      addImageLayer(null, resolvedUrl, key);
+    } else {
+      throw new Error("addImageLayer is not defined in the store. Please contact support.");
+    }
+    
+    return { url: resolvedUrl, key };
+  };
+
+  const handleTopBarImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    event.target.value = "";
+
+    try {
+      await withHybridLoader(
+        async () => {
+          const pptId = presentationId || "new";
+          const { url, key } = await uploadFile(file, user?._id, pptId);
+          return insertImageLayer({ url, key });
+        },
+        "top",
+        "Uploading image..."
+      );
+    } catch (error) {
+      console.error("Image upload error:", error);
+      alert(`Failed to upload image. Error: ${error.message || "Unknown error"}`);
+    }
   };
 
   const handleAddImageFromUrl = () => {
-    if (imageUrlInput.trim()) {
-      addImageLayer(imageUrlInput);
+    try {
+      insertImageLayer({ url: imageUrlInput });
       setImageUrlInput("");
       setShowUrlModal(false);
+    } catch (error) {
+      console.error("Image URL insert error:", error);
+      alert(`Failed to add image from URL. Error: ${error.message || "Unknown error"}`);
     }
   };
 
@@ -134,16 +183,19 @@ const TopBar = ({ onPresent, onAgentClick }) => {
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" className="topbar-brand-icon">
             <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
             <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" stroke="#CCCCCC" strokeWidth="0.816">
-              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+              <path fill="none" stroke="#f8b21a" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
             </g>
             <g id="SVGRepo_iconCarrier">
-              <path fill="none" stroke="#0f71f0" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
+              <path fill="none" stroke="#f8b21a" strokeWidth="1.176" d="M4.99787498,8.99999999 L4.99787498,0.999999992 L19.4999998,0.999999992 L22.9999998,4.50000005 L23,23 L4,23 M18,1 L18,6 L23,6 M4,12 L4.24999995,12 L5.49999995,12 C7.5,12 9,12.5 8.99999995,14.25 C8.9999999,16 7.5,16.5 5.49999995,16.5 L4.24999995,16.5 L4.24999995,19 L4,18.9999999 L4,12 Z"></path>
             </g>
           </svg>
           <input
             type="text"
             value={title || ""}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (markUnsaved) markUnsaved();
+            }}
             placeholder="Untitled Project"
             className="project-input"
           />
@@ -154,62 +206,26 @@ const TopBar = ({ onPresent, onAgentClick }) => {
           <div className="topbar-links">
             {/* Save Button */}
             <button
-              className="nav-btn"
-              disabled={pastCount === 0}
-              style={{ opacity: pastCount === 0 ? 0.5 : 1, cursor: pastCount === 0 ? 'not-allowed' : 'pointer' }}
-              onClick={async () => {
-                const { addNotification } = useUIStore.getState();
-                
-                try {
-                  await withHybridLoader(
-                    async () => {
-                      const state = usePresentationStore.getState();
-                      const { presentationId, slides, title, setPresentationId } = state;
-
-                      // Prepare payload
-                      const payload = {
-                        userId: user?._id,
-                        title: title || "Untitled Presentation",
-                        data: {
-                          slides,
-                        }
-                      };
-
-                      const service = await import("../../../../services/presentation");
-
-                      if (presentationId) {
-                        // Update existing
-                        await service.updatePresentation(presentationId, payload);
-                        addNotification("Changes saved successfully!", "success");
-                      } else {
-                        // Create new
-                        const res = await service.savePresentation(payload);
-
-                        const newId = res.presentationId || res._id || res.id || (res.data && (res.data._id || res.data.id));
-
-                        if (newId) {
-                          setPresentationId(newId);
-                          // Update URL via navigate
-                          navigate(`/presentation-editor-v3/${newId}`, { replace: true });
-                          addNotification("Presentation saved successfully!", "success");
-                        } else {
-                          addNotification("Presentation saved, but could not retrieve ID. Please refresh.", "warning");
-                        }
-                      }
-                      
-                      return { success: true };
-                    },
-                    "top",
-                    presentationId ? "Saving changes..." : "Saving presentation..."
-                  );
-                } catch (error) {
-                  console.error("Save failed:", error);
-                  addNotification("Failed to save presentation.", "error");
-                }
+              className={`nav-btn${(isSaving || hasUnsavedChanges) ? ' nav-btn--saving' : ''}`}
+              onClick={() => {
+                if (manualSave) manualSave();
               }}
-              data-tooltip={presentationId ? "Save Changes" : "Save"}
+              data-tooltip={(isSaving || hasUnsavedChanges) ? 'Saving...' : presentationId ? 'Saved' : 'Save'}
             >
-              <Save size={18} /> {presentationId ? "Save Changes" : "Save"}
+              {(isSaving || hasUnsavedChanges) ? (
+                <>
+                  <Loader size={15} className="save-spinner" />
+                  Saving...
+                </>
+              ) : saveError ? (
+                <>
+                  <Save size={15} color="red" /> Retry Save
+                </>
+              ) : (
+                <>
+                  <Save size={15} /> {lastSavedAt ? lastSavedText : 'All changes saved'}
+                </>
+              )}
             </button>
 
             {/* Download Button */}
@@ -224,24 +240,34 @@ const TopBar = ({ onPresent, onAgentClick }) => {
 
               {showDownload && (
                 <div className="dropdown-menu">
-                  <button onClick={async () => {
-                    await withHybridLoader(
-                      async () => exportToPDF(slides, title),
-                      "top",
-                      "Exporting to PDF..."
-                    );
-                    setShowDownload(false);
-                  }}>
+                  <button
+                    disabled={!presentationId}
+                    onClick={async () => {
+                      await withHybridLoader(
+                        async () => {
+                          const service = await import("../../../../services/presentation");
+                          await service.exportPresentation(presentationId, "pdf");
+                        },
+                        "top",
+                        "Exporting to PDF..."
+                      );
+                      setShowDownload(false);
+                    }}>
                     PDF Document (.pdf)
                   </button>
-                  <button onClick={async () => {
-                    await withHybridLoader(
-                      async () => exportToPPTX(slides, title),
-                      "top",
-                      "Exporting to PPTX..."
-                    );
-                    setShowDownload(false);
-                  }}>
+                  <button
+                    disabled={!presentationId}
+                    onClick={async () => {
+                      await withHybridLoader(
+                        async () => {
+                          const service = await import("../../../../services/presentation");
+                          await service.exportPresentation(presentationId, "pptx");
+                        },
+                        "top",
+                        "Exporting to PPTX..."
+                      );
+                      setShowDownload(false);
+                    }}>
                     PowerPoint (.pptx)
                   </button>
                 </div>
@@ -318,7 +344,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
               className="icon-btn"
               data-tooltip="Add Table"
             >
-              <Table size={18} />
+              <Table size={34} />
               <ChevronDown size={14} />
             </button>
 
@@ -370,7 +396,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
               onClick={() => setShowShapes(!showShapes)}
               data-tooltip="Shapes"
             >
-              <Square size={18} />
+              <Square size={38} />
               <ChevronDown size={14} />
             </button>
 
@@ -426,38 +452,14 @@ const TopBar = ({ onPresent, onAgentClick }) => {
             type="file"
             accept="image/*"
             id="image-upload"
+            ref={imageUploadInputRef}
             className="hidden-input"
             disabled={isUploading}
-            onChange={async (e) => {
-              const file = e.target.files[0];
-              if (!file) return;
-            
-              try {
-                await withHybridLoader(
-                  async () => {
-                    // presentationId might be null for new presentations
-                    const pptId = presentationId || "new";
-                    const { url, key } = await uploadFile(file, user?._id, pptId);
-            
-                    // Add the image layer with S3 URL and Key
-                    // We don't store base64 in the store
-                    addImageLayer(null, url, key);
-                              
-                    e.target.value = "";
-                              
-                    return { url, key };
-                  },
-                  "top",
-                  "Uploading image..."
-                );
-              } catch (error) {
-                alert("Failed to upload image.");
-              }
-            }}
+            onChange={handleTopBarImageUpload}
           />
 
           {/* URL Input Modal */}
-          {showUrlModal && (
+          {showUrlModal && createPortal(
             <div className="modal-overlay" onClick={() => setShowUrlModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <h3>Add Image from URL</h3>
@@ -469,14 +471,14 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                   className="url-input-field"
                 />
                 <div className="modal-buttons">
-                  <button 
-                    className="secondary-btn" 
+                  <button
+                    className="secondary-btn"
                     onClick={() => setShowUrlModal(false)}
                   >
                     Cancel
                   </button>
-                  <button 
-                    className="primary-btn" 
+                  <button
+                    className="primary-btn"
                     onClick={handleAddImageFromUrl}
                     disabled={!imageUrlInput.trim()}
                   >
@@ -485,6 +487,7 @@ const TopBar = ({ onPresent, onAgentClick }) => {
                 </div>
               </div>
             </div>
+            , document.body
           )}
 
 
@@ -495,14 +498,14 @@ const TopBar = ({ onPresent, onAgentClick }) => {
               onClick={() => setShowImageOptions(!showImageOptions)}
               data-tooltip="Image Options"
             >
-              <ImageIcon size={18} />
+              <ImageIcon size={38} />
               <ChevronDown size={14} />
             </button>
 
             {showImageOptions && (
               <div className="dropdown-menu">
                 <button onClick={() => {
-                  document.getElementById("image-upload").click();
+                  imageUploadInputRef.current?.click();
                   setShowImageOptions(false);
                 }}>
                   <Upload size={16} /> Upload from Computer

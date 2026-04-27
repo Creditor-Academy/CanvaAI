@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -34,6 +34,17 @@ class ApiService {
       
       const response = await fetch(url, config);
       const contentType = response.headers.get('content-type') || '';
+
+      // Global 401 handler — only fires when a session token exists (not on login/signup attempts)
+      if (response.status === 401) {
+        const existingToken = localStorage.getItem('token');
+        if (existingToken) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
+        throw new Error('Session expired. Please log in again.');
+      }
+
       let data;
       if (response.status === 204) {
         data = null;
@@ -576,6 +587,43 @@ class ApiService {
     });
   }
 
+  // ============= Logo generation =============
+  async generateLogo(prompt, style = "realistic") {
+    return this.request(
+      `/api/generate-logo?style=${encodeURIComponent(style)}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ prompt }),
+      }
+    );
+  }
+
+  // ============= EXPORT / DOWNLOAD =============
+  // Returns a Blob (binary response), NOT JSON — do not use this.request()
+  async exportS3Image(s3Url, format = 'png') {
+    const token = localStorage.getItem('token');
+    const url = `${API_BASE_URL}/api/export/s3/images?s3Url=${encodeURIComponent(s3Url)}&format=${encodeURIComponent(format)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(msg || 'Download failed');
+    }
+    return response.blob();
+  }
+
+  // ============= PAYMENT API =============
+  async createPayment(planName) {
+    return this.request(`/api/payment/create-payment/${planName}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+  }
+
+
   // ============= ATHENA EDITOR DOCUMENTS =============
   // Save a document's TipTap JSON to backend (MongoDB)
   async saveEditorDocument(documentData) {
@@ -603,3 +651,5 @@ class ApiService {
 }
 
 export default new ApiService();
+
+

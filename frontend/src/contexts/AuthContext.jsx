@@ -3,6 +3,15 @@ import api from "../services/api";
 
 const AuthContext = createContext();
 
+const isTokenExpired = (token) => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+};
+
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -30,7 +39,9 @@ export const AuthProvider = ({ children }) => {
       setUser(profileData);
       setIsAdmin(profileData?.role === "admin");
     } catch (error) {
-      console.error("Failed to fetch user profile:", error);
+      console.error('Failed to fetch user profile:', error);
+      // api.js 401 handler already covers token rejection + redirect.
+      // For other errors (network, 500s) just clear user data without logging out.
       setUser(null);
       setIsAdmin(false);
       // Allow a retry on the next explicit login() call
@@ -46,8 +57,17 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      setIsAuthenticated(true);
-      fetchUserProfile();
+      if (isTokenExpired(token)) {
+        // Token exists but is expired — clear it immediately
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
+        setUser(null);
+        setIsAdmin(false);
+        setIsLoading(false);
+      } else {
+        setIsAuthenticated(true);
+        fetchUserProfile();
+      }
     } else {
       setIsAuthenticated(false);
       setUser(null);

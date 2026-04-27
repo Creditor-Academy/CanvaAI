@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useAlignment } from './useAlignment';
 
 /**
  * Custom hook for canvas interactions (drag, resize, rotate)
@@ -10,12 +11,16 @@ export const useCanvasInteractions = (
   setSelectedLayer,
   selectedTool,
   getCanvasPoint,
-  saveToHistory
+  saveToHistory,
+  canvasSize
 ) => {
+  /* ===================== ALIGNMENT ===================== */
+  const { snap, alignmentGuides, setAlignmentGuides, clearGuides } = useAlignment(layers, canvasSize);
   /* ===================== STATE ===================== */
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialLayers, setInitialLayers] = useState([]);
 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({
@@ -40,6 +45,7 @@ export const useCanvasInteractions = (
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMouseOverCanvas, setIsMouseOverCanvas] = useState(false);
+  const [rotateGuide, setRotateGuide] = useState(null);
 
   /* ===================== DRAG ===================== */
 
@@ -50,8 +56,9 @@ export const useCanvasInteractions = (
 
     setIsDragging(true);
     setDragStart({ x, y });
+    setInitialLayers([...layers]); // Store current state of all layers
     setSelectedLayer(layerId);
-  }, [selectedTool, getCanvasPoint, setSelectedLayer]);
+  }, [selectedTool, getCanvasPoint, setSelectedLayer, layers]);
 
   /* ===================== RESIZE ===================== */
 
@@ -125,15 +132,54 @@ export const useCanvasInteractions = (
             : l
         )
       );
+
+      // Rotation snap indicators: snap to nearest multiple of 45° (0,45,90,...)
+      // Show guide only when the current angle is within a small tolerance of the snap angle.
+      const norm = ((angle % 360) + 360) % 360;
+      const nearest = Math.round(norm / 45) * 45;
+      const delta = Math.abs(norm - nearest);
+      const diff = Math.min(delta, 360 - delta);
+      const TOL_DEG = 1; // strict tolerance: 1 degree
+
+      if (diff <= TOL_DEG) {
+        const snappedAngle = ((nearest % 360) + 360) % 360;
+        setRotateGuide({ angle: snappedAngle, cx: rotateStart.cx, cy: rotateStart.cy });
+      } else {
+        setRotateGuide(null);
+      }
+
+      // Always clear alignment guides while rotating to avoid mixing guide types
+      setAlignmentGuides({ x: [], y: [] });
       return;
     }
 
     /* ----- RESIZE ----- */
     if (isResizing && resizeStart.layerId) {
       const { x, y } = getCanvasPoint(e.clientX, e.clientY);
-      const dx = x - resizeStart.startX;
-      const dy = y - resizeStart.startY;
+
+      let dx = x - resizeStart.startX;
+      let dy = y - resizeStart.startY;
+
       const MIN = 20;
+
+      // 🔒 Detect corner handles
+      const isCorner = [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
+      ].includes(resizeStart.direction);
+
+      // 🔒 Lock diagonal movement (force both x & y together)
+      if (isCorner) {
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        const dominant = Math.max(absX, absY);
+
+        dx = dx < 0 ? -dominant : dominant;
+        dy = dy < 0 ? -dominant : dominant;
+      }
 
       setLayers(prev =>
         prev.map(layer => {
@@ -148,43 +194,59 @@ export const useCanvasInteractions = (
               width -= dx;
               height -= dy;
               break;
+
             case 'top-center':
               ly += dy;
               height -= dy;
               break;
+
             case 'top-right':
               ly += dy;
               width += dx;
               height -= dy;
               break;
+
             case 'right-center':
               width += dx;
               break;
+
             case 'bottom-right':
               width += dx;
               height += dy;
               break;
+
             case 'bottom-center':
               height += dy;
               break;
+
             case 'bottom-left':
               lx += dx;
               width -= dx;
               height += dy;
               break;
+
             case 'left-center':
               lx += dx;
               width -= dx;
               break;
+
             default:
               break;
           }
 
+          // 🚫 Prevent too small size
           if (width < MIN || height < MIN) return layer;
 
-          return { ...layer, x: lx, y: ly, width, height };
+          return {
+            ...layer,
+            x: lx,
+            y: ly,
+            width,
+            height
+          };
         })
       );
+
       return;
     }
 
@@ -194,15 +256,25 @@ export const useCanvasInteractions = (
       const dx = x - dragStart.x;
       const dy = y - dragStart.y;
 
-      setLayers(prev =>
-        prev.map(l =>
-          l.id === selectedLayer
-            ? { ...l, x: l.x + dx, y: l.y + dy }
-            : l
-        )
-      );
+      // Find the initial layer to calculate new position from
+      const initialLayer = initialLayers.find(l => l.id === selectedLayer);
 
-      setDragStart({ x, y });
+      if (initialLayer) {
+        // Calculate raw new position based on total delta from start
+        const rawX = initialLayer.x + dx;
+        const rawY = initialLayer.y + dy;
+
+        // Snap the candidate position
+        const { x: finalX, y: finalY, guides } = snap({ ...initialLayer, x: rawX, y: rawY });
+
+        // Set alignment guides for visualization
+        setAlignmentGuides(guides);
+
+        // Update the layer position in state
+        setLayers(prev =>
+          prev.map(l => l.id === selectedLayer ? { ...l, x: finalX, y: finalY } : l)
+        );
+      }
     }
   }, [
     isDragging,
@@ -210,10 +282,13 @@ export const useCanvasInteractions = (
     isRotating,
     selectedLayer,
     dragStart,
+    initialLayers,
     resizeStart,
     rotateStart,
     getCanvasPoint,
-    setLayers
+    setLayers,
+    snap,
+    setAlignmentGuides
   ]);
 
   /* ===================== MOUSE UP ===================== */
@@ -224,6 +299,9 @@ export const useCanvasInteractions = (
     setIsDragging(false);
     setIsResizing(false);
     setIsRotating(false);
+
+    // Clear alignment guides when drag ends
+    clearGuides();
 
     setResizeStart({
       startX: 0,
@@ -244,11 +322,14 @@ export const useCanvasInteractions = (
       layerId: null,
     });
 
+    // clear rotate guide
+    setRotateGuide(null);
+
     setLayers(curr => {
       saveToHistory(curr);
       return curr;
     });
-  }, [isDragging, isResizing, isRotating, setLayers, saveToHistory]);
+  }, [isDragging, isResizing, isRotating, setLayers, saveToHistory, clearGuides]);
 
   /* ===================== GLOBAL LISTENERS ===================== */
 
@@ -266,13 +347,11 @@ export const useCanvasInteractions = (
   /* ===================== CANVAS HELPERS ===================== */
 
   const handleCanvasMouseMove = useCallback((e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    // Convert to canvas coordinates for proper cursor positioning
+    const { x, y } = getCanvasPoint(e.clientX, e.clientY);
+    setMousePosition({ x, y });
     setIsMouseOverCanvas(true);
-  }, []);
+  }, [getCanvasPoint]);
 
   const handleCanvasMouseLeave = useCallback(() => {
     setIsMouseOverCanvas(false);
@@ -302,5 +381,7 @@ export const useCanvasInteractions = (
     handleCanvasMouseMove,
     handleCanvasMouseLeave,
     handleCanvasClick,
+    alignmentGuides, // Export guides
+    rotateGuide,
   };
 };

@@ -3,12 +3,27 @@ import { FiRotateCw } from 'react-icons/fi'
 import { getFilterCSS, getShadowCSS, hexToRgba } from '../../../utils/styleUtils'
 import FloatingToolbar from '../FloatingToolbar'
 import { MdDeleteOutline } from "react-icons/md";
+import CropOverlay from './CropOverlay';
 
 const LayerComponent = memo(({
-  layer, isSelected, selectedTool, getShapeDisplayProps, onLayerSelect,
-  onMouseDown, onResizeMouseDown, onRotateMouseDown, onTextContentChange,
-  setSelectedLayer, getLayerPrimaryColor, onQuickColorChange, onDuplicate,
-  onDelete, onEnhanceText, isEnhancingText, renderLayerUIOnly = false
+  layer,
+  zoom = 100,
+  isSelected,
+  selectedTool,
+  getShapeDisplayProps,
+  onLayerSelect,
+  onMouseDown,
+  onResizeMouseDown,
+  onRotateMouseDown,
+  onTextContentChange,
+  setSelectedLayer,
+  getLayerPrimaryColor,
+  onQuickColorChange,
+  onDuplicate,
+  onDelete,
+  onEnhanceText,
+  isEnhancingText,
+  renderLayerUIOnly = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localText, setLocalText] = useState(layer.text || '');
@@ -20,6 +35,25 @@ const LayerComponent = memo(({
     setLocalText(layer.text || '');
   }, [layer.text]);
 
+  const [measuredHeight, setMeasuredHeight] = useState(layer.height);
+
+  // Sync UI layer height with content layer height for text layers
+  useEffect(() => {
+    if (renderLayerUIOnly && layer.type === 'text') {
+      const contentEl = document.getElementById(`layer-content-${layer.id}`);
+      if (contentEl) {
+        setMeasuredHeight(contentEl.offsetHeight);
+        const observer = new ResizeObserver(() => {
+          if (contentEl.offsetHeight > 0) {
+            setMeasuredHeight(contentEl.offsetHeight);
+          }
+        });
+        observer.observe(contentEl);
+        return () => observer.disconnect();
+      }
+    }
+  }, [renderLayerUIOnly, layer.id, layer.type, layer.text]);
+
   // Focus and move cursor to end when editing starts
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -28,6 +62,16 @@ const LayerComponent = memo(({
       el.setSelectionRange(el.value.length, el.value.length);
     }
   }, [isEditing]);
+
+  // Auto-resize textarea height as content changes
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      const el = textareaRef.current;
+      el.style.height = '0px';
+      const scrollHeight = el.scrollHeight;
+      el.style.height = scrollHeight + 'px';
+    }
+  }, [localText, isEditing]);
 
   const handleDoubleClick = useCallback((e) => {
     e.stopPropagation();
@@ -103,7 +147,7 @@ const LayerComponent = memo(({
           return (
             <textarea
               ref={textareaRef}
-              className="w-full h-full bg-transparent resize-none outline-none overflow-hidden"
+              className="w-full bg-transparent resize-none outline-none"
               style={{
                 ...textStyle,
                 // FIX: Match the exact padding/margin of the div
@@ -116,14 +160,13 @@ const LayerComponent = memo(({
                 // FIX: Align text properly
                 verticalAlign: 'top',
                 // FIX: Remove default textarea styles
-                overflow: 'hidden',
+                overflow: 'visible',
                 // FIX: Match the display properties
                 display: 'flex',
                 alignItems: 'center',
-                // FIX: Ensure it takes full height
-                height: '100%',
+                // FIX: Ensure it grows with content
+                height: 'auto',
                 minHeight: '100%',
-                maxHeight: '100%',
               }}
               value={localText}
               onChange={(e) => setLocalText(e.target.value)}
@@ -141,12 +184,13 @@ const LayerComponent = memo(({
         return (
           <div
             ref={textDivRef}
-            className={`w-full h-full p-1 overflow-hidden cursor-move ${isEditing ? 'select-text' : 'select-none'
+            className={`w-full h-auto p-1 overflow-visible cursor-move ${isEditing ? 'select-text' : 'select-none'
               }`}
             style={{
               ...textStyle,
               padding: '0.25rem',
               margin: '0',
+              minHeight: '100%',
             }}
             onDoubleClick={handleDoubleClick}
           >
@@ -163,21 +207,193 @@ const LayerComponent = memo(({
         );
 
       case 'shape':
-        return (
-          <div
-            className="w-full h-full"
-            style={{
-              ...commonStyle,
-              backgroundColor: layer.fillType === 'image' ? 'transparent' : layer.fillColor,
-              backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
-              backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
-              border: `${layer.strokeWidth}px solid ${layer.strokeColor}`,
-              borderRadius: displayProps?.borderRadius,
-              clipPath: displayProps?.clipPath,
-              boxShadow: getShadowCSS(layer.shadows),
-            }}
-          />
-        );
+        {
+          const strokeW = (layer.strokeWidth == null) ? 1 : Math.max(1, layer.strokeWidth);
+          const strokeC = layer.strokeColor || '#000000';
+          const baseBoxShadow = getShadowCSS(layer.shadows) || 'none';
+
+          // Check if this is a path-based shape (like heart or cloud)
+          const isPathShape = displayProps?.isPathShape;
+          const pathData = displayProps?.pathData;
+          const isLineShape = displayProps?.isLineShape;
+
+          // Handle line shapes
+          if (isLineShape) {
+            const lineColor = layer.fillColor || layer.strokeColor || '#000000';
+            const lineWidth = (layer.strokeWidth == null) ? 2 : Math.max(1, layer.strokeWidth);
+
+            return (
+              <div className="w-full h-full relative" style={{ ...commonStyle }}>
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${layer.width} ${layer.height}`}
+                  preserveAspectRatio="none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible'
+                  }}
+                >
+                  <line
+                    x1="0"
+                    y1={layer.height / 2}
+                    x2={layer.width}
+                    y2={layer.height / 2}
+                    stroke={lineColor}
+                    strokeWidth={lineWidth}
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            );
+          }
+
+          // Handle path-based shapes (heart, cloud)
+          if (isPathShape && pathData) {
+            // Generate a unique ID for patterns
+            const patternId = `pattern-${layer.id}-${Date.now()}`;
+
+            return (
+              <div className="w-full h-full relative" style={{ ...commonStyle }}>
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 24 24"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible'
+                  }}
+                >
+                  {/* Define patterns for image fills */}
+                  {layer.fillType === 'image' && layer.fillImageSrc && (
+                    <defs>
+                      <pattern
+                        id={patternId}
+                        patternUnits="objectBoundingBox"
+                        width="1"
+                        height="1"
+                        viewBox="0 0 24 24"
+                        preserveAspectRatio="xMidYMid slice"
+                      >
+                        <image
+                          href={layer.fillImageSrc}
+                          width="24"
+                          height="24"
+                          preserveAspectRatio="xMidYMid slice"
+                        />
+                      </pattern>
+                    </defs>
+                  )}
+
+                  {/* Fill path - use pattern if image fill, otherwise use fill color */}
+                  <path
+                    d={pathData}
+                    fill={
+                      layer.fillType === 'image' && layer.fillImageSrc
+                        ? `url(#${patternId})`
+                        : (layer.fillColor || '#3182ce')
+                    }
+                    stroke="none"
+                  />
+
+                  {/* Stroke path (if stroke width > 0) */}
+                  {strokeW > 0 && (
+                    <path
+                      d={pathData}
+                      fill="none"
+                      stroke={strokeC}
+                      strokeWidth={strokeW / (24 / Math.min(layer.width, layer.height) * 2)}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                </svg>
+              </div>
+            );
+          }
+
+
+          // Original clip-path based rendering for other shapes
+          const clip = displayProps?.clipPath;
+
+          const renderClipStroke = () => {
+            if (!clip || clip === 'none') return null;
+
+            // polygon(...) => extract points
+            if (clip.startsWith('polygon(')) {
+              const inner = clip.slice('polygon('.length, -1);
+              const points = inner.split(',').map(pt => {
+                const [x, y] = pt.trim().split(/\s+/);
+                return `${x.replace('%', '')},${y.replace('%', '')}`;
+              }).join(' ');
+
+              return (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  <polygon points={points} fill="none" stroke={strokeC} strokeWidth={strokeW} vectorEffect="non-scaling-stroke" />
+                </svg>
+              );
+            }
+
+            // path("M...") or path('M...') => extract path d
+            const pathMatch = clip.match(/path\((?:"|'?)(.+?)(?:"|'?)\)/);
+            if (pathMatch) {
+              const d = pathMatch[1];
+              return (
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  <path d={d} fill="none" stroke={strokeC} strokeWidth={strokeW} vectorEffect="non-scaling-stroke" />
+                </svg>
+              );
+            }
+
+            return null;
+          };
+
+          const showSvgStroke = clip && clip !== 'none';
+
+          return (
+            <div className="w-full h-full relative" style={{ ...commonStyle }}>
+              <div
+                className="w-full h-full"
+                style={{
+                  backgroundColor: layer.fillType === 'image' ? 'transparent' : layer.fillColor,
+                  backgroundImage: layer.fillType === 'image' ? `url(${layer.fillImageSrc})` : 'none',
+                  backgroundSize: layer.fillImageFit === 'contain' ? 'contain' : 'cover',
+                  borderRadius: displayProps?.borderRadius,
+                  clipPath: clip,
+                  boxShadow: baseBoxShadow,
+                }}
+              />
+
+              {showSvgStroke && renderClipStroke()}
+              {!showSvgStroke && strokeW > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  border: `${strokeW}px solid ${strokeC}`,
+                  borderRadius: displayProps?.borderRadius,
+                  pointerEvents: 'none',
+                  clipPath: clip // Apply same clip path to border
+                }} />
+              )}
+            </div>
+          );
+        }
 
       case 'image':
         return (
@@ -190,7 +406,12 @@ const LayerComponent = memo(({
               transform: layer.flipped ? 'scaleX(-1)' : 'none'
             }}
           >
-            <img src={layer.src} alt={layer.name} className="w-full h-full object-contain block bg-no-repeat " draggable={false} />
+            <img
+              src={layer.src}
+              alt={layer.name}
+              className="w-full h-full object-cover block"
+              draggable={false}
+            />
           </div>
         );
 
@@ -225,12 +446,14 @@ const LayerComponent = memo(({
 
   return (
     <div
-      className="absolute select-none"
+      id={`layer-${renderLayerUIOnly ? 'ui' : 'content'}-${layer.id}`}
+      className={`absolute select-none ${layer.type === 'shape' && !renderLayerUIOnly ? 'p-4' : ''}`}
       style={{
         left: layer.x,
         top: layer.y,
         width: layer.width,
-        height: layer.height,
+        height: layer.type === 'text' ? (renderLayerUIOnly ? measuredHeight : 'auto') : layer.height,
+        minHeight: layer.type === 'text' ? layer.height : undefined,
         border: (isSelected && renderLayerUIOnly) ? '2px dashed #3182ce' : 'none',
         zIndex: isSelected ? 1000 : layer.zIndex,
         display: layer.visible ? 'block' : 'none',
@@ -245,6 +468,9 @@ const LayerComponent = memo(({
       onClick={handleLayerClick}
       onMouseDown={renderLayerUIOnly ? undefined : handleLayerMouseDown} // Only handle drag in content mode
     >
+      {isSelected && renderLayerUIOnly && (
+        <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none" />
+      )}
       {!renderLayerUIOnly && renderContent}
 
       {/* 🔴 Handles only appear in UI Mode */}
@@ -252,6 +478,7 @@ const LayerComponent = memo(({
         <>
           {/* Enable pointer events for handles so they can be clicked */}
           <div style={{ pointerEvents: 'auto' }}>
+            {/* Inline FloatingToolbar (counter-scaled by zoom) so it remains fixed size when canvas zooms */}
             <FloatingToolbar
               layer={layer}
               onColorChange={onQuickColorChange}
@@ -260,56 +487,57 @@ const LayerComponent = memo(({
               onEnhance={onEnhanceText}
               isEnhancing={isEnhancingText}
               getLayerPrimaryColor={getLayerPrimaryColor}
+              zoom={zoom}
             />
 
             {/* 🔵 Corner Resize Handles */}
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-left')}
-              className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+              className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-right')}
-              className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+              className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-left')}
-              className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1001]"
+              className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nesw-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-right')}
-              className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1001]"
+              className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-blue-600 border-2 border-white cursor-nwse-resize z-[1550]"
             />
 
             {/* 🔵 Edge Center Resize Handles */}
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'top-center')}
-              className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+              className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'bottom-center')}
-              className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1001]"
+              className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ns-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'left-center')}
-              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1550]"
             />
 
             <div
               onMouseDown={(e) => onResizeMouseDown(e, layer, 'right-center')}
-              className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1001]"
+              className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 border-2 border-white cursor-ew-resize z-[1550]"
             />
 
-            {/* 🔄 Rotate Handle */}
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
+            {/* 🔄 Rotate Handle (moved below) */}
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-px h-8 bg-blue-600" />
 
             <div
               onMouseDown={(e) => onRotateMouseDown(e, layer)}
-              className="absolute -top-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1001]"
+              className="absolute -bottom-14 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-blue-600 cursor-grab flex items-center justify-center z-[1550]"
             >
               <FiRotateCw size={12} color="#3182ce" />
             </div>
@@ -321,6 +549,8 @@ const LayerComponent = memo(({
     </div>
   );
 });
+
+
 const CanvasArea = ({
   canvasAreaRef, contentWrapperRef, canvasRef, canvasSize, zoom, showGrid, pan,
   handleCanvasClick, handleDrawingMouseDown, handleCanvasMouseMove, handleCanvasMouseLeave,
@@ -330,7 +560,8 @@ const CanvasArea = ({
   getShapeDisplayProps, handleQuickColorChange, handleLayerDuplicate, handleLayerDelete,
   handleEnhanceText, isEnhancingText, getLayerPrimaryColor, setSelectedLayer,
   canvasBgColor = '#ffffff', canvasBgImage = null, handleUndo, handleRedo,
-  pageId, onPageRemove, canRemovePage = true,
+  pageId, onPageRemove, canRemovePage = true, alignmentGuides = { x: [], y: [] }, rotateGuide = null,
+  cropState = null, onApplyCrop, onCancelCrop
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -351,10 +582,26 @@ const CanvasArea = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
+  // Compute diagonal rotate line endpoints when a rotateGuide is present
+  const rotateLine = (() => {
+    if (!rotateGuide) return null;
+    const { angle, cx, cy } = rotateGuide;
+    const rad = (angle * Math.PI) / 180;
+    const L = Math.hypot(canvasSize.width, canvasSize.height) * 1.2;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+    return {
+      x1: cx - dx * L,
+      y1: cy - dy * L,
+      x2: cx + dx * L,
+      y2: cy + dy * L,
+    };
+  })();
+
   return (
     <div
       ref={canvasAreaRef}
-      className="flex-1 relative overflow-visible bg-[#f0f2f5] flex items-center justify-center"
+      className="flex-1 relative overflow-visible  flex items-center justify-center"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -382,19 +629,14 @@ const CanvasArea = ({
       >
         <div
           ref={canvasRef}
-          className="absolute top-0 left-0 origin-top-left shadow-2xl"
+          className="absolute top-0 left-0 origin-top-left border border-gray-300"
           style={{
             width: `${canvasSize.width}px`,
             height: `${canvasSize.height}px`,
             transform: `scale(${zoom / 100})`,
-            background: canvasBgColor,
-            backgroundImage: [
-              showGrid ? 'radial-gradient(circle, #ddd 1px, transparent 1px)' : null,
-              canvasBgImage ? `url(${canvasBgImage})` : null
-            ].filter(Boolean).join(', '),
-
-            /* ✅ ONLY FIX */
-            backgroundSize: canvasBgImage ? '100% 100%' : '20px 20px',
+            background: canvasBgImage ? 'none' : canvasBgColor,
+            backgroundImage: canvasBgImage ? `url(${canvasBgImage})` : (canvasBgColor.includes('gradient') ? canvasBgColor : 'none'),
+            backgroundSize: canvasBgImage ? '100% 100%' : 'auto',
             backgroundRepeat: canvasBgImage ? 'no-repeat' : 'repeat',
             backgroundPosition: 'center',
 
@@ -412,8 +654,21 @@ const CanvasArea = ({
           onMouseMove={handleCanvasMouseMove}
           onMouseLeave={handleCanvasMouseLeave}
         >
-          {/* 1. Content Layer (Clipped) */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* 0. Grid Overlay (Separate from background to handle sizing/export interactions) */}
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none z-0"
+              style={{
+                backgroundImage: 'radial-gradient(circle, #999 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+                backgroundPosition: 'center'
+              }}
+              data-html2canvas-ignore="true"
+            />
+          )}
+
+          {/* 1. Content Layer (Overflow Visible to allow interaction outside canvas) */}
+          <div className="absolute inset-0 overflow-visible pointer-events-none">
             {/* Pointer events none on wrapper? No, users need to click content. 
                   But overflow-hidden might clip interactions? 
                   If interactions are strictly inside, it's fine.
@@ -423,7 +678,8 @@ const CanvasArea = ({
                 <LayerComponent
                   key={layer.id}
                   layer={layer}
-                  isSelected={false} // 🔴 Don't render UI here
+                  zoom={zoom}
+                  isSelected={layer.id === selectedLayer}
                   selectedTool={selectedTool}
                   getShapeDisplayProps={getShapeDisplayProps}
                   onLayerSelect={handleLayerSelect}
@@ -444,12 +700,14 @@ const CanvasArea = ({
             </div>
           </div>
 
+          {/* Floating toolbar is rendered inline inside the selected layer's UI component. */}
+
 
           {/* 🔴 Current Drawing Path Rendering (Inside Content Layer? Or on top?) 
               On top is fine, clipped? Drawing usually stays on canvas.
           */}
           {currentPath.length > 1 && (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 overflow-visible pointer-events-none">
               <svg
                 className="absolute top-0 left-0"
                 style={{
@@ -476,12 +734,13 @@ const CanvasArea = ({
             </div>
           )}
 
-          {/* 2. UI Layer (Visible Overflow, Top Level) */}
-          <div className="absolute inset-0 overflow-visible pointer-events-none">
+          {/* 2. UI Layer (Visible Overflow, Top Level, Above Mask) */}
+          <div className="absolute inset-0 overflow-visible pointer-events-none z-[1500]">
             {layers.filter(l => l.id === selectedLayer).map(layer => (
               <LayerComponent
                 key={`ui-${layer.id}`}
                 layer={layer}
+                zoom={zoom}
                 isSelected={true} // 🔴 Render UI here
                 selectedTool={selectedTool}
                 getShapeDisplayProps={getShapeDisplayProps}
@@ -502,6 +761,45 @@ const CanvasArea = ({
             ))}
           </div>
 
+          {/* 3. Alignment Guides Layer */}
+          <div className="absolute inset-0 pointer-events-none z-[1600]">
+            {alignmentGuides && alignmentGuides.x.map((val, i) => (
+              <div
+                key={`guide-x-${i}`}
+                className="absolute top-0 bottom-0 border-l border-dashed border-pink-500"
+                style={{ left: val, width: '1px' }}
+              />
+            ))}
+            {alignmentGuides && alignmentGuides.y.map((val, i) => (
+              <div
+                key={`guide-y-${i}`}
+                className="absolute left-0 right-0 border-t border-dashed border-pink-500"
+                style={{ top: val, height: '1px' }}
+              />
+            ))}
+            {rotateLine && (
+              <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 1601 }}>
+                <line
+                  x1={rotateLine.x1}
+                  y1={rotateLine.y1}
+                  x2={rotateLine.x2}
+                  y2={rotateLine.y2}
+                  stroke="#ef476f"
+                  strokeWidth={2}
+                  strokeDasharray="6 6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+          </div>
+
+          {/* 4. Visual Clipping Mask (Hides content outside canvas, but allows clicks) */}
+          <div
+            className="absolute inset-0 pointer-events-none z-[1350]"
+            style={{ boxShadow: '0 0 0 10000px #f8f9fa' }}
+            data-html2canvas-ignore="true"
+          />
+
           {selectedTool === 'eraser' && isMouseOverCanvas && (
             <div
               className="absolute rounded-full border-2 border-slate-400 bg-white/50 pointer-events-none z-[2000] shadow-sm"
@@ -514,6 +812,19 @@ const CanvasArea = ({
               }}
             />
           )}
+
+          {/* Crop Overlay */}
+          {cropState !== null && cropState && selectedLayer && (() => {
+            const layer = layers.find(l => l.id === selectedLayer);
+            return layer && layer.type === 'image' && cropState.layerId === selectedLayer ? (
+              <CropOverlay
+                layer={layer}
+                onApply={onApplyCrop}
+                onCancel={onCancelCrop}
+                zoom={zoom}
+              />
+            ) : null;
+          })()}
         </div>
       </div>
     </div>

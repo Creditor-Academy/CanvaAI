@@ -559,8 +559,8 @@ const LeftSidebar = ({
                       padding: '6px',
                       fontSize: '11px',
                       flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '2px',
+                      alignItems: 'flex-start',
+                      gap: '4px',
                       minHeight: '60px',
                       border: hoveredOption === `tpl-${template.id}` ? '1px solid #ffffff' : '1px solid #e1e5e9',
                       backgroundColor: hoveredOption === `tpl-${template.id}` ? '#334155' : 'white'
@@ -570,8 +570,7 @@ const LeftSidebar = ({
                     onClick={() => handleTemplateSelect(template)}
                     title={`${template.name} - ${template.width}×${template.height}`}
                   >
-                    <span style={{ fontSize: '16px' }}>{template.thumbnail}</span>
-                    <span style={{ fontSize: '10px', fontWeight: '500' }}>{template.name}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '600' }}>{template.name}</span>
                     <span style={{ fontSize: '9px', color: '#666' }}>
                       {template.width}×{template.height}
                     </span>
@@ -714,3 +713,5 @@ const LeftSidebar = ({
 };
 
 export default LeftSidebar;
+
+

@@ -1,8 +1,9 @@
 import ShapeRenderer from "../components/shapes/ShapeRenderer";
 
-const ShapeLayer = ({ layer, selected, onMouseDown, children }) => {
+const ShapeLayer = ({ layer, selected, onMouseDown, children, layerRef }) => {
   return (
     <div
+      ref={layerRef}
       onMouseDown={onMouseDown}
       style={{
         position: "absolute",

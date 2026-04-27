@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import "./agent-panel.css";
 import * as aiService from "../../../../services/presentation/presentation.service";
+import {
+  processAndAppendAISlide,
+  processAndAppendAILayers,
+} from "../../processor/processAIGeneration";
 
 const AgentPanel = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -46,6 +50,8 @@ const AgentPanel = ({ isOpen, onClose }) => {
     }
     return null;
   };
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [balancePopupMessage, setBalancePopupMessage] = useState("");
 
   // Reset state when closing or changing modes
   useEffect(() => {
@@ -72,56 +78,72 @@ const AgentPanel = ({ isOpen, onClose }) => {
     if (!prompt.trim() || isGenerating) return;
 
     const userId = getUserId();
-    console.log("--- AgentPanel: handleSubmit IDs check:", { userId, presentationId });
 
     if (!userId || !presentationId) {
-      alert(`Missing IDs. userId: ${userId || 'null'}, presentationId: ${presentationId || 'null'}. Please ensure you are logged in and the presentation is saved.`);
+      alert("Missing IDs. Please login again.");
       return;
     }
 
     setIsGenerating(true);
+
     try {
       if (mode === "generate-image") {
-        console.log("--- AgentPanel: Generating image with prompt:", prompt);
-        const res = await aiService.generateAIImage(userId, presentationId, prompt);
+        const activeSlide = slides.find(s => s.id === activeSlideId);
+        const res = await aiService.generateAIImage({
+          userId,
+          pptId: presentationId,
+          userPrompt: prompt,
+          activeSlideData: activeSlide
+        });
         if (res.url) {
           addImageLayer(null, res.url, res.key);
         }
       } else if (mode === "generate-slide") {
-        console.log("--- AgentPanel: Generating slide. Payload check:", { userId, presentationId, prompt, mediaType });
-        const res = await aiService.generateAISlide(userId, presentationId, prompt, mediaType);
-        console.log("--- AgentPanel: Generate slide response:", res);
+        const presentationData = { slides };
+        const res = await aiService.generateAISlide({
+          userId,
+          pptId: presentationId,
+          userPrompt: prompt,
+          mediaStyle: mediaType,
+          presentationData
+        });
         if (res.success && res.data) {
-          appendSlide(res.data);
-          // appendSlide already handles normalization and setActiveSlide internally
-          // onClose() will ensure the workspace view updates immediately to the new slide
+          // Route through the layout engine — assigns x/y/width/height and sets layoutProcessed: true
+          processAndAppendAISlide(res.data, appendSlide);
           onClose();
         }
       } else if (mode === "expand-slide") {
         const slideToExpand = slides.find(s => s.id === selectedSlideId);
-        console.log("--- AgentPanel: Expanding slide. Payload check:", {
+        const res = await aiService.expandAISlide({
           userId,
-          presentationId,
-          prompt,
-          mediaType,
-          slideId: selectedSlideId,
-          slideDataSample: slideToExpand?.layers?.[0]?.type
+          pptId: presentationId,
+          activeSlide: slideToExpand,
+          userPrompt: prompt,
+          mediaStyle: mediaType
         });
 
-        const res = await aiService.expandAISlide(userId, presentationId, prompt, mediaType, slideToExpand);
-        console.log("--- AgentPanel: Expand slide response:", res);
-
         if (res.success && res.data) {
-          appendLayersToSlide(selectedSlideId, res.data);
-          setActiveSlide(selectedSlideId); // Synchronize view to updated slide
+          processAndAppendAILayers(res.data, selectedSlideId, appendLayersToSlide);
+          setActiveSlide(selectedSlideId);
         }
       }
 
-      // Success feedback or just reset
       handleBack();
     } catch (error) {
       console.error("AI Action failed:", error);
-      alert("Failed to complete AI action. Please try again.");
+
+      const message = error?.message || "";
+
+      if (message.includes("Not enough Balance") || message.includes("403")) {
+        setShowBalancePopup(true);
+        setBalancePopupMessage(
+          "Your AI credits are finished. Please renew your plan to continue using AI features."
+        );
+        return;
+      }
+
+      setShowBalancePopup(true);
+      setBalancePopupMessage("Something went wrong. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -140,18 +162,32 @@ const AgentPanel = ({ isOpen, onClose }) => {
         </span>
       </div>
 
-      <textarea
-        className="agent-prompt-input"
-        placeholder={
-          mode === "generate-image"
-            ? "Describe the image you want..."
-            : "Describe the content for your slide..."
-        }
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        rows={4}
-        disabled={isGenerating}
-      />
+      {(() => {
+        const maxLen = mode === "generate-image" ? 50 : mode === "expand-slide" ? 100 : 200;
+        const atLimit = prompt.length >= maxLen;
+        return (
+          <>
+            <textarea
+              className={`agent-prompt-input${atLimit ? " agent-prompt-input--limit" : ""}`}
+              placeholder={
+                mode === "generate-image"
+                  ? "Describe the image you want..."
+                  : "Describe the content for your slide..."
+              }
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value.slice(0, maxLen))}
+              rows={4}
+              disabled={isGenerating}
+              maxLength={maxLen}
+            />
+            {atLimit && (
+              <span className="agent-prompt-limit-msg">
+                Character limit reached ({maxLen})
+              </span>
+            )}
+          </>
+        );
+      })()}
 
       {showMediaOptions && (
         <div className="media-options">
@@ -170,12 +206,12 @@ const AgentPanel = ({ isOpen, onClose }) => {
             <input
               type="radio"
               name="mediaType"
-              value="AI-Images"
-              checked={mediaType === "AI-Images"}
+              value="Ai-Images"
+              checked={mediaType === "Ai-Images"}
               onChange={(e) => setMediaType(e.target.value)}
               disabled={isGenerating}
             />
-            <span>AI-Images</span>
+            <span>Ai-Images</span>
           </label>
         </div>
       )}
@@ -233,7 +269,32 @@ const AgentPanel = ({ isOpen, onClose }) => {
       <button className="agent-close-btn" onClick={onClose}>
         <X size={18} />
       </button>
-
+      {showBalancePopup && (
+        <div className="balance-popup-overlay">
+          <div className="balance-popup">
+            <div className="balance-popup-icon">⚠️</div>
+            <h3>Insufficient Balance</h3>
+            <p>{balancePopupMessage}</p>
+            <div className="balance-popup-actions">
+              <button
+                className="balance-popup-secondary"
+                onClick={() => setShowBalancePopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="balance-popup-primary"
+                onClick={() => {
+                  setShowBalancePopup(false);
+                  window.location.href = "/pricing";
+                }}
+              >
+                Renew Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="agent-content">
         <div className="agent-header">
           <div className="agent-title">

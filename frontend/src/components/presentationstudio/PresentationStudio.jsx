@@ -22,6 +22,7 @@ const PresentationStudio = ({ onBack }) => {
   const [progress, setProgress] = useState(0);
 
 
+
   // Step 2: Outline data
   const [outlineData, setOutlineData] = useState(null);
 
@@ -30,6 +31,8 @@ const PresentationStudio = ({ onBack }) => {
 
   // Error state
   const [error, setError] = useState(null);
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [balancePopupMessage, setBalancePopupMessage] = useState('');
 
   // Transform backend response to OutlineEditor format
   const transformOutlineResponse = (apiResponse) => {
@@ -110,21 +113,14 @@ const PresentationStudio = ({ onBack }) => {
     };
   };
   const startFakeProgress = () => {
-    return new Promise(resolve => {
-      let current = 0;
+    let current = 0;
+    const interval = setInterval(() => {
+      current += Math.random() * 10;
+      if (current >= 92) current = 92;
+      setProgress(Math.floor(current));
+    }, 200);
 
-      const interval = setInterval(() => {
-        current += Math.random() * 7;
-
-        if (current >= 95) {
-          current = 95;
-          clearInterval(interval);
-          resolve();
-        }
-
-        setProgress(Math.floor(current));
-      }, 350);
-    });
+    return () => clearInterval(interval);
   };
 
 
@@ -149,181 +145,227 @@ const PresentationStudio = ({ onBack }) => {
 
 
 
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [imageStyle, setImageStyle] = useState(null);
+
+  // Stores the exact meta object sent with get-presentation-outline
+  const [metaState, setMetaState] = useState(null);
+
   // Step 1: Generate Outline
-  const handleGenerateOutline = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerateOutline = async (payload) => {
+    if (!payload?.topic?.trim()) return;
 
     setIsGenerating(true);
     setError(null);
     setProgress(0);
 
+    // Capture the exact meta object before the API call
+    const capturedMeta = payload.meta || null;
+    setMetaState(capturedMeta);
+
+    let stopFakeProgress = null;
     try {
-
-      // start both together
-      const progressPromise = startFakeProgress();
-
-      const apiPromise = generateOutline({
-        topic: prompt,
-        tone: tone?.toLowerCase(),
-        length: parseInt(length),
-        mediaStyle: mediaStyle,
-        outlineText: outlineText
-      });
-
-      // wait until loader reaches 95
-      await progressPromise;
-
-      // wait api (if not completed yet)
-      const response = await apiPromise;
-
-      // now finish 95 → 100 instantly smooth
+      stopFakeProgress = startFakeProgress();
+      const response = await generateOutline(payload);
+      stopFakeProgress?.();
+      stopFakeProgress = null;
       await finishProgress();
+
 
       const transformedOutline = transformOutlineResponse(response);
 
       if (!transformedOutline) throw new Error('Invalid response format from server');
 
+      // Wait 1 second after 100% success before moving to Step 2
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // 🔥 EXACT moment loader hits 100 → screen change
-      setOutlineData(transformedOutline);
+      // Embed originalMeta so OutlineEditor forwards it unchanged to finalize-ppt
+      setOutlineData({ ...transformedOutline, originalMeta: capturedMeta });
 
     } catch (error) {
-      setError(error.message || 'Failed to generate outline. Please try again.');
+      stopFakeProgress?.();
+
+      const status = error?.response?.status;
+      const backendMessage = error?.response?.data?.message || error?.message;
+
+      if (status === 403 && backendMessage === 'Not enough Balance') {
+        setShowBalancePopup(true);
+        setBalancePopupMessage(
+          'Not enough balance to generate outline. Please renew your plan or add more credits.'
+        );
+        setError(null);
+        setProgress(0);
+        return;
+      }
+
+      setError(backendMessage || 'Failed to generate outline. Please try again.');
     } finally {
-      setIsGenerating(false);
-    }
-  };
+    stopFakeProgress?.();
+    setIsGenerating(false);
+  }
+};
 
 
 
 
-  // Step 3: Handle final presentation from OutlineEditor
-  const handleFinalize = (finalPresentation) => {
-    setFinalPresentationData(finalPresentation);
-  };
+// Step 3: Handle final presentation from OutlineEditor
+const handleFinalize = (finalPresentation) => {
+  setFinalPresentationData(finalPresentation);
+};
 
-  // Reset to start over
-  const handleResetAll = () => {
-    setOutlineData(null);
-    setFinalPresentationData(null);
-    setPrompt('');
-    setTone(null);
-    setLength(null);
-    setMediaStyle(null);
-    setUseBrandStyle(false);
-    setOutlineText('');
-    setError(null);
-    setProgress(0);
-  };
+// Reset to start over
+const handleResetAll = () => {
+  setOutlineData(null);
+  setFinalPresentationData(null);
+  setPrompt('');
+  setTone(null);
+  setLength(null);
+  setMediaStyle(null);
+  setUseBrandStyle(false);
+  setOutlineText('');
+  setError(null);
+  setProgress(0);
+};
 
-  // back from outline → prompt (keep filled data)
-  const handleBackToPrompt = () => {
-    setOutlineData(null);
-    setFinalPresentationData(null);
-  };
+// back from outline → prompt (keep filled data)
+const handleBackToPrompt = () => {
+  setOutlineData(null);
+  setFinalPresentationData(null);
+};
 
-  // back from workspace → outline
-  const handleBackToOutline = () => {
-    setFinalPresentationData(null);
-  };
-
-
-  // Determine which step to show
-  const renderCurrentStep = () => {
-    // Step 3: Final Presentation Workspace
-    if (finalPresentationData) {
-      const layout = { width: 1920, height: 1080 };
-      return (
-        <>
-          <Header
-            onBack={handleBackToOutline}
-            title="Presentation Editor"
-            subtitle="Design and customize your slides"
-          />
-
-          <PresentationWorkspace
-            layout={layout}
-            initialData={finalPresentationData}
-            onBack={handleResetAll}
-          />
-        </>
-      );
-    }
+// back from workspace → outline
+const handleBackToOutline = () => {
+  setFinalPresentationData(null);
+};
 
 
-    // Step 2: Outline Editor
-    if (outlineData) {
-      return (
-        <>
-          <Header
-            onBack={handleBackToPrompt}
-            title="Edit Outline"
-            subtitle="Review and edit your presentation outline. You can modify titles and content."
-          />
-
-          <OutlineEditor
-            outlineData={outlineData}
-            onFinalize={handleFinalize}
-          />
-        </>
-      );
-    }
-
-
-    // Step 1: Presentation Studio (Input)
+// Determine which step to show
+const renderCurrentStep = () => {
+  // Step 3: Final Presentation Workspace
+  if (finalPresentationData) {
+    const layout = { width: 1920, height: 1080 };
     return (
       <>
         <Header
-          onBack={() => navigate('/presentation')}
-          title="AI Presentation Studio"
-          subtitle="Create stunning presentations with AI in seconds"
+          onBack={handleBackToOutline}
+          title="Presentation Editor"
+          subtitle="Design and customize your slides"
         />
 
-        <PromptSection
-          prompt={prompt}
-          setPrompt={setPrompt}
-          tone={tone}
-          setTone={setTone}
-          length={length}
-          setLength={setLength}
-          mediaStyle={mediaStyle}
-          setMediaStyle={setMediaStyle}
-          useBrandStyle={useBrandStyle}
-          setUseBrandStyle={setUseBrandStyle}
-          showAdvanced={showAdvanced}
-          setShowAdvanced={setShowAdvanced}
-          outlineText={outlineText}
-          setOutlineText={setOutlineText}
-          handleGenerate={handleGenerateOutline}
-          isGenerating={isGenerating}
-          generationStep={progress}
+        <PresentationWorkspace
+          layout={layout}
+          initialData={finalPresentationData}
+          onBack={handleResetAll}
         />
-
-        {error && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: '#fee2e2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
-            color: '#991b1b',
-            textAlign: 'center'
-          }}>
-            <strong>Error:</strong> {error}
-          </div>
-        )}
       </>
     );
-  };
+  }
 
+
+  // Step 2: Outline Editor
+  if (outlineData) {
+    return (
+      <>
+        <Header
+          onBack={handleBackToPrompt}
+          title="Edit Outline"
+          subtitle="Review and edit your presentation outline. You can modify titles and content."
+        />
+
+        <OutlineEditor
+          outlineData={outlineData}
+          onFinalize={handleFinalize}
+        />
+      </>
+    );
+  }
+
+
+  // Step 1: Presentation Studio (Input)
   return (
-    <div className="presentation-studio">
-      <div className="presentation-studio-container">
+    <>
+      <Header
+        onBack={() => navigate('/presentation')}
+        title="AI Presentation Studio"
+        subtitle="Create stunning presentations with AI in seconds"
+      />
 
+      <PromptSection
+        prompt={prompt}
+        setPrompt={setPrompt}
+        tone={tone}
+        setTone={setTone}
+        length={length}
+        setLength={setLength}
+        mediaStyle={mediaStyle}
+        setMediaStyle={setMediaStyle}
+        imageStyle={imageStyle}
+        setImageStyle={setImageStyle}
+        selectedTheme={selectedTheme}
+        setSelectedTheme={setSelectedTheme}
+        useBrandStyle={useBrandStyle}
+        setUseBrandStyle={setUseBrandStyle}
+        showAdvanced={showAdvanced}
+        setShowAdvanced={setShowAdvanced}
+        outlineText={outlineText}
+        setOutlineText={setOutlineText}
+        handleGenerate={handleGenerateOutline}
+        isGenerating={isGenerating}
+        generationStep={progress}
+      />
 
-        {renderCurrentStep()}
-      </div>
-    </div>
+      {error && (
+        <div style={{
+          marginTop: '1rem',
+          padding: '1rem',
+          background: '#fee2e2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          color: '#991b1b',
+          textAlign: 'center'
+        }}>
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+    </>
   );
+};
+
+return (
+  <div className="presentation-studio">
+    <div className="presentation-studio-container">
+      {renderCurrentStep()}
+
+      {showBalancePopup && (
+        <div className="balance-popup-overlay">
+          <div className="balance-popup">
+            <div className="balance-popup-icon">⚠️</div>
+            <h3>Insufficient Balance</h3>
+            <p>{balancePopupMessage}</p>
+            <div className="balance-popup-actions">
+              <button
+                className="balance-popup-secondary"
+                onClick={() => setShowBalancePopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="balance-popup-primary"
+                onClick={() => {
+                  setShowBalancePopup(false);
+                  navigate('/pricing');
+                }}
+              >
+                Renew Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+);
 };
 
 export default PresentationStudio;

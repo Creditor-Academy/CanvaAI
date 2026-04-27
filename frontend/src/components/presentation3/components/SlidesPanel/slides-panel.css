@@ -3,21 +3,24 @@
 ========================= */
 
 .slides-panel {
-  position: absolute;
-  top: 88px;
-  /* below topbar */
-  left: 16px;
-
-  width: 150px;
-  max-height: calc(100vh - 120px);
+  position: fixed;
+  top: 72px; 
+ 
+  /* was 88px, moved closer to top of the body container */
+  
+   width: 200px;
+  height: calc(100vh - 82px);
 
   display: flex;
   flex-direction: column;
 
   background: #ffffff;
 
-  border-radius: 8px;
-  border: 2px solid #1e40af;
+  border-top-left-radius: 0;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-left: none;
+  border: 2px solid #f8b21a;
 
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.1);
@@ -35,9 +38,8 @@
 
 /* Hover elevation */
 .slides-panel:not(.collapsed):hover {
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.06);
+  transform: none;
 }
 
 /* =========================
@@ -45,7 +47,7 @@
 ========================= */
 
 .slides-panel.collapsed {
-  transform: translateX(calc(-100% - 16px));
+  transform: translateX(calc(-100% + 18px));
   box-shadow: none;
 }
 
@@ -61,43 +63,40 @@
 
 .collapse-btn {
   position: absolute;
-  right: -14px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
 
-  width: 28px;
-  height: 56px;
+  width: 32px;
+  height: 72px;
 
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 0 8px 8px 0; /* Rounded only on the right side */
+  border-left: none;
+  border-radius: 0 10px 10px 0;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
 
-  box-shadow:
-    2px 0 6px rgba(0, 0, 0, 0.08);
-
-  transition: all 0.3s ease;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease;
   z-index: 50;
 }
 
 .slides-panel.collapsed .collapse-btn {
-  right: -28px; /* Move out to be fully visible at edge */
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.12);
+  right: -32px;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.12);
 }
 
 .collapse-btn:hover {
   background: #f8fafc;
-  color: #2563eb;
-  width: 32px;
-  right: -18px;
+  color: #0c4a6e;
 }
 
 .slides-panel.collapsed .collapse-btn:hover {
@@ -112,17 +111,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   margin-bottom: 12px;
-
   border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .slides-title {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: #0c4a6e;
 }
 
 /* =========================
@@ -136,8 +134,8 @@
   border-radius: 8px;
   border: none;
 
-  background: #2563eb;
-  color: #ffffff;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000000;
 
   font-size: 16px;
   font-weight: 600;
@@ -148,13 +146,13 @@
   align-items: center;
   justify-content: center;
 
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
   transition: all 0.2s ease;
 }
 
 .add-slide-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.45);
 }
 
 /* =========================
@@ -163,7 +161,9 @@
 
 .slides-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
 }
 
@@ -196,12 +196,28 @@
 
 /* Slide Number */
 .slide-number {
-  width: 16px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #64748b;
-  padding-top: 6px;
+  width: 22px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  padding-top: 8px;
   user-select: none;
+}
+
+/* Dragging States */
+.slide-row.dragging {
+  border: 1px dashed #0a5dbb;
+  box-shadow: 0 0 0 2px rgba(10, 93, 187, 0.2);
+  border-radius: 10px;
+}
+
+.slide-row.dragging .slide-thumbnail-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.5);
+  z-index: 10;
+  border-radius: 6px;
 }
 
 /* =========================
@@ -214,11 +230,11 @@
 }
 
 .thumbnail {
-  width: 100px;
-  height: 56.25px;
+  width: 140px;
+  height: 78.75px;
 
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
 
   overflow: hidden;
@@ -234,8 +250,8 @@
 
 /* Active slide */
 .thumbnail.active {
-  border: 2px solid #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
 /* =========================
@@ -280,7 +296,7 @@
 /* Duplicate */
 .duplicate-btn {
   background: #e2e8f0;
-  color: #475569;
+  color: #334155;
 }
 
 .duplicate-btn:hover {

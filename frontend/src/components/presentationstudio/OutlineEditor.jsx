@@ -1,9 +1,17 @@
 import React, { useState } from "react";
 import { FiTrash2 } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 import { finalizePresentation } from "../../services/OutlineEditorService";
+import { savePresentation } from "../../services/presentation";
+import { useAuth } from "../../contexts/AuthContext";
 import "./styles/OutlineEditor.css";
 
 const OutlineEditor = ({ outlineData, onFinalize }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const currentUserId = user?._id || user?.id;
+  const CONTENT_CHAR_LIMIT = 350;
+
   const [slides, setSlides] = useState(() => {
     if (!outlineData?.slides) return [];
 
@@ -16,6 +24,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         mode: "raw",
         rawText: slide.content?.rawText || "",
       },
+      bullets: slide.bullets || [],
       layout: slide.layout || "content",
       contentType: slide.contentType || "paragraph",
       image:
@@ -23,7 +32,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     }));
   });
 
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [error, setError] = useState(null);
 
   // ✅ Title Change
@@ -123,9 +132,9 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 
   // ✅ Finalize
   const handleFinalize = async () => {
-    if (isGenerating) return;
+    if (isFinalizing) return;
 
-    setIsGenerating(true);
+    setIsFinalizing(true);
     setError(null);
 
     try {
@@ -140,7 +149,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
           mode: "raw",
           rawText: slide.content.rawText || "",
         },
-        bullets: [],
+        bullets: slide.bullets || [],
         image: slide.image || null,
       }));
 
@@ -149,26 +158,44 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         slides: cleanedSlides,
       };
 
-      const finalPresentation =
-        await finalizePresentation(updatedOutline);
+      const finalPresentation = await finalizePresentation(updatedOutline);
 
-      sessionStorage.setItem(
-        "presentationData",
-        JSON.stringify(finalPresentation)
-      );
+      if (!finalPresentation?.slides?.length) {
+        throw new Error("AI returned empty slides");
+      }
 
-      window.open("/presentation-editor-v3", "_blank");
+      const pSlides = finalPresentation.slides;
+
+      const firstSlideTitle =
+        pSlides?.[0]?.title?.trim() ||
+        finalPresentation?.meta?.topic ||
+        "Untitled Presentation";
+
+      const payload = {
+        userId: currentUserId,
+        title: firstSlideTitle,
+        data: { slides: pSlides }
+      };
+
+      const saveResponse = await savePresentation(payload);
+
+      const presentationId =
+        saveResponse?.presentationId || saveResponse?.data?._id || saveResponse?.data?.id || saveResponse?._id || saveResponse?.id;
+
+      if (!presentationId) {
+        throw new Error("Presentation save failed");
+      }
+
+      navigate(`/presentation-editor-v3/${presentationId}`);
 
       if (onFinalize) {
         onFinalize(null);
       }
     } catch (err) {
-      console.error("Finalize Error:", err);
-      setError(
-        err.message || "Failed to finalize presentation."
-      );
+      console.error("Finalize flow failed:", err);
+      setError(err.message || "Something went wrong.");
     } finally {
-      setIsGenerating(false);
+      setIsFinalizing(false);
     }
   };
 
@@ -212,19 +239,46 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                   <textarea
                     value={slide.content.rawText || ""}
                     onChange={(e) => {
-                      handleContentChange(
-                        index,
-                        e.target.value
-                      );
-                      autoResizeTextarea(e.target);
+                      if (e.target.value.length <= CONTENT_CHAR_LIMIT) {
+                        handleContentChange(
+                          index,
+                          e.target.value
+                        );
+                        autoResizeTextarea(e.target);
+                      }
                     }}
                     onKeyDown={(e) =>
                       handleKeyDown(e, index)
                     }
                     className="outline-editor-textarea"
                     placeholder="Enter slide content"
+                    maxLength={CONTENT_CHAR_LIMIT}
                     rows={4}
                   />
+                  <div
+                    style={{
+                      textAlign: "right",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      color:
+                        (slide.content.rawText || "").length >= CONTENT_CHAR_LIMIT
+                          ? "#e53e3e"
+                          : "#888",
+                    }}
+                  >
+                    {(slide.content.rawText || "").length}/{CONTENT_CHAR_LIMIT}
+                  </div>
+
+                  {slide.bullets && slide.bullets.length > 0 && (
+                    <div className="outline-editor-bullets-container">
+                      <div className="outline-editor-label">Bullet Points</div>
+                      <ul className="outline-editor-bullets-list">
+                        {slide.bullets.map((bullet, i) => (
+                          <li key={i} className="outline-editor-bullet-item">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {slide.image && (
                     <div className="outline-editor-image-preview">
@@ -265,15 +319,29 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
             <button
               onClick={handleFinalize}
               disabled={
-                isGenerating || slides.length === 0
+                isFinalizing || slides.length === 0
               }
-              className={`outline-editor-finalize-button ${
-                isGenerating
-                  ? "outline-editor-finalize-button-disabled"
-                  : ""
-              }`}
+              className={`outline-editor-finalize-button ${isFinalizing
+                ? "outline-editor-finalize-button-disabled"
+                : ""
+                }`}
             >
-              {isGenerating
+              {isFinalizing && (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="outline-editor-spin"
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              )}
+              {isFinalizing
                 ? "Generating Final Presentation..."
                 : "Generate Final Presentation"}
             </button>

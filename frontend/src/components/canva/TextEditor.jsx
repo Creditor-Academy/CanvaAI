@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, 
+import {
+  FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter,
   FiAlignRight, FiAlignJustify, FiType, FiPalette, FiSize,
   FiMove, FiRotateCw, FiTrash2, FiCopy, FiSave
 } from 'react-icons/fi';
+import { toast } from 'sonner';
 
 
 import { calculateTextDimensions, isHeadingLayer } from '../../utils/textUtils';
@@ -270,9 +271,9 @@ const TextEditor = ({ textElement, onUpdate, onClose }) => {
     }
 
     // Determine if it's a heading based on multiple factors
-    const detectedIsHeading = isHeading || 
-                              (fontSize >= 32) ||
-                              fontWeight === 'bold';
+    const detectedIsHeading = isHeading ||
+      (fontSize >= 32) ||
+      fontWeight === 'bold';
 
     setIsEnhancingText(true);
     try {
@@ -291,8 +292,7 @@ const TextEditor = ({ textElement, onUpdate, onClose }) => {
       setWidth(dimensions.width);
       setHeight(dimensions.height);
     } catch (error) {
-      console.error('Error enhancing text:', error);
-      alert('Error enhancing text: ' + error.message);
+      toast.error('Error enhancing text: ' + (error?.message || 'Unknown error'));
     } finally {
       setIsEnhancingText(false);
     }
@@ -560,7 +560,7 @@ const TextEditor = ({ textElement, onUpdate, onClose }) => {
 
 
       {showStyleModal && (
-        <TextStyleModal 
+        <TextStyleModal
           text={text}
           onClose={() => setShowStyleModal(false)}
           onAddToCanvas={handleAddStyledImageToCanvas}

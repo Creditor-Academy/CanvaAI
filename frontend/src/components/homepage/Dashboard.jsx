@@ -1,437 +1,843 @@
-import React, { useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { HiOutlinePresentationChartLine } from "react-icons/hi2";
+import { motion, AnimatePresence } from "framer-motion";
+import userService from "../../services/UserDash/User.service";
+import { getAdminTemplates, getPublicTemplateById } from "../../services/presentation";
+import { getPublicTemplateImages, saveImage } from "../../services/imageEditor/imageApi";
+import { useAuth } from "../../contexts/AuthContext";
+import TemplatePreviewModal from "../presentation3/TemplatePreviewModal";
+import ImagePopup from "../canva/ImageLayout/imagePopup";
+import { ImageThumbPreview } from "../canva/ImageLayout/ImageLayout";
+import PresentationThumbnail from "../PresentationThumbnail";
 import { IoDocument } from "react-icons/io5";
-import { CiImageOn } from "react-icons/ci";
-import homepageImage from "../../assets/homepage.png";
+import { toast } from "sonner";
+
+
+import {
+  HiOutlinePresentationChartLine,
+} from "react-icons/hi2";
+
+
+import { FaRegImage } from "react-icons/fa";
+
+
+import {
+  FiPlus,
+  FiChevronLeft,
+  FiChevronRight,
+  FiX,
+  FiZap,
+  FiLayout
+} from "react-icons/fi";
+
+
+import logo from "../../assets/logo.png";
+import api from "../../services/api";
+
 import Recents from "./Recents";
 
-const FEATURES = [
-  {
-    name: "Presentation Builder",
-    icon: HiOutlinePresentationChartLine,
-    route: "/presentation",
-    desc: "Generate stunning presentation slides instantly with our Presentation Builder."
-  },
-  {
-    name: "Image Editor",
-    icon: CiImageOn,
-    route: "/canva-clone",
-    desc: "Create and enhance visuals using powerful Image Editor tools."
-  },
-  {
-    name: "Document Workspace",
-    icon: IoDocument,
-    route: "/editor-intro",
-    desc: "Write professional documents faster with our Document Workspace."
-  }
-];
+
 
 const TOOLS = [
   {
-    name: "AI-Presentation Builder",
+    name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
     route: "/ai-presentation",
-    desc: "Design AI-powered presentations with smart layouts and instant content generation."
+    color: "bg-blue-700 text-white"
   },
   {
-    name: "AI-Image Editor",
-    icon: CiImageOn,
+    name: "AI Image",
+    icon: FaRegImage,
     route: "/create/ai-design",
-    desc: "Enhance, edit and generate stunning visuals using advanced AI tools."
+    color: "bg-yellow-300 text-black"
   },
   {
-    name: "AI-Document Workspace",
+    name: "AI Document",
     icon: IoDocument,
-    route: "/create/content-writer",
-    desc: "Create professional documents faster with intelligent AI writing assistance."
+    route: "/create/ai-document",
+    color: "bg-green-500 text-white"
   }
 ];
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 60 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.8, ease: "easeOut" }
-  }
-};
-
-const staggerContainer = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.25 }
-  }
-};
+const toolImages = [
+  "https://i.pinimg.com/736x/96/52/26/965226daa2d2a6aab40d6458646f34f4.jpg",
+  "https://i.pinimg.com/1200x/7e/d5/4e/7ed54e337f028c3cd32335c62ee95e0f.jpg",
+  "https://i.pinimg.com/1200x/ee/df/40/eedf409776e505b5c1db7141dfff5317.jpg",
+  "https://i.pinimg.com/736x/86/31/10/863110a064ad0313637ef77ec4004606.jpg",
+  "https://i.pinimg.com/736x/70/d3/de/70d3dea50a707732f92d493961ad29b9.jpg",
+  "https://i.pinimg.com/1200x/f2/5d/cd/f25dcd144cc08c007d3e64cdc91349f0.jpg"
+];
 
 
+// Lazy-loaded template card — renders content only when it enters the viewport
+function LazyCard({ children, className = "", style = {} }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "120px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={className} style={style}>
+      {visible ? children : <div className="dash-skeleton" />}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const sectionRef = useRef(null);
+  const scrollRef = React.useRef(null);
+  const { user } = useAuth();
+  const profile = user;
+  const [showCreate, setShowCreate] = useState(false);
+  const [tab, setTab] = useState("manual");
+  const [tokens, setTokens] = useState(0);
 
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"]
-  });
-  
-  const scrollToTools = () => {
-    sectionRef.current?.scrollIntoView({
-      behavior: "smooth"
-    });
+  // Template states
+  const [pptTemplates, setPptTemplates] = useState([]);
+  const [imgTemplates, setImgTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templateTab, setTemplateTab] = useState("all");
+  const [templatePage, setTemplatePage] = useState(0);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -260, behavior: "smooth" });
+    }
   };
-  
-  const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -80])
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 260, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchData = async () => {
+      // Wallet
+      try {
+        const walletRes = await userService.getWalletDashboard();
+        const data = walletRes.data || walletRes;
+        if (mounted) setTokens(Number(data.totalBalance || 0) - Number(data.usedBalance || 0));
+      } catch (e) {
+        console.error("Wallet fetch error:", e);
+      }
+
+      // Templates — independent of profile/wallet
+      if (mounted) setTemplatesLoading(true);
+      try {
+        const [pptRes, imgRes] = await Promise.all([
+          getAdminTemplates(),
+          getPublicTemplateImages(),
+        ]);
+        if (mounted) {
+          setTemplatesLoading(false);
+          setPptTemplates(Array.isArray(pptRes?.data) ? pptRes.data : Array.isArray(pptRes) ? pptRes : []);
+          setImgTemplates(Array.isArray(imgRes?.data) ? imgRes.data : Array.isArray(imgRes) ? imgRes : []);
+        }
+      } catch (e) {
+        console.error("Templates fetch error:", e);
+        if (mounted) setTemplatesLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => (mounted = false);
+  }, []);
+
+  useEffect(() => {
+    const style = document.createElement("style");
+
+    style.innerHTML = `
+      @keyframes borderTrace {
+        0% { background-position: 0% 0%; }
+        25% { background-position: 100% 0%; }
+        50% { background-position: 100% 100%; }
+        75% { background-position: 0% 100%; }
+        100% { background-position: 0% 0%; }
+      }
+
+      .ai-tool-wrapper {
+        position: relative;
+        border-radius: 24px;
+        padding: 2px;
+        background: linear-gradient(
+          90deg,
+          #a8af1e,
+          #f3f63b,
+          #faf260,
+          #e5e90e,
+          #afaa1e
+        );
+        background-size: 300% 300%;
+        animation: borderTrace 4s linear infinite;
+        box-shadow:
+          0 6px 0 rgba(235, 232, 37, 0.9),
+          0 20px 25px -5px rgba(246, 234, 59, 0.35),
+          0 10px 10px -5px rgba(227, 246, 59, 0.15);
+        transition: transform .2s ease, box-shadow .2s ease;
+      }
+
+      .ai-tool-wrapper:hover {
+        transform: translateY(-4px);
+        box-shadow:
+          0 20px 25px -5px rgba(230, 246, 59, 0.35),
+          0 10px 10px -5px rgba(246, 221, 59, 0.15);
+      }
+
+      .ai-tool-inner {
+        border-radius: 22px;
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      @media (hover: none), (pointer: coarse), (max-width: 1024px) {
+        .ai-tool-wrapper:hover {
+          transform: none;
+        }
+      }
+
+      @keyframes viewBtnPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(10,93,187,0.4); }
+        50%       { box-shadow: 0 0 0 6px rgba(10,93,187,0); }
+      }
+      @keyframes dashSkeletonShimmer {
+        0%   { background-position: -400px 0; }
+        100% { background-position: 400px 0; }
+      }
+      .dash-skeleton {
+        width: 100%;
+        height: 100%;
+        min-height: 160px;
+        border-radius: 16px;
+        background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+        background-size: 800px 100%;
+        animation: dashSkeletonShimmer 1.4s infinite linear;
+      }
+      .dash-view-btn {
+        padding: 5px 13px;
+        border-radius: 8px;
+        border: 1.5px solid #0a5dbb;
+        background: transparent;
+        color: #0a5dbb;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+        transition: color 0.22s, background 0.22s, border-color 0.22s, box-shadow 0.22s, transform 0.15s;
+        letter-spacing: 0.01em;
+      }
+      .dash-view-btn:hover {
+        background: linear-gradient(135deg, #0a5dbb 0%, #1d7bff 100%);
+        border-color: transparent;
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(10,93,187,0.35), 0 1px 4px rgba(10,93,187,0.2);
+      }
+      .dash-view-btn:active {
+        transform: translateY(0px) scale(0.97);
+        box-shadow: 0 2px 6px rgba(10,93,187,0.3);
+        animation: viewBtnPulse 0.4s ease-out;
+      }
+      .dash-tab-pill {
+        display: inline-flex;
+        background: rgba(255,255,255,0.75);
+        backdrop-filter: blur(10px);
+        border-radius: 999px;
+        padding: 3px;
+        gap: 2px;
+        border: 1px solid rgba(99,102,241,0.18);
+        box-shadow: 0 2px 10px rgba(99,102,241,0.1);
+      }
+      .dash-tab-btn {
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        transition: color 0.18s, background 0.18s, box-shadow 0.18s;
+      }
+      .dash-tab-btn.active {
+        background: #facc15;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+      }
+      .dash-tab-btn:not(.active):hover {
+        background: rgba(99,102,241,0.08);
+        color: #312e81;
+      }
+      .dash-tpl-card {
+        border-radius: 16px;
+      }
+      .dash-tpl-inner {
+        transition: border-color 0.18s, box-shadow 0.18s;
+      }
+      .dash-tpl-inner:hover {
+        border-color: #6366f1;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+      }
+    `;
+
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
+  const fullName =
+    profile?.firstName
+      ? `${profile.firstName} ${profile.lastName || ""}`
+      : profile?.email?.split("@")[0] || "User";
+
+  const handleRenewPlan = () => {
+    navigate("/pricing");
+  };
+
+  // Template helpers
+  const getSlideData = (item) => {
+    if (!item?.data) return null;
+    let data = item.data;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (e) { return null; }
+    }
+    return data.slides?.[0] || (data.layers ? data : null);
+  };
+
+  const handleViewPPT = async (tpl) => {
+    const tplId = tpl._id || tpl.id;
+    try {
+      const data = await getPublicTemplateById(tplId);
+      setPreviewData(data.data || data);
+      setSelectedTemplateId(tplId);
+      setIsPreviewOpen(true);
+    } catch (err) {
+      console.error("Error fetching template preview:", err);
+      alert("Failed to load template preview.");
+    }
+  };
+
+  const handleImportImage = async (image) => {
+    try {
+      const userId = user?._id || user?.id;
+      const resp = await saveImage({
+        userId,
+        title: (image.title || 'Untitled Template') + '_copy',
+        data: image.data,
+      });
+      const newId = resp?.imageId || resp?.data?._id || resp?._id;
+      if (newId) {
+        try {
+          sessionStorage.setItem(`prefill_project_${newId}`, JSON.stringify({
+            title: (image.title || 'Untitled Template') + '_copy',
+            data: image.data,
+          }));
+          sessionStorage.setItem(`prefill_import_flag_${newId}`, '1');
+        } catch (e) {}
+        window.open(`/canva-clone/${newId}`, '_blank');
+      }
+      toast.success('Template imported to your account');
+    } catch (err) {
+      console.error('Import failed', err);
+      toast.error('Failed to import template');
+    }
+  };
+
+  const perPage = 12;
+
+  const combinedTemplates = React.useMemo(() => {
+    if (templateTab === "ppt") {
+      return pptTemplates.map(t => ({ ...t, _type: 'ppt' }));
+    }
+    if (templateTab === "images") {
+      return imgTemplates.map(t => ({ ...t, _type: 'image' }));
+    }
+    // "all" — interleave randomly using Fisher-Yates shuffle
+    const merged = [
+      ...pptTemplates.map(t => ({ ...t, _type: 'ppt' })),
+      ...imgTemplates.map(t => ({ ...t, _type: 'image' })),
+    ];
+    for (let i = merged.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [merged[i], merged[j]] = [merged[j], merged[i]];
+    }
+    return merged;
+  }, [pptTemplates, imgTemplates, templateTab]);
+
+  const totalTemplatePages = Math.ceil(combinedTemplates.length / perPage);
+  const visibleTemplates = combinedTemplates.slice(templatePage * perPage, (templatePage + 1) * perPage);
+
+  const manualTools = [
+    {
+      icon: HiOutlinePresentationChartLine,
+      title: "Presentation",
+      route: "/presentation"
+    },
+    {
+      icon: FaRegImage,
+      title: "Image",
+      route: "/canva-clone"
+    }
+  ];
+
+  const aiTools = [
+    {
+      icon: HiOutlinePresentationChartLine,
+      title: "AI PPT",
+      route: "/ai-presentation"
+    },
+    {
+      icon: FaRegImage,
+      title: "AI Image",
+      route: "/create/ai-design"
+    }
+  ];
+
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] overflow-x-hidden">
-
-      {/* HERO SECTION */}
-      <motion.section
-        className="relative w-full overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1492724441997-5dc865305da7?q=80&w=2000&auto=format&fit=crop"
-            alt="hero"
-            className="w-full h-full object-cover"
-          />
-
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-[#0b1b4a]/80" />
-
-          <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/20 blur-[120px] rounded-full"></div>
-          <div className="absolute bottom-10 right-20 w-72 h-72 bg-cyan-400/20 blur-[120px] rounded-full"></div>
-        </div>
-
+    <div className="min-h-screen bg-[#e9f4ff]">
+      <div className="relative ml-0 md:ml-[60px] lg:ml-[72px] pt-20 sm:pt-24 px-4 sm:px-6 lg:px-10 xl:px-14 pb-24 md:pb-0">
+        {/* HERO */}
         <motion.div
-          style={{ y: heroY }}
-          className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-[100px] sm:pt-[120px] md:pt-[140px] pb-[150px] sm:pb-[180px] md:pb-[220px] text-center text-white"
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative mt-2 mb-3 py-8 px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-[28px] overflow-hidden"
         >
-          <motion.p
-            variants={fadeUp}
-            className="uppercase tracking-widest text-xs sm:text-sm mb-3 sm:mb-4 opacity-90"
-          >
-            Designova AI Workspace
-          </motion.p>
+          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] bg-gradient-to-r from-white via-sky-200 to-white opacity-70 pointer-events-none" />
+          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] border border-sky-200 pointer-events-none" />
+          <div className="absolute top-0 left-0 w-full h-[120px] sm:h-[150px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none rounded-t-[22px] sm:rounded-t-[28px]" />
 
-          <motion.h1
-            variants={fadeUp}
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight font-georgia px-2"
-          >
-            Create Presentations, Images and Documents with AI
-            
-          </motion.h1>
-
-          <motion.p
-            variants={fadeUp}
-            className="mt-4 sm:mt-6 text-sm sm:text-base md:text-lg max-w-2xl mx-auto opacity-90 px-4"
-          >
-            Build professional presentations, edit images, craft documents —
-            or let AI generate everything instantly for you.
-          </motion.p>
-          <button
-            onClick={scrollToTools}
-            className="mt-6 sm:mt-8 px-6 py-2.5 sm:px-8 sm:py-3 bg-white text-[#0c4a6e] rounded-lg font-semibold hover:scale-105 transition text-sm sm:text-base min-h-[44px]"
-          >
-            Try AI Tools →
-          </button>
-        </motion.div>
-
-        <svg
-          viewBox="0 0 1440 200"
-          className="absolute bottom-0 left-0 w-full"
-          preserveAspectRatio="none"
-        >
-          <path
-            fill="#f9fafb"
-            d="M0,120 C300,200 500,0 800,80 C1100,160 1300,40 1440,120 L1440,200 L0,200 Z"
-          />
-        </svg>
-      </motion.section>
-
-      {/* FEATURE CARDS */}
-      <motion.section
-        className="max-w-6xl mx-auto px-6 -mt-25 relative z-20"
-        variants={staggerContainer}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, amount: 0.3 }}
-      >
-        <div className="grid md:grid-cols-3 gap-10 justify-items-center">
-
-          {FEATURES.map((feature, i) => {
-            const Icon = feature.icon;
-
-            return (
-              <motion.div
-                key={i}
-                variants={fadeUp}
-                whileHover={{ scale: 1.05 }}
-                className="card"
-              >
-                <div className="card-content">
-
-                  <div className="card-header">
-                    <div className="icon-box">
-                      <Icon size={22} />
-                    </div>
-                    <p className="card-title">{feature.name}</p>
-                  </div>
-                  <p className="card-para">{feature.desc}</p>
-
-                  {/* CTA BUTTON */}
-                  <button
-                    onClick={() => navigate(feature.route)}
-                    className="mt-3 px-4 py-2 text-sm bg-white text-[#0c4a6e] rounded-lg font-semibold hover:bg-[#e2e8f0] transition"
-                  >
-                    Try Now →
-                  </button>
-
-                </div>
-              </motion.div>
-            );
-          })}
-
-        </div>
-      </motion.section>
-
-      {/* ================= RECENT DOCUMENTS ================= */}
-      
-      <section className="relative bg-white py-16">
-        <Recents />
-      </section>
-
-      {/* ================= EXPLORE AI TOOLS ================= */}
-
-      <section ref={sectionRef} className="relative bg-[#f9fafb]">
-
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-34 px-6 py-32">
-
-          {/* LEFT SIDE STICKY */}
-          <div className="sticky top-0 h-screen flex items-center justify-center">
-
-            <div className="flex items-center justify-between w-full gap-0 md:gap-10">
-
-              {/* TEXT AREA */}
-              <div className="max-w-lg ">
-
-                <p className="text-[#0c4a6e] text-sm font-semibold mb-3 tracking-wide">
-                  Your Needs, Our Solution
-                </p>
-
-                <h2 className="text-6xl font-extrabold leading-tight text-[#0c4a6e]">
-                  Explore Powerful <br />
-                  AI Tools
-                </h2>
-
-                <p className="text-slate-600 mt-5 mb-8">
-                  Create presentations, generate images and write documents
-                  faster with our AI powered workspace.
-                </p>
-
-              </div>
-
-              {/* ILLUSTRATION */}
-              <motion.img
-                src={homepageImage}
-                alt="hand illustration"
-                className="w-64"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity }}
+          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 w-full">
+            {/* LEFT */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
+              <img
+                src={logo}
+                alt="logo"
+                className="h-12 xs:h-13 sm:h-16 md:h-18 lg:h-20 w-auto max-w-[110px] sm:max-w-[130px] lg:max-w-[160px] object-contain drop-shadow-lg shrink-0"
               />
 
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Ready to create
+                </div>
+
+                <h1 className="mt-2 text-2xl sm:text-3xl lg:text-[34px] leading-tight font-extrabold text-slate-900 break-words">
+                  Welcome,
+                  <span className="ml-2 bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">
+                    {fullName}
+                  </span>
+                </h1>
+
+                <p className="text-sm sm:text-[15px] text-slate-600 mt-2 max-w-xl leading-6">
+                  Create <span className="font-semibold text-slate-700">presentations</span>,{" "}
+                  <span className="font-semibold text-slate-700">images</span> and{" "}
+                  AI-powered templates in minutes.
+                </p>
+              </div>
             </div>
 
-          </div>
-
-
-          {/* RIGHT SIDE SCROLLING CARDS */}
-          <div className="space-y-10">
-
-            {TOOLS.map((tool, i) => {
-
-              const Icon = tool.icon;
-
-              return (
-
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 80 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.6 }}
-                  whileHover={{
-                    scale: 1.05,
-                    rotateX: 4,
-                    rotateY: -4
-                  }}
-                  className="bg-white p-8 rounded-2xl shadow-md border border-slate-200"
-                >
-
-                  <div className="flex items-start gap-5 ">
-
-                    <div className="w-12 h-12 bg-[#0c4a6e] text-white rounded-lg flex items-center justify-center ">
-                      <Icon size={22} />
-                    </div>
-
-                    <div>
-
-                      <h3 className="text-xl font-semibold mb-2">
-                        {tool.name}
-                      </h3>
-
-                      <p className="text-slate-600 text-sm mb-4">
-                        {tool.desc}
-                      </p>
-
-                      <button
-                        onClick={() => navigate(tool.route)}
-                        className="text-sm font-medium text-[#0c4a6e]"
-                      >
-                        Open Tool →
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                </motion.div>
-
-              )
-
-            })}
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      
-
-      {/* TEMPLATE SECTION */}
-      <motion.section className="max-w-6xl mx-auto px-6  pb-24">
-
-        <motion.h2 className="text-3xl font-bold mb-12 text-center">
-          Ready-to-Use Templates
-        </motion.h2>
-
-        <motion.div className="grid md:grid-cols-3 gap-8">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <motion.div
-              key={i}
-              whileHover={{ scale: 1.05 }}
-              className="relative bg-white rounded-2xl overflow-hidden shadow-md border"
-            >
-              <img
-                src={`https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&auto=format&fit=crop&sig=${i}`}
-                alt="template"
-                className="h-52 w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center text-white font-semibold">
-                Use Template
-              </div>
-
-              <div className="p-5">
-                <p className="font-semibold">Template {i}</p>
-                <p className="text-sm mt-1">
-                  Fully customizable professional layout.
+            {/* RIGHT */}
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 xl:justify-end">
+              <div>
+                <p className="text-xs text-slate-500">Available Balance</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  ${Number(tokens || 0).toFixed(3)}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Renew anytime to keep generating.
                 </p>
               </div>
-            </motion.div>
-          ))}
+
+              <button
+                onClick={handleRenewPlan}
+                className="w-full sm:w-auto min-w-[120px] px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 text-sm sm:text-[15px] bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl sm:rounded-2xl font-semibold shadow-lg transition-all duration-300 hover:shadow-xl active:scale-[0.98]"
+              >
+                Renew
+              </button>
+            </div>
+          </div>
         </motion.div>
 
-      </motion.section>
 
-      {/* CARD STYLES */}
-      <style>{`
-        .card{
-  width:350px;
-  height:200px;
-  background:linear-gradient(135deg,#0c4a6ecc,#1e40afcc,#0ea5e9cc);
-  border-radius:14px;
-  color:white;
-  overflow:hidden;
-  position:relative;
-  transform-style:preserve-3d;
-  perspective:1000px;
-  transition:all .5s cubic-bezier(.23,1,.32,1);
-  cursor:pointer;
-  padding:20px;
-  border:none;
-}
+        {/* EXPLORE */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-8 sm:mt-10">
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Explore Tools</h2>
+
+          <button
+            onClick={() => setShowCreate(true)}
+            className="w-full sm:w-auto min-w-[130px] flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black text-sm sm:text-[15px] font-semibold shadow transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
+          >
+            <FiPlus className="text-[16px] sm:text-[18px]" />
+            Create
+          </button>
+        </div>
 
 
-.card-header{
-  display:flex;
-  align-items:center;
-  gap:14px;
-}
+        {/* TOOLS */}
+        <div className="mt-3 relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 py-4">
+            {TOOLS.map((tool, i) => {
+              const colors = [
+                "bg-blue-100",
+                "bg-cyan-100",
+                "bg-blue-200",
+                "bg-yellow-100",
+                "bg-blue-300",
+                "bg-yellow-200"
+              ];
 
-.icon-box{
-  width:38px;
-  height:38px;
-  border-radius:8px;
-  background:rgba(255,255,255,0.2);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-        .card-content{
-  position:relative;
-  z-index:2;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  align-items:flex-start;
-  justify-content:space-between;
-  text-align:left;
-  height:100%;
-}
 
-        .card-title{
-  font-size:18px;
-  font-weight:700;
-  margin-top:2px;
-}
+              return (
+                <motion.div
+                  key={i}
+                  onClick={() => navigate(tool.route)}
+                  transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                  className={`group relative w-full h-[96px] sm:h-[100px] flex-shrink-0 rounded-2xl px-4 sm:px-5 py-4 cursor-pointer ${colors[i]}`}
+                >
+                  <p className="text-sm font-semibold text-gray-900">{tool.name}</p>
 
-        .card-para{
-  font-size:13px;
-  opacity:.9;
-  line-height:1.4;
-}
 
-        .card:hover{
-          transform:rotateY(10deg) rotateX(10deg) scale(1.05);  
-        }
+                  <img
+                    src={toolImages[i]}
+                    alt={tool.name}
+                    className={`
+                      absolute right-2 object-contain object-right
+                      drop-shadow-[10px_8px_2px_rgba(0,0,0,0.35)]
+                      transition-all duration-300 -rotate-3
+                      ${i === 4 ? "bottom-[-6px] w-[102px] h-[84px] sm:w-[120px] sm:h-[95px]" : "bottom-[2px] w-[108px] h-[82px] sm:w-[125px] sm:h-[90px]"}
+                      group-hover:-translate-y-2 group-hover:-rotate-1
+                    `}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
 
-        .card:before,
-        .card:after{
-          content:"";
-          position:absolute;
-          top:0;
-          width:100%;
-          height:100%;
-          background:linear-gradient(transparent,rgba(0,0,0,0.15));
-          transition:transform .5s cubic-bezier(.23,1,.32,1);
-        }
 
-        .card:before{ left:0; }
-        .card:after{ right:0; }
+        {/* TEMPLATES */}
+        <div className="mt-10 pb-20 sm:pb-24">
+          <div className="flex items-center justify-between mb-6 sm:mb-8 flex-wrap gap-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                Ready Templates
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Pick a layout and start editing instantly.
+              </p>
+            </div>
+            {/* Slider-switch tab */}
+            <div className="dash-tab-pill">
+              <button
+                className={`dash-tab-btn${templateTab === "all" ? " active" : ""}`}
+                onClick={() => { setTemplateTab("all"); setTemplatePage(0); }}
+              >All</button>
+              <button
+                className={`dash-tab-btn${templateTab === "ppt" ? " active" : ""}`}
+                onClick={() => { setTemplateTab("ppt"); setTemplatePage(0); }}
+              >PPT</button>
+              <button
+                className={`dash-tab-btn${templateTab === "images" ? " active" : ""}`}
+                onClick={() => { setTemplateTab("images"); setTemplatePage(0); }}
+              >Images</button>
+            </div>
+          </div>
 
-        .card:hover:before{ transform:translateX(-100%); }
-        .card:hover:after{ transform:translateX(100%); }
-      `}</style>
+          {templatesLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="dash-skeleton" style={{ minHeight: 180, borderRadius: 16 }} />
+              ))}
+            </div>
+          ) : visibleTemplates.length === 0 ? (
+            <div className="text-center py-16 text-slate-400 text-sm">No templates available yet.</div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+              {visibleTemplates.map((tpl) => {
+                const isPPT = tpl._type === 'ppt';
+                const slideData = isPPT ? getSlideData(tpl) : null;
+                return (
+                  <LazyCard
+                    key={`${tpl._type}-${tpl._id || tpl.id}`}
+                    className="dash-tpl-card"
+                  >
+                    <div
+                      onClick={() => isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl)}
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative h-36 bg-[#eef2ff] flex items-center justify-center overflow-hidden">
+                        {isPPT ? (
+                          slideData
+                            ? <PresentationThumbnail slide={slideData} width="100%" height="100%" />
+                            : <FiLayout size={36} color="#6366f1" />
+                        ) : (
+                          <div
+                            className="absolute inset-0"
+                            ref={el => {
+                              if (!el) return;
+                              const cs = tpl.data?.canvasSize || { width: 800, height: 600 };
+                              const setScale = () => {
+                                const w = el.offsetWidth || el.clientWidth;
+                                const h = el.offsetHeight || el.clientHeight;
+                                if (!w || !h) return;
+                                el.style.setProperty('--thumb-scale', String(Math.min(w / (cs.width || 800), h / (cs.height || 600))));
+                              };
+                              setScale();
+                              const ro = new ResizeObserver(() => { setScale(); ro.disconnect(); });
+                              ro.observe(el);
+                            }}
+                          >
+                            <ImageThumbPreview image={tpl} />
+                          </div>
+                        )}
+                        {/* Type indicator badge */}
+                        <div style={{
+                          position: 'absolute', top: 8, left: 8,
+                          background: 'rgba(0,0,0,0.35)',
+                          borderRadius: 8, padding: '4px 7px',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          backdropFilter: 'blur(6px)',
+                        }}>
+                          {isPPT ? (
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
+                              <path d="M18 1 L18 6 L23 6" />
+                              <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
+                            </svg>
+                          ) : (
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7">
+                              <rect x="3" y="3" width="18" height="18" rx="3" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <path d="M21 15l-5-5-4 4-3-3-6 6" />
+                            </svg>
+                          )}
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>
+                            {isPPT ? 'PPT' : 'Image'}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Card info */}
+                      <div className="p-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-slate-900 text-sm truncate">
+                            {tpl.title || 'Untitled Template'}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {isPPT ? 'Presentation' : 'Image'} template
+                          </p>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl); }}
+                          className="dash-view-btn"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </div>
+                  </LazyCard>
+                );
+              })}
+            </div>
+          )}
 
+          <div className="flex flex-col sm:flex-row justify-center gap-3 mt-8 sm:mt-10">
+            <button
+              disabled={templatePage === 0}
+              onClick={() => setTemplatePage(p => p - 1)}
+              className="px-4 py-2 rounded-xl flex items-center justify-center gap-2 bg-white/80 backdrop-blur-xl border border-white/70 text-slate-800 shadow-sm hover:shadow-md disabled:opacity-40 disabled:hover:shadow-sm"
+            >
+              <FiChevronLeft />
+              Prev
+            </button>
+            <button
+              disabled={templatePage >= totalTemplatePages - 1}
+              onClick={() => setTemplatePage(p => p + 1)}
+              className="px-4 py-2 rounded-xl flex items-center justify-center gap-2 bg-gradient-to-r from-amber-300 to-amber-400 hover:from-amber-400 hover:to-amber-500 text-slate-900 shadow-sm disabled:opacity-50"
+            >
+              Next
+              <FiChevronRight />
+            </button>
+          </div>
+        </div>
+      </div>
+
+
+      {/* PPT TEMPLATE PREVIEW MODAL */}
+      <TemplatePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        templateData={previewData}
+        onImport={() => {
+          setIsPreviewOpen(false);
+          if (selectedTemplateId) {
+            window.open(`/presentation-editor-v3/${selectedTemplateId}?template=true`, '_blank');
+          }
+        }}
+      />
+
+      {/* IMAGE POPUP */}
+      {selectedImage && (
+        <ImagePopup
+          image={selectedImage}
+          thumbnail={null}
+          onClose={() => setSelectedImage(null)}
+          onImport={handleImportImage}
+        />
+      )}
+
+      {/* CREATE MODAL */}
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4 sm:p-5"
+          >
+            <motion.div
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+             className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
+            >
+              <button
+                onClick={() => setShowCreate(false)}
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-600 hover:text-slate-900 w-10 h-10 rounded-full bg-white/70 hover:bg-white flex items-center justify-center border border-white/60 shadow-sm"
+              >
+                <FiX size={22} />
+              </button>
+
+              <h2 className="text-xl sm:text-2xl font-bold text-blue-900 mb-5 sm:mb-6">
+                Quick Start
+              </h2>
+
+
+              <div className="inline-flex bg-white/70 backdrop-blur-xl rounded-full p-1 w-fit mb-6 sm:mb-8 border border-white/70 shadow-sm">
+                <button
+                  onClick={() => setTab("manual")}
+                  className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "manual"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow"
+                    : "text-slate-600 hover:text-slate-900"
+                    }`}
+                >
+                  Manual
+                </button>
+
+
+                <button
+                  onClick={() => setTab("ai")}
+                  className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "ai"
+                    ? "bg-yellow-400 text-black shadow"
+                    : "text-slate-600 hover:text-slate-900"
+                    }`}
+                >
+                  AI
+                </button>
+              </div>
+
+
+              {tab === "ai" ? (
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                 className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
+                >
+                  {aiTools.map((tool, i) => {
+                    const Icon = tool.icon;
+                    return (
+                      <div className="ai-tool-wrapper" key={i}>
+                        <motion.div
+                          onClick={() => navigate(tool.route)}
+                          className="cursor-pointer rounded-2xl border border-blue-100 shadow-sm transition flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px] relative ai-tool-inner"
+                        >
+                          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
+                            <Icon size={22} />
+                          </div>
+                          <p className="font-semibold text-blue-900 text-sm">
+                            {tool.title}
+                          </p>
+                          <span className="absolute top-3 right-3 text-yellow-500">
+                            <FiZap size={16} />
+                          </span>
+                        </motion.div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
+                >
+                  {manualTools.map((tool, i) => {
+                    const Icon = tool.icon;
+
+
+                    return (
+                      <motion.div
+                        key={i}
+                        whileHover={{ y: -5, scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                        onClick={() => navigate(tool.route)}
+                        className="cursor-pointer rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 shadow-[0_6px_18px_rgba(37,99,235,0.15)] hover:shadow-[0_12px_28px_rgba(37,99,235,0.25)] transition flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px]"
+                      >
+                        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 ring-2 ring-blue-200">
+                          <Icon size={22} />
+                        </div>
+
+
+                        <p className="font-semibold text-blue-900 text-sm tracking-wide">
+                          {tool.title}
+                        </p>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
