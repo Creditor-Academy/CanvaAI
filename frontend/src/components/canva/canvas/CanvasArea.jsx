@@ -418,13 +418,32 @@ const LayerComponent = memo(({
       case 'drawing':
         return (
           <svg width={layer.width} height={layer.height} className="absolute top-0 left-0 pointer-events-none" style={commonStyle}>
+            {layer.eraserPaths && layer.eraserPaths.length > 0 && (
+              <defs>
+                <mask id={`mask-${layer.id}`}>
+                  <rect width="100%" height="100%" fill="white" />
+                  {layer.eraserPaths.map(ep => (
+                    <path
+                      key={ep.id}
+                      d={ep.path.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
+                      stroke="black"
+                      strokeWidth={ep.brushSize}
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  ))}
+                </mask>
+              </defs>
+            )}
             <path
               d={layer.path.map((p, i) => (i === 0 || p.forceMove) ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
-              stroke={layer.mode === 'eraser' ? '#ffffff' : layer.color}
+              stroke={layer.color}
               strokeWidth={layer.brushSize}
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
+              mask={layer.eraserPaths && layer.eraserPaths.length > 0 ? `url(#mask-${layer.id})` : undefined}
             />
           </svg>
         );
