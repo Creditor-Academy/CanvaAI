@@ -113,12 +113,16 @@ const drawCloudPath = (ctx, x, y, w, h) => {
  * Export canvas as image (PNG/JPEG)
  */
 
-// Helper to safely get image URL - use S3 directly when possible
+// Helper to safely get image URL - proxy to avoid CORS
 const getProxiedUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
   if (url.startsWith('data:')) return url;
-  // Return S3 URL directly - it should have proper CORS headers configured
-  return url;
+  // Proxy S3 URL to avoid canvas tainting/CORS
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  let ext = url.split('.').pop().split('?')[0].toLowerCase();
+  if (ext === 'jpeg') ext = 'jpg';
+  if (!['jpg', 'png', 'webp', 'svg', 'pdf'].includes(ext)) ext = 'png';
+  return `${baseUrl}/api/export/s3/images?s3Url=${encodeURIComponent(url)}&format=${ext}`;
 };
 
 export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', quality = 0.92, bgColor = '#ffffff', bgImage = null) => {
