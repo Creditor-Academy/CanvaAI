@@ -593,6 +593,7 @@ export const AIAssistant = ({
         text: textToTransform, action: inlineActionType, customPrompt: inlineCustomPrompt.trim(),
         tone: inlineSelectedTone, language: inlineTargetLang,
         creativity: ACTION_TEMPERATURE[inlineActionType] ?? inlineCreativity[0], signal,
+        systemPrompt: systemPrompt, // Pass the component's rich per-action prompt
       }).then((transformed) => { 
         result = transformed; 
         setInlineResult(transformed);

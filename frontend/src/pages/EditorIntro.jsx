@@ -466,22 +466,13 @@ const EditorIntro = () => {
             // Opening an existing document from the backend
             const isMongoId = /^[0-9a-fA-F]{24}$/.test(docId);
             if (!isMongoId) {
-                toast.error('Document not found');
+                toast.error('Invalid document ID');
                 return;
             }
             
-            try {
-                // Fetch document from backend and cache it
-                const response = await TextEditorService.getDocumentById(docId);
-                const doc = response.document || response;
-                sessionStorage.setItem(`doc_${docId}`, JSON.stringify(doc));
-                
-                // Open the editor with the document ID in a new tab
-                window.open(`/editor/${docId}`, '_blank');
-            } catch (error) {
-                console.error('Failed to open document:', error);
-                toast.error('Failed to open document');
-            }
+            // Open the editor directly - let the editor handle document loading
+            // The editor will fetch from backend or use cache as needed
+            window.open(`/editor/${docId}`, '_blank');
             return;
         }
 
@@ -663,27 +654,51 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                 keyPoints: contentType.elements,
             });
 
-            const wc = genContent.replace(/[#*`>\-]/g, '').split(/\s+/).filter(Boolean).length;
+            // 🔥 Validate generated content before proceeding
+            if (!genContent || typeof genContent !== 'string') {
+                throw new Error('AI generated empty or invalid content');
+            }
+
+            const trimmedContent = genContent.trim();
+            if (trimmedContent.length < 50) {
+                throw new Error(`AI generated insufficient content (${trimmedContent.length} chars). Please try again.`);
+            }
+
+            const wc = trimmedContent.replace(/[#*`>\-]/g, '').split(/\s+/).filter(Boolean).length;
+            if (wc < 20) {
+                throw new Error(`AI generated too few words (${wc}). Please try again with a different topic.`);
+            }
+
             setWordCount(wc);
-            setGeneratedContent(genContent);
+            setGeneratedContent(trimmedContent);
             setGenProgress(80); setGenPhaseLabel('Saving to your workspace…');
             await new Promise(r => setTimeout(r, 300));
 
             const docTitle = `${aiContentType.charAt(0).toUpperCase() + aiContentType.slice(1)}: ${aiTopic.substring(0, 40)}${aiTopic.length > 40 ? '…' : ''}`;
+            
+            // 🔥 Save to backend with hasBeenEdited: true to prevent MongoDB TTL deletion
             const response = await TextEditorService.saveDocument({
                 title: docTitle,
-                data: { content: genContent, html: genContent },
+                data: { content: trimmedContent, html: trimmedContent },
+                hasBeenEdited: true, // 🔥 CRITICAL: Prevents MongoDB from auto-deleting after 24h
             });
 
             const documentId = String(response.documentId || response.id || response._id || '');
-            if (!documentId) { toast.error('Failed to save document'); setIsGenerating(false); return; }
+            if (!documentId) { 
+                throw new Error('Failed to save document to backend'); 
+            }
 
+            // 🔥 Only add to cache after successful backend save
             const newDoc = {
-                id: documentId, mongoBackendId: documentId,
+                id: documentId, 
+                mongoBackendId: documentId,
                 title: sanitizeFilename(docTitle),
-                content: genContent,
-                createdAt: Date.now(), lastOpened: Date.now(),
-                template: 'ai-generated', pinned: false, slideCount: 0,
+                content: trimmedContent,
+                createdAt: Date.now(), 
+                lastOpened: Date.now(),
+                template: 'ai-generated', 
+                pinned: false, 
+                slideCount: 0,
             };
 
             queryClient.setQueryData(['documents'], old => [newDoc, ...(old || [])]);
@@ -694,8 +709,31 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
             toast.success('Document ready!');
         } catch (err) {
             console.error('AI Generation error:', err);
+            
+            // 🔥 Reset to config state on any error
             setGenStep('config');
-            toast.error(err.message?.includes('API') ? 'AI service unavailable. Check your API configuration.' : 'Generation failed. Please try again.');
+            setGenProgress(0);
+            setGenPhaseLabel('');
+            setGeneratedContent('');
+            setGeneratedDocId(null);
+            setGeneratedDocTitle('');
+            setWordCount(0);
+            
+            // 🔥 Show specific error messages
+            const errorMsg = err.message || '';
+            if (errorMsg.includes('empty or invalid')) {
+                toast.error('AI generated empty content. Please try again with a different topic.');
+            } else if (errorMsg.includes('insufficient content')) {
+                toast.error(errorMsg);
+            } else if (errorMsg.includes('too few words')) {
+                toast.error(errorMsg);
+            } else if (errorMsg.includes('Failed to save')) {
+                toast.error('Failed to save document. Please check your connection and try again.');
+            } else if (errorMsg.includes('API') || errorMsg.includes('openai')) {
+                toast.error('AI service unavailable. Please check your API configuration.');
+            } else {
+                toast.error('Generation failed. Please try again with a different topic.');
+            }
         } finally {
             setIsGenerating(false);
         }
@@ -726,7 +764,7 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
     // ══════════════════════════════════════════════════════════════════════
     return (
         <div
-            className="min-h-screen bg-slate-50 text-slate-800 font-sans overflow-y-auto pl-[60px]"
+            className="min-h-screen bg-[#e9f4ff] text-slate-800 font-sans overflow-y-auto pl-[60px]"
             onClick={() => setContextMenu(null)}
         >
             {/* Custom scrollbar styles */}
@@ -755,24 +793,35 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                     initial={{ opacity: 0, y: -12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"
+                    className="relative mb-10 py-8 px-8 rounded-2xl overflow-hidden bg-gradient-to-r from-white via-sky-100 to-white border border-sky-200 shadow-sm"
                 >
-                    <div>
-                        <p className="text-xs font-semibold tracking-widest uppercase text-slate-400 mb-2 select-none">
-                            Athena Workspace
-                        </p>
-                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}.
-                        </h1>
-                        <p className="text-slate-400 mt-1.5 text-sm font-medium">
-                            What would you like to work on today?
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-                        <span className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-sm">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            {documents.length} document{documents.length !== 1 ? 's' : ''}
-                        </span>
+                    {/* Decorative overlays */}
+                    <div className="absolute top-0 left-0 w-full h-[100px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none" />
+                    
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                        <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 mb-3">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Athena Workspace
+                            </div>
+                            <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight">
+                                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
+                                {user?.name ? (
+                                    <span className="ml-2 bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">
+                                        {user.name.split(' ')[0]}
+                                    </span>
+                                ) : ''}.
+                            </h1>
+                            <p className="text-slate-600 mt-2 text-sm sm:text-[15px] font-medium max-w-xl leading-6">
+                                What would you like to <span className="font-semibold text-slate-700">work on</span> today?
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                            <span className="inline-flex items-center gap-1.5 bg-white border border-sky-200 rounded-full px-3 py-1.5 shadow-sm">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                {documents.length} document{documents.length !== 1 ? 's' : ''}
+                            </span>
+                        </div>
                     </div>
                 </motion.header>
 
@@ -784,8 +833,8 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                             sub: 'Turn any idea into a complete document instantly',
                             icon: Wand2,
                             cta: 'Try Magic Write',
-                            gradient: 'from-amber-400 to-orange-500',
-                            glow: 'rgba(245,158,11,0.18)',
+                            gradient: 'from-amber-300 to-orange-400',
+                            glow: 'rgba(245,158,11,0.45)',
                             action: () => setShowAIGenerator(true),
                         },
                         {
@@ -793,8 +842,8 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                             sub: 'Start writing from a blank canvas',
                             icon: PenLine,
                             cta: 'Open Editor',
-                            gradient: 'from-blue-500 to-indigo-600',
-                            glow: 'rgba(59,130,246,0.18)',
+                            gradient: 'from-blue-500 to-cyan-400',
+                            glow: 'rgba(37,99,235,0.45)',
                             action: () => openEditor('blank'),
                         },
                         {
@@ -802,8 +851,8 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                             sub: 'Edit any DOCX, PDF, Markdown or HTML file',
                             icon: FileUp,
                             cta: 'Select File',
-                            gradient: 'from-emerald-500 to-teal-600',
-                            glow: 'rgba(16,185,129,0.18)',
+                            gradient: 'from-emerald-400 to-teal-400',
+                            glow: 'rgba(16,185,129,0.45)',
                             action: () => setShowUploadZone(true),
                         },
                     ].map(({ label, sub, icon: Icon, cta, gradient, glow, action }, i) => (
@@ -813,30 +862,30 @@ Output ONLY the formatted content. No preamble. Just the ${aiContentType}.`;
                             initial="hidden"
                             animate="visible"
                             variants={cardVariants}
-                            whileHover={{ y: -3, boxShadow: `0 16px 40px ${glow}` }}
+                            whileHover={{ y: -4, boxShadow: `0 20px 40px ${glow}` }}
                             whileTap={{ scale: 0.98 }}
                             onClick={action}
-                            className={`group relative overflow-hidden bg-gradient-to-br ${gradient} rounded-2xl p-6 flex flex-col gap-3 cursor-pointer text-left transition-shadow`}
+                            className={`group relative overflow-hidden bg-gradient-to-br ${gradient} rounded-2xl p-6 flex flex-col gap-3 cursor-pointer text-left transition-all duration-300 border border-white/20`}
                             style={{ boxShadow: `0 8px 24px ${glow}` }}
                         >
                             {/* Noise / shine overlay */}
-                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
-                            <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shrink-0">
-                                <Icon className="w-5 h-5 text-white" />
+                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
+                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shrink-0 shadow-sm">
+                                <Icon className="w-6 h-6 text-white" />
                             </div>
                             <div className="text-white">
-                                <p className="font-bold text-base leading-snug">{label}</p>
-                                <p className="text-white/75 text-xs mt-0.5 leading-relaxed">{sub}</p>
+                                <p className="font-bold text-lg leading-snug">{label}</p>
+                                <p className="text-white/80 text-sm mt-1 leading-relaxed">{sub}</p>
                             </div>
-                            <div className="flex items-center gap-1 text-white/90 text-xs font-semibold mt-auto">
-                                {cta} <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                            <div className="flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-auto">
+                                {cta} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </div>
                         </motion.button>
                     ))}
                 </section>
 
                 {/* ── Recent documents ────────────────────────────────────── */}
-                <section className="mb-10 bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+                <section className="mb-10 bg-white rounded-2xl border border-sky-200/60 shadow-[0_6px_18px_rgba(37,99,235,0.08)] overflow-hidden">
                     {/* Section header */}
                     <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
                         <div className="flex items-center gap-3">

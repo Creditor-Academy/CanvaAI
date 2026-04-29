@@ -128,7 +128,7 @@ async function generateDocument({
 async function generateImage({
   prompt,
   style,
-  size,
+  size = '1024x1024',
   enhancePrompt = true,
   signal
 }) {
@@ -175,21 +175,29 @@ async function transformText({
   tone,
   language,
   creativity,
-  signal
+  signal,
+  systemPrompt: systemPromptOverride, // Allow caller to override system prompt
 }) {
   const TRANSFORM_PROMPTS = {
-    rewrite: `Rewrite this text to improve clarity, flow, and engagement while maintaining the original meaning:\n\n"${text}"`,
-    expand: `Expand this text with more details, examples, and depth:\n\n"${text}"`,
-    summarize: `Summarize this text, keeping only the key points:\n\n"${text}"`,
-    simplify: `Simplify this text to make it easier to read and understand:\n\n"${text}"`,
-    change_tone: `Rewrite this text in a ${tone} tone:\n\n"${text}"`,
-    translate: `Translate this text to ${language}:\n\n"${text}"`,
-    paraphrase: `Paraphrase this text using different words while keeping the same meaning:\n\n"${text}"`,
-    custom: customPrompt ? `${customPrompt}\n\nApply to this text:\n\n"${text}"` : `Transform this text:\n\n"${text}"`,
+    rewrite:           `Rewrite this text to improve clarity, flow, and engagement while maintaining the original meaning:\n\n"${text}"`,
+    enhance:           `Enhance this text to be more professional, engaging, and impactful while preserving the original meaning:\n\n"${text}"`,
+    expand:            `Expand this text with more details, examples, and depth:\n\n"${text}"`,
+    summarize:         `Summarize this text concisely, keeping only the key points:\n\n"${text}"`,
+    simplify:          `Simplify this text to make it easier to read and understand:\n\n"${text}"`,
+    change_tone:       `Rewrite this text in a ${tone} tone:\n\n"${text}"`,
+    translate:         `Translate this text to ${language}:\n\n"${text}"`,
+    paraphrase:        `Paraphrase this text using completely different words while keeping the same meaning:\n\n"${text}"`,
+    make_professional: `Rewrite this text in a polished, professional tone suitable for business communication. Remove informal language:\n\n"${text}"`,
+    make_concise:      `Remove all unnecessary words and redundancy from this text. Keep every essential idea but cut aggressively:\n\n"${text}"`,
+    add_examples:      `Enhance this text by inserting relevant, concrete examples and illustrations to support each key claim:\n\n"${text}"`,
+    custom:            customPrompt ? `${customPrompt}\n\nApply to this text:\n\n"${text}"` : `Transform this text:\n\n"${text}"`,
   };
 
+  const resolvedSystemPrompt = systemPromptOverride ||
+    'You are a professional editor and writing assistant. Help users improve their text with clarity, correctness, and impact. Return ONLY the transformed text — no preamble, no explanation.';
+
   return await callAI({
-    systemPrompt: 'You are a professional editor and writing assistant. Help users improve their text with clarity, correctness, and impact.',
+    systemPrompt: resolvedSystemPrompt,
     userPrompt: TRANSFORM_PROMPTS[action] || TRANSFORM_PROMPTS.rewrite,
     temperature: creativity,
     signal,

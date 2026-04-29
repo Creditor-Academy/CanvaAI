@@ -636,9 +636,22 @@ export const paginateDocument = (editor, options = {}) => {
 
       try {
         tr.setSelection(TextSelection.create(tr.doc, clamp(newFrom), clamp(newTo)));
-      } catch (_) {
-        // If selection creation fails (e.g. position in non-selectable node),
-        // leave the selection unset — ProseMirror will place it at a valid spot.
+      } catch (selectionErr) {
+        // If selection creation fails (e.g. position in non-selectable node like page),
+        // use a fallback selection at the nearest valid position
+        console.debug('[paginateDocument] Selection at invalid position, using fallback');
+        try {
+          // Try to find nearest valid text position
+          const resolved = tr.doc.resolve(clamp(newFrom));
+          if (resolved.parent.type.spec.content && resolved.parent.type.spec.content.includes('text')) {
+            tr.setSelection(TextSelection.create(tr.doc, clamp(newFrom)));
+          } else {
+            // If still invalid, leave selection unset - ProseMirror will handle it
+            console.debug('[paginateDocument] Using default selection placement');
+          }
+        } catch (_) {
+          // Final fallback: leave selection as-is
+        }
       }
 
       editor.view.dispatch(tr);
