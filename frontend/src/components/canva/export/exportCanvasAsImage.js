@@ -562,32 +562,49 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
   };
 
   // Draw all layers in order
-  for (const layer of layers) {
+  console.log('[exportCanvasAsImage] Rendering', Array.isArray(layers) ? layers.length : 0, 'layers', {
+    canvasSize,
+    types: Array.isArray(layers) ? layers.map(l => l && l.type) : []
+  });
+
+  for (const layer of layers || []) {
     if (!layer || layer.visible === false) continue;
 
-    // Apply rotation if present
-    if (layer.rotation) {
+    // Skip non-renderable bookkeeping entries (e.g. saved metadata layer)
+    if (layer.type === 'metadata') continue;
+
+    // Apply rotation if present (guard against missing geometry)
+    const hasGeometry = Number.isFinite(layer.x) && Number.isFinite(layer.y)
+      && Number.isFinite(layer.width) && Number.isFinite(layer.height);
+    const applyRotation = !!layer.rotation && hasGeometry;
+    if (applyRotation) {
       ctx.save();
       ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
       ctx.rotate(layer.rotation * Math.PI / 180);
       ctx.translate(-layer.x - layer.width / 2, -layer.y - layer.height / 2);
     }
 
-    if (layer.type === 'shape') {
-      if (layer.fillType === 'image' && layer.fillImageSrc) {
-        await drawShapeLayerWithImage(layer);
+    try {
+      if (layer.type === 'shape') {
+        if (layer.fillType === 'image' && layer.fillImageSrc) {
+          await drawShapeLayerWithImage(layer);
+        } else {
+          drawShape(layer);
+        }
+      } else if (layer.type === 'text') {
+        drawTextLayer(ctx, layer);
+      } else if (layer.type === 'image') {
+        await drawImageLayer(layer);
+      } else if (layer.type === 'drawing') {
+        drawDrawingLayer(layer);
       } else {
-        drawShape(layer);
+        console.warn('[exportCanvasAsImage] Skipping layer with unknown type:', layer.type, layer);
       }
-    } else if (layer.type === 'text') {
-      drawTextLayer(ctx, layer);
-    } else if (layer.type === 'image') {
-      await drawImageLayer(layer);
-    } else if (layer.type === 'drawing') {
-      drawDrawingLayer(layer);
+    } catch (err) {
+      console.error('[exportCanvasAsImage] Failed to draw layer', layer && layer.id, layer && layer.type, err);
     }
 
-    if (layer.rotation) {
+    if (applyRotation) {
       ctx.restore();
     }
   }
