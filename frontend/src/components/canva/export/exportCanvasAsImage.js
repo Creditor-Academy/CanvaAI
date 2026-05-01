@@ -118,7 +118,7 @@ const getProxiedUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
   if (url.startsWith('data:')) return url;
   // Proxy S3 URL to avoid canvas tainting/CORS
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
   let ext = url.split('.').pop().split('?')[0].toLowerCase();
   if (ext === 'jpeg') ext = 'jpg';
   if (!['jpg', 'png', 'webp', 'svg', 'pdf'].includes(ext)) ext = 'png';
@@ -296,7 +296,7 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      
+
       const onLoadSuccess = () => {
         const x = layer.x;
         const y = layer.y;
@@ -369,14 +369,14 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
 
         resolve();
       };
-      
+
       img.onload = onLoadSuccess;
       img.onerror = () => {
         console.warn(`Failed to load image: ${layer.fillImageSrc}`);
         // Continue export even if image fails to load
         resolve();
       };
-      
+
       const finalSrc = getProxiedUrl(layer.fillImageSrc);
       if (finalSrc && typeof finalSrc === 'string' && !finalSrc.startsWith('data:')) {
         const timestamp = Date.now();
@@ -392,13 +392,13 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      
+
       // Timeout to prevent hanging on slow network
       const loadTimeout = setTimeout(() => {
         console.warn(`Image load timeout: ${layer.src}`);
         resolve(); // Continue export even on timeout
       }, 15000); // 15 second timeout
-      
+
       img.onload = () => {
         clearTimeout(loadTimeout);
         const x = layer.x;
@@ -476,13 +476,13 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         ctx.restore();
         resolve();
       };
-      
+
       img.onerror = () => {
         clearTimeout(loadTimeout);
         console.warn(`Failed to load image: ${layer.src}`);
         resolve(); // Continue export even if image fails
       };
-      
+
       const finalSrc = getProxiedUrl(layer.src);
 
       const loadImage = async (src) => {
@@ -498,14 +498,14 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
           // Use fetch with timeout to ensure image is fully loaded and CORS is handled
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 15000);
-          
-          const resp = await fetch(srcWithTimestamp, { 
+
+          const resp = await fetch(srcWithTimestamp, {
             mode: 'cors',
-            signal: controller.signal 
+            signal: controller.signal
           });
-          
+
           clearTimeout(timeoutId);
-          
+
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const blob = await resp.blob();
           img.src = URL.createObjectURL(blob);
