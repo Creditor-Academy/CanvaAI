@@ -515,23 +515,22 @@ const CanvaEditor = () => {
   const handleSave = (title) => {
     if (!user) {
       alert("Please login to save your design");
-      return;
+      return Promise.reject("Not logged in");
     }
 
     // If caller provided a title (e.g. from ProjectNameModal), use it.
     if (title && typeof title === 'string') {
-      confirmSave(title);
-      return;
+      return confirmSave(title);
     }
 
     // If this is an existing project, save immediately using current project name
     if (projectId) {
-      confirmSave(projectName);
-      return;
+      return confirmSave(projectName);
     }
 
     // No title and not an existing project: open project-name modal (fallback)
     setIsProjectNameModalOpen(true);
+    return Promise.resolve();
   };
 
   // Assuming updateImage and updateImageVisibility are imported from a service file
