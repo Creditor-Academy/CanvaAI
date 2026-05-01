@@ -21,7 +21,7 @@ const handleCloneImage = async (imageId) => {
                 }
             }
         );
-        console.log(response.data,"This is the response data");
+        console.log(response.data, "This is the response data");
         return response.data; // ✅ IMPORTANT
     } catch (err) {
         console.error('Clone/import failed', err);
@@ -53,7 +53,7 @@ const renderImagePreview = (image) => {
     const height = Math.max(canvasSize?.height || 600, 100);
 
 
-    
+
     const svgBackgroundStyle = bgImage
         ? { background: '#ffffff' }
         : (isGradient
@@ -286,51 +286,44 @@ const ImagePopup = ({ image, thumbnail, onClose, onImport }) => {
                     <button
                         style={{ ...popupStyles.importBtn, opacity: importing ? 0.6 : 1 }}
                         disabled={importing}
-                       onClick={async () => {
-    const targetId = image.imageId;
-    console.log(targetId,"This is the target id");
+                        onClick={async () => {
+                            const targetId = image.imageId;
+                            try {
+                                setImporting(true);
 
-    try {
-        setImporting(true);
+                                const data = await handleCloneImage(targetId);
+                                const newId = data.data._id;
+                                console.log(data, "This is the data");
 
-        const data = await handleCloneImage(targetId);
-        // console.log("data : ",data._id, " : data inside data",data.data._id) // ✅ correct
-        const newId = data.data._id;
-        console.log(data,"This is the data");
+                                // Save prefill data
+                                try {
+                                    sessionStorage.setItem(
+                                        `prefill_project_${newId}`,
+                                        JSON.stringify(data)
+                                    );
+                                    sessionStorage.setItem(
+                                        `prefill_import_flag_${newId}`,
+                                        '1'
+                                    );
+                                } catch (err) {
+                                    console.warn('Failed to store cloned prefill project', err);
+                                }
+                                console.log(newId, "This is new id")
+                                toast.success('Template imported to your account');
+                                window.open(`/canva-clone/${newId}`, '_blank');
+                                onClose();
 
-        // Save prefill data
-        try {
-            sessionStorage.setItem(
-                `prefill_project_${newId}`,
-                JSON.stringify(data)
-            );
-            sessionStorage.setItem(
-                `prefill_import_flag_${newId}`,
-                '1'
-            );
-        } catch (err) {
-            console.warn('Failed to store cloned prefill project', err);
-        }
-            console.log(newId,"This is new id")
-        toast.success('Template imported to your account');
-        window.location.href = `/canva-clone/${newId}`;
-        onClose();
-
-    } catch (err) {
-        console.error('Clone/import failed', err);
-        toast.error('Failed to import template');
-    } finally {
-        setImporting(false);
-    }
-}}
+                            } catch (err) {
+                                console.error('Clone/import failed', err);
+                                toast.error('Failed to import template');
+                            } finally {
+                                setImporting(false);
+                            }
+                        }}
                     >
                         <ExternalLink size={16} style={{ marginRight: '8px' }} />
                         {importing ? 'Importing...' : 'Import Template'}
                     </button>
-                    {/* <button>
-                        onclick = {handleCloneImage(image.imageId)}
-                        import button
-                    </button> */}
                 </div>
             </div>
         </div>,
@@ -461,4 +454,3 @@ const popupStyles = {
 };
 
 export default ImagePopup;
-

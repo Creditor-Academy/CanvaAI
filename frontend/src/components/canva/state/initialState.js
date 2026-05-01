@@ -3,7 +3,7 @@ export const initialTemplates = [
   { id: 1, name: 'Default Canvas', width: 800, height: 600, category: 'Basic' },
   // { id: 2, name: 'Social Media Post', width: 1080, height: 1080, category: 'Social' },
   { id: 3, name: 'Mobile view', width: 1080, height: 1920, category: 'Social' },
-  { id: 4, name: 'Facebook Cover', width: 1200, height: 630, category: 'Social' },
+  // { id: 4, name: 'Facebook Cover', width: 1200, height: 630, category: 'Social' },
   { id: 5, name: 'YouTube Thumbnail', width: 1280, height: 720, category: 'Video' },
   // { id: 6, name: 'Business Card', width: 1050, height: 600, category: 'Business' },
   // { id: 7, name: 'Presentation', width: 1920, height: 1080, category: 'Business' },

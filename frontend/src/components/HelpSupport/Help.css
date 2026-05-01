@@ -205,10 +205,6 @@
 .tutorial-card:hover::before {
   opacity: 1;
 }
-.tutorial-card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(2,6,23,0.15);
-}
 
 .tutorial-icon {
   width: 42px;
