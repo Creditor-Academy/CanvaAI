@@ -654,10 +654,10 @@ const EditingToolbar = ({
                                         setIsExportSaving(true);
                                         const name = pendingName || 'design';
                                         const formatLower = pendingFormat.toLowerCase();
-                                        
+
                                         // Log the complete export payload (Metadata + Layers)
                                         console.log(`%c Preparing Export: ${name}.${formatLower} `, 'background: #059669; color: #fff; font-weight: bold; padding: 4px; border-radius: 4px;');
-                                        
+
                                         const finalPayload = {
                                             imageId: imageId,
                                             projectName: name,
@@ -683,7 +683,12 @@ const EditingToolbar = ({
                                         console.log("-----------------------------------------");
 
                                         // Save the project before exporting
-                                        await onSave(name);
+                                        // Save the project before exporting
+                                        if (isExistingProject) {
+                                            await onSave(name); // update
+                                        } else {
+                                            await handleProjectNameConfirm(name); 
+                                        }
 
                                         if (onDownload) {
                                             // onDownload handles client-side rendering with current state
@@ -737,4 +742,5 @@ const EditingToolbar = ({
 };
 
 export default EditingToolbar;
+
 
