@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import LoadingPage from "./canva/components/LoadingPage";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -19,7 +20,7 @@ const ProtectedRoute = ({ children }) => {
 
   // still checking initial auth state
   if (isAuthenticated === null) {
-    return <div>Loading...</div>;
+    return <LoadingPage />;
   }
 
   // if no token or not authenticated → block

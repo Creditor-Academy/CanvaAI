@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TemplatePreviewModal from '../components/TemplatePreviewModal';
 import '../components/TemplatePreviewModal.css';
+import LoadingPage from '@/components/canva/components/LoadingPage';
 
 const CategoryTemplates = () => {
   const { category } = useParams();
@@ -48,7 +49,9 @@ const CategoryTemplates = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="flex items-center justify-center h-screen">
+      <LoadingPage />
+    </div>;
   }
 
   if (error) {
