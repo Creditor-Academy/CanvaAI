@@ -113,26 +113,16 @@ const drawCloudPath = (ctx, x, y, w, h) => {
  * Export canvas as image (PNG/JPEG)
  */
 
-// Helper to get proxied URL for S3 images to avoid CORS issues
+// Helper to safely get image URL - proxy to avoid CORS
 const getProxiedUrl = (url) => {
   if (!url || typeof url !== 'string') return url;
   if (url.startsWith('data:')) return url;
-
-  // Check if it's an S3 URL from our bucket
-  if (url.includes('s3.us-east-1.amazonaws.com')) {
-    try {
-      const parsed = new URL(url);
-      const pathParts = parsed.pathname.split('/').filter(Boolean); // [folder, userId, serviceId, fileName]
-      if (pathParts.length >= 4) {
-        const [folder, userId, serviceId, fileName] = pathParts;
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-        return `${baseUrl}/api/image/view/${folder}/${userId}/${serviceId}/${fileName}`;
-      }
-    } catch (e) {
-      return url;
-    }
-  }
-  return url;
+  // Proxy S3 URL to avoid canvas tainting/CORS
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  let ext = url.split('.').pop().split('?')[0].toLowerCase();
+  if (ext === 'jpeg') ext = 'jpg';
+  if (!['jpg', 'png', 'webp', 'svg', 'pdf'].includes(ext)) ext = 'png';
+  return `${baseUrl}/api/export/s3/images?s3Url=${encodeURIComponent(url)}&format=${ext}`;
 };
 
 export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', quality = 0.92, bgColor = '#ffffff', bgImage = null) => {
@@ -143,28 +133,6 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-
-  // Helper to get proxied URL for S3 images to avoid CORS issues
-  const getProxiedUrl = (url) => {
-    if (!url || typeof url !== 'string') return url;
-    if (url.startsWith('data:')) return url;
-
-    // Check if it's an S3 URL from our bucket
-    if (url.includes('s3.us-east-1.amazonaws.com')) {
-      try {
-        const parsed = new URL(url);
-        const pathParts = parsed.pathname.split('/').filter(Boolean); // [folder, userId, serviceId, fileName]
-        if (pathParts.length >= 4) {
-          const [folder, userId, serviceId, fileName] = pathParts;
-          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-          return `${baseUrl}/api/image/view/${folder}/${userId}/${serviceId}/${fileName}`;
-        }
-      } catch (e) {
-        return url;
-      }
-    }
-    return url;
-  };
 
   // Background
   ctx.save();
@@ -328,7 +296,8 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => {
+      
+      const onLoadSuccess = () => {
         const x = layer.x;
         const y = layer.y;
         const w = layer.width || img.width;
@@ -400,7 +369,14 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
 
         resolve();
       };
-      img.onerror = () => resolve();
+      
+      img.onload = onLoadSuccess;
+      img.onerror = () => {
+        console.warn(`Failed to load image: ${layer.fillImageSrc}`);
+        // Continue export even if image fails to load
+        resolve();
+      };
+      
       const finalSrc = getProxiedUrl(layer.fillImageSrc);
       if (finalSrc && typeof finalSrc === 'string' && !finalSrc.startsWith('data:')) {
         const timestamp = Date.now();
@@ -416,7 +392,15 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      
+      // Timeout to prevent hanging on slow network
+      const loadTimeout = setTimeout(() => {
+        console.warn(`Image load timeout: ${layer.src}`);
+        resolve(); // Continue export even on timeout
+      }, 15000); // 15 second timeout
+      
       img.onload = () => {
+        clearTimeout(loadTimeout);
         const x = layer.x;
         const y = layer.y;
         const w = layer.width || img.width;
@@ -492,6 +476,13 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
         ctx.restore();
         resolve();
       };
+      
+      img.onerror = () => {
+        clearTimeout(loadTimeout);
+        console.warn(`Failed to load image: ${layer.src}`);
+        resolve(); // Continue export even if image fails
+      };
+      
       const finalSrc = getProxiedUrl(layer.src);
 
       const loadImage = async (src) => {
@@ -504,13 +495,24 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
           const timestamp = Date.now();
           const srcWithTimestamp = src.includes('?') ? `${src}&t=${timestamp}` : `${src}?t=${timestamp}`;
 
-          // Use fetch to ensure image is fully loaded and CORS is handled
-          const resp = await fetch(srcWithTimestamp, { mode: 'cors' });
-          if (!resp.ok) throw new Error('Fetch failed');
+          // Use fetch with timeout to ensure image is fully loaded and CORS is handled
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          
+          const resp = await fetch(srcWithTimestamp, { 
+            mode: 'cors',
+            signal: controller.signal 
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const blob = await resp.blob();
           img.src = URL.createObjectURL(blob);
         } catch (e) {
-          console.warn('Fetch failed, falling back to direct src:', e);
+          clearTimeout(loadTimeout);
+          console.warn(`Fetch failed for ${src}:`, e.message);
+          // Try direct src as fallback
           const timestamp = Date.now();
           img.src = src.includes('?') ? `${src}&t=${timestamp}` : `${src}?t=${timestamp}`;
         }
@@ -560,32 +562,49 @@ export const exportCanvasAsImage = async (layers, canvasSize, format = 'png', qu
   };
 
   // Draw all layers in order
-  for (const layer of layers) {
+  console.log('[exportCanvasAsImage] Rendering', Array.isArray(layers) ? layers.length : 0, 'layers', {
+    canvasSize,
+    types: Array.isArray(layers) ? layers.map(l => l && l.type) : []
+  });
+
+  for (const layer of layers || []) {
     if (!layer || layer.visible === false) continue;
 
-    // Apply rotation if present
-    if (layer.rotation) {
+    // Skip non-renderable bookkeeping entries (e.g. saved metadata layer)
+    if (layer.type === 'metadata') continue;
+
+    // Apply rotation if present (guard against missing geometry)
+    const hasGeometry = Number.isFinite(layer.x) && Number.isFinite(layer.y)
+      && Number.isFinite(layer.width) && Number.isFinite(layer.height);
+    const applyRotation = !!layer.rotation && hasGeometry;
+    if (applyRotation) {
       ctx.save();
       ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
       ctx.rotate(layer.rotation * Math.PI / 180);
       ctx.translate(-layer.x - layer.width / 2, -layer.y - layer.height / 2);
     }
 
-    if (layer.type === 'shape') {
-      if (layer.fillType === 'image' && layer.fillImageSrc) {
-        await drawShapeLayerWithImage(layer);
+    try {
+      if (layer.type === 'shape') {
+        if (layer.fillType === 'image' && layer.fillImageSrc) {
+          await drawShapeLayerWithImage(layer);
+        } else {
+          drawShape(layer);
+        }
+      } else if (layer.type === 'text') {
+        drawTextLayer(ctx, layer);
+      } else if (layer.type === 'image') {
+        await drawImageLayer(layer);
+      } else if (layer.type === 'drawing') {
+        drawDrawingLayer(layer);
       } else {
-        drawShape(layer);
+        console.warn('[exportCanvasAsImage] Skipping layer with unknown type:', layer.type, layer);
       }
-    } else if (layer.type === 'text') {
-      drawTextLayer(ctx, layer);
-    } else if (layer.type === 'image') {
-      await drawImageLayer(layer);
-    } else if (layer.type === 'drawing') {
-      drawDrawingLayer(layer);
+    } catch (err) {
+      console.error('[exportCanvasAsImage] Failed to draw layer', layer && layer.id, layer && layer.type, err);
     }
 
-    if (layer.rotation) {
+    if (applyRotation) {
       ctx.restore();
     }
   }

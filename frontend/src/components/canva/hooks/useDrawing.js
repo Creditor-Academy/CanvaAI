@@ -87,61 +87,27 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
         const p1 = { x: localLast.x - layer.x, y: localLast.y - layer.y };
         const p2 = { x: localCurrent.x - layer.x, y: localCurrent.y - layer.y };
 
-        // Optimized densification
-        const path = layer.path;
-        const densifiedPath = [];
-        const maxSegmentLength = 1; // Extremely fine for "pixel-perfect" erasure
-
-        for (let i = 0; i < path.length; i++) {
-          const point = path[i];
-          densifiedPath.push(point);
-
-          if (i < path.length - 1 && !path[i+1].forceMove) {
-            const nextPoint = path[i+1];
-            const dx = nextPoint.x - point.x;
-            const dy = nextPoint.y - point.y;
-            const dist = Math.hypot(dx, dy);
-
-            if (dist > maxSegmentLength) {
-              const steps = Math.ceil(dist / maxSegmentLength);
-              for (let j = 1; j < steps; j++) {
-                const t = j / steps;
-                densifiedPath.push({
-                  x: point.x + dx * t,
-                  y: point.y + dy * t,
-                  pressure: point.pressure || 1
-                });
-              }
-            }
-          }
+        const strokeId = lastPoint.strokeId || Date.now();
+        const newEraserPaths = layer.eraserPaths ? [...layer.eraserPaths] : [];
+        let currentStroke = newEraserPaths.find(ep => ep.id === strokeId);
+        
+        if (!currentStroke) {
+          currentStroke = {
+            id: strokeId,
+            brushSize: totalEraserRadius * 2,
+            path: [p1]
+          };
+          newEraserPaths.push(currentStroke);
+        }
+        
+        // Calculate distance from last point
+        const lastP = currentStroke.path[currentStroke.path.length - 1];
+        if (Math.hypot(p2.x - lastP.x, p2.y - lastP.y) >= 0) {
+          currentStroke.path.push(p2);
         }
 
-        const newPath = [];
-        let layerChanged = false;
-        let wasErased = false;
-
-        for (let i = 0; i < densifiedPath.length; i++) {
-          const p = densifiedPath[i];
-          // Check distance in local space
-          const dist = distToSegment(p, p1, p2);
-          
-          if (dist <= totalEraserRadius) {
-            layerChanged = true;
-            wasErased = true;
-          } else {
-            if (wasErased && newPath.length > 0) {
-              newPath.push({ ...p, forceMove: true });
-            } else {
-              newPath.push(p);
-            }
-            wasErased = false;
-          }
-        }
-
-        if (!layerChanged) return layer;
         hasGlobalChanges = true;
-        if (newPath.length === 0) return null;
-        return { ...layer, path: newPath };
+        return { ...layer, eraserPaths: newEraserPaths };
       }).filter(Boolean);
 
       if (hasGlobalChanges) {
@@ -158,8 +124,9 @@ export const useDrawing = (layers, setLayers, selectedTool, getCanvasPoint, save
 
     if (selectedTool === 'eraser') {
       setDrawingSettings(prev => ({ ...prev, isDrawing: true }));
+      // Reset lastPointRef BEFORE calling handleEraserAction to ensure click erases only the current point
+      lastPointRef.current = { x, y, pressure: 1, strokeId: Date.now() };
       handleEraserAction(x, y);
-      lastPointRef.current = { x, y, pressure: 1 };
       lastTimeRef.current = performance.now();
       return;
     }

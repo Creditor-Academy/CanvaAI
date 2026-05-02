@@ -67,6 +67,8 @@ const EditingToolbar = ({
     const [showSaveTooltip, setShowSaveTooltip] = useState(false);
     const [showProjectNameModal, setShowProjectNameModal] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isExportSaving, setIsExportSaving] = useState(false);
 
     const fontDropdownRef = useRef(null);
     const menuRef = useRef(null);
@@ -138,15 +140,34 @@ const EditingToolbar = ({
         else setFontSizeInput('');
     }, [layer?.fontSize, layer?.id]);
 
-    // Handle save: always show ProjectNameModal (even for existing projects)
-    const handleSaveClick = () => {
-        setShowProjectNameModal(true);
+    // Handle save
+    const handleSaveClick = async () => {
+        if (isExistingProject) {
+            setIsSaving(true);
+            try {
+                await onSave(projectName);
+                setSaveSuccess(true);
+            } catch (error) {
+                console.error("Save error:", error);
+            } finally {
+                setIsSaving(false);
+            }
+        } else {
+            setShowProjectNameModal(true);
+        }
     };
 
-    const handleProjectNameConfirm = (name) => {
+    const handleProjectNameConfirm = async (name) => {
         setShowProjectNameModal(false);
-        onSave(name);
-        setSaveSuccess(true);
+        setIsSaving(true);
+        try {
+            await onSave(name);
+            setSaveSuccess(true);
+        } catch (error) {
+            console.error("Save error:", error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Style Helpers
@@ -578,13 +599,14 @@ const EditingToolbar = ({
                         {/* Save Button */}
                         <div className="relative" ref={saveButtonRef}>
                             <button
-                                className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-all shadow-md hover:shadow-lg"
+                                className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-all shadow-md hover:shadow-lg disabled:opacity-75"
                                 onClick={handleSaveClick}
+                                disabled={isSaving}
                                 onMouseEnter={() => setShowSaveTooltip(true)}
                                 onMouseLeave={() => setShowSaveTooltip(false)}
                             >
-                                <FiSave size={16} />
-                                <span>{isExistingProject ? "Update" : "Save"}</span>
+                                <FiSave size={16} className={isSaving ? "animate-pulse" : ""} />
+                                <span>{isSaving ? "Saving..." : isExistingProject ? "Update" : "Save"}</span>
                             </button>
 
                             {/* Tooltip */}
@@ -625,9 +647,11 @@ const EditingToolbar = ({
                         <div className="flex justify-end gap-2">
                             <button className="px-3 py-1 text-sm rounded-md" onClick={() => setShowNamePrompt(false)}>Cancel</button>
                             <button
-                                className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                                className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm disabled:opacity-50"
+                                disabled={isExportSaving}
                                 onClick={async () => {
                                     try {
+                                        setIsExportSaving(true);
                                         const name = pendingName || 'design';
                                         const formatLower = pendingFormat.toLowerCase();
                                         
@@ -658,6 +682,9 @@ const EditingToolbar = ({
                                         console.log(finalPayload);
                                         console.log("-----------------------------------------");
 
+                                        // Save the project before exporting
+                                        await onSave(name);
+
                                         if (onDownload) {
                                             // onDownload handles client-side rendering with current state
                                             await onDownload(formatLower, name);
@@ -683,13 +710,12 @@ const EditingToolbar = ({
                                     } catch (error) {
                                         console.error('Export failed:', error);
                                         toast.error(error.message || 'Failed to download image. Please try again.');
-                                        setShowNamePrompt(false);
-                                        setPendingFormat(null);
-                                        setPendingName('');
+                                    } finally {
+                                        setIsExportSaving(false);
                                     }
                                 }}
                             >
-                                Save
+                                {isExportSaving ? 'Saving...' : 'Save'}
                             </button>
 
 

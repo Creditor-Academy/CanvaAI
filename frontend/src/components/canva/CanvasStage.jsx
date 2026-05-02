@@ -247,19 +247,35 @@ const CanvasStage = ({
                     }}
                     viewBox={`0 0 ${layer.width} ${layer.height}`}
                   >
+                    {layer.eraserPaths && layer.eraserPaths.length > 0 && (
+                      <defs>
+                        <mask id={`stage-mask-${layer.id}`}>
+                          <rect width="100%" height="100%" fill="white" />
+                          {layer.eraserPaths.map(ep => (
+                            <path
+                              key={ep.id}
+                              d={ep.path.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')}
+                              stroke="black"
+                              strokeWidth={ep.brushSize}
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          ))}
+                        </mask>
+                      </defs>
+                    )}
                     <path
                       d={layer.path.map((point, index) =>
-                        index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`
+                        index === 0 || point.forceMove ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`
                       ).join(' ')}
-                      stroke={layer.mode === 'eraser' ? '#ffffff' : layer.color}
+                      stroke={layer.color}
                       strokeWidth={layer.brushSize}
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       opacity={layer.opacity / 100}
-                      style={{
-                        mixBlendMode: layer.mode === 'eraser' ? 'multiply' : 'normal'
-                      }}
+                      mask={layer.eraserPaths && layer.eraserPaths.length > 0 ? `url(#stage-mask-${layer.id})` : undefined}
                     />
                   </svg>
                 )}

@@ -515,23 +515,22 @@ const CanvaEditor = () => {
   const handleSave = (title) => {
     if (!user) {
       alert("Please login to save your design");
-      return;
+      return Promise.reject("Not logged in");
     }
 
     // If caller provided a title (e.g. from ProjectNameModal), use it.
     if (title && typeof title === 'string') {
-      confirmSave(title);
-      return;
+      return confirmSave(title);
     }
 
     // If this is an existing project, save immediately using current project name
     if (projectId) {
-      confirmSave(projectName);
-      return;
+      return confirmSave(projectName);
     }
 
     // No title and not an existing project: open project-name modal (fallback)
     setIsProjectNameModalOpen(true);
+    return Promise.resolve();
   };
 
   // Assuming updateImage and updateImageVisibility are imported from a service file
@@ -671,31 +670,69 @@ const CanvaEditor = () => {
       const dataUrl = await exportCanvasAsImageWrapper(fmt, exportQuality);
       if (!dataUrl) throw new Error("Failed to capture canvas");
 
-      // 2) Upload to S3 as a temporary source image
+      // 2) Try to use the S3 export directly or upload to S3 as a temporary source image
       const payload = {
         userId: user?._id || user?.id || '',
         base64Image: dataUrl,
         serviceId: `tmp-${Date.now()}`,
       };
 
-      const resp = await uploadTemporaryImage(payload);
-      const s3Url = resp?.url || resp?.data?.url;
+      try {
+        const resp = await uploadTemporaryImage(payload);
+        const s3Url = resp?.url || resp?.data?.url;
 
-      if (!s3Url) throw new Error("Failed to upload temporary image for export");
+        if (s3Url) {
+          // 3) Call the optimized S3 Export API if upload succeeded
+          try {
+            const blob = await api.exportS3Image(s3Url, ext);
+            const url = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${safeName}.${ext}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
 
-      // 3) Call the optimized S3 Export API
-      const blob = await api.exportS3Image(s3Url, ext);
-      const url = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${safeName}.${ext}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success('Image downloaded successfully', { id: 'export-toast' });
+            toast.success('Image downloaded successfully', { id: 'export-toast' });
+          } catch (exportError) {
+            console.warn('S3 export failed, using direct canvas data:', exportError);
+            // Fallback: download canvas data directly
+            const blob = new Blob([dataUrl.split(',')[1]], { type: `image/${ext}` });
+            const url = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${safeName}.${ext}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            toast.success('Image downloaded (canvas export)', { id: 'export-toast' });
+          }
+        } else {
+          throw new Error("Temporary upload failed, no URL returned");
+        }
+      } catch (uploadError) {
+        console.warn('Temporary image upload failed, using direct canvas export:', uploadError);
+        // Fallback: use canvas data directly
+        const blob = dataUrl.startsWith('data:') 
+          ? new Blob([atob(dataUrl.split(',')[1])], { type: `image/${fmt === 'jpeg' ? 'jpeg' : fmt}` })
+          : new Blob([dataUrl], { type: `image/${fmt === 'jpeg' ? 'jpeg' : fmt}` });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${safeName}.${ext}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('Image downloaded (direct export)', { id: 'export-toast' });
+      }
     } catch (error) {
       console.error('Export failed:', error);
       toast.error(`Export failed: ${error.message}`, { id: 'export-toast' });

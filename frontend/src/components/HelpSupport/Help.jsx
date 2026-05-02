@@ -109,21 +109,18 @@ const Help = () => {
     {
       id: 1,
       title: "Getting Started with AI Design",
-      duration: "5 min read",
       category: "Getting Started",
       description: "Learn the basics of creating stunning designs with AI"
     },
     {
       id: 2,
       title: "Advanced Customization Techniques",
-      duration: "8 min read",
       category: "AI Tools",
       description: "Master advanced editing and customization features"
     },
     {
       id: 3,
       title: "Team Collaboration Guide",
-      duration: "6 min read",
       category: "Team & Collaboration",
       description: "Set up and manage team workspaces effectively"
     }
@@ -465,12 +462,11 @@ const Help = () => {
                 <div key={tutorial.id} className="tutorial-card">
                   <div className="tutorial-icon">📘</div>
 
-                  <h3>{tutorial.title}</h3>
+                  <h3 className="mt-2">{tutorial.title}</h3>
                   <p>{tutorial.description}</p>
 
                   <div className="tutorial-footer">
-                    <span>{tutorial.duration}</span>
-                    <button>Learn more →</button>
+                    <span className='text-gray-500'>Coming soon...</span>
                   </div>
                 </div>
               ))}

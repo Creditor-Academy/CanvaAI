@@ -108,8 +108,14 @@ export const useProjectLoader = (
           // If project API fails or doesn't have design, try image API
           const imageProject = await getImageById(projectId);
           if (imageProject && imageProject.data) {
-            const layers = imageProject.data.layer || [];
-            setLayers(layers);
+            const rawLayers = imageProject.data.layer || imageProject.data.layers || [];
+            // Always strip metadata-type entries so they never end up in canvas state
+            const layers = rawLayers.filter(l => l && l.type !== 'metadata');
+            console.log('[useProjectLoader] Loaded project', projectId, {
+              rawCount: rawLayers.length,
+              contentCount: layers.length,
+              types: layers.map(l => l.type)
+            });
             if (imageProject.title) setProjectName(imageProject.title);
             // If the image payload contains an explicit canvasSize, use it directly
             if (imageProject.data.canvasSize && imageProject.data.canvasSize.width && imageProject.data.canvasSize.height) {
@@ -141,19 +147,16 @@ export const useProjectLoader = (
             try {
               const rootData = imageProject.data;
               
-              // 1. Check for specialized 'metadata' layer FIRST (Latest Structure)
-              const metadataLayer = layers.find(l => l.type === 'metadata');
+              // 1. Check for specialized 'metadata' entry FIRST (Latest Structure)
+              //    Use rawLayers since `layers` already had metadata filtered out above.
+              const metadataLayer = rawLayers.find(l => l && l.type === 'metadata');
               if (metadataLayer) {
                 if (setCanvasBgColor) setCanvasBgColor(metadataLayer.canvasBgColor || '#ffffff');
                 if (setCanvasBgImage) setCanvasBgImage(metadataLayer.canvasBgImage || null);
                 if (metadataLayer.zoom && setZoom) setZoom(metadataLayer.zoom);
                 if (metadataLayer.pan && setPan) setPan(metadataLayer.pan);
                 if (metadataLayer.canvasSize && setCanvasSize) setCanvasSize(metadataLayer.canvasSize);
-                
-                // Filter out the metadata layer so it doesn't appear as an element
-                const contentLayers = layers.filter(l => l.type !== 'metadata');
-                setLayers(contentLayers);
-              } 
+              }
               // 2. Check root level data (Intermediate Structure)
               else if (rootData && (rootData.canvasBgColor !== undefined || rootData.canvasBgImage !== undefined)) {
                 if (setCanvasBgColor) setCanvasBgColor(rootData.canvasBgColor || '#ffffff');
@@ -161,8 +164,7 @@ export const useProjectLoader = (
                 if (rootData.zoom && setZoom) setZoom(rootData.zoom);
                 if (rootData.pan && setPan) setPan(rootData.pan);
                 if (rootData.canvasSize && setCanvasSize) setCanvasSize(rootData.canvasSize);
-                setLayers(layers);
-              } 
+              }
               // 3. Fallback to scanning layers (Legacy Structure)
               else if (layers && layers.length > 0) {
                 const layerWithBgImage = layers.find(l => l.canvasBgImage && (l.canvasBgColor === 'transparent' || l.canvasBgColor === 'rgba(0,0,0,0)' || !l.canvasBgColor));
@@ -186,8 +188,11 @@ export const useProjectLoader = (
                   if (sample.pan && setPan) setPan(sample.pan);
                   if (sample.canvasSize && setCanvasSize) setCanvasSize(sample.canvasSize);
                 }
-                setLayers(layers);
               }
+
+              // Single authoritative setLayers AFTER bg/canvas detection so the
+              // most up-to-date filtered content is committed to state.
+              setLayers(layers);
             }
  catch (err) {
               console.warn('Error applying canvas background from imageProject', err);

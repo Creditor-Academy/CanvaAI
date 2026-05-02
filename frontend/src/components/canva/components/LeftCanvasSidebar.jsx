@@ -7,7 +7,7 @@ import {
   FiCloud, FiMinus, FiHexagon, FiType, FiImage,
   FiEdit3, FiUpload, FiGrid, FiX
 } from 'react-icons/fi';
-import { LuPentagon, LuDiamond, LuEraser } from "react-icons/lu";
+import { LuPentagon, LuDiamond } from "react-icons/lu";
 import { VscTriangleRight } from "react-icons/vsc";
 
 import AIImageGenerator from '../AIImageGenerator'
@@ -273,7 +273,7 @@ const LeftCanvasSidebar = memo(({
   const drawingConfigs = [
     { key: 'brush', label: 'Soft Brush', icon: <FiEdit3 size={18} /> },
     { key: 'pen', label: 'Sharp Pen', icon: <FiEdit3 size={18} /> },
-    { key: 'eraser', label: 'Eraser', icon: <LuEraser size={18} /> }
+    { key: 'eraser', label: 'Eraser', icon: <FiEdit3 size={18} /> }
   ];
 
   const stockImages = [
@@ -604,25 +604,27 @@ const LeftCanvasSidebar = memo(({
               <div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-4">
                 <div>
                   <div className="flex justify-between text-xs text-slate-400 mb-2">
-                    <span>Stroke Width</span>
+                    <span>{selectedTool === 'eraser' ? 'Eraser Size' : 'Stroke Width'}</span>
                     <span>{drawingSettings.brushSize}px</span>
                   </div>
                   <input
-                    type="range" min="1" max="50"
+                    type="range" min="1" max="100"
                     value={drawingSettings.brushSize}
                     onChange={(e) => handleDrawingSettingsChange('brushSize', parseInt(e.target.value))}
                     className="w-full accent-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-2">Color Preset</label>
-                  <input
-                    type="color"
-                    value={drawingSettings.brushColor}
-                    onChange={(e) => handleDrawingSettingsChange('brushColor', e.target.value)}
-                    className="w-full h-10 rounded-lg bg-slate-900 border-none cursor-pointer"
-                  />
-                </div>
+                {['brush', 'pen'].includes(selectedTool) && (
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-2">Color Preset</label>
+                    <input
+                      type="color"
+                      value={drawingSettings.brushColor}
+                      onChange={(e) => handleDrawingSettingsChange('brushColor', e.target.value)}
+                      className="w-full h-10 rounded-lg bg-slate-900 border-none cursor-pointer"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
