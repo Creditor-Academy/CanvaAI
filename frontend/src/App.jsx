@@ -55,6 +55,7 @@ import ImageLayout from "./components/canva/ImageLayout/ImageLayout";
 import Pricing from "./components/analatics/Pricing";
 import ImageTemplates from "./pages/imageTemplates";
 import PresentationTemplates from "./pages/presentationTemplates";
+import LoadingPage from "./components/canva/components/LoadingPage";
 
 const AppContent = () => {
   const location = useLocation();

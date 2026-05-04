@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TemplatePreviewModal from '../components/TemplatePreviewModal';
 import '../components/TemplatePreviewModal.css';
+import LoadingPage from '@/components/canva/components/LoadingPage';
 
 const Templates = () => {
   const navigate = useNavigate();
@@ -45,9 +46,9 @@ const Templates = () => {
   const handleEditTemplate = (template) => {
     navigate(`/canva-clone/${template._id}`, { state: { template } });
   };
-  
+
   if (loading) {
-    return <div>Loading...</div>;
+    return <div><LoadingPage /></div>;
   }
 
   if (error) {

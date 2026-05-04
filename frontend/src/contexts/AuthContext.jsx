@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api from "../services/api";
+import LoadingPage from "@/components/canva/components/LoadingPage";
 
 const AuthContext = createContext();
 
@@ -74,7 +75,7 @@ export const AuthProvider = ({ children }) => {
 
   if (isAuthenticated === null || isLoading) {
     // You can show a loading indicator here while the token check is in progress
-    return <div>Loading...</div>;
+    return <LoadingPage />;
   }
 
   return (

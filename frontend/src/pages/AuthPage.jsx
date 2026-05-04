@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { Eye, EyeOff, XCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import LoadingPage from "@/components/canva/components/LoadingPage";
 
 
 const AuthPage = () => {
@@ -50,33 +51,33 @@ const AuthPage = () => {
   };
 
 
- const handleForgotPassword = async () => {
-  if (!formData.email) {
-    setForgotMsg("Please enter your email first");
-    setTimeout(() => setForgotMsg(""), 3000);
-    return;
-  }
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setForgotMsg("Please enter your email first");
+      setTimeout(() => setForgotMsg(""), 3000);
+      return;
+    }
 
-  try {
-    setForgotLoading(true);
-    setForgotMsg("");
-    await api.forgetPassword(formData.email);
-    setForgotMsg("Reset link sent to your email");
-
-    setTimeout(() => {
+    try {
+      setForgotLoading(true);
       setForgotMsg("");
-    }, 5000);
+      await api.forgetPassword(formData.email);
+      setForgotMsg("Reset link sent to your email");
 
-  } catch (err) {
-    setForgotMsg(err.response?.data?.msg || "Failed to send reset link");
+      setTimeout(() => {
+        setForgotMsg("");
+      }, 5000);
 
-    setTimeout(() => {
-      setForgotMsg("");
-    }, 3000);
-  } finally {
-    setForgotLoading(false);
-  }
-};
+    } catch (err) {
+      setForgotMsg(err.response?.data?.msg || "Failed to send reset link");
+
+      setTimeout(() => {
+        setForgotMsg("");
+      }, 3000);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -213,25 +214,22 @@ const AuthPage = () => {
 
   if (searchParams.get("token") || searchParams.get("googleToken")) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-blue-400 to-blue-300 px-4">
-        <div className="bg-white p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
-          {isLoading && (
-            <>
-              <div className="w-16 h-16 border-4 border-gray-100 border-t-indigo-500 rounded-full mx-auto mb-5 animate-spin" />
-              <h2 className="text-lg sm:text-xl font-semibold">Verifying session...</h2>
-            </>
-          )}
+      <div className="min-h-screen flex items-center justify-center">
 
+        {isLoading && (
+          <>
+            <LoadingPage />
+          </>
+        )}
 
-          {error && (
-            <>
-              <div className="w-16 h-16 bg-red-500 rounded-full mx-auto flex items-center justify-center mb-5">
-                <XCircle className="text-white" />
-              </div>
-              <p className="text-sm sm:text-base">{error}</p>
-            </>
-          )}
-        </div>
+        {error && (
+          <>
+            <div className="w-16 h-16 bg-red-500 rounded-full mx-auto flex items-center justify-center mb-5">
+              <XCircle className="text-white" />
+            </div>
+            <p className="text-sm sm:text-base">{error}</p>
+          </>
+        )}
       </div>
     );
   }
@@ -290,21 +288,21 @@ const AuthPage = () => {
                 <p className="text-red-500 text-sm mt-1">{errors.password}</p>
               )}
               <div className="w-full flex justify-end mt-1">
-  <button
-    type="button"
-    onClick={handleForgotPassword}
-    className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1"
-  >
-    {forgotLoading ? (
-      <>
-        <Loader2 className="animate-spin" size={14} />
-        Sending...
-      </>
-    ) : (
-      "Forgot Password?"
-    )}
-  </button>
-</div>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1"
+                >
+                  {forgotLoading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={14} />
+                      Sending...
+                    </>
+                  ) : (
+                    "Forgot Password?"
+                  )}
+                </button>
+              </div>
 
               <button
                 type="submit"
@@ -315,24 +313,24 @@ const AuthPage = () => {
             </form>
 
 
-           {forgotMsg && (
-  <div className="fixed top-8 right-8 z-50 animate-slideIn">
-    <div className="bg-white border border-blue-300 shadow-2xl rounded-2xl px-8 py-5 flex items-center gap-4 min-w-[320px]">
-      
-      <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center text-lg font-bold">
-        ✓
-      </div>
+            {forgotMsg && (
+              <div className="fixed top-8 right-8 z-50 animate-slideIn">
+                <div className="bg-white border border-blue-300 shadow-2xl rounded-2xl px-8 py-5 flex items-center gap-4 min-w-[320px]">
 
-      <div>
-        <p className="text-sm text-gray-500">Password Reset</p>
-        <p className="text-base font-semibold text-gray-800">
-          {forgotMsg}
-        </p>
-      </div>
+                  <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center text-lg font-bold">
+                    ✓
+                  </div>
 
-    </div>
-  </div>
-)}
+                  <div>
+                    <p className="text-sm text-gray-500">Password Reset</p>
+                    <p className="text-base font-semibold text-gray-800">
+                      {forgotMsg}
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+            )}
 
 
             <button
