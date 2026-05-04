@@ -1,13 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Allura&family=Imperial+Script&family=Luxurious+Script&display=swap');
+@importurl('https://fonts.googleapis.com/css2?family=Allura&family=Imperial+Script&family=Luxurious+Script&display=swap');
 @import "tailwindcss";
 @import "./styles/athena-variables.css";
-@import "./styles/editor/athena-editor-master.css"; /* 🎨 Athena Editor Master CSS */
-@import "./styles/real-pagination.css"; /* 📄 Real Pagination CSS */
+@import "./styles/editor/athena-editor-master.css";
+/* 🎨 Athena Editor Master CSS */
+@import "./styles/real-pagination.css";
+/* 📄 Real Pagination CSS */
+
 
 /* Base reset and selection */
 * {
   box-sizing: border-box;
 }
+
 
 /* CRITICAL: Synchronize CSS "Truth" between measurement layer and editor */
 /* Prevents padding/box-sizing mismatches that cause 1px errors */
@@ -21,6 +25,7 @@
   text-rendering: optimizeLegibility;
 }
 
+
 /* Allow text selection in editors */
 .ProseMirror,
 .editor-content,
@@ -29,10 +34,14 @@
   user-select: text;
 }
 
+
 .editor-scroll-container * {
   -webkit-user-select: text;
   user-select: text;
 }
+
+
+
 
 
 
@@ -43,15 +52,18 @@
   /* Firefox */
 }
 
+
 .canvas-scroll::-webkit-scrollbar {
   width: 0px;
   height: 0px;
 }
 
+
 /* Base reset */
 * {
   box-sizing: border-box;
 }
+
 
 html,
 body,
@@ -68,9 +80,11 @@ body,
   /* Override smooth scrolling for programmatic scrolls */
 }
 
+
 body {
   font-family: var(--athena-font-body);
 }
+
 
 /* App content responsive layout aligned with fixed sidebar */
 .app-content {
@@ -78,7 +92,9 @@ body {
   min-height: 100vh;
   transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: var(--athena-font-body);
+  background-color: #e9f4ff;
 }
+
 
 @media (max-width: 768px) {
   .app-content {
@@ -86,6 +102,9 @@ body {
     padding-top: 0;
   }
 }
+
+
+
 
 
 
@@ -97,15 +116,18 @@ body {
   /* Firefox - lighter gray */
 }
 
+
 /* Chromium/Edge/Safari */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: #cbd5e1;
@@ -115,23 +137,28 @@ body {
   background-clip: content-box;
 }
 
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #94a3b8;
   /* slate-400 */
 }
 
+
 .custom-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
 }
+
 
 /* Left-positioned scrollbar utility (keeps content LTR) */
 .scrollbar-left {
   direction: rtl;
 }
 
+
 .scrollbar-left .scrollbar-left__inner {
   direction: ltr;
 }
+
 
 /* Hidden Scrollbar */
 .hidden-scrollbar {
@@ -141,10 +168,12 @@ body {
   /* Firefox */
 }
 
+
 .hidden-scrollbar::-webkit-scrollbar {
   display: none;
   /* Chrome, Safari, Opera */
 }
+
 
 /* Resizable Image Styles */
 .resizable-image-wrapper {
@@ -154,10 +183,12 @@ body {
   transition: all 0.2s ease;
 }
 
+
 .resizable-image-wrapper.selected {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+
 
 .resizable-image-wrapper .empty-image {
   display: flex;
@@ -172,10 +203,12 @@ body {
   min-height: 150px;
 }
 
+
 .resizable-image {
   user-select: none;
   -webkit-user-drag: none;
 }
+
 
 /* ==========================================================================
    EDITOR COMPONENT STYLES
@@ -185,18 +218,23 @@ body {
    Please do not add editor-specific styles here.
    ========================================================================== */
 
+
 /* All editor styles removed (now in modular architecture) */
+
+
 
 
 /* ==================== COMPREHENSIVE MOBILE RESPONSIVENESS ==================== */
 
+
 /* Tablet Landscape (≤1024px) */
 @media screen and (max-width: 1024px) {
+
   /* Adjust main content padding */
   main {
     padding: 1rem !important;
   }
-  
+
   /* Scale down large containers */
   .container,
   .max-w-7xl,
@@ -207,39 +245,41 @@ body {
   }
 }
 
+
 /* Tablet Portrait (≤768px) */
 @media screen and (max-width: 768px) {
+
   /* Global adjustments */
   html {
     font-size: 15px;
   }
-  
+
   body {
     overflow-x: hidden;
   }
-  
+
   /* Main content area */
   main {
     padding: 0.75rem !important;
     margin-left: 0 !important;
   }
-  
+
   /* Grid layouts - reduce columns */
   .grid {
     gap: 0.75rem !important;
   }
-  
+
   .grid-cols-4,
   .grid-cols-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
-  
+
   /* Cards and containers */
   .card,
   [class*="card"] {
     padding: 1rem !important;
   }
-  
+
   /* Buttons - make touch-friendly */
   button,
   .btn {
@@ -247,14 +287,15 @@ body {
     min-width: 44px;
     padding: 0.5rem 1rem;
   }
-  
+
   /* Forms */
   input,
   textarea,
   select {
-    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    font-size: 16px !important;
+    /* Prevents iOS zoom on focus */
   }
-  
+
   /* Modals and dialogs */
   [role="dialog"],
   .modal {
@@ -262,14 +303,14 @@ body {
     max-width: 95vw !important;
     margin: 1rem auto !important;
   }
-  
+
   /* Tables - enable horizontal scroll */
   table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
   }
-  
+
   /* Images */
   img {
     max-width: 100%;
@@ -277,66 +318,68 @@ body {
   }
 }
 
+
 /* Mobile Large (≤640px) */
 @media screen and (max-width: 640px) {
   html {
     font-size: 14px;
   }
-  
+
   main {
     padding: 0.5rem !important;
   }
-  
+
   /* Single column grids */
   .grid-cols-2,
   .grid-cols-3,
   .grid-cols-4 {
     grid-template-columns: 1fr !important;
   }
-  
+
   /* Reduce spacing */
   .gap-4,
   .gap-6,
   .gap-8 {
     gap: 0.75rem !important;
   }
-  
+
   /* Headings */
   h1 {
     font-size: 1.75rem !important;
   }
-  
+
   h2 {
     font-size: 1.5rem !important;
   }
-  
+
   h3 {
     font-size: 1.25rem !important;
   }
 }
+
 
 /* Mobile Medium (≤480px) */
 @media screen and (max-width: 480px) {
   html {
     font-size: 13px;
   }
-  
+
   /* Minimal padding */
   main {
     padding: 0.375rem !important;
   }
-  
+
   /* Stack all flex containers vertically */
   .flex-row {
     flex-direction: column !important;
   }
-  
+
   /* Full width buttons */
   button.w-auto,
   .btn.w-auto {
     width: 100% !important;
   }
-  
+
   /* Smaller avatars and icons */
   .avatar,
   [class*="avatar"] {
@@ -345,25 +388,28 @@ body {
   }
 }
 
+
 /* Mobile Small (≤360px) */
 @media screen and (max-width: 360px) {
   html {
     font-size: 12px;
   }
-  
+
   /* Ultra compact layout */
   main {
     padding: 0.25rem !important;
   }
-  
+
   /* Hide non-essential elements */
   .hidden-xs {
     display: none !important;
   }
 }
 
+
 /* Touch device optimizations */
 @media (hover: none) and (pointer: coarse) {
+
   /* Larger touch targets */
   button,
   a,
@@ -373,29 +419,31 @@ body {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   /* Remove hover effects on touch devices */
   *:hover {
     transition: none !important;
   }
-  
+
   /* Better scrolling on mobile */
   * {
     -webkit-overflow-scrolling: touch;
   }
 }
 
+
 /* Landscape orientation on mobile */
 @media screen and (max-height: 500px) and (orientation: landscape) {
+
   /* Adjust for landscape mode */
   header {
     height: 44px !important;
   }
-  
+
   main {
     padding-top: 52px !important;
   }
-  
+
   /* Reduce vertical spacing */
   .py-8,
   .py-12,
@@ -405,8 +453,10 @@ body {
   }
 }
 
+
 /* Print styles */
 @media print {
+
   /* Hide navigation and UI chrome */
   header,
   nav,
@@ -415,13 +465,13 @@ body {
   .navbar {
     display: none !important;
   }
-  
+
   /* Reset margins for print */
   main {
     margin: 0 !important;
     padding: 0 !important;
   }
-  
+
   /* Ensure content is black on white */
   body {
     background: white !important;
@@ -429,28 +479,35 @@ body {
   }
 }
 
+
 /* High DPI / Retina displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+
   /* Sharper borders and shadows */
   .border {
     border-width: 0.5px;
   }
-  
+
   box-shadow {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 }
 
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
+
   /* Auto-adjust for users with dark mode enabled */
   :root {
     color-scheme: dark light;
   }
 }
 
+
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -461,12 +518,13 @@ body {
   }
 }
 
+
 /* Wide screens (>1920px) */
 @media screen and (min-width: 1920px) {
   html {
     font-size: 18px;
   }
-  
+
   .container,
   .max-w-7xl {
     max-width: 1600px !important;

@@ -36,15 +36,19 @@ import { Superscript as TiptapSuperscript } from '@tiptap/extension-superscript'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
 import { Blockquote } from '@tiptap/extension-blockquote';
 import { createLowlight, common } from 'lowlight';
+import { Fragment } from '@tiptap/pm/model';
 
 // Custom extensions
 import Indent from '../extensions/Indent.js';
-import { Page } from '../extensions/Page.js';
+import { Page, initializePagination } from '../extensions/Page.js';
 import { TextDirection } from '../extensions/TextDirection.js';
 import { ResizableImage } from '../extensions/ResizableImage.jsx';
 import TableExtension from '../extensions/TableExtension.js';
-import { normalizeInlineStyles } from '../utils/contentHelpers.js';
-import { Fragment } from '@tiptap/pm/model';
+import FontSize from '../extensions/FontSize.js';
+import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js';
+
+// Utils
+const log = process.env.NODE_ENV === 'development' ? (...args) => console.log(...args) : () => { };
 
 /**
  * EditorSurface Component
@@ -58,12 +62,12 @@ import { Fragment } from '@tiptap/pm/model';
  * @param {Function} props.onDestroy - Callback when editor is destroyed
  * @param {Object} props.editorRef - Ref to store editor instance
  * @param {number} props.zoom - Zoom level percentage
- * @param {Function} props.onCopy - Copy handler
  * @param {Object} props.containerRef - Ref for editor container
+ * @param {boolean} props.isPasting - Flag to indicate if a paste is in progress
  * @returns {JSX.Element}
  */
 export function EditorSurface({
-  initialContent,
+  initialContent = '',
   placeholderText = 'Start typing or press / for AI commands...',
   onUpdate,
   onSelectionUpdate,
@@ -71,10 +75,12 @@ export function EditorSurface({
   onDestroy,
   editorRef,
   zoom = 100,
-  onCopy,
   containerRef,
+  isPasting = false,
 }) {
   const internalEditorRef = useRef(null);
+  const lastCheckTimeRef = useRef(0);
+  const CHECK_THROTTLE = 250; // ms
 
   // Initialize TipTap editor
   const editor = useEditor({
@@ -94,54 +100,41 @@ export function EditorSurface({
       Document.extend({ content: 'page+' }),
       Page,
       TextStyle,
-      Color,
-      FontFamily,
-      FontSize,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TiptapUnderline,
-      TiptapLink.configure({
-        openOnClick: true,
-        HTMLAttributes: { class: 'editor-link' }
-      }),
-      TiptapImage,
-      BulletList,
-      OrderedList,
-      ListItem,
-      Indent,
-      TiptapTable.configure({ resizable: true }),
-      TableRow,
-      TableCell,
-      TableHeader,
-      TableExtension,
-      TaskList,
-      TaskItem.configure({ nested: true }),
+      TiptapLink.configure({ openOnClick: false, HTMLAttributes: { class: 'text-blue-600 underline cursor-pointer' } }),
+      TextAlign.configure({ types: ['heading', 'paragraph', 'table'] }),
       Highlight.configure({ multicolor: true }),
       Typography,
-      CharacterCount.configure({ limit: 50000 }),
-      Focus.configure({ mode: 'all', className: 'has-focus' }),
-      Placeholder.configure({ placeholder: placeholderText }),
+      CharacterCount,
+      Focus.configure({ className: 'has-focus', mode: 'all' }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Indent,
       TextDirection,
-      ResizableImage,
+      TableExtension.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      FontSize,
+      Color,
+      FontFamily,
       TiptapSubscript,
       TiptapSuperscript,
-      CodeBlockLowlight.configure({ lowlight: createLowlight(common) }),
+      ResizableImage,
       Blockquote,
+      Placeholder.configure({
+        placeholder: ({ node }) => {
+          if (node.type.name === 'page') return placeholderText;
+          return '';
+        },
+        includeChildren: true,
+      }),
     ],
-    content: initialContent,
     editorProps: {
-      attributes: {
-        class: 'prose prose-slate max-w-none focus:outline-none editor-content',
-        spellcheck: 'true',
-      },
-      transformPasted(slice) {
-        let hasPageNodes = false;
-        slice.content.forEach(node => {
-          if (node.type.name === 'page') hasPageNodes = true;
-        });
-
+      transformPasted: (slice) => {
+        const hasPageNodes = slice.content.some(node => node.type.name === 'page');
         if (!hasPageNodes) return slice;
 
-        // Flatten: pull children out of each page wrapper
         const newNodes = [];
         slice.content.forEach(node => {
           if (node.type.name === 'page') {
@@ -153,48 +146,84 @@ export function EditorSurface({
 
         return slice.copy(Fragment.fromArray(newNodes));
       },
-
-      /**
-       * 🔥 CRITICAL FIX: Preserve formatting from external sources
-       * Normalizes HTML before Tiptap schema parsing to ensure "encoding" of 
-       * styles (like text-align) is preserved correctly.
-       */
-      transformPastedHTML(html) {
-        if (!html) return html;
-        
-        // 1. Apply our custom normalization (handles text-align -> data-text-align)
-        let normalized = normalizeInlineStyles(html);
-        
-        // 2. Clean up Google Docs "font-weight:normal" junk that strips bold
-        normalized = normalized.replace(/<b\s+style="font-weight:\s*normal[^"]*"[^>]*>(.*?)<\/b>/gi, '$1');
-        
-        // 3. Ensure paragraphs from sources with large margins don't break our page layout
-        normalized = normalized.replace(/margin-(top|bottom):\s*[^;!]+(!important)?/gi, '');
-
-        return normalized;
+      handleKeyDown: (view, event) => {
+        if (event.shiftKey && event.key === 'Enter') {
+          event.preventDefault();
+          const { state, dispatch } = view;
+          const { $from } = state.selection;
+          const parentAttrs = $from.parent.attrs;
+          const tr = state.tr.replaceSelectionWith(
+            state.schema.nodes.paragraph.create(parentAttrs)
+          );
+          dispatch(tr);
+          return true;
+        }
+        return false;
       },
-      handleDOMEvents: {
-        copy: (view, event) => {
-          if (onCopy) {
-            onCopy(event);
-          }
-          return false;
-        },
+      attributes: {
+        class: 'focus:outline-none table-border-black',
+        spellcheck: 'true',
+        'data-testid': 'editor-content'
       },
     },
+    onCreate: ({ editor: editorInstance }) => {
+      log('[EditorSurface.onCreate] Editor created, initializing pages...');
+      setTimeout(() => {
+        initializePagination(editorInstance);
+      }, 50);
+
+      if (onCreate) {
+        onCreate({ editor: editorInstance });
+      }
+    },
     onUpdate: ({ editor: editorInstance }) => {
+      // Pagination logic moved from TextEditor.jsx to keep it unified
+      if (editorInstance.storage.athena_is_paginating || isPasting) {
+        return;
+      }
+
+      // 🚀 OPTIMIZATION (Suggestion 3): Throttle immediate overflow check
+      // PROBLEM: DOM measurements (scrollHeight) trigger reflow. Doing this on every
+      // keystroke causes typing latency.
+      // SOLUTION: Only check synchronously every 250ms or if pasting.
+      const now = Date.now();
+      const shouldCheckSync = isPasting || (now - lastCheckTimeRef.current > CHECK_THROTTLE);
+
+      if (shouldCheckSync) {
+        lastCheckTimeRef.current = now;
+        try {
+          const currentPage = editorInstance.view.dom.closest('.page');
+          const pageContent = currentPage?.querySelector('.page-content');
+          
+          if (currentPage && pageContent) {
+            const contentHeight = pageContent.scrollHeight;
+            const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
+            const maxHeight = pageHeight - 96;
+            
+            if (contentHeight > maxHeight) {
+              requestAnimationFrame(() => {
+                if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
+                  paginateDocument(editorInstance, { force: true, reason: 'content-overflow' });
+                }
+              });
+              debouncePaginate(editorInstance, 150);
+              return;
+            }
+          }
+        } catch (err) {
+          log('[EditorSurface.onUpdate] DOM measurement failed:', err);
+        }
+      }
+
+      debouncePaginate(editorInstance, 150);
+
       if (onUpdate) {
-        onUpdate(editorInstance);
+        onUpdate({ editor: editorInstance });
       }
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
       if (onSelectionUpdate) {
-        onSelectionUpdate(editorInstance);
-      }
-    },
-    onCreate: ({ editor: editorInstance }) => {
-      if (onCreate) {
-        onCreate(editorInstance);
+        onSelectionUpdate({ editor: editorInstance });
       }
     },
     onDestroy: () => {
@@ -229,7 +258,6 @@ export function EditorSurface({
     <div
       ref={containerRef}
       className="flex-1 bg-slate-100/50"
-      onCopy={onCopy}
       style={{
         position: 'relative',
         minHeight: 0,
@@ -238,7 +266,6 @@ export function EditorSurface({
         flexDirection: 'column'
       }}
     >
-      {/* Editor Pages Container with Zoom */}
       {editor && (
         <div
           className="editor-pages-container"
@@ -258,11 +285,5 @@ export function EditorSurface({
     </div>
   );
 }
-
-/**
- * Import TiptapImage separately to avoid naming conflicts
- */
-import { Image as TiptapImage } from '@tiptap/extension-image';
-import FontSize from '../extensions/FontSize.js';
 
 export default EditorSurface;

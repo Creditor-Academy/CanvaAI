@@ -30,6 +30,22 @@ const initialState = {
   showGrid: false,
   spellCheckEnabled: true,
   isDarkMode: false,
+  isOutlineOpen: true,
+  isStarred: false,
+
+  // FIX: Use plain object instead of Set — Set is non-serializable and breaks
+  // shallow equality checks, causing stale renders and preventing persistence.
+  // Usage: collapsedSections[headingId] === true means collapsed.
+  collapsedSections: {},
+
+  // Modals & Dialogs
+  showFindReplaceModal: false,
+  findReplaceMode: 'find',
+  showAIAssistant: false,
+  showImportModal: false,
+  isImporting: false,
+  isDragging: false,
+  importError: null,
 
   // Editor features
   showReferencesPanel: false,
@@ -45,7 +61,27 @@ const initialState = {
     includeFooter: true,
     exportComments: false,
     exportTrackChanges: false
-  }
+  },
+
+  // Versioning
+  documentVersions: [{ id: Date.now(), timestamp: new Date(), title: 'Initial Version', content: '', author: 'Current User' }],
+  showVersionHistory: false,
+  restoreTarget: null,
+  showDeleteConfirm: false,
+
+  // Image Modal
+  showImageModal: false,
+  imageInsertMethod: 'url',
+  imageUrl: '',
+  selectedImageAlt: '',
+  isImageUploading: false,
+  uploadProgress: 0,
+
+  // Pagination & Layout
+  pageSize: 'A4',
+  pageOrientation: 'portrait',
+  pageMargins: { top: 96, bottom: 96, left: 72, right: 72 },
+  pageColor: '#ffffff',
 };
 
 // Action types
@@ -57,7 +93,45 @@ const ACTIONS = {
   UPDATE_EXPORT_OPTIONS: 'UPDATE_EXPORT_OPTIONS',
   SET_DOCUMENT_TITLE: 'SET_DOCUMENT_TITLE',
   SET_SAVE_STATUS: 'SET_SAVE_STATUS',
-  SET_LAST_SAVED: 'SET_LAST_SAVED'
+  SET_LAST_SAVED: 'SET_LAST_SAVED',
+  TOGGLE_SECTION_COLLAPSE: 'TOGGLE_SECTION_COLLAPSE',
+};
+
+// UI-slice keys — the only keys UPDATE_UI_STATE is allowed to touch.
+// This prevents callers from accidentally overwriting document or formatting state.
+const UI_STATE_KEYS = new Set([
+  'zoom', 'showRuler', 'showGrid', 'spellCheckEnabled', 'isDarkMode',
+  'isOutlineOpen', 'isStarred',
+  'showFindReplaceModal', 'findReplaceMode', 'showAIAssistant',
+  'showImportModal', 'isImporting', 'isDragging', 'importError',
+  'documentVersions', 'showVersionHistory', 'restoreTarget', 'showDeleteConfirm',
+  'showImageModal', 'imageInsertMethod', 'imageUrl', 'selectedImageAlt',
+  'isImageUploading', 'uploadProgress',
+  'pageSize', 'pageOrientation', 'pageMargins', 'pageColor',
+]);
+
+// Formatting-slice keys — the only keys UPDATE_FORMATTING is allowed to touch.
+const FORMATTING_KEYS = new Set([
+  'currentFont', 'currentFontSize', 'currentTextColor',
+  'currentHighlight', 'lineSpacing', 'activeHeadingLevel',
+]);
+
+// Editor-features-slice keys
+const FEATURES_KEYS = new Set([
+  'showReferencesPanel', 'isAISidebarOpen', 'showTemplateSidebar',
+  'showExportDialog', 'exportFormat',
+]);
+
+/**
+ * Filter a payload object to only include keys in the allowed set.
+ * Unknown keys are silently dropped — they belong to a different slice.
+ */
+const filterPayload = (payload, allowedKeys) => {
+  const out = {};
+  for (const key of Object.keys(payload)) {
+    if (allowedKeys.has(key)) out[key] = payload[key];
+  }
+  return out;
 };
 
 // Reducer function
@@ -70,21 +144,24 @@ const editorReducer = (state, action) => {
       };
 
     case ACTIONS.UPDATE_FORMATTING:
+      // Safe: only touches formatting slice keys
       return {
         ...state,
-        ...action.payload
+        ...filterPayload(action.payload, FORMATTING_KEYS)
       };
 
     case ACTIONS.UPDATE_UI_STATE:
+      // Safe: only touches UI slice keys
       return {
         ...state,
-        ...action.payload
+        ...filterPayload(action.payload, UI_STATE_KEYS)
       };
 
     case ACTIONS.UPDATE_EDITOR_FEATURES:
+      // Safe: only touches features slice keys
       return {
         ...state,
-        ...action.payload
+        ...filterPayload(action.payload, FEATURES_KEYS)
       };
 
     case ACTIONS.UPDATE_EXPORT_OPTIONS:
@@ -111,12 +188,26 @@ const editorReducer = (state, action) => {
         lastSaved: action.payload
       };
 
+    case ACTIONS.TOGGLE_SECTION_COLLAPSE: {
+      const headingId = action.payload;
+      const current = state.collapsedSections;
+      // Toggle: if present remove, if absent add
+      const updated = { ...current };
+      if (updated[headingId]) {
+        delete updated[headingId];
+      } else {
+        updated[headingId] = true;
+      }
+      return { ...state, collapsedSections: updated };
+    }
+
     default:
       return state;
   }
 };
 
-// Create contexts
+// Create contexts — split state/actions to prevent actions consumers from
+// re-rendering on every state change.
 const EditorStateContext = createContext();
 const EditorActionsContext = createContext();
 
@@ -127,7 +218,7 @@ export const EditorProvider = ({ children, initialData = {} }) => {
     ...initialData
   });
 
-  // Action creators - memoized to be stable
+  // Action creators — all stable (no deps that change)
   const updateDocumentStats = useCallback((stats) => {
     dispatch({ type: ACTIONS.UPDATE_DOCUMENT_STATS, payload: stats });
   }, []);
@@ -160,6 +251,10 @@ export const EditorProvider = ({ children, initialData = {} }) => {
     dispatch({ type: ACTIONS.SET_LAST_SAVED, payload: date });
   }, []);
 
+  const toggleSectionCollapse = useCallback((headingId) => {
+    dispatch({ type: ACTIONS.TOGGLE_SECTION_COLLAPSE, payload: headingId });
+  }, []);
+
   const actions = useMemo(() => ({
     updateDocumentStats,
     updateFormatting,
@@ -168,7 +263,8 @@ export const EditorProvider = ({ children, initialData = {} }) => {
     updateExportOptions,
     setDocumentTitle,
     setSaveStatus,
-    setLastSaved
+    setLastSaved,
+    toggleSectionCollapse,
   }), [
     updateDocumentStats,
     updateFormatting,
@@ -177,7 +273,8 @@ export const EditorProvider = ({ children, initialData = {} }) => {
     updateExportOptions,
     setDocumentTitle,
     setSaveStatus,
-    setLastSaved
+    setLastSaved,
+    toggleSectionCollapse,
   ]);
 
   return (
@@ -207,14 +304,17 @@ export const useEditorActions = () => {
   return context;
 };
 
-// Legacy compatibility hook
+// Legacy compatibility hook — use granular hooks below in new code
 export const useEditorContext = () => {
   const state = useEditorState();
   const actions = useEditorActions();
   return { state, actions };
 };
 
-// Custom hooks for specific state groups
+// ── Granular selector hooks ───────────────────────────────────────────────────
+// Each hook only exposes its own slice — components using these will only
+// re-render when their specific slice changes.
+
 export const useDocumentState = () => {
   const state = useEditorState();
   const actions = useEditorActions();
@@ -256,7 +356,41 @@ export const useUIState = () => {
     showGrid: state.showGrid,
     spellCheckEnabled: state.spellCheckEnabled,
     isDarkMode: state.isDarkMode,
-    updateUIState: actions.updateUIState
+    isOutlineOpen: state.isOutlineOpen,
+    isStarred: state.isStarred,
+    collapsedSections: state.collapsedSections,
+
+    // Modals
+    showFindReplaceModal: state.showFindReplaceModal,
+    findReplaceMode: state.findReplaceMode,
+    showAIAssistant: state.showAIAssistant,
+    showImportModal: state.showImportModal,
+    isImporting: state.isImporting,
+    isDragging: state.isDragging,
+    importError: state.importError,
+
+    // Versioning
+    documentVersions: state.documentVersions,
+    showVersionHistory: state.showVersionHistory,
+    restoreTarget: state.restoreTarget,
+    showDeleteConfirm: state.showDeleteConfirm,
+
+    // Image Modal
+    showImageModal: state.showImageModal,
+    imageInsertMethod: state.imageInsertMethod,
+    imageUrl: state.imageUrl,
+    selectedImageAlt: state.selectedImageAlt,
+    isImageUploading: state.isImageUploading,
+    uploadProgress: state.uploadProgress,
+
+    // Layout
+    pageSize: state.pageSize,
+    pageOrientation: state.pageOrientation,
+    pageMargins: state.pageMargins,
+    pageColor: state.pageColor,
+
+    updateUIState: actions.updateUIState,
+    toggleSectionCollapse: actions.toggleSectionCollapse,
   };
 };
 

@@ -94,6 +94,10 @@ import HeaderMenuBar from './editor/HeaderMenuBar';
 import { FindReplaceModal } from './editor/FindReplaceModal';
 import { AIAssistant } from './editor/AIAssistant.jsx';
 import { ExportDialog } from './ExportDialog';
+import { EditorLayout } from './EditorLayout.jsx';
+import { EditorHeader } from './editor/EditorHeader.jsx';
+import { EditorFooter } from './editor/EditorFooter.jsx';
+import { EditorModals } from './editor/EditorModals.jsx';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
@@ -359,7 +363,7 @@ const normalizeInlineStyles = (html) => {
   try {
     // 🔥 ROBUST ENCODING: Enhanced regex pass for common alignment and size patterns
     let normalized = html;
-    
+
     // 1. Convert inline text-align to data-text-align (consistent with our backend schema)
     normalized = normalized.replace(
       /style="([^"]*text-align:\s*(left|center|right|justify)[^"]*)"/gi,
@@ -374,7 +378,7 @@ const normalizeInlineStyles = (html) => {
       /style="([^"]*font-size:\s*([^;"]+)[^"]*)"/gi,
       (match, style, size) => {
         if (size.includes('pt') || size.includes('em') || size.includes('px')) {
-           return `data-font-size="${size}" ${match}`;
+          return `data-font-size="${size}" ${match}`;
         }
         return match;
       }
@@ -438,14 +442,35 @@ const TextEditorContent = ({
     showTemplateSidebar = false, exportFormat = 'pdf',
     exportOptions = { includePageNumbers: true, includeHeader: true, includeFooter: true, exportComments: false, exportTrackChanges: false },
     documentTitle = 'Untitled Document', lastSaved = null, zoom = 100,
-    saveStatus = 'saved', documentStats = { paragraphs: 0, images: 0, tables: 0, pages: 1 }
+    saveStatus = 'saved', documentStats = { paragraphs: 0, images: 0, tables: 0, pages: 1 },
+    isOutlineOpen = true, isStarred = false,
+    showFindReplaceModal = false, findReplaceMode = 'find',
+    showAIAssistant = false, showImportModal = false,
+    isImporting = false, isDragging = false, importError = null,
+    documentVersions = [], showVersionHistory = false, restoreTarget = null,
+    showDeleteConfirm = false, showImageModal = false, imageInsertMethod = 'url',
+    imageUrl = '', selectedImageAlt = '', isImageUploading = false,
+    uploadProgress = 0, pageSize = 'A4', pageOrientation = 'portrait',
+    pageMargins = { top: 96, bottom: 96, left: 72, right: 72 },
+    pageColor = '#ffffff', collapsedSections = {},
+    activeHeadingLevel = 0, lineSpacing = 1.5
   } = editorState;
 
   const {
     setSaveStatus = () => { }, setLastSaved = () => { }, setDocumentStats = () => { },
     setDocumentTitle = () => { }, updateEditorFeatures = () => { }, updateExportOptions = () => { },
-    updateUIState = () => { }, updateDocumentStats: updateDocumentStatsAction = () => { }
+    updateUIState = () => { }, updateDocumentStats: updateDocumentStatsAction = () => { },
+    toggleSectionCollapse = () => { }, updateFormatting = () => { }
   } = editorActions;
+
+  // UI State helpers for backward compatibility with JSX props
+  const setIsOutlineOpen = useCallback((val) => updateUIState({ isOutlineOpen: val }), [updateUIState]);
+  const setShowFindReplaceModal = useCallback((val) => updateUIState({ showFindReplaceModal: val }), [updateUIState]);
+  const setShowAIAssistant = useCallback((val) => updateUIState({ showAIAssistant: val }), [updateUIState]);
+  const setShowImportModal = useCallback((val) => updateUIState({ showImportModal: val }), [updateUIState]);
+  const setShowImageModal = useCallback((val) => updateUIState({ showImageModal: val }), [updateUIState]);
+  const setIsImporting = useCallback((val) => updateUIState({ isImporting: val }), [updateUIState]);
+  const setImportError = useCallback((val) => updateUIState({ importError: val }), [updateUIState]);
 
   // 🔥 CRITICAL FIX: Use refs for volatile values to prevent handleSave re-creation
   // 
@@ -470,28 +495,21 @@ const TextEditorContent = ({
   // 🎯 PHASE 1: Component Decomposition - Use extracted hooks
   // These hooks replace the manual implementation below (kept for backward compatibility)
   // ────────────────────────────────────────────────────────────────────────
-  
+
   // Note: The hooks are available but we're keeping the inline implementation
   // for now to ensure backward compatibility. The extracted hooks can be
   // enabled by uncommenting the code below and removing the manual implementation.
-  
-  // TODO: Enable hooks after testing
-  // const { saveStatus: hookSaveStatus, lastSaved: hookLastSaved, handleSave, triggerAutoSave } = useDocumentPersistence({
-  //   docId: docIdRef.current,
-  //   editor: editorRef.current,
-  //   onMongoIdSaved,
-  //   documentTitle,
-  // });
-  //
-  // const { wordCount, characterCount, readingTime, headings, forceUpdateStats } = useEditorStats({
-  //   editor,
-  //   updateDelay: 1000,
-  // });
+
+  // 🔥 CRITICAL FIX: Use React Router hooks for SSR-safe, navigation-aware docId retrieval
+  const navigate = useNavigate();
+  const { mongoId: urlMongoId } = useParams();
+  const [searchParams] = useSearchParams();
+
+
 
   // Zoom helper
   const effectiveZoom = zoom || 100;
 
-  const [isOutlineOpen, setIsOutlineOpen] = useState(true);
   const [selectedText, setSelectedText] = useState('');
   // CRITICAL FIX: Move stats to refs to prevent re-renders on every keystroke/delete
   const wordCountRef = useRef(0);
@@ -502,54 +520,21 @@ const TextEditorContent = ({
   const imagesRef = useRef(0);
   const tablesRef = useRef(0);
   const listsRef = useRef([]);
+
+  // Conflict resolution tracking
+  const lastKnownBackendUpdateRef = useRef(Date.now());
   const imagesDataRef = useRef([]);
   const linksRef = useRef([]);
   // Keep minimal state for UI display - updated infrequently
-  const [wordCount, setWordCount] = useState(0);
-  const [characterCount, setCharacterCount] = useState(0);
-  const [readingTime, setReadingTime] = useState(0);
-  const [headings, setHeadings] = useState([]);
-  const [isStarred, setIsStarred] = useState(false);
-  const [showFindReplaceModal, setShowFindReplaceModal] = useState(false);
-  const [findReplaceMode, setFindReplaceMode] = useState(false);
-  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [importedDocId, setImportedDocId] = useState(null);
   const [isAiGeneratedDoc, setIsAiGeneratedDoc] = useState(false);
-  const [documentVersions, setDocumentVersions] = useState([{ id: Date.now(), timestamp: new Date(), title: 'Initial Version', content: '', author: 'Current User' }]);
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [restoreTarget, setRestoreTarget] = useState(null); // 🔥 For version restore confirmation
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // 🔥 For document delete confirmation
-  const [activeHeadingLevel, setActiveHeadingLevel] = useState(0);
   const [showHeadingStyles, setShowHeadingStyles] = useState(false);
-  const [pageSize, setPageSize] = useState('A4');
-  const [pageOrientation, setPageOrientation] = useState('portrait');
-  const [pageMargins, setPageMargins] = useState({ top: 96, bottom: 96, left: 72, right: 72 }); // Google Docs standard: 1" top/bottom, 0.75" sides
-
-  // Keep --page-margin-* CSS variables in sync with state (runs on mount too)
-  // CRITICAL: Initialize CSS variables from React state on mount
-  useEffect(() => {
-    const r = document.documentElement;
-    // Use correct variable names that match athena-variables.css
-    r.style.setProperty('--doc-margin-top', `${pageMargins.top}px`);
-    r.style.setProperty('--doc-margin-right', `${pageMargins.right}px`);
-    r.style.setProperty('--doc-margin-bottom', `${pageMargins.bottom}px`);
-    r.style.setProperty('--doc-margin-left', `${pageMargins.left}px`);
-  }, [pageMargins]);
-
-  const [pageColor, setPageColor] = useState('#ffffff');
   const [showPageSetup, setShowPageSetup] = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [imageInsertMethod, setImageInsertMethod] = useState('url');
-  const [imageUrl, setImageUrl] = useState('');
-  const [selectedImageAlt, setSelectedImageAlt] = useState('');
-  const [isImageUploading, setIsImageUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [imagePreview, setImagePreview] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [lineSpacing, setLineSpacing] = useState(1.5);
   // Page states removed - will be re-implemented in new pagination system
   const [customHeadingStyles, setCustomHeadingStyles] = useState({});
   const [columnLayout, setColumnLayout] = useState({ count: 1, spacing: 36, equalWidth: true });
-  const [collapsedSections, setCollapsedSections] = useState(new Set());
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
 
   // ── Page-capacity constants ─────────────────────────────────────────────
@@ -587,7 +572,6 @@ const TextEditorContent = ({
 
   const docIdRef = useRef(null);
 
-  // 🔥 CRITICAL FIX: Use React Router hooks for SSR-safe, navigation-aware docId retrieval
   // 
   // PROBLEM: const docId = getDocId() reads window.location on every render — breaks SSR,
   // and when React Router navigates to a new document the stale value from first render persists.
@@ -595,9 +579,7 @@ const TextEditorContent = ({
   // a synchronous throw if JSON is malformed brings down the whole tree.
   //
   // SOLUTION: useParams + useSearchParams are stable, SSR-safe, and update on navigation
-  const navigate = useNavigate();
-  const { mongoId: urlMongoId } = useParams();
-  const [searchParams] = useSearchParams();
+  // (Hooks moved to top of component to fix TDZ ReferenceError on urlMongoId)
 
   const docId = useMemo(() => {
     // Priority 1: Query parameter (must be valid MongoDB ObjectId)
@@ -606,7 +588,7 @@ const TextEditorContent = ({
       console.log('[docId] Using query param:', qp);
       return qp;
     }
-    
+
     // Priority 2: URL path parameter (accept ANY docId, not just MongoDB ObjectIds)
     // This allows template documents with IDs like "doc_123456_random" to work
     if (urlMongoId && urlMongoId !== 'undefined' && urlMongoId !== 'null') {
@@ -616,14 +598,14 @@ const TextEditorContent = ({
       });
       return urlMongoId;
     }
-    
+
     // Priority 3: sessionStorage (fallback for immediate persistence)
     const sessionDocId = sessionStorage.getItem('athena_current_doc_id');
     if (sessionDocId && /^[0-9a-fA-F]{24}$/.test(sessionDocId)) {
       console.log('[docId] Using sessionStorage fallback:', sessionDocId);
       return sessionDocId;
     }
-    
+
     console.log('[docId] No valid docId found');
     return null;
   }, [urlMongoId, searchParams]);
@@ -632,6 +614,15 @@ const TextEditorContent = ({
   useEffect(() => {
     docIdRef.current = docId;
   }, [docId]);
+
+  // useDocumentPersistence provides a simpler save implementation; rename to avoid conflict
+  // with the comprehensive local handleSave below (which reads from content refs).
+  const { saveStatus: hookSaveStatus, lastSaved: hookLastSaved, handleSave: _hookHandleSave, triggerAutoSave } = useDocumentPersistence({
+    docId: urlMongoId,
+    editor: editorRef.current,
+    onMongoIdSaved,
+    documentTitle,
+  });
 
   // 🚀 OPTIMIZATION: Get document from sessionStorage instead of API call
   // EditorIntro already fetched it, so we don't need to call GET API again
@@ -714,7 +705,7 @@ const TextEditorContent = ({
       // Template documents start with 'doc_' but get a MongoDB ObjectId after first save
       // We check sessionStorage to see if this is still a temporary document
       const isTemporaryDoc = id.startsWith('doc_');
-      
+
       if (isTemporaryDoc) {
         // Check if document exists in sessionStorage (temporary, not yet saved)
         const tempDoc = sessionStorage.getItem(`doc_${id}`);
@@ -761,7 +752,7 @@ const TextEditorContent = ({
           status: error.response?.status,
           documentId: id
         });
-        
+
         // Show more specific error message
         if (error.response?.status === 400) {
           toast.error('Invalid document ID format. Please refresh and try again.');
@@ -787,52 +778,6 @@ const TextEditorContent = ({
       }
     };
   }, []);
-  //
-  // The onUpdate callback stores counts in refs to avoid re-renders on every keystroke.
-  // This effect periodically syncs those values to React state for UI display.
-  // Uses debounce to update only when user pauses typing (every 1 second).
-  // 
-  // 🔥 CRITICAL FIX: Check editor is alive before updating state
-  // 
-  // PROBLEM: The 1-second setInterval(syncStats, 1000) is set up once and never checks
-  // whether the editor is still alive. After the component unmounts (user navigates away),
-  // the interval keeps running, calling setWordCount, setCharacterCount, etc. on an
-  // unmounted component. In React 18 this causes "Can't perform a React state update on
-  // an unmounted component" warning and leaks memory.
-  //
-  // SOLUTION: Check editorRef.current and isDestroyed flag before any state updates
-  useEffect(() => {
-    const syncStats = () => {
-      // 🔥 CRITICAL: Bail out if editor is destroyed or unmounted
-      if (!editorRef.current || editorRef.current.isDestroyed) {
-        return;
-      }
-
-      const newWordCount = wordCountRef.current;
-      const newCharCount = characterCountRef.current;
-      const newReadingTime = readingTimeRef.current;
-      const newHeadings = headingsRef.current;
-
-      // Only update state if values have changed
-      setWordCount((prev) => prev !== newWordCount ? newWordCount : prev);
-      setCharacterCount((prev) => prev !== newCharCount ? newCharCount : prev);
-      setReadingTime((prev) => prev !== newReadingTime ? newReadingTime : prev);
-      setHeadings((prev) => prev !== newHeadings ? newHeadings : prev);
-    };
-
-    // Initial sync
-    syncStats();
-
-    // Set up interval to sync every second (user will see updates after they pause typing)
-    const intervalId = setInterval(syncStats, 1000);
-
-    // ✅ CRITICAL: Always clean up interval on unmount
-    return () => {
-      clearInterval(intervalId);
-      // console.log('🧹 Cleaned up stats sync interval');
-    };
-  }, []); // ✅ Stable deps - refs are stable, no dependencies needed
-
   // ── ProseMirror paste-interception plugin ────────────────────────────────
   // Simplified paste handling without auto-pagination
   //   1. doc.forEach (top-level blocks only) — descendants() visits inline
@@ -1361,27 +1306,27 @@ const TextEditorContent = ({
       try {
         const currentPage = editorInstance.view.dom.closest('.page');
         const pageContent = currentPage?.querySelector('.page-content');
-        
+
         if (currentPage && pageContent) {
           const contentHeight = pageContent.scrollHeight;
           const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
           const maxHeight = pageHeight - 96; // Subtract top+bottom margins (48+48)
-          
+
           // If content exceeds usable height, trigger IMMEDIATE pagination
           if (contentHeight > maxHeight) {
             log(`[onUpdate] 🚨 Content overflow detected: ${contentHeight}px > ${maxHeight}px. Immediate pagination!`);
-            
+
             // Bypass debounce - run pagination immediately
             requestAnimationFrame(() => {
               if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
                 paginateDocument(editorInstance, { force: true, reason: 'content-overflow' });
               }
             });
-            
+
             // Still run debounced pagination as backup
             lastContentChangeRef.current = Date.now();
             debouncePaginate(editorInstance, 150);
-            
+
             // Skip further processing - pagination will handle it
             return;
           }
@@ -1407,7 +1352,7 @@ const TextEditorContent = ({
       if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
       statsTimeoutRef.current = setTimeout(() => {
         if (!editorInstance?.state?.doc) return;
-        
+
         // ✅ OPTIMIZED: Use textContent instead of traversing entire tree
         const text = editorInstance.state.doc.textContent;
         const words = text.trim().split(/\s+/).filter(Boolean).length;
@@ -1419,9 +1364,9 @@ const TextEditorContent = ({
 
         // ✅ OPTIMIZED: Only extract headings if document structure changed
         // Skip expensive tree traversal on simple text edits
-        const needsHeadingUpdate = headingsRef.current.length === 0 || 
-                                   lastContentChangeRef.current % 10 === 0; // Update every 10th change
-        
+        const needsHeadingUpdate = headingsRef.current.length === 0 ||
+          lastContentChangeRef.current % 10 === 0; // Update every 10th change
+
         if (needsHeadingUpdate) {
           const newHeadings = [];
           let paragraphs = 0, images = 0, tables = 0;
@@ -1475,6 +1420,12 @@ const TextEditorContent = ({
     },
   });
 
+  // ── Document statistics — placed here because useEditor must be declared first ──
+  const { wordCount, characterCount, readingTime, headings, forceUpdateStats } = useEditorStats({
+    editor,
+    updateDelay: 1000,
+  });
+
   useEffect(() => {
     if (!editor) return;
     editorRef.current = editor;
@@ -1525,7 +1476,7 @@ const TextEditorContent = ({
         headingsRef.current = newHeadings;
 
         // Force state update to refresh outline sidebar
-        setHeadings(newHeadings);
+        if (forceUpdateStats) forceUpdateStats();
 
         // Update document stats to trigger parent component updates
         if (updateDocumentStatsAction) {
@@ -1603,40 +1554,40 @@ const TextEditorContent = ({
     // Defer setContent to avoid flushSync warning in React 19
     requestAnimationFrame(() => {
 
-    // 🔥 CRITICAL FIX: Use Markdown transformer for string content
-    const content = jsonContent || htmlContent;
+      // 🔥 CRITICAL FIX: Use Markdown transformer for string content
+      const content = jsonContent || htmlContent;
 
-    console.log('📝 TextEditor Content Loading:', {
-      hasJson: !!jsonContent,
-      hasHtml: !!htmlContent,
-      docId: mongoId,
-      isTemporary: mongoId?.startsWith('doc_'),
-      contentLength: typeof content === 'string' ? content.length : 'object'
-    });
+      console.log('📝 TextEditor Content Loading:', {
+        hasJson: !!jsonContent,
+        hasHtml: !!htmlContent,
+        docId: mongoId,
+        isTemporary: mongoId?.startsWith('doc_'),
+        contentLength: typeof content === 'string' ? content.length : 'object'
+      });
 
-    if (!content) {
-      console.warn('⚠️ No content available to display in editor!');
-      if (mongoId?.startsWith('doc_')) {
-        console.error('❌ Temporary document content missing from sessionStorage!');
+      if (!content) {
+        console.warn('⚠️ No content available to display in editor!');
+        if (mongoId?.startsWith('doc_')) {
+          console.error('❌ Temporary document content missing from sessionStorage!');
+        }
+        return;
       }
-      return;
-    }
 
-    console.log('📝 Processing content:', {
-      type: typeof content,
-      length: typeof content === 'string' ? content.length : 'N/A',
-      first100Chars: typeof content === 'string' ? content.substring(0, 100) : 'object'
-    });
+      console.log('📝 Processing content:', {
+        type: typeof content,
+        length: typeof content === 'string' ? content.length : 'N/A',
+        first100Chars: typeof content === 'string' ? content.substring(0, 100) : 'object'
+      });
 
 
       // Try to parse JSON if content is a string
       let parsedJsonContent = null;
-      if (typeof content === 'string' && !isMarkdown(content)) {
+      if (typeof content === 'string' && !isMarkdown(content) && !content.trim().startsWith('<')) {
         try {
           parsedJsonContent = JSON.parse(content);
           console.log('✅ Successfully parsed JSON string');
         } catch (error) {
-          console.error('❌ Failed to parse JSON:', error);
+          console.warn('⚠️ Could not parse string as JSON (might be plain text):', error.message);
           parsedJsonContent = null;
         }
       }
@@ -2323,7 +2274,7 @@ const TextEditorContent = ({
       editor.chain().focus().setResizableImage({ src, alt, title: alt || 'Image', width, height, align: 'left' }).run();
       toast.success('Image inserted successfully');
       setShowImageModal(false);
-      
+
       // ✅ FORCE PAGINATION: Trigger pagination after image insertion
       // INCREASED DELAY: Wait 300ms to ensure image DOM is fully rendered before measuring
       setTimeout(() => {
@@ -2333,10 +2284,10 @@ const TextEditorContent = ({
         }
       }, 300); // Increased delay to let image fully render
     } catch (error) {
-      try { 
-        editor.chain().focus(null, { scrollIntoView: false }).setImage({ src, alt }).run(); 
+      try {
+        editor.chain().focus(null, { scrollIntoView: false }).setImage({ src, alt }).run();
         setShowImageModal(false);
-        
+
         // ✅ FORCE PAGINATION for fallback image insertion
         // INCREASED DELAY: Wait 300ms to ensure image DOM is fully rendered before measuring
         setTimeout(() => {
@@ -2571,13 +2522,6 @@ const TextEditorContent = ({
     setCustomHeadingStyles(prev => ({ ...prev, [level]: styles }));
   }, []);
 
-  const toggleSectionCollapse = useCallback((headingId) => {
-    setCollapsedSections(prev => {
-      const newSet = new Set(prev);
-      newSet.has(headingId) ? newSet.delete(headingId) : newSet.add(headingId);
-      return newSet;
-    });
-  }, []);
 
   // 🔥 CRITICAL FIX: Clear ALL pending timeouts on unmount
   // 
@@ -2681,6 +2625,11 @@ const TextEditorContent = ({
               onDelete={handleDeleteDocument}
               onFindReplace={handleFindReplace}
               onOpenAIAssistant={() => setShowAIAssistant(true)}
+              onOpen={() => {
+                // Navigate to EditorIntro with import action param
+                // This triggers the full-featured import panel there
+                navigate('/editor-intro?action=import');
+              }}
               editor={editor}
               zoom={zoom}
               onZoomChange={handleZoomChange}
@@ -2776,7 +2725,7 @@ const TextEditorContent = ({
                     runWithSavedSelection(editor, (chain) => chain.insertContent(text));
                     // 🔥 CRITICAL FIX: Trigger pagination after paste settles
                     // Wait longer for complex content with headings to fully render
-                    
+
                     // Step 1: Wait for fonts to load (critical for heading height accuracy)
                     const waitForFontsAndLayout = () => {
                       if (document.fonts && document.fonts.ready) {
@@ -2790,22 +2739,22 @@ const TextEditorContent = ({
 
                     waitForFontsAndLayout().then(() => {
                       if (!editor || editor.isDestroyed) return;
-                      
+
                       import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
                         forceRepaginate(editor);
-                        
+
                         // 🔥 Additional check: Verify pagination actually happened
                         // If content still overflows, trigger again
                         setTimeout(() => {
                           if (editor && !editor.isDestroyed) {
                             const currentPage = editor.view.dom.closest('.page');
                             const pageContent = currentPage?.querySelector('.page-content');
-                            
+
                             if (currentPage && pageContent) {
                               const contentHeight = pageContent.scrollHeight;
                               const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
                               const maxHeight = pageHeight - 96; // Subtract margins
-                              
+
                               // If still overflowing, force another pagination
                               if (contentHeight > maxHeight) {
                                 console.log('[onPaste] Content still overflowing, forcing repagination');
@@ -2829,7 +2778,7 @@ const TextEditorContent = ({
                   const text = await navigator.clipboard.readText();
                   runWithSavedSelection(editor, (chain) => chain.insertContent(text));
                   // Trigger pagination after paste settles
-                  
+
                   // Wait for fonts and layout to settle
                   const waitForFontsAndLayout = () => {
                     if (document.fonts && document.fonts.ready) {
@@ -2842,7 +2791,7 @@ const TextEditorContent = ({
 
                   waitForFontsAndLayout().then(() => {
                     if (!editor || editor.isDestroyed) return;
-                    
+
                     import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
                       forceRepaginate(editor);
                     });
@@ -3392,4 +3341,4 @@ const TextEditorWithProviders = ({
   );
 };
 
-export default TextEditorWithProviders;
+export default TextEditorWithProviders;        

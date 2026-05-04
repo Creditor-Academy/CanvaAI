@@ -389,6 +389,7 @@ export const EditorToolbar = ({
   setContentInertProp,
   // Legacy alias accepted from parent via onSetContentInert prop
   onSetContentInert,
+  setShowImportModal,
   className
 }) => {
   // Resolve setContentInert from whichever prop name the parent passes.
@@ -2377,7 +2378,11 @@ export const EditorToolbar = ({
         },
         {
           label: 'Open...', icon: FolderOpen, shortcut: 'Ctrl+O', action: () => {
-            fileInputRef.current?.click();
+            if (typeof setShowImportModal === 'function') {
+              setShowImportModal(true);
+            } else {
+              fileInputRef.current?.click();
+            }
           }
         },
 

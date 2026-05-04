@@ -57,6 +57,7 @@ const HeaderMenuBar = React.memo(({
   onPrint,
   onFindReplace,
   onOpenAIAssistant,  // New callback to open unified AI Assistant
+  onOpen,             // Callback to open Import Panel
   // Format callbacks
   onToggleBold,
   onToggleItalic,
@@ -263,7 +264,7 @@ const HeaderMenuBar = React.memo(({
   // File menu items
   const fileMenuItems = [
     { id: 'new', label: 'New Page', icon: FileText, shortcut: 'Ctrl+N', onClick: () => setShowNewDocConfirm(true) },
-    { id: 'open', label: 'Open...', icon: FolderOpen, shortcut: 'Ctrl+O', onClick: () => toast.info('Open file dialog') },
+    { id: 'open', label: 'Open...', icon: FolderOpen, shortcut: 'Ctrl+O', onClick: onOpen || (() => toast.info('Open file dialog')) },
     { id: 'save', label: 'Save', icon: Save, shortcut: 'Ctrl+S', onClick: onSave },
     { id: 'print', label: 'Print', icon: Printer, shortcut: 'Ctrl+P', onClick: onPrint },
     { type: 'separator' },

@@ -17,7 +17,7 @@ import { useDocuments, useDeleteDocument } from '../hooks/useDocuments.js';
 import { TextEditorService } from '../services/Text-Editor/text.service.js';
 import { useAuth } from '../contexts/AuthContext';
 import { TEMPLATES as SIDEBAR_TEMPLATES } from '../components/athena-editor/components/editor/TemplateSidebar.jsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DocumentImporter } from '../utils/documentImporter';
 
 // ── Template content map ──────────────────────────────────────────────────────
@@ -391,6 +391,7 @@ const MarkdownPreview = ({ content }) => {
 // ═════════════════════════════════════════════════════════════════════════════
 const EditorIntro = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
     const [templateSearch, setTemplateSearch] = useState('');
@@ -437,6 +438,14 @@ const EditorIntro = () => {
     useEffect(() => {
         if (renameId && renameInputRef.current) renameInputRef.current.focus();
     }, [renameId]);
+
+    // ── Auto-open upload zone from URL ──────────────────────────────────────
+    useEffect(() => {
+        if (searchParams.get('action') === 'import') {
+            setShowUploadZone(true);
+            setSearchParams(new URLSearchParams());
+        }
+    }, [searchParams, setSearchParams]);
 
     // ── Dismiss context menu on scroll ────────────────────────────────────
     useEffect(() => {

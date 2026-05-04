@@ -114,7 +114,8 @@ export const DocumentOutline = ({
     for (let i = index - 1; i >= 0; i--) {
       const ancestor = headings[i];
       if (ancestor.level >= heading.level) continue;
-      if (collapsedSections.has(ancestor.id)) return false;
+      // collapsedSections is a plain object {} — key presence means collapsed
+      if (collapsedSections[ancestor.id]) return false;
     }
     return true;
   }, [headings, collapsedSections]);
@@ -319,7 +320,7 @@ export const DocumentOutline = ({
         ) : (
           filtered.map((heading, index) => {
             const cfg          = LEVEL_CONFIG[heading.level] || LEVEL_CONFIG[6];
-            const isCollapsed  = collapsedSections?.has(heading.id);
+            const isCollapsed  = !!collapsedSections?.[heading.id];
             const _hasChildren = hasChildren(heading);
             const isActive     = heading.id === activeHeadingId;
             const isHovered    = hoveredId === heading.id;
