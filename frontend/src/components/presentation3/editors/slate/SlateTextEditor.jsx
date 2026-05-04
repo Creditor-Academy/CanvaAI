@@ -71,7 +71,8 @@ const SlateTextEditor = ({ value, onChange, style, autoFocus = false }) => {
       // To preserve selection, we should ideally use Transforms.setNodes or similar
       // but for a full value sync from Undo/Redo, resetting children is fine 
       // as long as it's not happening during every keystroke.
-      editor.children = value;
+      // ALWAYS DEEP CLONE to prevent "Unable to find path for Slate node" crashes
+      editor.children = JSON.parse(JSON.stringify(value));
       editor.onChange();
     }
   }, [value, editor]);
@@ -114,8 +115,12 @@ const SlateTextEditor = ({ value, onChange, style, autoFocus = false }) => {
   }, [editor]);
 
 
+  // useMemo ensures that we give Slate a deep-copied initialValue on first mount
+  // to avoid WeakMap crossover issues that throw "Unable to find the path for Slate node"
+  const initialValue = useMemo(() => JSON.parse(JSON.stringify(value)), []);
+
   return (
-    <Slate editor={editor} initialValue={value} onChange={handleSlateChange}>
+    <Slate editor={editor} initialValue={initialValue} onChange={handleSlateChange}>
       <Editable
         renderElement={renderElement}
         renderLeaf={renderLeaf}
