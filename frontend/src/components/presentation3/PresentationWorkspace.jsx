@@ -27,6 +27,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { user } = useAuth();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
+  const [highlightSave, setHighlightSave] = useState(false);
   // Loading if ID is present and we don't have initialData
   const [isLoading, setIsLoading] = useState(!!id && !initialData);
   const [error, setError] = useState(null);
@@ -127,6 +128,8 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
           onPresent={() => setIsPresenting(true)}
           onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
           autoSaveState={autoSaveState}
+          highlightSave={highlightSave}
+          onHighlightSaveDone={() => setHighlightSave(false)}
         />
 
         <div style={styles.body}>
@@ -139,6 +142,8 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
           <AgentPanel
             isOpen={isAgentPanelOpen}
             onClose={() => setIsAgentPanelOpen(false)}
+            manualSave={autoSaveState.manualSave}
+            onRequestSaveHighlight={() => setHighlightSave(true)}
           />
         </div>
       </div>

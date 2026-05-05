@@ -123,6 +123,19 @@
   color: #92400e !important;
 }
 
+/* Highlight pulse — draws attention to the Save button */
+.nav-btn--highlight {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35) !important;
+  animation: saveHighlightPulse 0.9s ease-in-out 3;
+}
+
+@keyframes saveHighlightPulse {
+  0%   { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35); border-color: #3b82f6; }
+  50%  { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15); border-color: #2563eb; }
+  100% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35); border-color: #3b82f6; }
+}
+
 .save-spinner {
   animation: spin 1s linear infinite;
   flex-shrink: 0;

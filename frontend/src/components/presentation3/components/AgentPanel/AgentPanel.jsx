@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useUIStore } from "../../store/useUIStore";
 import usePresentationStore from "../../store/usePresentationStore";
 import { useAuth } from "../../../../contexts/AuthContext";
 import {
@@ -18,7 +19,7 @@ import {
   processAndAppendAILayers,
 } from "../../processor/processAIGeneration";
 
-const AgentPanel = ({ isOpen, onClose }) => {
+const AgentPanel = ({ isOpen, onClose, manualSave, onRequestSaveHighlight }) => {
   const { user } = useAuth();
   const {
     slides,
@@ -74,24 +75,54 @@ const AgentPanel = ({ isOpen, onClose }) => {
     setSelectedSlideId(null);
   };
 
+  const handleSetMode = (newMode) => {
+    if (!presentationId) {
+      useUIStore.getState().addNotification(
+        "Please save the PPT once to use the AI features.",
+        "info",
+        4000
+      );
+      if (onRequestSaveHighlight) onRequestSaveHighlight();
+      return;
+    }
+    setMode(newMode);
+  };
+
   const handleSubmit = async () => {
     if (!prompt.trim() || isGenerating) return;
 
     const userId = getUserId();
 
-    if (!userId || !presentationId) {
-      alert("Missing IDs. Please login again.");
+    if (!userId) {
+      alert("Missing user ID. Please login again.");
       return;
     }
 
     setIsGenerating(true);
+
+    let activePresentationId = presentationId;
+    if (!activePresentationId) {
+      try {
+        await manualSave();
+        activePresentationId = usePresentationStore.getState().presentationId;
+      } catch (e) {
+        setIsGenerating(false);
+        alert("Failed to save presentation. Please try again.");
+        return;
+      }
+      if (!activePresentationId) {
+        setIsGenerating(false);
+        alert("Could not create presentation. Please try again.");
+        return;
+      }
+    }
 
     try {
       if (mode === "generate-image") {
         const activeSlide = slides.find(s => s.id === activeSlideId);
         const res = await aiService.generateAIImage({
           userId,
-          pptId: presentationId,
+          pptId: activePresentationId,
           userPrompt: prompt,
           activeSlideData: activeSlide
         });
@@ -102,7 +133,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
         const presentationData = { slides };
         const res = await aiService.generateAISlide({
           userId,
-          pptId: presentationId,
+          pptId: activePresentationId,
           userPrompt: prompt,
           mediaStyle: mediaType,
           presentationData
@@ -116,7 +147,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
         const slideToExpand = slides.find(s => s.id === selectedSlideId);
         const res = await aiService.expandAISlide({
           userId,
-          pptId: presentationId,
+          pptId: activePresentationId,
           activeSlide: slideToExpand,
           userPrompt: prompt,
           mediaStyle: mediaType
@@ -317,7 +348,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
           <div className={`agent-primary-actions ${mode !== 'default' ? 'has-context' : ''}`}>
             <button
               className={`agent-action-card ${mode === 'generate-slide' ? 'active' : ''}`}
-              onClick={() => setMode("generate-slide")}
+              onClick={() => handleSetMode("generate-slide")}
               disabled={isGenerating}
             >
               <div className="icon-box slide-icon">
@@ -331,7 +362,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
 
             <button
               className={`agent-action-card ${mode === 'expand-slide' ? 'active' : ''}`}
-              onClick={() => setMode("expand-slide")}
+              onClick={() => handleSetMode("expand-slide")}
               disabled={isGenerating}
             >
               <div className="icon-box expand-icon">
@@ -345,7 +376,7 @@ const AgentPanel = ({ isOpen, onClose }) => {
 
             <button
               className={`agent-action-card ${mode === 'generate-image' ? 'active' : ''}`}
-              onClick={() => setMode("generate-image")}
+              onClick={() => handleSetMode("generate-image")}
               disabled={isGenerating}
             >
               <div className="icon-box image-icon">
