@@ -354,7 +354,7 @@ return (
                 className="balance-popup-primary"
                 onClick={() => {
                   setShowBalancePopup(false);
-                  navigate('/pricing');
+                  navigate('/dashboard/pricing');
                 }}
               >
                 Renew Plan

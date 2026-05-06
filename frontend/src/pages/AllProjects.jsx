@@ -186,9 +186,9 @@ export default function AllProjects() {
   );
 
   return (
-    <div className="w-full min-h-screen px-4 md:px-10 lg:px-24 py-10 md:py-20 bg-[#e9f4ff]">
-      <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-sm border border-white/40">
-        
+    <div className="w-full min-h-screen ">
+      <div className="mx-auto ">
+
         {/* HEADER */}
         <div className="text-center mb-10" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
           <h1 className="text-4xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontWeight: 400, letterSpacing: '-0.02em' }}>Your Creative Projects</h1>
@@ -199,10 +199,10 @@ export default function AllProjects() {
 
         {/* SEARCH + CREATE */}
         <div className="flex flex-col md:flex-row items-center justify-between mb-10 gap-6">
-          
+
           {/* Unified Search & Filter Container */}
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto bg-white p-1.5 rounded-[1.25rem] shadow-sm border border-slate-200/60 transition-all hover:shadow-md focus-within:shadow-md focus-within:border-blue-400 group">
-            
+
             <div className="relative w-full sm:flex-1 sm:w-72">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
               <input
@@ -321,12 +321,12 @@ export default function AllProjects() {
                       </p>
                       {p.type === 'ppt' && getSlideCount(p) > 0 && (
                         <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-bold text-blue-700 border border-blue-200 bg-blue-50 px-2 py-0.5 rounded-sm w-fit group-hover:border-blue-400 transition-colors">
-                           <FiLayout size={12} />
-                           {getSlideCount(p)} {getSlideCount(p) === 1 ? 'Slide' : 'Slides'}
+                          <FiLayout size={12} />
+                          {getSlideCount(p)} {getSlideCount(p) === 1 ? 'Slide' : 'Slides'}
                         </div>
                       )}
                     </div>
-                    
+
                     <button
                       onClick={(e) => openDeleteModal(e, p)}
                       className="p-1.5 sm:p-2 text-red-600 bg-red-50 border border-red-200 hover:bg-red-500 hover:text-white hover:border-red-600 rounded-md transition-all font-bold"
@@ -371,7 +371,7 @@ export default function AllProjects() {
           </h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
             <div
-              onClick={() => navigate("/presentationTemplates")}
+              onClick={() => navigate("/dashboard/PresentationTemplates")}
               className="group cursor-pointer rounded-3xl p-8 text-center bg-blue-50 hover:bg-blue-600 hover:shadow-2xl hover:shadow-blue-500/30 hover:-translate-y-1 transition-all duration-300"
             >
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
@@ -382,7 +382,7 @@ export default function AllProjects() {
             </div>
 
             <div
-              onClick={() => navigate("/imageTemplates")}
+              onClick={() => navigate("/dashboard/imageTemplates")}
               className="group cursor-pointer rounded-3xl p-8 text-center bg-indigo-50 hover:bg-indigo-600 hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-1 transition-all duration-300"
             >
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
@@ -409,7 +409,7 @@ export default function AllProjects() {
             <h3 className="text-2xl md:text-3xl text-slate-900 text-center mb-8 md:mb-10 font-normal" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '-0.01em' }}>Select Design Type</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
               <div
-                onClick={() => window.open('/presentation', '_blank')}
+                onClick={() => window.open('/dashboard/presentation', '_blank')}
                 className="group cursor-pointer p-6 md:p-8 rounded-2xl md:rounded-3xl bg-slate-50 border-2 border-transparent hover:border-blue-500 hover:bg-white hover:shadow-xl transition-all text-center"
               >
                 <div className="w-16 h-16 flex items-center justify-center rounded-2xl bg-blue-100 text-blue-600 mb-4 mx-auto group-hover:scale-110 transition-transform">
@@ -420,7 +420,7 @@ export default function AllProjects() {
               </div>
 
               <div
-                onClick={() => window.open('/create-image', '_blank')}
+                onClick={() => window.open('/dashboard/create-image', '_blank')}
                 className="group cursor-pointer p-6 md:p-8 rounded-2xl md:rounded-3xl bg-slate-50 border-2 border-transparent hover:border-indigo-500 hover:bg-white hover:shadow-xl transition-all text-center"
               >
                 <div className="w-16 h-16 flex items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 mb-4 mx-auto group-hover:scale-110 transition-transform">

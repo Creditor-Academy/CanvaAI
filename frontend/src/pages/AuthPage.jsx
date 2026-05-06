@@ -15,7 +15,7 @@ const AuthPage = () => {
   // If user already has a valid session, skip login and go straight to home
   useEffect(() => {
     if (isAuthenticated === true) {
-      navigate("/home", { replace: true });
+      navigate("/dashboard/home", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -100,7 +100,7 @@ const AuthPage = () => {
 
         if (response.success && response.token) {
           await login(response.token);
-          navigate("/home", { replace: true });
+          navigate("/dashboard/home", { replace: true });
         } else {
           throw new Error(response.msg || "Invalid session");
         }
@@ -199,7 +199,7 @@ const AuthPage = () => {
 
 
       await login(response.token);
-      navigate("/home");
+      navigate("/dashboard/home");
     } catch (err) {
       alert(
         (isSignup ? "Signup" : "Login") +

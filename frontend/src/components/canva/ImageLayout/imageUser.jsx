@@ -373,7 +373,7 @@ const ImageUser = () => {
 
                     {/* Action Buttons */}
                     <div style={imgStyles.actionGrid}>
-                        <div className="ai-btn-wrapper" onClick={() => window.open('/create/ai-design', '_blank')}>
+                        <div className="ai-btn-wrapper" onClick={() => window.open('/dashboard/create/ai-design', '_blank')}>
                             <div className="ai-btn-inner">
                                 <div style={imgStyles.iconContainer}>
                                     <Sparkles size={32} color="#fff" />

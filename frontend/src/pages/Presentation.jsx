@@ -51,13 +51,6 @@ const Presentation = () => {
         50% { box-shadow: 0 0 35px rgba(99, 102, 241, 0.15), 0 8px 32px rgba(0,0,0,0.06); }
       }
 
-      .wave-bg {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: -1;
-        overflow: hidden;
-      }
-
       .wave {
         position: absolute;
         width: 200%;
@@ -328,252 +321,245 @@ const Presentation = () => {
 
   return (
     <>
-    <div style={{ background: "#e9f4ff", minHeight: "100vh" }}>
-      {/* Wave Animation Background */}
-      <div className="wave-bg">
-        <div className="wave"></div>
-        <div className="wave"></div>
-        <div className="wave"></div>
-      </div>
-
-      <div style={styles.container}>
-        <div style={styles.content}>
-          {/* Header Section */}
-          <div style={styles.header}>
-            <div>
-              <h1 style={styles.title}>Create Stunning Presentation's.</h1>
-              <p style={styles.subtitle}> "Create professional presentations in seconds with AI or start from scratch."</p>
+      <div>
+        <div style={styles.container}>
+          <div style={styles.content}>
+            {/* Header Section */}
+            <div style={styles.header}>
+              <div>
+                <h1 style={styles.title}>Create Stunning Presentation's.</h1>
+                <p style={styles.subtitle}> "Create professional presentations in seconds with AI or start from scratch."</p>
+              </div>
             </div>
-          </div>
 
-          {/* Primary Actions */}
-          <div style={styles.actionGrid}>
-            {/* Create with AI — animated tracing border */}
-            <div
-              className="ai-btn-wrapper"
-              onClick={() => window.open('/ai-presentation', '_blank')}
-            >
-              <div className="ai-btn-inner">
-                <div style={styles.iconContainer}>
-                  <Sparkles size={32} color="#fff" />
+            {/* Primary Actions */}
+            <div style={styles.actionGrid}>
+              {/* Create with AI — animated tracing border */}
+              <div
+                className="ai-btn-wrapper"
+                onClick={() => window.open('/dashboard/ai-presentation', '_blank')}
+              >
+                <div className="ai-btn-inner">
+                  <div style={styles.iconContainer}>
+                    <Sparkles size={32} color="#fff" />
+                  </div>
+                  <div>
+                    <h2 style={{ ...styles.actionTitle, color: '#fff' }}>Create with AI</h2>
+                    <p style={{ ...styles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
+                      Let AI generate a complete presentation from your topic.
+                    </p>
+                  </div>
+                  <div style={styles.zapIcon}>
+                    <FiZap size={24} color="rgba(255,255,255,0.2)" />
+                  </div>
                 </div>
-                <div>
-                  <h2 style={{ ...styles.actionTitle, color: '#fff' }}>Create with AI</h2>
-                  <p style={{ ...styles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
-                    Let AI generate a complete presentation from your topic.
-                  </p>
-                </div>
-                <div style={styles.zapIcon}>
-                  <FiZap size={24} color="rgba(255,255,255,0.2)" />
+              </div>
+
+              {/* Create Fresh */}
+              <div
+                className="fresh-btn-wrapper"
+                onClick={() => window.open('/presentation-editor-v3', '_blank')}
+              >
+                <div className="fresh-btn-inner">
+
+                  <div
+                    style={{
+                      ...styles.iconContainer,
+                      background: 'linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)',
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 10px 20px rgba(59,130,246,0.35)'
+                    }}
+                  >
+                    <FiPlus size={28} color="#ffffff" />
+                  </div>
+
+                  <div>
+                    <h2 style={styles.actionTitle}>Create Fresh</h2>
+                    <p style={styles.actionDesc}>
+                      Open our advanced editor and start your story from scratch.
+                    </p>
+                  </div>
+
                 </div>
               </div>
             </div>
 
-            {/* Create Fresh */}
-            <div
-  className="fresh-btn-wrapper"
-  onClick={() => window.open('/presentation-editor-v3', '_blank')}
->
-  <div className="fresh-btn-inner">
-
-    <div
-      style={{
-        ...styles.iconContainer,
-        background: 'linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)',
-        width: '64px',
-        height: '64px',
-        borderRadius: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: '0 10px 20px rgba(59,130,246,0.35)'
-      }}
-    >
-      <FiPlus size={28} color="#ffffff" />
-    </div>
-
-    <div>
-      <h2 style={styles.actionTitle}>Create Fresh</h2>
-      <p style={styles.actionDesc}>
-        Open our advanced editor and start your story from scratch.
-      </p>
-    </div>
-
-  </div>
-</div>
-          </div>
-
-          {/* Recent Work Section — Glowing Card */}
-          <div className="glow-card">
-            <div style={{ ...styles.sectionHeader, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h2 style={styles.sectionTitle}>Recent Presentations</h2>
-                {!loading && (
-                  <span style={styles.countBadge}>{filteredPresentations.length} {filteredPresentations.length === 1 ? 'presentation' : 'presentations'}</span>
-                )}
+            {/* Recent Work Section — Glowing Card */}
+            <div className="glow-card">
+              <div style={{ ...styles.sectionHeader, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h2 style={styles.sectionTitle}>Recent Presentations</h2>
+                  {!loading && (
+                    <span style={styles.countBadge}>{filteredPresentations.length} {filteredPresentations.length === 1 ? 'presentation' : 'presentations'}</span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search presentations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={styles.searchInput}
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Search presentations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={styles.searchInput}
-              />
-            </div>
 
-            <div style={styles.scrollContainer}>
-              {loading ? (
-                <div style={styles.grid}>
-                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
-                </div>
-              ) : filteredPresentations.length === 0 ? (
-                <div style={styles.emptyCard}>
-                  <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{searchTerm ? 'No presentations match your search.' : 'No presentations yet. Start creating!'}</p>
-                </div>
-              ) : (
-                <div style={styles.grid} className="fade-in">
-                  {filteredPresentations.map((ppt) => (
-                    <div
-                      key={ppt._id}
-                      onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.borderColor = '#6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.borderColor = '#e2e8f0';
-                      }}
-                      style={styles.card}
-                    >
-                      <div style={styles.cardPreview}>
-                        {getSlideData(ppt) ? (
-                          <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
-                        ) : (
-                          <FiFileText size={40} color="#94a3b8" />
-                        )}
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <div style={styles.cardText}>
-                          <h3 style={styles.cardTitle}>{ppt.title || "Untitled"}</h3>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
-                            {getSlideCount(ppt) > 0 && (
-                              <div style={styles.slideBadge}>
-                                <FiLayout size={12} style={{ marginRight: '4px' }} />
-                                {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => handleDelete(ppt._id, e)}
-                          onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                          style={{
-                            ...styles.deleteBtn,
-                            opacity: isDeleting === ppt._id ? 0.6 : 1,
-                            cursor: isDeleting === ppt._id ? 'not-allowed' : 'pointer'
-                          }}
-                          disabled={isDeleting === ppt._id}
-                        >
-                          {isDeleting === ppt._id ? (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              border: '2px solid #ef4444',
-                              borderTop: '2px solid transparent',
-                              borderRadius: '50%',
-                              animation: 'spin 0.6s linear infinite'
-                            }} />
+              <div style={styles.scrollContainer}>
+                {loading ? (
+                  <div style={styles.grid}>
+                    {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                  </div>
+                ) : filteredPresentations.length === 0 ? (
+                  <div style={styles.emptyCard}>
+                    <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{searchTerm ? 'No presentations match your search.' : 'No presentations yet. Start creating!'}</p>
+                  </div>
+                ) : (
+                  <div style={styles.grid} className="fade-in">
+                    {filteredPresentations.map((ppt) => (
+                      <div
+                        key={ppt._id}
+                        onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.borderColor = '#6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                        }}
+                        style={styles.card}
+                      >
+                        <div style={styles.cardPreview}>
+                          {getSlideData(ppt) ? (
+                            <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
                           ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Templates Section — Glowing Card */}
-          <div className="glow-card">
-            <div style={styles.sectionHeader}>
-              <FiLayout size={20} color="#0f172a" />
-              <h2 style={styles.sectionTitle}>Featured Templates</h2>
-            </div>
-
-            <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
-              {templatesLoading ? (
-                <div style={styles.grid}>
-                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
-                </div>
-              ) : (
-                <div style={styles.grid} className="fade-in">
-                  {templates.map((tpl) => (
-                    <div
-                      key={tpl._id}
-                      onClick={() => handleViewTemplate(tpl)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.borderColor = '#6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.borderColor = '#e2e8f0';
-                      }}
-                      style={styles.templateCard}
-                    >
-                      <div style={styles.templatePreview}>
-                        {getSlideData(tpl) ? (
-                          <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
-                        ) : (
-                          <FiLayout size={40} color="#6366f1" />
-                        )}
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <div style={styles.cardText}>
-                          <h3 style={styles.cardTitle}>{tpl.title}</h3>
-                          {getSlideCount(tpl) > 0 && (
-                            <div style={styles.slideBadge}>
-                              <FiLayout size={12} style={{ marginRight: '4px' }} />
-                              {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
-                            </div>
+                            <FiFileText size={40} color="#94a3b8" />
                           )}
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={styles.cardInfo}>
+                          <div style={styles.cardText}>
+                            <h3 style={styles.cardTitle}>{ppt.title || "Untitled"}</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
+                              {getSlideCount(ppt) > 0 && (
+                                <div style={styles.slideBadge}>
+                                  <FiLayout size={12} style={{ marginRight: '4px' }} />
+                                  {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewTemplate(tpl);
+                            onClick={(e) => handleDelete(ppt._id, e)}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                            style={{
+                              ...styles.deleteBtn,
+                              opacity: isDeleting === ppt._id ? 0.6 : 1,
+                              cursor: isDeleting === ppt._id ? 'not-allowed' : 'pointer'
                             }}
-                            className="view-btn"
+                            disabled={isDeleting === ppt._id}
                           >
-                            View
+                            {isDeleting === ppt._id ? (
+                              <div style={{
+                                width: '16px',
+                                height: '16px',
+                                border: '2px solid #ef4444',
+                                borderTop: '2px solid transparent',
+                                borderRadius: '50%',
+                                animation: 'spin 0.6s linear infinite'
+                              }} />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
                           </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Templates Section — Glowing Card */}
+            <div className="glow-card">
+              <div style={styles.sectionHeader}>
+                <FiLayout size={20} color="#0f172a" />
+                <h2 style={styles.sectionTitle}>Featured Templates</h2>
+              </div>
+
+              <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
+                {templatesLoading ? (
+                  <div style={styles.grid}>
+                    {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                  </div>
+                ) : (
+                  <div style={styles.grid} className="fade-in">
+                    {templates.map((tpl) => (
+                      <div
+                        key={tpl._id}
+                        onClick={() => handleViewTemplate(tpl)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.borderColor = '#6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                        }}
+                        style={styles.templateCard}
+                      >
+                        <div style={styles.templatePreview}>
+                          {getSlideData(tpl) ? (
+                            <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
+                          ) : (
+                            <FiLayout size={40} color="#6366f1" />
+                          )}
+                        </div>
+                        <div style={styles.cardInfo}>
+                          <div style={styles.cardText}>
+                            <h3 style={styles.cardTitle}>{tpl.title}</h3>
+                            {getSlideCount(tpl) > 0 && (
+                              <div style={styles.slideBadge}>
+                                <FiLayout size={12} style={{ marginRight: '4px' }} />
+                                {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewTemplate(tpl);
+                              }}
+                              className="view-btn"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <TemplatePreviewModal
+              isOpen={isPreviewOpen}
+              onClose={() => setIsPreviewOpen(false)}
+              templateData={previewData}
+              onImport={() => {
+                setIsPreviewOpen(false);
+                handleUseTemplate({ _id: selectedTemplateId });
+              }}
+            />
+
           </div>
-
-          <TemplatePreviewModal
-            isOpen={isPreviewOpen}
-            onClose={() => setIsPreviewOpen(false)}
-            templateData={previewData}
-            onImport={() => {
-              setIsPreviewOpen(false);
-              handleUseTemplate({ _id: selectedTemplateId });
-            }}
-          />
-
         </div>
-      </div>
       </div>
     </>
   );
@@ -581,16 +567,13 @@ const Presentation = () => {
 
 const styles = {
   container: {
-  minHeight: '100vh',
-  background: 'transparent',
-  padding: '120px 20px 40px',
-  position: 'relative',
-  zIndex: 1,
-  transform: 'scale(0.9)',
-  transformOrigin: 'top center',
-},
+    minHeight: '100vh',
+    background: 'transparent',
+    position: 'relative',
+    zIndex: 1,
+    transformOrigin: 'top center',
+  },
   content: {
-    maxWidth: '1200px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',

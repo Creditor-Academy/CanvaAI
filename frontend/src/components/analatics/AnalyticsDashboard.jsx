@@ -131,7 +131,7 @@ export default function CreditsAnalytics() {
   // };
 
   const handleRenewPlan = () => {
-    navigate("/pricing");
+    navigate("/dashboard/pricing");
   };
 
 
@@ -185,13 +185,13 @@ export default function CreditsAnalytics() {
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff]
-      pt-[88px] px-3 pb-[92px]
-      sm:px-4 sm:pb-[96px]
-      md:px-5 md:pb-[100px]
-      lg:pt-[92px] lg:pb-8 lg:pl-[96px] lg:pr-6"
+    <div className="min-h-screen
+       pb-[92px]
+      sm:pb-[96px]
+      md:pb-[100px]
+      lg:pb-8"
     >
-      <div className="mx-auto max-w-5xl">
+      <div className="">
         {/* HEADER */}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 lg:gap-5 mb-6 lg:mb-8">
           <div className="lg:col-span-4 relative rounded-[22px] border border-slate-200 bg-white/80 backdrop-blur-md p-4 sm:p-5 lg:p-5 shadow-sm overflow-hidden">
@@ -273,7 +273,7 @@ export default function CreditsAnalytics() {
 
 
         {/* BOTTOM BOXES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 max-w-[900px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
           <Section
             title="Presentation"
             color="bg-blue-800"
@@ -348,7 +348,7 @@ export default function CreditsAnalytics() {
         </div>
 
         {/* ORDER HISTORY */}
-        <div className="mt-6 lg:mt-8 max-w-[900px] mx-auto">
+        <div className="mt-6 lg:mt-8 mx-auto">
           <div className="rounded-[20px] lg:rounded-[22px] border border-slate-200/80 bg-white/85 shadow-[0_6px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl overflow-hidden">
             <div className="h-1.5 w-full bg-gradient-to-r from-blue-800 to-indigo-600"></div>
             <div className="px-5 pt-5 pb-4">

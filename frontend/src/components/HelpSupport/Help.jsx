@@ -307,8 +307,8 @@ const Help = () => {
   return (
 
     /*-------------------HEADER----------------------- */
-    <div className="help-container ">
-      <div className="help-inner">
+    <div className="pb-10 ">
+      <div className="bg-transparent">
         <div className="help-hero">
           <div className="hero-left">
 
@@ -495,7 +495,7 @@ const Help = () => {
               <div className="support-actions">
                 <p className="support-email-text">
                   Contact us on this Email:
-                  <span className="support-email">info@designova.com</span>
+                  <span className="support-email">designonva.athena@lmsathena.com</span>
                 </p>
               </div>
             </div>

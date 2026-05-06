@@ -135,12 +135,7 @@ const ImageLayout = () => {
                 from { opacity: 0; transform: translateY(4px); }
                 to   { opacity: 1; transform: translateY(0); }
             }
-            .wave-bg {
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                z-index: -1;
-                overflow: hidden;
-            }
+            
             .wave {
                 position: absolute;
                 width: 200%;
@@ -396,15 +391,10 @@ const ImageLayout = () => {
     // ── Render ─────────────────────────────────────────────────────────────
     return (
         <>
-            <div className="min-h-screen bg-[#e9f4ff]">
-                <div className="wave-bg">
-                    <div className="wave" />
-                    <div className="wave" />
-                    <div className="wave" />
-                </div>
+            <div className="min-h-screen">
 
-                <div className="relative z-[1] min-h-screen origin-top scale-[0.9] px-5 pb-10 pt-[120px]">
-                    <div className="mx-auto flex max-w-[1200px] flex-col gap-10">
+                <div className="relative z-[1] min-h-screen origin-top pb-10 ">
+                    <div className="mx-auto flex  flex-col gap-10">
 
                         {/* Header */}
                         <div className="mb-[10px] flex flex-wrap items-start justify-between gap-4">
@@ -422,7 +412,7 @@ const ImageLayout = () => {
                         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                             <div
                                 className="ai-btn-wrapper"
-                                onClick={() => window.open('/create/ai-design', '_blank')}
+                                onClick={() => window.open('/dashboard/create/ai-design', '_blank')}
                             >
                                 <div className="ai-btn-inner">
                                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20">

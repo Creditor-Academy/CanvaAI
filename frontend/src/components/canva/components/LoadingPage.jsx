@@ -4,7 +4,7 @@ const LoadingPage = () => {
     return (
         <div className="fixed inset-0  flex items-center justify-center">
             {/* 1. Main container: Transparent white with blur effect and shadow */}
-            <div className="flex flex-col items-center gap-14 px-16 py-16  backdrop-blur-sm rounded-3xl shadow-sm">
+            <div className="flex flex-col items-center gap-14 px-16 py-16 ">
 
                 {/* Diamond Container */}
                 <div className="relative w-24 h-24 rotate-45">

@@ -22,7 +22,7 @@ const Navbar = () => {
   const handleLoginClick = (e) => {
     e.preventDefault();
     if (isTokenValid()) {
-      navigate("/home", { replace: true });
+      navigate("/dashboard/home", { replace: true });
     } else {
       navigate("/login");
     }
@@ -35,7 +35,7 @@ const Navbar = () => {
           <a className="brand">
             <img src={logo} alt="Designova AI" className="brand-logo" />
             <div className="brand-text"> <strong>Designova </strong> </div>
-            
+
           </a>
         </div>
 
@@ -46,7 +46,7 @@ const Navbar = () => {
         </nav>
 
         <div className="nav-actions">
-          <a className="btn btn-ghost login-btn" href="/login" onClick={handleLoginClick}>Log in</a>
+          <a className="btn btn-ghost login-btn" href="/dashboard/home" onClick={handleLoginClick}>Log in</a>
 
           <button
             className={`hamburger ${open ? "is-active" : ""}`}

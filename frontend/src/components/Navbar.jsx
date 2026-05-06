@@ -48,29 +48,9 @@ const TopNavbar = () => {
 
   return (
     <header
-      className="fixed z-[100] flex items-center justify-between px-4 md:px-6"
+      className="flex items-center justify-between px-4 md:px-6"
       style={{
-        top: 12,
-        left: 20,
-        right: 20,
         height: 62,
-
-
-        /* GLASS BACKGROUND */
-        background: "rgba(255,255,255,0.35)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-
-
-        /* BORDER */
-        border: "1px solid rgba(59,130,246,0.2)",
-
-
-        borderRadius: 16,
-
-
-        /* FLOAT SHADOW */
-        boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
       }}
     >
       {/* LEFT LOGO */}
@@ -92,58 +72,6 @@ const TopNavbar = () => {
 
 
       <div className="flex items-center gap-2 relative">
-
-
-        {/* HELP */}
-        <button
-          onClick={() => navigate("/help-support")}
-          className="hidden md:flex w-8 h-8 rounded-lg items-center justify-center text-slate-600 hover:bg-yellow-100 transition"
-        >
-          <FiHelpCircle size={18} />
-        </button>
-
-
-        {/* NOTIFICATIONS */}
-        {/* <div ref={notifRef} className="relative">
-          <button
-            onClick={() => setOpenNotif(!openNotif)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-yellow-100 transition relative"
-          >
-            <FiBell size={18} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-
-
-          {openNotif && (
-            <div
-              className="absolute right-0 mt-3 w-72 rounded-xl shadow-xl p-3"
-              style={{
-                background: "rgba(255,255,255)",
-                border: "1px solid rgba(0,0,0,0.06)",
-              }}
-            >
-              <p className="text-sm text-slate-600 mb-2">Notifications</p>
-
-
-              <div className="space-y-2 text-sm">
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">
-                  Your presentation is ready
-                </div>
-
-
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">
-                  AI generated new design
-                </div>
-
-
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">
-                  File exported successfully
-                </div>
-              </div>
-            </div>
-          )}
-        </div> */}
-
 
         {/* PROFILE (desktop only) */}
         <div className="hidden md:block relative" ref={profileRef}>
@@ -201,7 +129,7 @@ const TopNavbar = () => {
               <div className="py-1.5 text-sm">
                 <button
                   onClick={() => {
-                    navigate("/settings", { state: { profile } });
+                    navigate("/dashboard/settings", { state: { profile } });
                     setopenProfile(false);
                   }}
                   className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 text-slate-700"
@@ -224,12 +152,6 @@ const TopNavbar = () => {
             </div>
           )}
         </div>
-        <button
-          onClick={() => setOpenMenu(!openMenu)}
-          className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-slate-700 hover:bg-yellow-100"
-        >
-          <FiMenu size={20} />
-        </button>
       </div>
 
 
@@ -274,7 +196,7 @@ const TopNavbar = () => {
 
           <button
             onClick={() => {
-              navigate("/help-support");
+              navigate("/dashboard/help-support");
               setOpenMenu(false);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100"
@@ -285,7 +207,7 @@ const TopNavbar = () => {
 
 
           <button
-            onClick={() => navigate("/settings", { state: { profile } })}
+            onClick={() => navigate("/dashboard/settings", { state: { profile } })}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100"
           >
             <FiUser size={18} />

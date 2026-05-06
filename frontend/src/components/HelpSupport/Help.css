@@ -9,11 +9,7 @@
   overflow-x: hidden;
    
 }
-.help-inner {
-  padding-top: 100px;
-  padding-left: 100px;
-  padding-right: 40px;
-}
+
 
 /* ------HERO------- */
 
@@ -513,10 +509,7 @@
    XL / LARGE LAPTOP
 ================================ */
 @media (max-width: 1400px) {
-  .help-inner {
-    padding-left: 88px;
-    padding-right: 28px;
-  }
+
 
   .hero-right img {
     width: 520px;
@@ -531,10 +524,7 @@
    LARGE TABLET / NEST HUB / SMALL LAPTOP
 ================================ */
 @media (max-width: 1200px) {
-  .help-inner {
-    padding-left: 84px;
-    padding-right: 24px;
-  }
+
 
   .help-hero {
     padding: 80px 42px 86px;
@@ -570,12 +560,6 @@
    TABLET
 ================================ */
 @media (max-width: 992px) {
-  .help-inner {
-    padding-top: 92px;
-    padding-left: 84px;
-    padding-right: 20px;
-    padding-bottom: 30px;
-  }
 
   .help-hero {
     padding: 60px 30px 84px;
@@ -660,12 +644,6 @@
     overflow-x: hidden;
   }
 
-  .help-inner {
-    padding-top: 88px;
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: 110px;
-  }
 
   .help-hero {
     padding: 34px 18px 24px;
@@ -822,12 +800,6 @@
    SMALL MOBILE
 ================================ */
 @media (max-width: 480px) {
-  .help-inner {
-    padding-top: 84px;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-bottom: 105px;
-  }
 
   .help-hero {
     padding: 28px 14px 18px;

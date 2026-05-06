@@ -173,7 +173,7 @@ const AdminDash = () => {
     try {
       const img = images.find((i) => i._id === imageId);
       if (img?.isPublic) {
-        await updateImageVisibility(imageId, { userId: user._id, isPublic: false }).catch(() => {});
+        await updateImageVisibility(imageId, { userId: user._id, isPublic: false }).catch(() => { });
       }
       await deleteImage(imageId);
       setImages((prev) => prev.filter((i) => i._id !== imageId));
@@ -221,73 +221,50 @@ const AdminDash = () => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff]">
-    <div className="admin-dash">
-      <div className="admin-dash__shell">
-        <div className="admin-dash__container">
-          {/* <section className="admin-hero">
-            <div className="admin-hero__text">
-              <p className="admin-hero__eyebrow">Welcome back, {user?.firstName || 'Admin'}</p>
-              <h1>Create or manage templates from one place</h1>
-              <p className="admin-hero__subtext">
-                Choose what you want to build and jump into the right workspace. Presentation opens
-                the layout picker instantly.
-              </p>
-            </div>
-
-            <div className="admin-hero__actions">
-              <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-                + Create Template
-              </button>
-              <button
-                className={`btn btn-ghost ${activeView === 'manage' ? 'is-active' : ''}`}
-                onClick={() => setActiveView('manage')}
-              >
-                Manage Templates
-              </button>
-            </div>
-          </section> */}
+    <div className="min-h-screen">
+      <div>
+        <div>
 
           {/* ===== Recent Templates Section ===== */}
           <section className="admin-recents">
             <div className="admin-section-card">
 
-            <div className="admin-recents__header">
-              <div className="admin-recents__title-group">
-                <h2>Recent Templates</h2>
-                <span className="admin-count-badge">{filteredTemplates.length} templates</span>
-              </div>
-
-              <div className="admin-recents__controls">
-                <div className="admin-search-wrap">
-                  <Search size={15} className="admin-search-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search templates…"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="admin-search-input"
-                  />
+              <div className="admin-recents__header">
+                <div className="admin-recents__title-group">
+                  <h2>Recent Templates</h2>
+                  <span className="admin-count-badge">{filteredTemplates.length} templates</span>
                 </div>
 
-                <div className="admin-recents__filters">
-                  <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                    <option value="all">All Categories</option>
-                    <option value="presentation">Presentation</option>
-                    <option value="document">Document</option>
-                    <option value="image">Image</option>
-                  </select>
+                <div className="admin-recents__controls">
+                  <div className="admin-search-wrap">
+                    <Search size={15} className="admin-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Search templates…"
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="admin-search-input"
+                    />
+                  </div>
 
-                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                    <option value="all">All Status</option>
-                    <option value="published">Published</option>
-                    <option value="unpublished">Unpublished</option>
-                  </select>
+                  <div className="admin-recents__filters">
+                    <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                      <option value="all">All Categories</option>
+                      <option value="presentation">Presentation</option>
+                      <option value="document">Document</option>
+                      <option value="image">Image</option>
+                    </select>
+
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                      <option value="all">All Status</option>
+                      <option value="published">Published</option>
+                      <option value="unpublished">Unpublished</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="admin-recents__grid">
+              <div className="admin-recents__grid">
                 {loading ? (
                   <p>Loading presentations...</p>
                 ) : filteredTemplates.length === 0 ? (
@@ -332,9 +309,8 @@ const AdminDash = () => {
                           </div>
 
                           <button
-                            className={`visibility-btn ${
-                              temp.isPublished ? "published" : "unpublished"
-                            }`}
+                            className={`visibility-btn ${temp.isPublished ? "published" : "unpublished"
+                              }`}
                             onClick={(e) =>
                               handleVisibilityChange(
                                 temp.id,
@@ -376,7 +352,7 @@ const AdminDash = () => {
                 )}
               </div>
             </div>{/* /admin-section-card */}
-            </section>
+          </section>
 
           {/* ===== Image Templates Section ===== */}
           <section className="admin-recents">
@@ -499,7 +475,6 @@ const AdminDash = () => {
             </div>{/* /admin-section-card */}
           </section>
 
-          </div>
         </div>
 
         {showCreateModal && (
@@ -543,7 +518,7 @@ const AdminDash = () => {
                   </p>
                   <button
                     className="btn btn-second"
-                    onClick={() => handleTemplateSelect("/editor")}
+                    onClick={() => handleTemplateSelect("/dashboard/editor")}
                   >
                     Create Document
                   </button>

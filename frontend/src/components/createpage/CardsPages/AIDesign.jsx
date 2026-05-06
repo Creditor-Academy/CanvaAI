@@ -173,7 +173,7 @@ export const AIDesign = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col px-4 sm:px-5 md:px-6 lg:px-8 xl:pl-[96px] pb-[96px] md:pb-8">
+    <div className="min-h-screen relative overflow-y-auto flex flex-col px-4 sm:px-5 md:px-6 lg:px-8 xl:pl-[96px] pb-[96px] md:pb-8">
       {/* HERO */}
       <div className="text-center pt-24 md:pt-24 xl:pt-20 z-10 px-2 sm:px-4">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900">

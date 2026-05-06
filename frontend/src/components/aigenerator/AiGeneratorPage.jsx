@@ -35,7 +35,7 @@ const toolsList = [
     icon: <MdOutlineDesignServices size={34} color={palette.accentDark} />,
     desc: "Create stunning designs from text prompts using advanced AI",
     accuracy: 95,
-    to: "/create/ai-design",
+    to: "/dashboard/create/ai-design",
   },
   {
     title: "Content Creator",
@@ -43,7 +43,7 @@ const toolsList = [
     icon: <MdOutlineContentPaste size={34} color={palette.accentDark} />,
     desc: "Generate compelling copy and marketing content instantly",
     accuracy: 88,
-    to: "/docGenerator",
+    to: "/dashboard/docGenerator",
   },
   {
     title: "Layout Builder",
@@ -51,7 +51,7 @@ const toolsList = [
     icon: <MdViewQuilt size={34} color={palette.accentDark} />,
     desc: "Smart layout generation for web and mobile interfaces",
     accuracy: 92,
-    to: "/canva-clone",
+    to: "/dashboard/canva-clone",
   },
 ];
 
@@ -98,7 +98,7 @@ const AiGeneratorPage = () => {
 
             <button
               style={styles.heroSecondaryCTA}
-              onClick={() => navigate("/create")}
+              onClick={() => navigate("/dashboard/create")}
             >
               Open Studio
               <MdFlashOn />

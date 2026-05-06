@@ -32,13 +32,14 @@ import {
 
 import logo from "../../assets/logo.png";
 import api from "../../services/api";
+import CreatePopup from "./CreatePopup";
 
 
 const TOOLS = [
   {
     name: "PPT",
     icon: HiOutlinePresentationChartLine,
-    route: "/presentation",
+    route: "/dashboard/presentation",
     color: "bg-blue-600 text-white"
   },
   {
@@ -50,13 +51,13 @@ const TOOLS = [
   {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
-    route: "/ai-presentation",
+    route: "/dashboard/ai-presentation",
     color: "bg-blue-700 text-white"
   },
   {
     name: "AI Image",
     icon: FaRegImage,
-    route: "/create/ai-design",
+    route: "/dashboard/create/ai-design",
     color: "bg-yellow-300 text-black"
   },
 ];
@@ -328,7 +329,7 @@ export default function Dashboard() {
       : profile?.email?.split("@")[0] || "User";
 
   const handleRenewPlan = () => {
-    navigate("/pricing");
+    navigate("/dashboard/pricing");
   };
 
   // Template helpers
@@ -370,7 +371,7 @@ export default function Dashboard() {
             data: image.data,
           }));
           sessionStorage.setItem(`prefill_import_flag_${newId}`, '1');
-        } catch (e) {}
+        } catch (e) { }
         window.open(`/canva-clone/${newId}`, '_blank');
       }
       toast.success('Template imported to your account');
@@ -408,7 +409,7 @@ export default function Dashboard() {
     {
       icon: HiOutlinePresentationChartLine,
       title: "Presentation",
-      route: "/presentation"
+      route: "/dashboard/presentation"
     },
     {
       icon: FaRegImage,
@@ -421,19 +422,19 @@ export default function Dashboard() {
     {
       icon: HiOutlinePresentationChartLine,
       title: "AI PPT",
-      route: "/ai-presentation"
+      route: "/dashboard/ai-presentation"
     },
     {
       icon: FaRegImage,
       title: "AI Image",
-      route: "/create/ai-design"
+      route: "/dashboard/create/ai-design"
     }
   ];
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff]">
-      <div className="relative ml-0 md:ml-[60px] lg:ml-[72px] pt-20 sm:pt-24 px-4 sm:px-6 lg:px-10 xl:px-14 pb-24 md:pb-0">
+    <div className="min-h-screen">
+      <div className="relative">
         {/* HERO */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -552,7 +553,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-
         {/* TEMPLATES */}
         <div className="mt-10 pb-20 sm:pb-24">
           <div className="flex items-center justify-between mb-6 sm:mb-8 flex-wrap gap-3">
@@ -597,66 +597,59 @@ export default function Dashboard() {
                 return (
                   <LazyCard
                     key={`${tpl._type}-${tpl._id || tpl.id}`}
-                    className="dash-tpl-card"
+                    className="dash-tpl-card flex flex-col justify-center items-center"
                   >
                     <div
                       onClick={() => isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl)}
-                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner"
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner w-full"
                     >
                       {/* Thumbnail */}
-                      <div className="relative h-36 bg-[#eef2ff] flex items-center justify-center overflow-hidden">
+                      <div
+                        className={`relative w-full ${isPPT ? "h-40" : "h-60"} bg-[#eef2ff] flex items-center justify-center overflow-hidden`}
+                      >
                         {isPPT ? (
-                          slideData
-                            ? <PresentationThumbnail slide={slideData} width="100%" height="100%" />
-                            : <FiLayout size={36} color="#6366f1" />
+                          slideData ? (
+                            <PresentationThumbnail
+                              slide={slideData}
+                              width="100%"
+                              height="100%"
+                              className="object-contain"
+                            />
+                          ) : (
+                            <FiLayout size={36} color="#6366f1" />
+                          )
                         ) : (
                           <div
-                            className="absolute inset-0"
+                            className="w-full h-full flex items-center justify-center"
                             ref={el => {
                               if (!el) return;
                               const cs = tpl.data?.canvasSize || { width: 800, height: 600 };
+
                               const setScale = () => {
-                                const w = el.offsetWidth || el.clientWidth;
-                                const h = el.offsetHeight || el.clientHeight;
+                                const w = el.offsetWidth;
+                                const h = el.offsetHeight;
                                 if (!w || !h) return;
-                                el.style.setProperty('--thumb-scale', String(Math.min(w / (cs.width || 800), h / (cs.height || 600))));
+
+                                el.style.setProperty(
+                                  '--thumb-scale',
+                                  String(Math.min(w / (cs.width || 800), h / (cs.height || 600)))
+                                );
                               };
+
                               setScale();
-                              const ro = new ResizeObserver(() => { setScale(); ro.disconnect(); });
+                              const ro = new ResizeObserver(() => {
+                                setScale();
+                                ro.disconnect();
+                              });
                               ro.observe(el);
                             }}
                           >
                             <ImageThumbPreview image={tpl} />
                           </div>
                         )}
-                        {/* Type indicator badge */}
-                        <div style={{
-                          position: 'absolute', top: 8, left: 8,
-                          background: 'rgba(0,0,0,0.35)',
-                          borderRadius: 8, padding: '4px 7px',
-                          display: 'flex', alignItems: 'center', gap: 5,
-                          backdropFilter: 'blur(6px)',
-                        }}>
-                          {isPPT ? (
-                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
-                              <path d="M18 1 L18 6 L23 6" />
-                              <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
-                            </svg>
-                          ) : (
-                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7">
-                              <rect x="3" y="3" width="18" height="18" rx="3" />
-                              <circle cx="8.5" cy="8.5" r="1.5" />
-                              <path d="M21 15l-5-5-4 4-3-3-6 6" />
-                            </svg>
-                          )}
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>
-                            {isPPT ? 'PPT' : 'Image'}
-                          </span>
-                        </div>
                       </div>
                       {/* Card info */}
-                      <div className="p-3 flex items-center justify-between gap-2">
+                      {/* <div className="p-3 flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <h3 className="font-semibold text-slate-900 text-sm truncate">
                             {tpl.title || 'Untitled Template'}
@@ -671,7 +664,7 @@ export default function Dashboard() {
                         >
                           View
                         </button>
-                      </div>
+                      </div> */}
                     </div>
                   </LazyCard>
                 );
@@ -725,121 +718,10 @@ export default function Dashboard() {
       )}
 
       {/* CREATE MODAL */}
-      <AnimatePresence>
-        {showCreate && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4 sm:p-5"
-          >
-            <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-             className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
-            >
-              <button
-                onClick={() => setShowCreate(false)}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-600 hover:text-slate-900 w-10 h-10 rounded-full bg-white/70 hover:bg-white flex items-center justify-center border border-white/60 shadow-sm"
-              >
-                <FiX size={22} />
-              </button>
-
-              <h2 className="text-xl sm:text-2xl font-bold text-blue-900 mb-5 sm:mb-6">
-                Quick Start
-              </h2>
-
-
-              <div className="inline-flex bg-white/70 backdrop-blur-xl rounded-full p-1 w-fit mb-6 sm:mb-8 border border-white/70 shadow-sm">
-                <button
-                  onClick={() => setTab("manual")}
-                  className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "manual"
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Manual
-                </button>
-
-
-                <button
-                  onClick={() => setTab("ai")}
-                  className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "ai"
-                    ? "bg-yellow-400 text-black shadow"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  AI
-                </button>
-              </div>
-
-
-              {tab === "ai" ? (
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                 className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
-                >
-                  {aiTools.map((tool, i) => {
-                    const Icon = tool.icon;
-                    return (
-                      <div className="ai-tool-wrapper" key={i}>
-                        <motion.div
-                          onClick={() => navigate(tool.route)}
-                          className="cursor-pointer rounded-2xl border border-blue-100 shadow-sm transition flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px] relative ai-tool-inner"
-                        >
-                          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
-                            <Icon size={22} />
-                          </div>
-                          <p className="font-semibold text-blue-900 text-sm">
-                            {tool.title}
-                          </p>
-                          <span className="absolute top-3 right-3 text-yellow-500">
-                            <FiZap size={16} />
-                          </span>
-                        </motion.div>
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
-                >
-                  {manualTools.map((tool, i) => {
-                    const Icon = tool.icon;
-
-
-                    return (
-                      <motion.div
-                        key={i}
-                        whileHover={{ y: -5, scale: 1.02 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                        onClick={() => navigate(tool.route)}
-                        className="cursor-pointer rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 shadow-[0_6px_18px_rgba(37,99,235,0.15)] hover:shadow-[0_12px_28px_rgba(37,99,235,0.25)] transition flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px]"
-                      >
-                        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 ring-2 ring-blue-200">
-                          <Icon size={22} />
-                        </div>
-
-
-                        <p className="font-semibold text-blue-900 text-sm tracking-wide">
-                          {tool.title}
-                        </p>
-                      </motion.div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CreatePopup
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </div>
   );
 }
