@@ -125,7 +125,7 @@ function PPTHoverPreview({ slides }) {
             repeatType: "loop"
           }
         }}
-        style={{ 
+        style={{
           width: shouldScroll ? `${slides.length * 200}%` : "100%",
           willChange: "transform"
         }}
@@ -133,9 +133,9 @@ function PPTHoverPreview({ slides }) {
         {shouldScroll ? (
           // Duplicate the slide set for a truly seamless infinite loop
           [...slides, ...slides].map((slide, i) => (
-            <div 
-              key={`${slide.id || i}-${i}`} 
-              className="h-full flex-shrink-0" 
+            <div
+              key={`${slide.id || i}-${i}`}
+              className="h-full flex-shrink-0"
               style={{ width: `${100 / (slides.length * 2)}%` }}
             >
               <PresentationThumbnail
@@ -406,20 +406,20 @@ export default function Dashboard() {
     const fixedHeight = "h-56"; // Unified height for all cards
 
     if (tpl._type === 'ppt') {
-      // 5/15 = 1/3 (3 items per row)
-      return { span: "col-span-15 sm:col-span-7 xl:col-span-5", height: fixedHeight };
+      // 4/12 = 1/3 (3 items per row)
+      return { span: "col-span-12 sm:col-span-6 xl:col-span-4", height: fixedHeight };
     }
     const size = tpl.data?.canvasSize || { width: 800, height: 600 };
     const ratio = size.width / size.height;
 
     // Banner/YouTube: 3 per row
     if (ratio > 1.5) {
-      return { span: "col-span-15 sm:col-span-7 xl:col-span-5", height: fixedHeight };
+      return { span: "col-span-12 sm:col-span-6 xl:col-span-4", height: fixedHeight };
     }
 
-    // Default/Mobile: 5 per row
-    // 3/15 = 1/5 (5 items per row)
-    return { span: "col-span-15 sm:col-span-5 xl:col-span-3", height: fixedHeight };
+    // Default/Mobile: 6 per row
+    // 2/12 = 1/6 (6 items per row)
+    return { span: "col-span-12 sm:col-span-4 xl:col-span-2", height: fixedHeight };
   };
 
   const fullName =
@@ -711,7 +711,7 @@ export default function Dashboard() {
           ) : visibleTemplates.length === 0 ? (
             <div className="text-center py-16 text-slate-400 text-sm">No templates available yet.</div>
           ) : (
-            <div className="grid grid-cols-15 gap-5 sm:gap-6 grid-flow-dense">
+            <div className="grid grid-cols-12 gap-5 sm:gap-6 grid-flow-dense">
               {visibleTemplates.map((tpl) => {
                 const isPPT = tpl._type === 'ppt';
                 const slideData = isPPT ? getSlideData(tpl) : null;

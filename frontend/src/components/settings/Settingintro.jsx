@@ -604,7 +604,7 @@ const Settingintro = () => {
   );
 
   return (
-    <div className="settings-hero">
+    <div className="flex justify-center ">
       <div className="settings-container">
         <div className="glass-layer">
 

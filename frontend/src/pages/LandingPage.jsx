@@ -12,11 +12,10 @@ import HowItWorks from '../components/landing/HowItWorks';
 import FAQ from '../components/landing/FAQ';
 import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
-import { initScrollReveal } from '../components/landing/ScrollReveal';
+import Navbar from '../components/landing/Navbar';
 
 const LandingPage = () => {
   useEffect(() => {
-    initScrollReveal(document);
     const root = document.querySelector('.landing-page');
     const savedTheme = localStorage.getItem('landingTheme');
     if (root && savedTheme === 'dark') root.classList.add('dark');
@@ -24,6 +23,7 @@ const LandingPage = () => {
 
   return (
     <div className="landing-page">
+      <Navbar />
       <Hero />
       <Features />
       <HowItWorks />

@@ -162,7 +162,9 @@ const ImageLayout = () => {
                 transition: transform 0.2s, box-shadow 0.2s;
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             }
-            .ai-btn-wrapper:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+            .ai-btn-wrapper:hover {
+             box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+             }
             .ai-btn-inner {
                 border-radius: 22px;
                 background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
@@ -178,7 +180,9 @@ const ImageLayout = () => {
                 transition: transform 0.2s, box-shadow 0.2s;
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             }
-            .fresh-btn-wrapper:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15); }
+            .fresh-btn-wrapper:hover {
+             box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
+             }
             .fresh-btn-inner {
                 border-radius: 22px;
                 background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);

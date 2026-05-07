@@ -1,138 +1,138 @@
 import React from "react";
-import { motion } from "framer-motion";
 import "./Features.css";
+import pptEditor from "../../assets/PPT-EditorExample.png";
+import aiDesign from "../../assets/AI design.png";
+import aiDesignExample from "../../assets/AI design example.png";
+import imageEditor from "../../assets/ImageEditor.png";
 
-import {
-  FaFilePowerpoint,
-  FaImage,
-  FaFileWord
-} from "react-icons/fa";
-
-const features = [
+const featureCards = [
   {
-    icon: <FaFilePowerpoint />,
-    number: "01",
-    title: "Presentation Creator",
-    desc: "Create beautiful presentations automatically with layouts and smart content."
+    eyebrow: "Editing Workspace",
+    title: "PPT Editor",
+    desc: "Refine every slide with layout controls, content editing, and export-ready presentation tools in one workspace.",
+    image: pptEditor,
+    imageAlt: "PPT editor interface",
+    accent: "Deck Control",
+    points: ["Slide editing", "Visual layout tools", "Presentation export"],
+    className: "feature-card feature-card-wide",
   },
   {
-    icon: <FaImage />,
-    number: "02",
-    title: "Image Generator",
-    desc: "Turn text prompts into high-quality visuals and artwork instantly."
+    eyebrow: "Generation UI",
+    title: "AI Design Generator",
+    desc: "Prompt-driven design generation with guided settings so teams can move from idea to draft much faster.",
+    image: aiDesign,
+    imageAlt: "AI design generator interface",
+    accent: "Prompt to Design",
+    points: ["Prompt workflow", "Style controls", "Fast iterations"],
+    className: "feature-card feature-card-tall",
   },
-  // {
-  //   icon: <FaFileWord />,
-  //   number: "03",
-  //   title: "Document Generator",
-  //   desc: "Generate blogs, reports and professional documents within seconds."
-  // }
+  {
+    eyebrow: "Output Example",
+    title: "AI Design Example",
+    desc: "Show the final quality clearly with polished examples that help users understand the output standard instantly.",
+    image: aiDesignExample,
+    imageAlt: "AI-generated design example",
+    accent: "Preview Ready",
+    points: ["Generated concepts", "Campaign visuals"],
+    className: "feature-card feature-card-compact",
+  },
+  {
+    eyebrow: "Refinement Tools",
+    title: "Image Editor",
+    desc: "Tweak, polish, and prepare generated images without leaving the Designova workflow.",
+    image: imageEditor,
+    imageAlt: "Image editor interface",
+    accent: "Edit After Generate",
+    points: ["Image cleanup", "Visual adjustments", "Ready for publishing"],
+    className: "feature-card feature-card-bottom",
+  },
 ];
-
-const containerVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.25
-    }
-  }
-};
-
-const cardVariants = {
-  hidden: {
-    opacity: 0,
-    y: 60,
-    scale: 0.9
-  },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.6
-    }
-  }
-};
 
 const Features = () => {
   return (
     <section className="features-section" id="features">
-
       <div className="features-container">
-
-        <motion.div
+        <div
           className="features-header"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ amount: 0.3 }}
-          transition={{ duration: 0.7 }}
         >
-          <h2>Features</h2>
+          <span className="features-kicker">Core Features</span>
+          <h2>Everything you need to create, edit, and ship faster</h2>
           <p>
-            Generate, edit and design presentations and images 
-            with powerful AI tools.
+            Designova combines presentation building, AI generation, polished visual outputs,
+            and post-generation editing in one connected workflow.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           className="features-grid"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ amount: 0.3 }}
         >
-
-          {features.map((item, index) => (
-            <motion.div
-              key={index}
-              className="feature-card"
-              variants={cardVariants}
-              
-            >
-
-              <div className="card-shadow"></div>
-
-              <div className="card-box">
-                <div className="card-content">
-
-                  <h2>{item.number}</h2>
-
-                  <div className="icon">
-                    {item.icon}
+          <div className="features-top-row">
+            <div className={featureCards[0].className}>
+              <div className="feature-card-shell">
+                <div className="feature-card-copy">
+                  <span className="feature-accent">{featureCards[0].accent}</span>
+                  <span className="feature-eyebrow">{featureCards[0].eyebrow}</span>
+                  <h3>{featureCards[0].title}</h3>
+                  <p>{featureCards[0].desc}</p>
+                  <div className="feature-points">
+                    {featureCards[0].points.map((point) => (
+                      <span key={point}>{point}</span>
+                    ))}
                   </div>
-
-                  <h3>{item.title}</h3>
-
-                  <p>{item.desc}</p>
-
-                  <a href="/login">Try Now</a>
-
+                  <a href="/login" className="feature-link">Open in Designova</a>
+                </div>
+                <div className="feature-image-wrap">
+                  <img src={featureCards[0].image} alt={featureCards[0].imageAlt} className="feature-image" />
                 </div>
               </div>
+            </div>
 
-            </motion.div>
-          ))}
+            <div className={featureCards[2].className}>
+              <div className="feature-card-shell">
+                <div className="feature-card-copy">
+                  <span className="feature-accent">{featureCards[2].accent}</span>
+                  <span className="feature-eyebrow">{featureCards[2].eyebrow}</span>
+                  <h3>{featureCards[2].title}</h3>
+                  <p>{featureCards[2].desc}</p>
+                  <div className="feature-points">
+                    {featureCards[2].points.map((point) => (
+                      <span key={point}>{point}</span>
+                    ))}
+                  </div>
+                  <a href="/login" className="feature-link">Open in Designova</a>
+                </div>
+                <div className="feature-image-wrap">
+                  <img src={featureCards[2].image} alt={featureCards[2].imageAlt} className="feature-image" />
+                </div>
+              </div>
+            </div>
+          </div>
 
-        </motion.div>
-
+          <div className="features-bottom-row">
+            {[featureCards[1], featureCards[3]].map((item) => (
+              <div key={item.title} className={`${item.className} feature-card-half`}>
+                <div className="feature-card-shell">
+                  <div className="feature-card-copy">
+                    <span className="feature-accent">{item.accent}</span>
+                    <span className="feature-eyebrow">{item.eyebrow}</span>
+                    <h3>{item.title}</h3>
+                    <p>{item.desc}</p>
+                    <div className="feature-points">
+                      {item.points.map((point) => (
+                        <span key={point}>{point}</span>
+                      ))}
+                    </div>
+                    <a href="/login" className="feature-link">Open in Designova</a>
+                  </div>
+                  <div className="feature-image-wrap">
+                    <img src={item.image} alt={item.imageAlt} className="feature-image" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-
-      <svg
-        className="features-wave"
-        viewBox="0 0 1440 200"
-        preserveAspectRatio="none"
-      >
-        <path
-          d="M0,80 
-             C240,160 480,0 720,80 
-             C960,160 1200,0 1440,80 
-             L1440,200 
-             L0,200 
-             Z"
-          fill="#f9fafb"
-        />
-      </svg>
-
     </section>
   );
 };

@@ -21,9 +21,17 @@ const DashboardLayout = () => {
             <div className="relative flex flex-1 flex-col bg-white rounded-2xl mt-2 md:mt-2 overflow-hidden">
 
                 {/* Gradient */}
-                <div className="absolute top-0 left-0 w-full h-[300px] 
-          bg-gradient-to-b from-[#dbeafe] via-[#bfdbfe] to-transparent 
-          opacity-80 z-0"
+                <div
+                    className="
+    absolute top-0 left-0 w-full h-[320px]
+    bg-linear-to-b
+    from-[#bfa6ff]
+    via-[#dbeafe]
+    via-60%
+    to-white
+    opacity-90
+    z-0
+  "
                 />
 
                 {/* Scrollable Area */}

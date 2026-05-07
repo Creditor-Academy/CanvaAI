@@ -532,11 +532,11 @@ const Help = () => {
                       Contact Number
                     </p>
 
-                    <a 
-                      href="tel:+911234567890"
+                    <a
+                      href="tel:+919811773207"
                       className="text-sm font-bold text-[#02263a] transition-colors hover:text-blue-700 sm:text-base"
                     >
-                      012125421
+                      +91 9811773207
                     </a>
                   </div>
 

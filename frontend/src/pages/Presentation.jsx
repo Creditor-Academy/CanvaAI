@@ -92,8 +92,7 @@ const Presentation = () => {
       }
 
       .ai-btn-wrapper:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
       }
 
       .ai-btn-inner {
@@ -121,7 +120,7 @@ const Presentation = () => {
       }
 
       .fresh-btn-wrapper:hover {
-        transform: translateY(-4px);
+       
         box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
       }
 
