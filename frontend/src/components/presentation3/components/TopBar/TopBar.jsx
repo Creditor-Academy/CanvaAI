@@ -41,7 +41,7 @@ const formatTimeAgo = (date) => {
   return `${minutes} min ago`;
 };
 
-const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
+const TopBar = ({ onPresent, onAgentClick, autoSaveState, highlightSave, onHighlightSaveDone }) => {
   const { user } = useAuth();
   const {
     addTextLayer,
@@ -206,10 +206,11 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState }) => {
           <div className="topbar-links">
             {/* Save Button */}
             <button
-              className={`nav-btn${(isSaving || hasUnsavedChanges) ? ' nav-btn--saving' : ''}`}
+              className={`nav-btn${(isSaving || hasUnsavedChanges) ? ' nav-btn--saving' : ''}${highlightSave ? ' nav-btn--highlight' : ''}`}
               onClick={() => {
                 if (manualSave) manualSave();
               }}
+              onAnimationEnd={() => { if (highlightSave && onHighlightSaveDone) onHighlightSaveDone(); }}
               data-tooltip={(isSaving || hasUnsavedChanges) ? 'Saving...' : presentationId ? 'Saved' : 'Save'}
             >
               {(isSaving || hasUnsavedChanges) ? (

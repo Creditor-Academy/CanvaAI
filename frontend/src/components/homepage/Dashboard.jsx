@@ -100,6 +100,72 @@ function LazyCard({ children, className = "", style = {} }) {
   );
 }
 
+function PPTHoverPreview({ slides }) {
+  const [hovering, setHovering] = React.useState(false);
+  const shouldScroll = slides && slides.length > 1;
+
+  // snappier duration: ~0.4s per slide for a brisk, Canva-like preview
+  const scrollDuration = shouldScroll ? slides.length * 0.4 : 0;
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden bg-slate-50"
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <motion.div
+        className="flex h-full"
+        initial={{ x: "0%" }}
+        animate={hovering && shouldScroll ? { x: "-50%" } : { x: "0%" }}
+        transition={{
+          x: {
+            duration: hovering ? scrollDuration : 0.45,
+            ease: hovering ? "linear" : "easeInOut",
+            repeat: hovering ? Infinity : 0,
+            repeatType: "loop"
+          }
+        }}
+        style={{ 
+          width: shouldScroll ? `${slides.length * 200}%` : "100%",
+          willChange: "transform"
+        }}
+      >
+        {shouldScroll ? (
+          // Duplicate the slide set for a truly seamless infinite loop
+          [...slides, ...slides].map((slide, i) => (
+            <div 
+              key={`${slide.id || i}-${i}`} 
+              className="h-full flex-shrink-0" 
+              style={{ width: `${100 / (slides.length * 2)}%` }}
+            >
+              <PresentationThumbnail
+                slide={slide}
+                width="100%"
+                height="100%"
+                className="w-full h-full object-cover pointer-events-none"
+              />
+            </div>
+          ))
+        ) : (
+          <div className="w-full h-full flex-shrink-0">
+            {slides && slides.length > 0 ? (
+              <PresentationThumbnail
+                slide={slides[0]}
+                width="100%"
+                height="100%"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                <span className="text-[10px] font-semibold uppercase tracking-widest">No Preview</span>
+              </div>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 export default function Dashboard() {
   const navigate = useNavigate();
   const scrollRef = React.useRef(null);
@@ -277,6 +343,19 @@ export default function Dashboard() {
         box-shadow: 0 2px 6px rgba(10,93,187,0.3);
         animation: viewBtnPulse 0.4s ease-out;
       }
+      .custom-scrollbar-thin::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
       .dash-tab-pill {
         display: inline-flex;
         background: rgba(255,255,255,0.75);
@@ -323,6 +402,26 @@ export default function Dashboard() {
     return () => document.head.removeChild(style);
   }, []);
 
+  const getTemplateConfig = (tpl) => {
+    const fixedHeight = "h-56"; // Unified height for all cards
+
+    if (tpl._type === 'ppt') {
+      // 5/15 = 1/3 (3 items per row)
+      return { span: "col-span-15 sm:col-span-7 xl:col-span-5", height: fixedHeight };
+    }
+    const size = tpl.data?.canvasSize || { width: 800, height: 600 };
+    const ratio = size.width / size.height;
+
+    // Banner/YouTube: 3 per row
+    if (ratio > 1.5) {
+      return { span: "col-span-15 sm:col-span-7 xl:col-span-5", height: fixedHeight };
+    }
+
+    // Default/Mobile: 5 per row
+    // 3/15 = 1/5 (5 items per row)
+    return { span: "col-span-15 sm:col-span-5 xl:col-span-3", height: fixedHeight };
+  };
+
   const fullName =
     profile?.firstName
       ? `${profile.firstName} ${profile.lastName || ""}`
@@ -339,7 +438,29 @@ export default function Dashboard() {
     if (typeof data === 'string') {
       try { data = JSON.parse(data); } catch (e) { return null; }
     }
-    return data.slides?.[0] || (data.layers ? data : null);
+    // Consistent with getAllSlides
+    const slides = Array.isArray(data.slides) ? data.slides :
+      Array.isArray(data.pages) ? data.pages :
+        Array.isArray(data.layer) ? data.layer : null;
+
+    if (slides && slides.length > 0) return slides[0];
+    return data.layers ? data : null;
+  };
+
+  const getAllSlides = (item) => {
+    if (!item?.data) return [];
+    let data = item.data;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (e) { return []; }
+    }
+    // Comprehensive check for slide arrays
+    if (Array.isArray(data.slides)) return data.slides;
+    if (Array.isArray(data.pages)) return data.pages;
+    if (Array.isArray(data.layer)) return data.layer;
+
+    // Fallback for single-page templates
+    if (data.layers) return [data];
+    return [];
   };
 
   const handleViewPPT = async (tpl) => {
@@ -590,34 +711,26 @@ export default function Dashboard() {
           ) : visibleTemplates.length === 0 ? (
             <div className="text-center py-16 text-slate-400 text-sm">No templates available yet.</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+            <div className="grid grid-cols-15 gap-5 sm:gap-6 grid-flow-dense">
               {visibleTemplates.map((tpl) => {
                 const isPPT = tpl._type === 'ppt';
                 const slideData = isPPT ? getSlideData(tpl) : null;
+                const { span, height } = getTemplateConfig(tpl);
                 return (
                   <LazyCard
                     key={`${tpl._type}-${tpl._id || tpl.id}`}
-                    className="dash-tpl-card flex flex-col justify-center items-center"
+                    className={`dash-tpl-card group flex flex-col justify-center items-center ${span}`}
                   >
                     <div
                       onClick={() => isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl)}
-                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner w-full"
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner w-full transition-all duration-300 group-hover:shadow-xl group-hover:border-blue-400 "
                     >
                       {/* Thumbnail */}
                       <div
-                        className={`relative w-full ${isPPT ? "h-40" : "h-60"} bg-[#eef2ff] flex items-center justify-center overflow-hidden`}
+                        className={`relative w-full ${height} bg-[#eef2ff] flex items-center justify-center overflow-hidden`}
                       >
                         {isPPT ? (
-                          slideData ? (
-                            <PresentationThumbnail
-                              slide={slideData}
-                              width="100%"
-                              height="100%"
-                              className="object-contain"
-                            />
-                          ) : (
-                            <FiLayout size={36} color="#6366f1" />
-                          )
+                          <PPTHoverPreview slides={getAllSlides(tpl)} />
                         ) : (
                           <div
                             className="w-full h-full flex items-center justify-center"
@@ -647,24 +760,30 @@ export default function Dashboard() {
                             <ImageThumbPreview image={tpl} />
                           </div>
                         )}
-                      </div>
-                      {/* Card info */}
-                      {/* <div className="p-3 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-slate-900 text-sm truncate">
-                            {tpl.title || 'Untitled Template'}
-                          </h3>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {isPPT ? 'Presentation' : 'Image'} template
-                          </p>
+
+                        {/* Badges Overlay */}
+
+                        {/* Type Badge (Top-Left) */}
+                        <div className="absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-2 group-hover:translate-x-0">
+                          <div className="bg-blue-600/90 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border border-blue-400/30">
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                              {isPPT ? "PPT" : "Image"}
+                            </span>
+                          </div>
                         </div>
-                        <button
-                          onClick={e => { e.stopPropagation(); isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl); }}
-                          className="dash-view-btn"
-                        >
-                          View
-                        </button>
-                      </div> */}
+
+                        {/* Dimension Badge (Bottom-Right) */}
+                        <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                          <div className="bg-white/95 backdrop-blur-md px-2 py-1 rounded-lg border border-slate-200 shadow-lg flex items-center gap-2">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                              {isPPT ? "Slides" : "Size"}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-slate-800">
+                              {isPPT ? (tpl.slideCount || 0) : `${tpl.data?.canvasSize?.width || 800}x${tpl.data?.canvasSize?.height || 600}`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </LazyCard>
                 );

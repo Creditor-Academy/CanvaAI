@@ -192,9 +192,7 @@ export default function AllProjects() {
         {/* HEADER */}
         <div className="text-center mb-10" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
           <h1 className="text-4xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontWeight: 400, letterSpacing: '-0.02em' }}>Your Creative Projects</h1>
-          <p className="text-slate-500 mt-3 text-[1.1rem]">
-            Total Projects – {projects.length}
-          </p>
+
         </div>
 
         {/* SEARCH + CREATE */}
@@ -245,7 +243,10 @@ export default function AllProjects() {
 
         {/* PROJECT GRID */}
         <h2 className="text-[1.6rem] font-normal text-slate-900 mb-6 flex items-center gap-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '-0.01em' }}>
-          Recent Designs
+          <p>  Recent Designs</p>
+          <p className="text-slate-500 ml-4 text-[1.1rem]">
+            Total Projects – {projects.length}
+          </p>
         </h2>
 
         {loading ? (
@@ -267,7 +268,7 @@ export default function AllProjects() {
               <div
                 key={`${p.type}-${p.id}`}
                 onClick={() => handleProjectClick(p)}
-                className="group bg-white border border-blue-200/60 rounded-2xl overflow-hidden hover:border-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
+                className="group bg-white border border-blue-200/60 rounded-2xl overflow-hidden hover:border-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all duration-300 cursor-pointer flex flex-col"
               >
                 <div className="relative aspect-[16/9] bg-slate-50 overflow-hidden border-b border-blue-100 group-hover:border-blue-400/50 flex items-center justify-center">
                   {p.type === "ppt" ? (

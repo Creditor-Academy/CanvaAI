@@ -21,17 +21,21 @@ export const useUIStore = create((set) => ({
     }),
 
   addNotification: (message, type = "success", duration = 3000) =>
-    set((state) => ({
-      notifications: [
-        ...state.notifications,
-        {
-          id: Date.now() + Math.random(),
-          message,
-          type,
-          duration,
-        },
-      ],
-    })),
+    set((state) => {
+      // Deduplicate: skip if a notification with the same message is already active
+      if (state.notifications.some((n) => n.message === message)) return state;
+      return {
+        notifications: [
+          ...state.notifications,
+          {
+            id: Date.now() + Math.random(),
+            message,
+            type,
+            duration,
+          },
+        ],
+      };
+    }),
 
   removeNotification: (id) =>
     set((state) => ({

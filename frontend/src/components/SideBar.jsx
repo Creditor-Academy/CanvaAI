@@ -112,7 +112,7 @@ const SideBar = () => {
     <>
       <aside
         className={`
-                fixed z-[9999] flex items-center gap-0 md:gap-2 xl:gap-4
+                fixed z-[9999] flex items-center gap-0 md:gap-2 xl:gap-6
                 bottom-3 left-1/2 -translate-x-1/2 w-[95%] 
                 px-2 py-1.5 rounded-xl
                 bg-white/90 backdrop-blur-xl shadow-lg border border-white/50

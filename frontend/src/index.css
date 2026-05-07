@@ -3,10 +3,6 @@
 @import "./styles/athena-variables.css";
 
 /* Hide native scrollbars for the canvas working area only */
-* {
-  -webkit-user-select: none;
-  user-select: none;
-}
 html, body{
 overflow-x:hidden;
 max-width:100%;

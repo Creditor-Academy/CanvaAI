@@ -160,7 +160,7 @@ export default function CreditsAnalytics() {
 
 
   const Section = ({ title, icon, color, children }) => (
-    <div className="group relative overflow-hidden rounded-[20px] lg:rounded-[22px] border border-slate-200/80 bg-white/85 shadow-[0_6px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(30,41,59,0.09)]">
+    <div className="group relative overflow-hidden rounded-[20px] lg:rounded-[22px] border border-slate-200/80 bg-white/85 shadow-[0_6px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl transition-all duration-300 hover:shadow-[0_14px_32px_rgba(30,41,59,0.09)]">
       <div className={`h-1.5 w-full ${color}`}></div>
       <div className="relative px-5 pt-5">
         <div className="flex items-center gap-3">

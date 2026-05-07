@@ -3,7 +3,7 @@ import usePresentationStore from "../store/usePresentationStore";
 import SlateTextEditor from "../editors/slate/SlateTextEditor";
 import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
 
-const FALLBACK_SLATE = [{ type: "paragraph", children: [{ text: "" }] }];
+const getFallbackSlate = () => [{ type: "paragraph", children: [{ text: "" }] }];
 
 const TableLayer = ({ layer }) => {
     const {
@@ -15,7 +15,7 @@ const TableLayer = ({ layer }) => {
     const resolveCell = (rawCell) => {
         if (!rawCell) {
             return {
-                content: FALLBACK_SLATE,
+                content: getFallbackSlate(),
                 fontFamily: "Arial",
                 fontSize: 14,
                 textAlign: "center",
@@ -39,7 +39,7 @@ const TableLayer = ({ layer }) => {
             Array.isArray(rawCell.content[0]?.children);
 
         return {
-            content: isSlateValid ? rawCell.content : FALLBACK_SLATE,
+            content: isSlateValid ? rawCell.content : getFallbackSlate(),
             fontFamily: rawCell.fontFamily || "Arial",
             fontSize: rawCell.fontSize || 14,
             textAlign: rawCell.textAlign || "center",
@@ -91,7 +91,7 @@ const TableLayer = ({ layer }) => {
                         justifyContent: "center"
                     };
 
-                    const safeValue = Array.isArray(cell.content) ? cell.content : FALLBACK_SLATE;
+                    const safeValue = Array.isArray(cell.content) ? cell.content : getFallbackSlate();
 
                     return (
                         <div

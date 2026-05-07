@@ -331,23 +331,6 @@ const Help = () => {
             <img src="https://images.unsplash.com/vector-1761384690980-b218fa986838?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGJ1c2luZXNzfGVufDB8MHwwfHx8Mg%3D%3D" />
           </div>
 
-          <div className="hero-search">
-            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
-              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" />
-            </svg>
-
-            <input
-              type="text"
-              placeholder="Search our articles"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-
-            <button className="hero-search-btn">Search</button>
-          </div>
-
-
 
           {/* <div className="hero-right">
           <div className="hero-card">
@@ -452,7 +435,7 @@ const Help = () => {
         </div>
         {/* ---------------- Tutorials Section ---------------- */}
 
-
+        {/* 
         <div className="tutorial-wrapper">
           <div className="tutorial-section">
             <h2 className="section-title">Tutorials</h2>
@@ -472,34 +455,97 @@ const Help = () => {
               ))}
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* ================= Support CTA Section ================= */}
-        <div className="support-cta">
-          <div className="support-cta-inner">
+        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#7ec8ff] via-[#a5d8ff] to-[#d9f0ff] px-6 py-8 sm:px-8 lg:px-12 shadow-[0_-10px_50px_rgba(59,130,246,0.25)]">
 
-            <div className="support-icon">
-              <img
-                src="https://cdn-icons-png.flaticon.com/128/14865/14865140.png"
-                alt="Support Illustration"
-              />
-            </div>
+          <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-6 lg:flex-row lg:justify-between">
 
-            <div className="support-content">
-              <h2>Still have questions?</h2>
-              <p>
-                Our Customer Experience Team is here for you!
-                Looking for help with a project? We can match you with the right certified partner.
-              </p>
+            {/* Left Illustration */}
+            <div className="flex items-center justify-center">
+              <div className="group relative">
 
-              <div className="support-actions">
-                <p className="support-email-text">
-                  Contact us on this Email:
-                  <span className="support-email">designonva.athena@lmsathena.com</span>
-                </p>
+                <div className="relative flex items-center justify-center w-40 h-40 sm:w-64 sm:h-64 lg:w-96 lg:h-96 animate-float">
+                  <img
+                    src="https://cdn-icons-png.flaticon.com/512/14865/14865140.png"
+                    alt="Support Illustration"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+
               </div>
             </div>
 
+            {/* Content */}
+            <div className="max-w-2xl text-center lg:text-left">
+
+              <span className="mb-4 inline-flex items-center rounded-full border border-white/40 bg-white/30 px-4 py-1 text-sm font-semibold text-[#063a56] backdrop-blur-md">
+                24/7 Customer Support
+              </span>
+
+              <h2 className="text-3xl font-extrabold leading-tight text-[#062c43] sm:text-4xl lg:text-5xl">
+                Still have questions?
+              </h2>
+
+              <p className="mt-5 text-base leading-8 text-[#0b486b] sm:text-lg">
+                Our Customer Experience Team is always here to help you.
+                Whether you need technical assistance, project guidance,
+                or help finding the right certified partner - we’ve got you covered.
+              </p>
+
+              {/* CTA Actions */}
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
+
+                {/* Email Box */}
+                <div className="group flex items-center gap-3  py-4 backdrop-blur-xl transition-all duration-300 ">
+
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg">
+                    ✉
+                  </div>
+
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-[#063a56]">
+                      Contact us via Email
+                    </p>
+
+                    <a
+                      href="mailto:designonva.athena@lmsathena.com"
+                      className="text-sm font-bold text-[#02263a] transition-colors hover:text-blue-700 sm:text-base"
+                    >
+                      designonva.athena@lmsathena.com
+                    </a>
+                  </div>
+
+
+                </div>
+
+
+                <div className="group flex items-center gap-3  py-4 backdrop-blur-xl transition-all duration-300 ">
+
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg">
+                    📞
+                  </div>
+
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-[#063a56]">
+                      Contact Number
+                    </p>
+
+                    <a 
+                      href="tel:+911234567890"
+                      className="text-sm font-bold text-[#02263a] transition-colors hover:text-blue-700 sm:text-base"
+                    >
+                      012125421
+                    </a>
+                  </div>
+
+
+                </div>
+
+
+              </div>
+            </div>
           </div>
         </div>
 

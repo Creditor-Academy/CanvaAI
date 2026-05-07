@@ -154,7 +154,8 @@ export const finalizePresentation = async (outlineData) => {
   });
 
   const controller = new AbortController();
-  const timeoutMs = 120000;
+  // 10 min: sequential DALL-E calls for 10 slides can take 3–7 minutes
+  const timeoutMs = 600000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let response;

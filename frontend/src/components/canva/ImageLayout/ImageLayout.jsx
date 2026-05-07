@@ -186,17 +186,10 @@ const ImageLayout = () => {
                 position: relative; overflow: hidden;
             }
             .glow-card {
-                background: rgba(255,255,255,0.75);
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-                border-radius: 24px;
-                border: 1px solid rgba(99,102,241,0.1);
-                padding: 32px;
-                animation: glowPulse 4s ease-in-out infinite;
-                transition: box-shadow 0.3s ease, transform 0.3s ease;
-            }
-            .glow-card:hover { box-shadow: 0 0 45px rgba(99,102,241,0.2), 0 12px 40px rgba(0,0,0,0.08); transform: translateY(-2px); }
-            .fade-in { animation: fadeIn 0.25s ease-in forwards; }
+        -webkit-backdrop-filter: blur(12px);
+        padding-y: 32px;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+      }
             @keyframes viewBtnShimmer {
                 0%   { background-position: 200% center; }
                 100% { background-position: -200% center; }
@@ -485,7 +478,7 @@ const ImageLayout = () => {
                                 </div>
                             )}
 
-                            <div className="max-h-[480px] overflow-y-auto pr-2.5">
+                            <div className=" overflow-y-auto pr-2.5">
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
                                     {filteredImages.map((image) => {
                                         const canvasSize = image.data?.canvasSize || { width: 800, height: 600 }
@@ -494,7 +487,7 @@ const ImageLayout = () => {
                                             <div
                                                 key={image._id}
                                                 onClick={() => window.open(`/canva-clone/${image._id}`, '_blank')}
-                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500"
+                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200  hover:border-indigo-500"
                                             >
                                                 <div className="relative flex h-[140px] items-center justify-center overflow-hidden bg-slate-100">
                                                     <div
@@ -572,7 +565,7 @@ const ImageLayout = () => {
                                 </h2>
                             </div>
 
-                            <div className="mt-5 max-h-[480px] overflow-y-auto pr-2.5">
+                            <div className="mt-5 overflow-y-auto pr-2.5">
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
                                     {templates.map((tpl) => {
                                         const canvasSize = tpl.data?.canvasSize || { width: 800, height: 600 }
@@ -581,7 +574,7 @@ const ImageLayout = () => {
                                             <div
                                                 key={tpl._id}
                                                 onClick={() => setSelectedImage(tpl)}
-                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500"
+                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200  hover:border-indigo-500"
                                             >
                                                 <div className="relative flex h-[140px] items-center justify-center overflow-hidden bg-indigo-50">
                                                     <div

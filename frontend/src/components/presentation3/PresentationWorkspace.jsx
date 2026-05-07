@@ -18,6 +18,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
 import { useAutoSave } from "./hooks/useAutoSave";
 import { useUIStore } from "./store/useUIStore";
+import LoadingPage from "../canva/components/LoadingPage";
 
 const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
@@ -27,6 +28,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { user } = useAuth();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
+  const [highlightSave, setHighlightSave] = useState(false);
   // Loading if ID is present and we don't have initialData
   const [isLoading, setIsLoading] = useState(!!id && !initialData);
   const [error, setError] = useState(null);
@@ -106,7 +108,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   }, [id, isTemplate, initialData, user?._id, setPresentation, resetPresentation, navigate]);
 
   if (isLoading) {
-    return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>Loading Presentation...</div>;
+    return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}><LoadingPage /></div>;
   }
 
   if (error) {
@@ -127,6 +129,8 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
           onPresent={() => setIsPresenting(true)}
           onAgentClick={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
           autoSaveState={autoSaveState}
+          highlightSave={highlightSave}
+          onHighlightSaveDone={() => setHighlightSave(false)}
         />
 
         <div style={styles.body}>
@@ -139,6 +143,8 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
           <AgentPanel
             isOpen={isAgentPanelOpen}
             onClose={() => setIsAgentPanelOpen(false)}
+            manualSave={autoSaveState.manualSave}
+            onRequestSaveHighlight={() => setHighlightSave(true)}
           />
         </div>
       </div>

@@ -114,7 +114,7 @@ const AppContent = () => {
 
             <Route path="editor" element={<EditorTabPage />} />
 
-            <Route path="canva-clone/:id" element={<CanvaClone />} />
+
 
             <Route path="brand-kit" element={<Brandkit />} />
             <Route path="brand-kit-result" element={<BrandKitResult />} />
@@ -168,7 +168,8 @@ export default function App() {
               <Route path="/presentation-editor/:id" element={<ProtectedRoute><PresentationEditor2 /></ProtectedRoute>} />
               <Route path="/presentation-editor-v3" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
               <Route path="/presentation-editor-v3/:id" element={<ProtectedRoute><PresentationWorkspace /></ProtectedRoute>} />
-              <Route path="/canva-clone" element={<CanvaClone />} />
+              <Route path="/canva-clone" element={<ProtectedRoute><CanvaClone /></ProtectedRoute>} />
+              <Route path="/canva-clone/:id" element={<ProtectedRoute><CanvaClone /></ProtectedRoute>} />
 
               {/* MAIN */}
               <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
