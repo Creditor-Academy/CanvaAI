@@ -13,11 +13,9 @@ import FAQ from '../components/landing/FAQ';
 import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 import Navbar from '../components/landing/Navbar';
-import { initScrollReveal } from '../components/landing/ScrollReveal';
 
 const LandingPage = () => {
   useEffect(() => {
-    initScrollReveal(document);
     const root = document.querySelector('.landing-page');
     const savedTheme = localStorage.getItem('landingTheme');
     if (root && savedTheme === 'dark') root.classList.add('dark');
