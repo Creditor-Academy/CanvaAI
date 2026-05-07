@@ -806,7 +806,7 @@ const usePresentationStore = create((set, get) => {
 
       const copiedLayer = {
         ...JSON.parse(JSON.stringify(layerToCopy)),
-        id: crypto.randomUUID(),
+        id: nanoid(),
         x: layerToCopy.x + 20,
         y: layerToCopy.y + 20,
       };
