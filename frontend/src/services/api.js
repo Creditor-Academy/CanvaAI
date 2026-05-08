@@ -572,13 +572,13 @@ class ApiService {
   }
 
   // ============= Logo generation =============
-  async generateLogo(prompt, style = "realistic") {
+  async generateLogo({ prompt, style = "realistic", size = "square" }) {
     return this.request(
       `/api/generate-logo?style=${encodeURIComponent(style)}`,
       {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, size }),
       }
     );
   }
