@@ -96,6 +96,7 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(33, 130, 227, 0.3);
+  white-space: nowrap;
 }
 .login-btn:hover {
   transform: translateY(-2px);
@@ -171,6 +172,15 @@
     padding: 12px 15px;
   }
 
+  .nav-actions {
+    gap: 10px;
+  }
+
+  .login-btn {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+
   .brand-logo {
     max-height: 42px;
   }
@@ -208,6 +218,16 @@
 @media (max-width: 480px) {
   .navv-inner {
     padding: 10px 12px;
+  }
+
+  .nav-actions {
+    gap: 8px;
+  }
+
+  .login-btn {
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 7px;
   }
 
   .brand-logo {

@@ -46,7 +46,7 @@ const Navbar = () => {
         </nav>
 
         <div className="nav-actions">
-          <a className="login-btn" href="/login" onClick={handleLoginClick}>Log in</a>
+          <a className="login-btn" href="/login" onClick={handleLoginClick}>Login/Register</a>
 
           <button
             className={`hamburger ${open ? "is-active" : ""}`}

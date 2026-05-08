@@ -107,6 +107,7 @@ const TableLayer = ({ layer }) => {
                         >
                             {isEditing ? (
                                 <SlateTextEditor
+                                    autoFocus
                                     value={safeValue}
                                     onChange={(newValue) =>
                                         updateTableCell(layer.id, r, c, { content: newValue })
