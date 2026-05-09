@@ -211,12 +211,12 @@ export const AIDesign = () => {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white rounded-2xl">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
+      <div className=" text-center text-[#334155] ">
+        <div className="max-w-7xl  px-4 py-6">
+          <h1 className="text-3xl font-bold  ">
             AI Image Generator
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm  mt-1">
             Generate AI images with different styles and formats
           </p>
         </div>
@@ -230,7 +230,7 @@ export const AIDesign = () => {
           <div className="lg:col-span-1 space-y-4">
 
             {/* Prompt */}
-            <div className="bg-white rounded-2xl p-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
               <textarea
                 placeholder="Describe your image..."
                 value={prompt}
@@ -265,7 +265,7 @@ export const AIDesign = () => {
             </div>
 
             {/* Styles */}
-            <div className="bg-white rounded-2xl p-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold">Styles</h2>
 
@@ -307,7 +307,7 @@ export const AIDesign = () => {
             </div>
 
             {/* Sizes */}
-            <div className="bg-white rounded-2xl p-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
               <h2 className="text-sm font-bold mb-3">Image Size</h2>
 
               <div className="grid grid-cols-3 gap-2">
@@ -365,7 +365,7 @@ export const AIDesign = () => {
 
           {/* Right Panel */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl min-h-[600px] p-6">
+            <div className="bg-white rounded-2xl min-h-[600px] p-6 shadow-sm">
 
               {/* Loading */}
               {isLoading && (
@@ -391,12 +391,12 @@ export const AIDesign = () => {
 
               {/* Empty State */}
               {!generatedImages.length && !isLoading && (
-                <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="flex mt-4 flex-col items-center justify-center h-full text-center">
                   <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                    <RiAiGenerate2 className="text-3xl" color='blue' />
+                    <RiAiGenerate2 className="text-3xl" color='#0c4a6e' />
                   </div>
 
-                  <h3 className="text-lg font-semibold">
+                  <h3 className="text-lg font-semibold text-[#64748b]">
                     <p>
                       Enter a prompt, choose style
                     </p>
@@ -404,10 +404,6 @@ export const AIDesign = () => {
                       and size,  then generate your AI image.
                     </p>
                   </h3>
-                  {/* 
-                  <p className="text-sm text-gray-500 mt-2 max-w-sm">
-                    Enter a prompt, choose style and size, then generate your AI image.
-                  </p> */}
                 </div>
               )}
 

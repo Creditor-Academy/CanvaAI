@@ -25,8 +25,8 @@ const DashboardLayout = () => {
                     className="
     absolute top-0 left-0 w-full h-[320px]
     bg-linear-to-b
-    from-[#bfa6ff]
-    via-[#dbeafe]
+    from-[#3be0f6]
+    via-[#98e2ea]
     via-60%
     to-white
     opacity-90

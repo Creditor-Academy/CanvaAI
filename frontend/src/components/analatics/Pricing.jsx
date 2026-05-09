@@ -99,9 +99,7 @@ const Pricing = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] 
-  pt-[100px] 
-  pl-[90px] 
+    <div className="min-h-screen
   pr-4 
   pb-10 
   font-[Inter]">

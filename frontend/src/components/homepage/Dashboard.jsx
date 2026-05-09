@@ -569,11 +569,7 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 w-full">
             {/* LEFT */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
-              <img
-                src={logo}
-                alt="logo"
-                className="h-12 xs:h-13 sm:h-16 md:h-18 lg:h-20 w-auto max-w-[110px] sm:max-w-[130px] lg:max-w-[160px] object-contain drop-shadow-lg shrink-0"
-              />
+              
 
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
