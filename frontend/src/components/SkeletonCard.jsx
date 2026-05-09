@@ -2,50 +2,16 @@ import React from 'react';
 
 const SkeletonCard = () => {
   return (
-    <div style={styles.card}>
-      <div className="skeleton" style={styles.preview} />
-      <div style={styles.info}>
-        <div style={styles.textGroup}>
-          <div className="skeleton" style={styles.title} />
-          <div className="skeleton" style={styles.subtitle} />
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-[210px]">
+      <div className="skeleton h-[140px] w-full" />
+      <div className="p-4 flex justify-between items-center">
+        <div className="flex-1">
+          <div className="skeleton h-4 w-[70%] rounded mb-2" />
+          <div className="skeleton h-3 w-[40%] rounded" />
         </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  card: {
-    background: '#fff',
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden',
-    height: '210px', // Matches the combined height of preview (140px) + info (ca. 70px)
-  },
-  preview: {
-    height: '140px',
-    width: '100%',
-  },
-  info: {
-    padding: '16px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  textGroup: {
-    flex: 1,
-  },
-  title: {
-    height: '16px',
-    width: '70%',
-    borderRadius: '4px',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    height: '12px',
-    width: '40%',
-    borderRadius: '4px',
-  },
 };
 
 export default SkeletonCard;

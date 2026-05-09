@@ -9,7 +9,7 @@ const cards = [
     icon: <FiEdit3 size={28} />,
     title: "AI Design Generator",
     desc: "Turn prompts into polished layouts in seconds.",
-    route: "/create/ai-design",
+    route: "/dashboard/create/ai-design",
     image:
       "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=900&q=80",
   },
@@ -17,7 +17,7 @@ const cards = [
     icon: <FiFileText size={28} />,
     title: "Content Writer",
     desc: "Craft on-brand copy, scripts, and campaigns.",
-    route: "/create/content-writer",
+    route: "/dashboard/create/content-writer",
     image:
       "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&w=900&q=80",
   },
@@ -25,7 +25,7 @@ const cards = [
     icon: <FiLayers size={28} />,
     title: "AI-PPT Creator",
     desc: "Let Ai generate your complete presentation",
-    route: "/ai-presentation",
+    route: "/dashboard/ai-presentation",
     image:
       "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8cHJlc2VudGF0aW9ufGVufDB8fDB8fHww",
   },

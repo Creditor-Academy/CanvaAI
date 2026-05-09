@@ -49,7 +49,7 @@ const handleCreate = async () => {
       body: JSON.stringify(payload),
     });
 
-    navigate("/brand-kit-result", { state: data });
+    navigate("/dashboard/brand-kit-result", { state: data });
     onClose();
 
   } catch (e) {

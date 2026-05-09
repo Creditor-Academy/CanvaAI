@@ -333,7 +333,7 @@ const renderCurrentStep = () => {
 };
 
 return (
-  <div className="presentation-studio">
+  <div className="">
     <div className="presentation-studio-container">
       {renderCurrentStep()}
 
@@ -354,7 +354,7 @@ return (
                 className="balance-popup-primary"
                 onClick={() => {
                   setShowBalancePopup(false);
-                  navigate('/pricing');
+                  navigate('/dashboard/pricing');
                 }}
               >
                 Renew Plan

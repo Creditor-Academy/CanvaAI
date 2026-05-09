@@ -83,7 +83,7 @@ const Presentation = () => {
         position: relative;
         border-radius: 24px;
         padding: 2px;
-       background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706, #fbbf24);
+        background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706, #fbbf24);
         background-size: 300% 300%;
         animation: borderTrace 4s linear infinite;
         cursor: pointer;
@@ -92,8 +92,7 @@ const Presentation = () => {
       }
 
       .ai-btn-wrapper:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
       }
 
       .ai-btn-inner {
@@ -106,50 +105,41 @@ const Presentation = () => {
         position: relative;
         overflow: hidden;
       }
-        /* Tracing border animation for Create Fresh button */
-.fresh-btn-wrapper {
-  position: relative;
-  border-radius: 24px;
-  padding: 2px;
-  background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa, #0ea5e9, #1e40af);
-  background-size: 300% 300%;
-  animation: borderTrace 4s linear infinite;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
 
-.fresh-btn-wrapper:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
-}
+      /* Tracing border animation for Create Fresh button */
+      .fresh-btn-wrapper {
+        position: relative;
+        border-radius: 24px;
+        padding: 2px;
+        background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa, #0ea5e9, #1e40af);
+        background-size: 300% 300%;
+        animation: borderTrace 4s linear infinite;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      }
 
-.fresh-btn-inner {
-  border-radius: 22px;
-  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  position: relative;
-  overflow: hidden;
-}
+      .fresh-btn-wrapper:hover {
+       
+        box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
+      }
+
+      .fresh-btn-inner {
+        border-radius: 22px;
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        overflow: hidden;
+      }
 
       /* Glowing section cards */
       .glow-card {
-        background: rgba(255, 255, 255, 0.75);
-        backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border-radius: 24px;
-        border: 1px solid rgba(99, 102, 241, 0.1);
-        padding: 32px;
-        animation: glowPulse 4s ease-in-out infinite;
+        padding-y: 32px;
         transition: box-shadow 0.3s ease, transform 0.3s ease;
-      }
-
-      .glow-card:hover {
-        box-shadow: 0 0 45px rgba(99, 102, 241, 0.2), 0 12px 40px rgba(0,0,0,0.08);
-        transform: translateY(-2px);
       }
 
       .skeleton {
@@ -328,483 +318,216 @@ const Presentation = () => {
 
   return (
     <>
-    <div style={{ background: "#e9f4ff", minHeight: "100vh" }}>
-      {/* Wave Animation Background */}
-      <div className="wave-bg">
-        <div className="wave"></div>
-        <div className="wave"></div>
-        <div className="wave"></div>
-      </div>
+      <div className="min-h-screen">
+        {/* Wave Animation Background */}
+        <div className="wave-bg">
+          <div className="wave"></div>
+          <div className="wave"></div>
+          <div className="wave"></div>
+        </div>
 
-      <div style={styles.container}>
-        <div style={styles.content}>
-          {/* Header Section */}
-          <div style={styles.header}>
-            <div>
-              <h1 style={styles.title}>Create Stunning Presentation's.</h1>
-              <p style={styles.subtitle}> "Create professional presentations in seconds with AI or start from scratch."</p>
+        <div className="min-h-screen bg-transparent pb-10 relative">
+          <div className="mx-auto flex flex-col gap-10">
+            {/* Header Section */}
+            <div className="mb-2.5">
+              <div>
+                <h1 className="font-serif text-[clamp(40px,8vw,64px)] font-normal tracking-tighter leading-[1.1] text-slate-900 m-0">Create Stunning Presentation's.</h1>
+                <p className="font-sans text-[1.1rem] text-slate-500 mt-2 font-normal"> "Create professional presentations in seconds with AI or start from scratch."</p>
+              </div>
             </div>
-          </div>
 
-          {/* Primary Actions */}
-          <div style={styles.actionGrid}>
-            {/* Create with AI — animated tracing border */}
-            <div
-              className="ai-btn-wrapper"
-              onClick={() => window.open('/ai-presentation', '_blank')}
-            >
-              <div className="ai-btn-inner">
-                <div style={styles.iconContainer}>
-                  <Sparkles size={32} color="#fff" />
+            {/* Primary Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-6">
+              {/* Create with AI — animated tracing border */}
+              <div
+                className="ai-btn-wrapper"
+                onClick={() => window.open('/dashboard/ai-presentation', '_blank')}
+              >
+                <div className="ai-btn-inner">
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Sparkles size={32} color="#fff" />
+                  </div>
+                  <div>
+                    <h2 className="font-sans text-2xl font-bold m-0 text-white">Create with AI</h2>
+                    <p className="font-sans text-base mt-1 text-white/80">
+                      Let AI generate a complete presentation from your topic.
+                    </p>
+                  </div>
+                  <div className="absolute -right-2.5 -bottom-2.5 opacity-50">
+                    <FiZap size={24} color="rgba(255,255,255,0.2)" />
+                  </div>
                 </div>
-                <div>
-                  <h2 style={{ ...styles.actionTitle, color: '#fff' }}>Create with AI</h2>
-                  <p style={{ ...styles.actionDesc, color: 'rgba(255,255,255,0.8)' }}>
-                    Let AI generate a complete presentation from your topic.
-                  </p>
-                </div>
-                <div style={styles.zapIcon}>
-                  <FiZap size={24} color="rgba(255,255,255,0.2)" />
+              </div>
+
+              {/* Create Fresh */}
+              <div
+                className="fresh-btn-wrapper"
+                onClick={() => window.open('/presentation-editor-v3', '_blank')}
+              >
+                <div className="fresh-btn-inner">
+
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 bg-gradient-to-br from-[#1e40af] via-[#3b82f6] to-[#0ea5e9] shadow-[0_10px_20px_rgba(59,130,246,0.35)]"
+                  >
+                    <FiPlus size={28} color="#ffffff" />
+                  </div>
+
+                  <div>
+                    <h2 className="font-sans text-2xl font-bold m-0 text-slate-900">Create Fresh</h2>
+                    <p className="font-sans text-base mt-1 text-slate-500">
+                      Open our advanced editor and start your story from scratch.
+                    </p>
+                  </div>
+
                 </div>
               </div>
             </div>
 
-            {/* Create Fresh */}
-            <div
-  className="fresh-btn-wrapper"
-  onClick={() => window.open('/presentation-editor-v3', '_blank')}
->
-  <div className="fresh-btn-inner">
-
-    <div
-      style={{
-        ...styles.iconContainer,
-        background: 'linear-gradient(135deg, #1e40af, #3b82f6, #0ea5e9)',
-        width: '64px',
-        height: '64px',
-        borderRadius: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: '0 10px 20px rgba(59,130,246,0.35)'
-      }}
-    >
-      <FiPlus size={28} color="#ffffff" />
-    </div>
-
-    <div>
-      <h2 style={styles.actionTitle}>Create Fresh</h2>
-      <p style={styles.actionDesc}>
-        Open our advanced editor and start your story from scratch.
-      </p>
-    </div>
-
-  </div>
-</div>
-          </div>
-
-          {/* Recent Work Section — Glowing Card */}
-          <div className="glow-card">
-            <div style={{ ...styles.sectionHeader, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h2 style={styles.sectionTitle}>Recent Presentations</h2>
-                {!loading && (
-                  <span style={styles.countBadge}>{filteredPresentations.length} {filteredPresentations.length === 1 ? 'presentation' : 'presentations'}</span>
-                )}
+            {/* Recent Work Section — Glowing Card */}
+            <div className="glow-card">
+              <div className="flex items-center gap-2.5 text-slate-900 mb-5 justify-between flex-wrap">
+                <div className="flex items-center gap-3">
+                  <h2 className="font-serif text-[1.6rem] font-normal m-0 text-slate-900 tracking-tight">Recent Presentations</h2>
+                  {!loading && (
+                    <span className="font-sans text-[0.8rem] font-semibold text-indigo-500 bg-indigo-50 px-2.5 py-[3px] rounded-full whitespace-nowrap">{filteredPresentations.length} {filteredPresentations.length === 1 ? 'presentation' : 'presentations'}</span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search presentations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white font-sans text-[0.9rem] text-slate-900 outline-none w-[220px] focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Search presentations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={styles.searchInput}
-              />
-            </div>
 
-            <div style={styles.scrollContainer}>
-              {loading ? (
-                <div style={styles.grid}>
-                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
-                </div>
-              ) : filteredPresentations.length === 0 ? (
-                <div style={styles.emptyCard}>
-                  <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{searchTerm ? 'No presentations match your search.' : 'No presentations yet. Start creating!'}</p>
-                </div>
-              ) : (
-                <div style={styles.grid} className="fade-in">
-                  {filteredPresentations.map((ppt) => (
-                    <div
-                      key={ppt._id}
-                      onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.borderColor = '#6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.borderColor = '#e2e8f0';
-                      }}
-                      style={styles.card}
-                    >
-                      <div style={styles.cardPreview}>
-                        {getSlideData(ppt) ? (
-                          <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
-                        ) : (
-                          <FiFileText size={40} color="#94a3b8" />
-                        )}
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <div style={styles.cardText}>
-                          <h3 style={styles.cardTitle}>{ppt.title || "Untitled"}</h3>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <p style={styles.cardDate}>{new Date(ppt.updatedAt).toLocaleDateString()}</p>
-                            {getSlideCount(ppt) > 0 && (
-                              <div style={styles.slideBadge}>
-                                <FiLayout size={12} style={{ marginRight: '4px' }} />
-                                {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
+              <div className="overflow-y-auto pr-2.5 custom-scrollbar">
+                {loading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+                    {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                  </div>
+                ) : filteredPresentations.length === 0 ? (
+                  <div className="p-16 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-center text-slate-500">
+                    <p className="font-sans">{searchTerm ? 'No presentations match your search.' : 'No presentations yet. Start creating!'}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5 fade-in">
+                    {filteredPresentations.map((ppt) => (
+                      <div
+                        key={ppt._id}
+                        onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
+                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:border-indigo-500 group"
+                      >
+                        <div className="h-[140px] bg-slate-100 flex items-center justify-center relative">
+                          {getSlideData(ppt) ? (
+                            <>
+                              <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
+                              {/* Slide Count Overlay */}
+                              <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[1px]">
+                                <div className="absolute top-3 right-3 bg-white/95 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-xl transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 border border-indigo-100">
+                                  <FiLayout size={13} className="text-indigo-600" />
+                                  <span className="text-[0.7rem] font-extrabold text-slate-800 uppercase tracking-tight">
+                                    {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
+                                  </span>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => handleDelete(ppt._id, e)}
-                          onMouseEnter={(e) => e.currentTarget.style.background = '#fee2e2'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                          style={{
-                            ...styles.deleteBtn,
-                            opacity: isDeleting === ppt._id ? 0.6 : 1,
-                            cursor: isDeleting === ppt._id ? 'not-allowed' : 'pointer'
-                          }}
-                          disabled={isDeleting === ppt._id}
-                        >
-                          {isDeleting === ppt._id ? (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              border: '2px solid #ef4444',
-                              borderTop: '2px solid transparent',
-                              borderRadius: '50%',
-                              animation: 'spin 0.6s linear infinite'
-                            }} />
+                            </>
                           ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Templates Section — Glowing Card */}
-          <div className="glow-card">
-            <div style={styles.sectionHeader}>
-              <FiLayout size={20} color="#0f172a" />
-              <h2 style={styles.sectionTitle}>Featured Templates</h2>
-            </div>
-
-            <div style={{ ...styles.scrollContainer, marginTop: '20px' }}>
-              {templatesLoading ? (
-                <div style={styles.grid}>
-                  {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
-                </div>
-              ) : (
-                <div style={styles.grid} className="fade-in">
-                  {templates.map((tpl) => (
-                    <div
-                      key={tpl._id}
-                      onClick={() => handleViewTemplate(tpl)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.borderColor = '#6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.borderColor = '#e2e8f0';
-                      }}
-                      style={styles.templateCard}
-                    >
-                      <div style={styles.templatePreview}>
-                        {getSlideData(tpl) ? (
-                          <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
-                        ) : (
-                          <FiLayout size={40} color="#6366f1" />
-                        )}
-                      </div>
-                      <div style={styles.cardInfo}>
-                        <div style={styles.cardText}>
-                          <h3 style={styles.cardTitle}>{tpl.title}</h3>
-                          {getSlideCount(tpl) > 0 && (
-                            <div style={styles.slideBadge}>
-                              <FiLayout size={12} style={{ marginRight: '4px' }} />
-                              {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
-                            </div>
+                            <FiFileText size={40} className="text-slate-400" />
                           )}
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="p-4 flex justify-between items-center">
+                          <div className="overflow-hidden">
+                            <h3 className="font-sans text-base font-semibold m-0 whitespace-nowrap overflow-hidden text-ellipsis text-slate-900">{ppt.title || "Untitled"}</h3>
+                            <div className="flex items-center gap-2">
+                              <p className="font-sans text-[0.85rem] text-slate-500 mt-0.5">{new Date(ppt.updatedAt).toLocaleDateString()}</p>
+                              {getSlideCount(ppt) > 0 && (
+                                <div className="inline-flex items-center text-[0.75rem] text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-xl font-semibold mt-1">
+                                  <FiLayout size={12} className="mr-1" />
+                                  {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewTemplate(tpl);
-                            }}
-                            className="view-btn"
+                            onClick={(e) => handleDelete(ppt._id, e)}
+                            className={`p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors ${isDeleting === ppt._id ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                            disabled={isDeleting === ppt._id}
                           >
-                            View
+                            {isDeleting === ppt._id ? (
+                              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
                           </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Templates Section — Glowing Card */}
+            <div className="glow-card">
+              <div className="flex items-center gap-2.5 text-slate-900 mb-5">
+                <FiLayout size={20} className="text-slate-900" />
+                <h2 className="font-serif text-[1.6rem] font-normal m-0 text-slate-900 tracking-tight">Featured Templates</h2>
+              </div>
+
+              <div className="overflow-y-auto pr-2.5 custom-scrollbar mt-5">
+                {templatesLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+                    {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5 fade-in">
+                    {templates.map((tpl) => (
+                      <div
+                        key={tpl._id}
+                        onClick={() => handleViewTemplate(tpl)}
+                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:border-indigo-500 group"
+                      >
+                        <div className="h-[140px] bg-indigo-50 flex items-center justify-center relative">
+                          {getSlideData(tpl) ? (
+                            <>
+                              <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
+                              {/* Slide Count Overlay */}
+                              <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[1px]">
+                                <div className="absolute top-3 right-3 bg-white/95 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-xl transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 border border-indigo-100">
+                                  <FiLayout size={13} className="text-indigo-600" />
+                                  <span className="text-[0.7rem] font-extrabold text-slate-800 uppercase tracking-tight">
+                                    {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <FiLayout size={40} className="text-indigo-500" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <TemplatePreviewModal
+              isOpen={isPreviewOpen}
+              onClose={() => setIsPreviewOpen(false)}
+              templateData={previewData}
+              onImport={() => {
+                setIsPreviewOpen(false);
+                handleUseTemplate({ _id: selectedTemplateId });
+              }}
+            />
+
           </div>
-
-          <TemplatePreviewModal
-            isOpen={isPreviewOpen}
-            onClose={() => setIsPreviewOpen(false)}
-            templateData={previewData}
-            onImport={() => {
-              setIsPreviewOpen(false);
-              handleUseTemplate({ _id: selectedTemplateId });
-            }}
-          />
-
         </div>
-      </div>
       </div>
     </>
   );
-};
-
-const styles = {
-  container: {
-  minHeight: '100vh',
-  background: 'transparent',
-  padding: '120px 20px 40px',
-  position: 'relative',
-  zIndex: 1,
-  transform: 'scale(0.9)',
-  transformOrigin: 'top center',
-},
-  content: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '40px',
-  },
-  header: {
-    marginBottom: '10px',
-  },
-  title: {
-    fontFamily: 'Georgia, "Times New Roman", serif',
-    fontSize: 'clamp(40px, 8vw, 64px)',
-    fontWeight: 400,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    color: '#0f172a',
-    margin: 0,
-  },
-  subtitle: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '1.1rem',
-    color: '#64748b',
-    marginTop: '8px',
-    fontWeight: 400,
-  },
-  actionGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: '24px',
-  },
-  actionCard: {
-    padding: '32px',
-    borderRadius: '24px',
-    cursor: 'pointer',
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '24px',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-    overflow: 'hidden',
-  },
-  iconContainer: {
-    width: '64px',
-    height: '64px',
-    borderRadius: '16px',
-    background: 'rgba(255,255,255,0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  actionTitle: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    margin: 0,
-  },
-  actionDesc: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '1rem',
-    margin: '4px 0 0',
-  },
-  zapIcon: {
-    position: 'absolute',
-    right: '-10px',
-    bottom: '-10px',
-    opacity: 0.5,
-  },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    color: '#0f172a',
-    marginBottom: '20px',
-  },
-  sectionTitle: {
-    fontFamily: 'Georgia, "Times New Roman", serif',
-    fontSize: '1.6rem',
-    fontWeight: 400,
-    margin: 0,
-    color: '#0f172a',
-    letterSpacing: '-0.01em',
-  },
-  scrollContainer: {
-    maxHeight: '480px',
-    overflowY: 'auto',
-    paddingRight: '10px',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-    gap: '20px',
-  },
-  card: {
-    background: '#fff',
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, border-color 0.2s',
-  },
-  cardPreview: {
-    height: '140px',
-    background: '#f1f5f9',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: {
-    padding: '16px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardText: {
-    overflow: 'hidden',
-  },
-  cardTitle: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '1rem',
-    fontWeight: 600,
-    margin: 0,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    color: '#0f172a',
-  },
-  cardDate: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '0.85rem',
-    color: '#64748b',
-    margin: '2px 0 0',
-  },
-  deleteBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#ef4444',
-    cursor: 'pointer',
-    padding: '8px',
-    borderRadius: '8px',
-  },
-  templateCard: {
-    background: '#fff',
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, border-color 0.2s',
-  },
-  templatePreview: {
-    height: '140px',
-    background: '#eef2ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  countBadge: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    color: '#6366f1',
-    background: '#eef2ff',
-    padding: '3px 10px',
-    borderRadius: '20px',
-    whiteSpace: 'nowrap',
-  },
-  searchInput: {
-    padding: '10px 16px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '12px',
-    background: '#fff',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '0.9rem',
-    color: '#0f172a',
-    outline: 'none',
-    width: '220px',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#64748b',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  },
-  emptyCard: {
-    padding: '60px',
-    background: '#fff',
-    borderRadius: '16px',
-    border: '2px dashed #e2e8f0',
-    textAlign: 'center',
-    color: '#64748b',
-  },
-  viewBtn: {
-    padding: '6px 12px',
-    borderRadius: '6px',
-    border: '1px solid #0a5dbbff',
-    backgroundColor: 'transparent',
-    color: '#0a5dbbff',
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  slideBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    fontSize: '0.75rem',
-    color: '#0a5dbbff',
-    backgroundColor: '#eff6ff',
-    padding: '2px 8px',
-    borderRadius: '12px',
-    fontWeight: 600,
-    marginTop: '4px',
-  }
 };
 
 export default Presentation;

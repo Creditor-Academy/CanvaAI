@@ -135,12 +135,7 @@ const ImageLayout = () => {
                 from { opacity: 0; transform: translateY(4px); }
                 to   { opacity: 1; transform: translateY(0); }
             }
-            .wave-bg {
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                z-index: -1;
-                overflow: hidden;
-            }
+            
             .wave {
                 position: absolute;
                 width: 200%;
@@ -167,7 +162,9 @@ const ImageLayout = () => {
                 transition: transform 0.2s, box-shadow 0.2s;
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             }
-            .ai-btn-wrapper:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+            .ai-btn-wrapper:hover {
+             box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+             }
             .ai-btn-inner {
                 border-radius: 22px;
                 background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
@@ -183,7 +180,9 @@ const ImageLayout = () => {
                 transition: transform 0.2s, box-shadow 0.2s;
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             }
-            .fresh-btn-wrapper:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15); }
+            .fresh-btn-wrapper:hover {
+             box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
+             }
             .fresh-btn-inner {
                 border-radius: 22px;
                 background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
@@ -191,17 +190,10 @@ const ImageLayout = () => {
                 position: relative; overflow: hidden;
             }
             .glow-card {
-                background: rgba(255,255,255,0.75);
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
-                border-radius: 24px;
-                border: 1px solid rgba(99,102,241,0.1);
-                padding: 32px;
-                animation: glowPulse 4s ease-in-out infinite;
-                transition: box-shadow 0.3s ease, transform 0.3s ease;
-            }
-            .glow-card:hover { box-shadow: 0 0 45px rgba(99,102,241,0.2), 0 12px 40px rgba(0,0,0,0.08); transform: translateY(-2px); }
-            .fade-in { animation: fadeIn 0.25s ease-in forwards; }
+        -webkit-backdrop-filter: blur(12px);
+        padding-y: 32px;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+      }
             @keyframes viewBtnShimmer {
                 0%   { background-position: 200% center; }
                 100% { background-position: -200% center; }
@@ -396,15 +388,10 @@ const ImageLayout = () => {
     // ── Render ─────────────────────────────────────────────────────────────
     return (
         <>
-            <div className="min-h-screen bg-[#e9f4ff]">
-                <div className="wave-bg">
-                    <div className="wave" />
-                    <div className="wave" />
-                    <div className="wave" />
-                </div>
+            <div className="min-h-screen">
 
-                <div className="relative z-[1] min-h-screen origin-top scale-[0.9] px-5 pb-10 pt-[120px]">
-                    <div className="mx-auto flex max-w-[1200px] flex-col gap-10">
+                <div className="relative z-[1] min-h-screen origin-top pb-10 ">
+                    <div className="mx-auto flex  flex-col gap-10">
 
                         {/* Header */}
                         <div className="mb-[10px] flex flex-wrap items-start justify-between gap-4">
@@ -422,7 +409,7 @@ const ImageLayout = () => {
                         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                             <div
                                 className="ai-btn-wrapper"
-                                onClick={() => window.open('/create/ai-design', '_blank')}
+                                onClick={() => window.open('/dashboard/create/ai-design', '_blank')}
                             >
                                 <div className="ai-btn-inner">
                                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20">
@@ -495,7 +482,7 @@ const ImageLayout = () => {
                                 </div>
                             )}
 
-                            <div className="max-h-[480px] overflow-y-auto pr-2.5">
+                            <div className=" overflow-y-auto pr-2.5">
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
                                     {filteredImages.map((image) => {
                                         const canvasSize = image.data?.canvasSize || { width: 800, height: 600 }
@@ -504,7 +491,7 @@ const ImageLayout = () => {
                                             <div
                                                 key={image._id}
                                                 onClick={() => window.open(`/canva-clone/${image._id}`, '_blank')}
-                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500"
+                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200  hover:border-indigo-500"
                                             >
                                                 <div className="relative flex h-[140px] items-center justify-center overflow-hidden bg-slate-100">
                                                     <div
@@ -544,6 +531,8 @@ const ImageLayout = () => {
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </div>
+
+
                                             </div>
                                         )
                                     })}
@@ -582,7 +571,7 @@ const ImageLayout = () => {
                                 </h2>
                             </div>
 
-                            <div className="mt-5 max-h-[480px] overflow-y-auto pr-2.5">
+                            <div className="mt-5 overflow-y-auto pr-2.5">
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
                                     {templates.map((tpl) => {
                                         const canvasSize = tpl.data?.canvasSize || { width: 800, height: 600 }
@@ -591,7 +580,7 @@ const ImageLayout = () => {
                                             <div
                                                 key={tpl._id}
                                                 onClick={() => setSelectedImage(tpl)}
-                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500"
+                                                className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200  hover:border-indigo-500"
                                             >
                                                 <div className="relative flex h-[140px] items-center justify-center overflow-hidden bg-indigo-50">
                                                     <div
@@ -610,26 +599,6 @@ const ImageLayout = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between gap-2 p-4">
-                                                    <div className="min-w-0 flex-1 overflow-hidden">
-                                                        <h3 className="truncate text-base font-semibold text-slate-900">
-                                                            {tpl.title || 'Untitled Template'}
-                                                        </h3>
-                                                        <p className="mt-0.5 text-sm text-slate-500">
-                                                            {new Date(tpl.createdAt).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            setSelectedImage(tpl)
-                                                        }}
-                                                        className="view-btn"
-                                                    >
-                                                        View
-                                                    </button>
-                                                </div>
                                             </div>
                                         )
                                     })}

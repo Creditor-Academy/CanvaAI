@@ -7,7 +7,7 @@ const FEATURES = [
   {
     title: "Create AI Presentations",
     desc: "Generate slides instantly",
-    route: "/presentation",
+    route: "/dashboard/presentation",
     img: "https://images.unsplash.com/photo-1557804506-669a67965ba0",
   },
   {
@@ -19,7 +19,7 @@ const FEATURES = [
   {
     title: "Write Documents Easily",
     desc: "Create notes & reports",
-    route: "/editor",
+    route: "/dashboard/editor",
     img: "https://images.unsplash.com/photo-1455390582262-044cdead277a",
   },
   {
@@ -31,13 +31,13 @@ const FEATURES = [
   {
     title: "Build Smart Slides",
     desc: "Automated presentation maker",
-    route: "/presentation",
+    route: "/dashboard/presentation",
     img: "https://images.unsplash.com/photo-1531496730074-83b638c0a7ac",
   },
   {
     title: "Generate AI Content",
     desc: "Reports & writing assistant",
-    route: "/editor",
+    route: "/dashboard/editor",
     img: "https://images.unsplash.com/photo-1499750310107-5fef28a66643",
   },
 ];
@@ -124,7 +124,7 @@ const AISuggestTemp = () => {
           className="text-4xl font-bold text-center mb-12 bg-clip-text text-transparent"
           style={{
             backgroundImage:
-             "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
+              "linear-gradient(135deg,#1e40af 0%,#3b82f6 50%,#60a5fa 100%)",
           }}
         >
           What would you like to create?

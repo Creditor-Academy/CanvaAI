@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import api from "../../../services/api";
-
+import { toast } from "sonner";
+import { RiAiGenerate2 } from "react-icons/ri";
 
 export const AIDesign = () => {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ export const AIDesign = () => {
   const [popupMessage, setPopupMessage] = useState("");
   const [downloadFormat, setDownloadFormat] = useState("png");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const styles = [
     { name: "Realistic", img: "https://i.pinimg.com/736x/5c/b9/62/5cb9627a8d35ff42a96510c58fd68cd2.jpg" },
@@ -28,14 +31,30 @@ export const AIDesign = () => {
     { name: "Painting", img: "https://i.pinimg.com/736x/ee/3d/9b/ee3d9bbd7bcba1287c2ba4f995423e8c.jpg" },
   ];
 
+  const SIZE_MAP = {
+    square: "1024x1024",
+    portrait: "1024x1536",
+    landscape: "1536x1024",
+  };
+
+  const sizes = [
+    { name: "Square", value: "square" },
+    { name: "Portrait", value: "portrait" },
+    { name: "Landscape", value: "landscape" },
+  ];
+
 
   const examplePrompts = [
-    "Futuristic neon city",
-    "Minimalist mountain logo",
-    "Cyberpunk samurai portrait",
-    "Luxury gold emblem",
-    "Cartoon astronaut mascot",
+    "A sleek dark logo for a tech startup with geometric shapes",
+    "Aerial view of a modern city at golden hour, cinematic lighting",
+    "Abstract fluid art with deep ocean blues and electric teal",
+    "Hyper-realistic product shot of a luxury perfume bottle",
+    "Minimalist flat-design icon set for a finance app",
   ];
+
+  const isPromptValid = Boolean(prompt.trim());
+  const isStyleValid = Boolean(selectedStyle);
+  const isSizeValid = Boolean(selectedSize);
 
 
   useEffect(() => {
@@ -52,7 +71,20 @@ export const AIDesign = () => {
 
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || !selectedStyle) return;
+    setSubmitAttempted(true);
+
+    if (!prompt.trim()) {
+      toast.error("Please give some prompt to generate image");
+      return;
+    }
+    if (!selectedStyle) {
+      toast.error("Please select a style");
+      return;
+    }
+    if (!selectedSize) {
+      toast.error("Please select a size");
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -62,7 +94,11 @@ export const AIDesign = () => {
       setProgress(10);
 
       const style = selectedStyle.toLowerCase();
-      const res = await api.generateLogo(prompt, style);
+      const res = await api.generateLogo({
+        prompt,
+        style,
+        size: selectedSize,
+      });
 
       console.log(res);
 
@@ -88,7 +124,7 @@ export const AIDesign = () => {
         setPopupMessage(message);
         setShowBalancePopup(true);
       } else {
-        alert(message);
+        toast.error(message);
       }
     } finally {
       setIsLoading(false);
@@ -173,71 +209,95 @@ export const AIDesign = () => {
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff] relative overflow-y-auto flex flex-col px-4 sm:px-5 md:px-6 lg:px-8 xl:pl-[96px] pb-[96px] md:pb-8">
-      {/* HERO */}
-      <div className="text-center pt-24 md:pt-24 xl:pt-20 z-10 px-2 sm:px-4">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-900">
-          AI IMAGE GENERATOR
-        </h1>
-        <p className="text-blue-700 text-xs sm:text-sm mt-1">
-          Generate original images with AI
-        </p>
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className=" text-center text-[#334155] ">
+        <div className="max-w-7xl  px-4 py-6">
+          <h1 className="text-3xl font-bold  ">
+            AI Image Generator
+          </h1>
+          <p className="text-sm  mt-1">
+            Generate AI images with different styles and formats
+          </p>
+        </div>
       </div>
 
+      {/* Main Layout */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      {/* MAIN */}
-      <div className="flex-1 flex items-start justify-center w-full z-10 pt-6 sm:pt-8">
-        <div className="w-full max-w-sm sm:max-w-2xl lg:max-w-5xl xl:max-w-6xl grid grid-cols-1 xl:grid-cols-2 gap-5 lg:gap-6">
-          {/* LEFT PANEL */}
-          <div className="bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5">
-            <label className="text-sm font-semibold text-blue-900">
-              Prompt
-            </label>
+          {/* Left Panel */}
+          <div className="lg:col-span-1 space-y-4">
 
-            <textarea
-              placeholder="for example: Medusa"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="mt-2 w-full border border-blue-700 rounded-lg p-2.5 h-[84px] resize-none outline-none text-sm text-blue-900"
-            />
+            {/* Prompt */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <textarea
+                placeholder="Describe your image..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className={`w-full h-24 rounded-xl p-3 outline-none resize-none text-sm border transition
+                ${submitAttempted && !isPromptValid
+                    ? "border-red-400"
+                    : "border-gray-200 focus:border-black"
+                  }
+              `}
+              />
 
-            {/* EXAMPLE PROMPTS */}
-            <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {examplePrompts.map((ex, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPrompt(ex)}
-                  className="bg-yellow-300 hover:bg-yellow-400 text-blue-900 text-[11px] sm:text-xs px-3 py-1.5 rounded-full whitespace-nowrap shrink-0"
-                >
-                  {ex}
-                </button>
-              ))}
+              <div className="mt-4">
+                <p className="text-xs font-medium text-gray-500 mb-2">
+                  Example Prompts
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {examplePrompts.slice(0, 3).map((ex, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPrompt(ex)}
+                      className="text-xs rounded-sm px-3 py-1 hover:bg-gray-100"
+                    >
+                      {ex.length > 25
+                        ? ex.substring(0, 25) + "..."
+                        : ex}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* STYLES */}
-            <div className="mt-4">
-              <p className="text-sm font-semibold text-blue-900 mb-2">
-                Styles
-              </p>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {/* Styles */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-bold">Styles</h2>
+
+                {selectedStyle && (
+                  <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full">
+                    {selectedStyle}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
                 {styles.map((style) => {
                   const active = selectedStyle === style.name;
+
                   return (
                     <button
                       key={style.name}
                       onClick={() => setSelectedStyle(style.name)}
-                      className={`relative group min-w-[64px] sm:min-w-[68px] rounded-lg overflow-hidden border shrink-0
-                        ${active
-                          ? "border-yellow-400 ring-2 ring-yellow-400"
-                          : "border-blue-700"
-                        }`}
+                      className={`rounded-xl overflow-hidden border transition
+                      ${active
+                          ? "border-black ring-1 ring-black"
+                          : "border-gray-200"
+                        }
+                    `}
                     >
                       <img
                         src={style.img}
-                        className="w-full h-[52px] sm:h-[55px] object-cover"
-                        alt=""
+                        alt={style.name}
+                        className="w-full h-14 object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition">
+
+                      <div className="py-1.5 text-[10px] font-bold bg-white">
                         {style.name}
                       </div>
                     </button>
@@ -246,190 +306,240 @@ export const AIDesign = () => {
               </div>
             </div>
 
-            {/* GENERATE */}
+            {/* Sizes */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h2 className="text-sm font-bold mb-3">Image Size</h2>
+
+              <div className="grid grid-cols-3 gap-2">
+                {sizes.map((size) => {
+                  const active = selectedSize === size.value;
+
+                  return (
+                    <button
+                      key={size.value}
+                      onClick={() => setSelectedSize(size.value)}
+                      className={`rounded-xl border p-2 text-center transition
+                      ${active
+                          ? "bg-black text-white border-black"
+                          : "border-gray-200 hover:bg-gray-100"
+                        }
+                    `}
+                    >
+                      <div
+                        className={`mx-auto mb-1.5 border-2
+                        ${active
+                            ? "border-white"
+                            : "border-gray-400"
+                          }
+                        ${size.value === "square"
+                            ? "w-4 h-4"
+                            : size.value === "portrait"
+                              ? "w-3 h-5"
+                              : "w-6 h-3"
+                          }
+                      `}
+                      />
+
+
+                      <p className="text-[10px] font-bold">
+                        {size.name}
+                      </p>
+                      <p className={`text-[9px] mt-0.5 ${active ? "text-gray-300" : "text-gray-400"}`}>
+                        {SIZE_MAP[size.value]}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Generate Button */}
             <button
               onClick={handleGenerate}
-              disabled={!prompt || !selectedStyle}
-              className="w-full mt-4 bg-blue-800 hover:bg-blue-900 text-white py-2.5 rounded-full font-semibold disabled:opacity-40 text-sm sm:text-base"
+              disabled={isLoading}
+              className="w-full bg-black hover:bg-gray-800 text-white py-3 rounded-2xl font-bold text-sm transition disabled:opacity-50"
             >
-              Generate
+              {isLoading ? "Generating..." : "Generate Image"}
             </button>
           </div>
 
-          {/* RIGHT PANEL */}
-          <div className="relative bg-white border border-blue-700 rounded-xl shadow-md p-4 sm:p-5 flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] md:min-h-[420px]">
-            {!generatedImages.length && !isLoading && (
-              <>
-                <img
-                  src="https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=900"
-                  className="absolute inset-0 w-full h-full object-cover opacity-20"
-                  alt=""
-                />
-                <p className="relative text-blue-900 text-sm font-medium">
-                  Generated images will appear here
-                </p>
-              </>
-            )}
+          {/* Right Panel */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl min-h-[600px] p-6 shadow-sm">
 
-           {isLoading && (
-  <div className="flex flex-col items-center justify-center gap-4">
-    <div className="w-16 h-16 rounded-full border-4 border-transparent border-t-blue-700 border-r-yellow-400 animate-spin"></div>
-  </div>
-)}
+              {/* Loading */}
+              {isLoading && (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
 
-            {generatedImages.length > 0 && (
-              <>
-                <div className="grid w-full grid-cols-2 gap-2 sm:gap-3">
-                  {generatedImages.map((img, idx) => {
-                    return (
-                      <div
-                        key={idx}
-                        className="relative group rounded-lg overflow-hidden ring-1 ring-blue-700"
-                      >
-                        <img
-                          src={img}
-                          className="w-full h-[110px] sm:h-[130px] object-cover"
-                          alt=""
-                        />
-                      </div>
-                    );
-                  })}
+                  <p className="mt-4 font-medium">
+                    Generating image...
+                  </p>
+
+                  <div className="w-64 h-2 bg-gray-200 rounded-full mt-4 overflow-hidden">
+                    <div
+                      className="h-full bg-black transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+
+                  <p className="text-sm text-gray-500 mt-2">
+                    {Math.round(progress)}%
+                  </p>
                 </div>
-                <button
-                  onClick={openPanel}
-                  className="mt-4 bg-blue-800 hover:bg-blue-900 text-white px-5 sm:px-6 py-2 rounded-full text-sm disabled:opacity-40"
-                >
-                  Open Panel ({generatedImages.length} Images)
-                </button>
-              </>
-            )}
+              )}
+
+              {/* Empty State */}
+              {!generatedImages.length && !isLoading && (
+                <div className="flex mt-4 flex-col items-center justify-center h-full text-center">
+                  <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                    <RiAiGenerate2 className="text-3xl" color='#0c4a6e' />
+                  </div>
+
+                  <h3 className="text-lg font-semibold text-[#64748b]">
+                    <p>
+                      Enter a prompt, choose style
+                    </p>
+                    <p>
+                      and size,  then generate your AI image.
+                    </p>
+                  </h3>
+                </div>
+              )}
+
+              {/* Images */}
+              {generatedImages.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {generatedImages.map((img, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setPanelIndex(idx);
+                        setShowPanel(true);
+                      }}
+                      className="relative rounded-2xl overflow-hidden border cursor-pointer group"
+                    >
+                      <img
+                        src={img}
+                        alt=""
+                        className="w-full aspect-square object-cover"
+                      />
+
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 text-white text-sm font-medium transition">
+                          Preview
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
       </div>
 
-
-      {/* MODAL */}
-      {showPanel && generatedImages.length > 0 &&
+      {/* Fullscreen Modal */}
+      {showPanel &&
+        generatedImages.length > 0 &&
         createPortal(
-          <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-[999]">
+          <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4">
             <button
               onClick={() => setShowPanel(false)}
-              className="absolute top-4 right-4 sm:top-6 sm:right-8 text-white text-2xl sm:text-3xl"
+              className="absolute top-5 right-5 text-white text-3xl"
             >
-              ✕
+              ×
             </button>
 
-
-            <div className="text-center">
+            <div className="max-w-5xl w-full flex flex-col items-center">
               <img
                 src={generatedImages[panelIndex]}
-                className="max-h-[65vh] sm:max-h-[75vh] max-w-[92vw] rounded-xl"
                 alt=""
+                className="max-h-[75vh] rounded-2xl"
               />
 
-              <div className="flex justify-center items-center gap-3 mt-3">
-                <button
-                  onClick={goPrev}
-                  className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg"
-                >
-                  Prev
-                </button>
-                <span className="text-white text-sm font-semibold">
-                  {panelIndex + 1} / {generatedImages.length}
-                </span>
-                <button
-                  onClick={goNext}
-                  className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg"
-                >
-                  Next
-                </button>
-              </div>
+              <div className="flex flex-wrap items-center gap-3 mt-6">
 
-              {/* Format selector */}
-              <div className="flex gap-2 justify-center mt-4 flex-wrap">
-                {[
-                  'png',
-                  'jpg',
-                  'webp',
-                  // 'svg',
-                  // 'pdf',
-                ].map((fmt) => (
+                {["png", "jpg", "webp"].map((fmt) => (
                   <button
                     key={fmt}
                     onClick={() => setDownloadFormat(fmt)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide transition ${
-                      downloadFormat === fmt
-                        ? 'bg-yellow-400 text-blue-900'
-                        : 'bg-white/20 text-white hover:bg-white/30'
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-sm
+                    ${downloadFormat === fmt
+                        ? "bg-white text-black"
+                        : "bg-white/10 text-white"
+                      }
+                  `}
                   >
                     {fmt}
                   </button>
                 ))}
+
+                <button
+                  onClick={() =>
+                    handleDownload(generatedImages[panelIndex])
+                  }
+                  disabled={isDownloading}
+                  className="bg-white text-black px-5 py-2 rounded-lg font-medium"
+                >
+                  {isDownloading
+                    ? "Downloading..."
+                    : "Download"}
+                </button>
               </div>
 
-              <div className="flex gap-4 justify-center mt-3 items-center">
+              <div className="flex gap-4 mt-6">
                 <button
-                  onClick={() => handleDownload(generatedImages[panelIndex])}
-                  disabled={isDownloading}
-                  title={`Download as ${downloadFormat.toUpperCase()}`}
-                  className="flex items-center gap-2 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white px-5 py-2 rounded-lg transition"
+                  onClick={goPrev}
+                  className="bg-white/10 text-white px-5 py-2 rounded-lg"
                 >
-                  {isDownloading ? (
-                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="7 10 12 15 17 10"/>
-                      <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                  )}
-                  Download {isDownloading ? '...' : downloadFormat.toUpperCase()}
+                  Prev
+                </button>
+
+                <button
+                  onClick={goNext}
+                  className="bg-white/10 text-white px-5 py-2 rounded-lg"
+                >
+                  Next
                 </button>
               </div>
             </div>
           </div>,
           document.body
         )}
+
+      {/* Balance Popup */}
       {showBalancePopup &&
         createPortal(
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[1000] px-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-5 sm:p-6 text-center border border-red-200">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-2xl">
-                !
+          <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md text-center">
+              <div className="w-16 h-16 rounded-full bg-red-100 mx-auto flex items-center justify-center mb-4">
+                <span className="text-red-600 text-2xl">!</span>
               </div>
 
-              <h2 className="text-lg sm:text-xl font-bold text-red-600">
-                Insufficient Balance
+              <h2 className="text-xl font-bold mb-2">
+                Not Enough Balance
               </h2>
 
-              <p className="text-gray-700 mt-2 text-sm leading-6">
-                {popupMessage || "Not enough Balance for generate Image"}
+              <p className="text-gray-500 text-sm mb-6">
+                {popupMessage}
               </p>
 
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={() => setShowBalancePopup(false)}
-                  className="bg-blue-800 hover:bg-blue-900 text-white px-6 py-2 rounded-full"
-                >
-                  OK
-                </button>
-              </div>
+              <button
+                onClick={() => setShowBalancePopup(false)}
+                className="bg-black text-white px-5 py-3 rounded-xl w-full"
+              >
+                Close
+              </button>
             </div>
           </div>,
           document.body
         )}
-
-
-      <style>
-        {`
-        .no-scrollbar::-webkit-scrollbar { display:none; }
-        .no-scrollbar { scrollbar-width:none; -ms-overflow-style:none; }
-        `}
-      </style>
     </div>
   );
-};
 
+
+};
 
 export default AIDesign;

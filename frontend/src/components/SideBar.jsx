@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Plus } from "lucide-react";
+import CreatePopup from "./homepage/CreatePopup";
+import { FiHelpCircle } from "react-icons/fi";
+
 
 /* ---------- ICONS ---------- */
 
@@ -12,26 +16,10 @@ const HomeIcon = ({ size = 20 }) => (
 );
 
 const PPTIcon = ({ size = 20, active }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={active ? "white" : "black"}
-    strokeWidth="1.176"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={active ? "white" : "currentColor"} strokeWidth="1.176" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
     <path d="M18 1 L18 6 L23 6" />
     <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
-  </svg>
-);
-
-
-const EditorIcon = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-    <path d="M4 20h4l10-10a2.5 2.5 0 10-4-4L4 16v4z"></path>
   </svg>
 );
 
@@ -68,165 +56,110 @@ const AdminIcon = ({ size = 20 }) => (
 /* ---------------- NAV ITEMS ---------------- */
 
 const BASE_ITEMS = [
-  { label: "Home", path: "/home", icon: <HomeIcon /> },
-  { label: "PPT", path: "/presentation", icon: <PPTIcon /> },
-  // { label: "Editor", path: "/editor", icon: <EditorIcon /> },
-  { label: "Image", path: "/create-image", icon: <ImageIcon /> },
-  { label: "Files", path: "/projects", icon: <FolderIcon /> },
-  { label: "Analytics", path: "/analytics", icon: <AnalyticsIcon /> }
+  { label: "Home", path: "/dashboard/home", icon: <HomeIcon /> },
+  { label: "PPT", path: "/dashboard/presentation", icon: <PPTIcon /> },
+  { label: "Image", path: "/dashboard/create-image", icon: <ImageIcon /> },
+  { label: "Files", path: "/dashboard/projects", icon: <FolderIcon /> },
+  { label: "Analytics", path: "/dashboard/analytics", icon: <AnalyticsIcon /> }
 ];
 
-/* ---------------- RAIL ITEM ---------------- */
 
 const RailItem = ({ active, label, icon, onClick }) => {
-  const [hovered, setHovered] = React.useState(false);
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: 56,
-        border: "none",
-        background: hovered ? "rgba(59,130,246,0.08)" : "transparent",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        padding: "10px 0",
-        cursor: "pointer",
-        color: active ? "#1d4ed8" : "#4b5563",
-        borderRadius: 16,
-        transition: "background 160ms ease, transform 160ms ease"
-      }}
+      className={`group flex flex-col items-center justify-center gap-0.5 py-1 px-1.5 rounded-lg
+min-w-[48px] transition-all duration-150
+${active ? 'text-blue-700' : 'text-gray-600 hover:bg-blue-500/10'}`}
     >
       <div
-        style={{
-          width: 25,
-          height: 25,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: active
-            ? "linear-gradient(135deg, rgba(37,99,235,0.95), rgba(6,182,212,0.90))"
-            : hovered
-            ? "rgba(255,255,255,0.75)"
-            : "rgba(255,255,255,0.55)",
-          color: active ? "#fff" : "#374151",
-          backdropFilter: "blur(10px)",
-          boxShadow: active
-            ? "0 12px 30px rgba(37,99,235,0.35), 0 0 0 6px rgba(59,130,246,0.10)"
-            : hovered
-            ? "0 10px 22px rgba(15,23,42,0.10)"
-            : "none",
-          transition:
-            "background 160ms ease, box-shadow 160ms ease, transform 160ms ease",
-          transform: hovered ? "translateY(-1px)" : "translateY(0)"
-        }}
+        className={`flex h-[24px] w-[24px] items-center justify-center rounded-xl backdrop-blur-md transition-all duration-200
+${active
+            ? 'bg-gradient-to-br from-blue-600/95 to-cyan-500/90 text-white shadow-[0_12px_30px_rgba(37,99,235,0.35),0_0_0_6px_rgba(59,130,246,0.10)]'
+            : 'bg-white/55 text-gray-700 group-hover:bg-white/75 group-hover:shadow-lg'}`}
       >
         {React.cloneElement(icon, { active })}
       </div>
 
-      <span
-        style={{
-          fontSize: 10,
-          textAlign: "center",
-          fontWeight: active ? 700 : 600,
-          letterSpacing: 0.2,
-          opacity: active ? 1 : 0.9
-        }}
-      >
+      <span className={`hidden md:block text-[10px] text-center tracking-wide ${active ? 'font-bold opacity-100' : 'font-semibold opacity-90'
+        }`}>
         {label}
       </span>
     </button>
   );
 };
 
-/* ---------------- SIDEBAR ---------------- */
-
 const SideBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAdmin } = useAuth();
+  const [showCreate, setShowCreate] = useState(false);
 
-  const [isMobile, setIsMobile] = React.useState(false);
-  const [isTablet, setIsTablet] = React.useState(false);
 
-  React.useEffect(() => {
-    const checkScreen = () => {
-      const width = window.innerWidth;
-
-      setIsMobile(width <= 768);
-      setIsTablet(width > 768 && width <= 1024);
-    };
-
-    checkScreen(); // run on load
-    window.addEventListener("resize", checkScreen);
-
-    return () => window.removeEventListener("resize", checkScreen);
-  }, []);
-
-  const ITEMS = React.useMemo(() => {
+  const ITEMS = useMemo(() => {
     if (!isAdmin) return BASE_ITEMS;
-
     return [
       ...BASE_ITEMS,
       {
         label: "Admin",
-        path: "/admin-dash",
+        path: "/dashboard/admin-dash",
         icon: <AdminIcon />
       }
     ];
   }, [isAdmin]);
 
-  const go = (path) => {
-    navigate(path);
-  };
-
   return (
-    <aside
-      className="hide-scrollbar"
-      style={{
-        position: "fixed",
-        left: isMobile ? "50%" : 18,
-        top: isMobile ? "auto" : "calc(50% + 36px)",
-        bottom: isMobile ? 14 : "auto",
-        transform: isMobile ? "translateX(-50%)" : "translateY(-50%)",
-        width: isMobile ? "92%" : 64,
-        maxHeight: isMobile ? "auto" : "calc(100vh - 100px)",
-        background: "rgba(255,255,255,0.35)",
-        backdropFilter: "blur(16px)",
-        border: "1px solid rgba(59,130,246,0.28)",
-        borderRadius: 22,
-        padding: isMobile ? "10px 12px" : "10px 0",
-        display: "flex",
-        flexDirection: isMobile ? "row" : "column",
-        alignItems: "center",
-        justifyContent: isMobile ? "space-around" : "flex-start",
-        overflowY: isMobile ? "visible" : "auto",
-        overflowX: "visible",
-        scrollbarWidth: "none",
-        gap: 6,
-        boxShadow:
-          "0 18px 45px rgba(15,23,42,0.10), 0 0 0 1px rgba(255,255,255,0.45) inset",
-        zIndex: 9999
-      }}
-    >
-      {ITEMS.map((item) => (
-        <RailItem
-          key={item.path}
-          label={item.label}
-          icon={item.icon}
-          active={location.pathname === item.path}
-          onClick={() => go(item.path)}
-          // compact={isCompactRail}
-          // mobile={isMobile}
-        />
-      ))}
-    </aside>
+    <>
+      <aside
+        className={`
+                fixed z-[9999] flex items-center gap-0 md:gap-2 xl:gap-6
+                bottom-3 left-1/2 -translate-x-1/2 w-[95%] 
+                px-2 py-1.5 rounded-xl
+                bg-white/90 backdrop-blur-xl shadow-lg border border-white/50
+                flex-row justify-between
+                md:relative md:left-0 md:top-0 md:bottom-0 md:translate-x-0 md:translate-y-0 
+                md:h-screen md:w-20 md:flex-col md:justify-start md:py-8 md:px-0 
+                md:overflow-y-auto md:rounded-none md:bg-transparent md:shadow-none md:border-none
+        `}
+      >
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center
+    bg-gradient-to-br from-blue-600 to-cyan-500 text-white
+    shadow-lg shadow-blue-500/30 active:scale-95 transition"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+
+        {ITEMS.map((item) => (
+          <RailItem
+            key={item.path}
+            label={item.label}
+            icon={item.icon}
+            active={location.pathname === item.path}
+            onClick={() => navigate(item.path)}
+          />
+        ))}
+        <div className="flex justify-center w-full  items-center">
+          <button
+            onClick={() => navigate("/dashboard/help-support")}
+            className="md:flex w-8 h-8 rounded-lg items-center justify-center text-slate-600 cursor-pointer transition"
+          >
+            <FiHelpCircle size={22} color='gray' />
+          </button>
+        </div>
+
+      </aside>
+
+      {/* 4. Render the Popup and pass the state props */}
+      <CreatePopup
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
+
+    </>
   );
 };
 

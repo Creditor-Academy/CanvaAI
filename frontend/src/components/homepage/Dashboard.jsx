@@ -32,13 +32,14 @@ import {
 
 import logo from "../../assets/logo.png";
 import api from "../../services/api";
+import CreatePopup from "./CreatePopup";
 
 
 const TOOLS = [
   {
     name: "PPT",
     icon: HiOutlinePresentationChartLine,
-    route: "/presentation",
+    route: "/dashboard/presentation",
     color: "bg-blue-600 text-white"
   },
   {
@@ -50,13 +51,13 @@ const TOOLS = [
   {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
-    route: "/ai-presentation",
+    route: "/dashboard/ai-presentation",
     color: "bg-blue-700 text-white"
   },
   {
     name: "AI Image",
     icon: FaRegImage,
-    route: "/create/ai-design",
+    route: "/dashboard/create/ai-design",
     color: "bg-yellow-300 text-black"
   },
 ];
@@ -99,6 +100,72 @@ function LazyCard({ children, className = "", style = {} }) {
   );
 }
 
+function PPTHoverPreview({ slides }) {
+  const [hovering, setHovering] = React.useState(false);
+  const shouldScroll = slides && slides.length > 1;
+
+  // snappier duration: ~0.4s per slide for a brisk, Canva-like preview
+  const scrollDuration = shouldScroll ? slides.length * 0.4 : 0;
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden bg-slate-50"
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <motion.div
+        className="flex h-full"
+        initial={{ x: "0%" }}
+        animate={hovering && shouldScroll ? { x: "-50%" } : { x: "0%" }}
+        transition={{
+          x: {
+            duration: hovering ? scrollDuration : 0.45,
+            ease: hovering ? "linear" : "easeInOut",
+            repeat: hovering ? Infinity : 0,
+            repeatType: "loop"
+          }
+        }}
+        style={{
+          width: shouldScroll ? `${slides.length * 200}%` : "100%",
+          willChange: "transform"
+        }}
+      >
+        {shouldScroll ? (
+          // Duplicate the slide set for a truly seamless infinite loop
+          [...slides, ...slides].map((slide, i) => (
+            <div
+              key={`${slide.id || i}-${i}`}
+              className="h-full flex-shrink-0"
+              style={{ width: `${100 / (slides.length * 2)}%` }}
+            >
+              <PresentationThumbnail
+                slide={slide}
+                width="100%"
+                height="100%"
+                className="w-full h-full object-cover pointer-events-none"
+              />
+            </div>
+          ))
+        ) : (
+          <div className="w-full h-full flex-shrink-0">
+            {slides && slides.length > 0 ? (
+              <PresentationThumbnail
+                slide={slides[0]}
+                width="100%"
+                height="100%"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                <span className="text-[10px] font-semibold uppercase tracking-widest">No Preview</span>
+              </div>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 export default function Dashboard() {
   const navigate = useNavigate();
   const scrollRef = React.useRef(null);
@@ -276,6 +343,19 @@ export default function Dashboard() {
         box-shadow: 0 2px 6px rgba(10,93,187,0.3);
         animation: viewBtnPulse 0.4s ease-out;
       }
+      .custom-scrollbar-thin::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
       .dash-tab-pill {
         display: inline-flex;
         background: rgba(255,255,255,0.75);
@@ -322,13 +402,33 @@ export default function Dashboard() {
     return () => document.head.removeChild(style);
   }, []);
 
+  const getTemplateConfig = (tpl) => {
+    const fixedHeight = "h-56"; // Unified height for all cards
+
+    if (tpl._type === 'ppt') {
+      // 4/12 = 1/3 (3 items per row)
+      return { span: "col-span-12 sm:col-span-6 xl:col-span-4", height: fixedHeight };
+    }
+    const size = tpl.data?.canvasSize || { width: 800, height: 600 };
+    const ratio = size.width / size.height;
+
+    // Banner/YouTube: 3 per row
+    if (ratio > 1.5) {
+      return { span: "col-span-12 sm:col-span-6 xl:col-span-4", height: fixedHeight };
+    }
+
+    // Default/Mobile: 6 per row
+    // 2/12 = 1/6 (6 items per row)
+    return { span: "col-span-12 sm:col-span-4 xl:col-span-2", height: fixedHeight };
+  };
+
   const fullName =
     profile?.firstName
       ? `${profile.firstName} ${profile.lastName || ""}`
       : profile?.email?.split("@")[0] || "User";
 
   const handleRenewPlan = () => {
-    navigate("/pricing");
+    navigate("/dashboard/pricing");
   };
 
   // Template helpers
@@ -338,7 +438,29 @@ export default function Dashboard() {
     if (typeof data === 'string') {
       try { data = JSON.parse(data); } catch (e) { return null; }
     }
-    return data.slides?.[0] || (data.layers ? data : null);
+    // Consistent with getAllSlides
+    const slides = Array.isArray(data.slides) ? data.slides :
+      Array.isArray(data.pages) ? data.pages :
+        Array.isArray(data.layer) ? data.layer : null;
+
+    if (slides && slides.length > 0) return slides[0];
+    return data.layers ? data : null;
+  };
+
+  const getAllSlides = (item) => {
+    if (!item?.data) return [];
+    let data = item.data;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (e) { return []; }
+    }
+    // Comprehensive check for slide arrays
+    if (Array.isArray(data.slides)) return data.slides;
+    if (Array.isArray(data.pages)) return data.pages;
+    if (Array.isArray(data.layer)) return data.layer;
+
+    // Fallback for single-page templates
+    if (data.layers) return [data];
+    return [];
   };
 
   const handleViewPPT = async (tpl) => {
@@ -370,7 +492,7 @@ export default function Dashboard() {
             data: image.data,
           }));
           sessionStorage.setItem(`prefill_import_flag_${newId}`, '1');
-        } catch (e) {}
+        } catch (e) { }
         window.open(`/canva-clone/${newId}`, '_blank');
       }
       toast.success('Template imported to your account');
@@ -408,7 +530,7 @@ export default function Dashboard() {
     {
       icon: HiOutlinePresentationChartLine,
       title: "Presentation",
-      route: "/presentation"
+      route: "/dashboard/presentation"
     },
     {
       icon: FaRegImage,
@@ -421,19 +543,19 @@ export default function Dashboard() {
     {
       icon: HiOutlinePresentationChartLine,
       title: "AI PPT",
-      route: "/ai-presentation"
+      route: "/dashboard/ai-presentation"
     },
     {
       icon: FaRegImage,
       title: "AI Image",
-      route: "/create/ai-design"
+      route: "/dashboard/create/ai-design"
     }
   ];
 
 
   return (
-    <div className="min-h-screen bg-[#e9f4ff]">
-      <div className="relative ml-0 md:ml-[60px] lg:ml-[72px] pt-20 sm:pt-24 px-4 sm:px-6 lg:px-10 xl:px-14 pb-24 md:pb-0">
+    <div className="min-h-screen">
+      <div className="relative">
         {/* HERO */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -447,11 +569,7 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 w-full">
             {/* LEFT */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
-              <img
-                src={logo}
-                alt="logo"
-                className="h-12 xs:h-13 sm:h-16 md:h-18 lg:h-20 w-auto max-w-[110px] sm:max-w-[130px] lg:max-w-[160px] object-contain drop-shadow-lg shrink-0"
-              />
+              
 
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
@@ -552,7 +670,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-
         {/* TEMPLATES */}
         <div className="mt-10 pb-20 sm:pb-24">
           <div className="flex items-center justify-between mb-6 sm:mb-8 flex-wrap gap-3">
@@ -590,87 +707,78 @@ export default function Dashboard() {
           ) : visibleTemplates.length === 0 ? (
             <div className="text-center py-16 text-slate-400 text-sm">No templates available yet.</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+            <div className="grid grid-cols-12 gap-5 sm:gap-6 grid-flow-dense">
               {visibleTemplates.map((tpl) => {
                 const isPPT = tpl._type === 'ppt';
                 const slideData = isPPT ? getSlideData(tpl) : null;
+                const { span, height } = getTemplateConfig(tpl);
                 return (
                   <LazyCard
                     key={`${tpl._type}-${tpl._id || tpl.id}`}
-                    className="dash-tpl-card"
+                    className={`dash-tpl-card group flex flex-col justify-center items-center ${span}`}
                   >
                     <div
                       onClick={() => isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl)}
-                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner"
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner w-full transition-all duration-300 group-hover:shadow-xl group-hover:border-blue-400 "
                     >
                       {/* Thumbnail */}
-                      <div className="relative h-36 bg-[#eef2ff] flex items-center justify-center overflow-hidden">
+                      <div
+                        className={`relative w-full ${height} bg-[#eef2ff] flex items-center justify-center overflow-hidden`}
+                      >
                         {isPPT ? (
-                          slideData
-                            ? <PresentationThumbnail slide={slideData} width="100%" height="100%" />
-                            : <FiLayout size={36} color="#6366f1" />
+                          <PPTHoverPreview slides={getAllSlides(tpl)} />
                         ) : (
                           <div
-                            className="absolute inset-0"
+                            className="w-full h-full flex items-center justify-center"
                             ref={el => {
                               if (!el) return;
                               const cs = tpl.data?.canvasSize || { width: 800, height: 600 };
+
                               const setScale = () => {
-                                const w = el.offsetWidth || el.clientWidth;
-                                const h = el.offsetHeight || el.clientHeight;
+                                const w = el.offsetWidth;
+                                const h = el.offsetHeight;
                                 if (!w || !h) return;
-                                el.style.setProperty('--thumb-scale', String(Math.min(w / (cs.width || 800), h / (cs.height || 600))));
+
+                                el.style.setProperty(
+                                  '--thumb-scale',
+                                  String(Math.min(w / (cs.width || 800), h / (cs.height || 600)))
+                                );
                               };
+
                               setScale();
-                              const ro = new ResizeObserver(() => { setScale(); ro.disconnect(); });
+                              const ro = new ResizeObserver(() => {
+                                setScale();
+                                ro.disconnect();
+                              });
                               ro.observe(el);
                             }}
                           >
                             <ImageThumbPreview image={tpl} />
                           </div>
                         )}
-                        {/* Type indicator badge */}
-                        <div style={{
-                          position: 'absolute', top: 8, left: 8,
-                          background: 'rgba(0,0,0,0.35)',
-                          borderRadius: 8, padding: '4px 7px',
-                          display: 'flex', alignItems: 'center', gap: 5,
-                          backdropFilter: 'blur(6px)',
-                        }}>
-                          {isPPT ? (
-                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M4.99787498 9 L4.99787498 1 L19.5 1 L23 4.5 L23 23 L4 23" />
-                              <path d="M18 1 L18 6 L23 6" />
-                              <path d="M4 12 L4.25 12 L5.5 12 C7.5 12 9 12.5 9 14.25 C9 16 7.5 16.5 5.5 16.5 L4.25 16.5 L4.25 19 L4 19 L4 12 Z" />
-                            </svg>
-                          ) : (
-                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7">
-                              <rect x="3" y="3" width="18" height="18" rx="3" />
-                              <circle cx="8.5" cy="8.5" r="1.5" />
-                              <path d="M21 15l-5-5-4 4-3-3-6 6" />
-                            </svg>
-                          )}
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>
-                            {isPPT ? 'PPT' : 'Image'}
-                          </span>
+
+                        {/* Badges Overlay */}
+
+                        {/* Type Badge (Top-Left) */}
+                        <div className="absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-2 group-hover:translate-x-0">
+                          <div className="bg-blue-600/90 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border border-blue-400/30">
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                              {isPPT ? "PPT" : "Image"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      {/* Card info */}
-                      <div className="p-3 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-slate-900 text-sm truncate">
-                            {tpl.title || 'Untitled Template'}
-                          </h3>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {isPPT ? 'Presentation' : 'Image'} template
-                          </p>
+
+                        {/* Dimension Badge (Bottom-Right) */}
+                        <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                          <div className="bg-white/95 backdrop-blur-md px-2 py-1 rounded-lg border border-slate-200 shadow-lg flex items-center gap-2">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                              {isPPT ? "Slides" : "Size"}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-slate-800">
+                              {isPPT ? (tpl.slideCount || 0) : `${tpl.data?.canvasSize?.width || 800}x${tpl.data?.canvasSize?.height || 600}`}
+                            </span>
+                          </div>
                         </div>
-                        <button
-                          onClick={e => { e.stopPropagation(); isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl); }}
-                          className="dash-view-btn"
-                        >
-                          View
-                        </button>
                       </div>
                     </div>
                   </LazyCard>
@@ -700,7 +808,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-
       {/* PPT TEMPLATE PREVIEW MODAL */}
       <TemplatePreviewModal
         isOpen={isPreviewOpen}
@@ -725,121 +832,10 @@ export default function Dashboard() {
       )}
 
       {/* CREATE MODAL */}
-      <AnimatePresence>
-        {showCreate && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4 sm:p-5"
-          >
-            <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-             className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
-            >
-              <button
-                onClick={() => setShowCreate(false)}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-600 hover:text-slate-900 w-10 h-10 rounded-full bg-white/70 hover:bg-white flex items-center justify-center border border-white/60 shadow-sm"
-              >
-                <FiX size={22} />
-              </button>
-
-              <h2 className="text-xl sm:text-2xl font-bold text-blue-900 mb-5 sm:mb-6">
-                Quick Start
-              </h2>
-
-
-              <div className="inline-flex bg-white/70 backdrop-blur-xl rounded-full p-1 w-fit mb-6 sm:mb-8 border border-white/70 shadow-sm">
-                <button
-                  onClick={() => setTab("manual")}
-                  className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "manual"
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Manual
-                </button>
-
-
-                <button
-                  onClick={() => setTab("ai")}
-                  className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "ai"
-                    ? "bg-yellow-400 text-black shadow"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  AI
-                </button>
-              </div>
-
-
-              {tab === "ai" ? (
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                 className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
-                >
-                  {aiTools.map((tool, i) => {
-                    const Icon = tool.icon;
-                    return (
-                      <div className="ai-tool-wrapper" key={i}>
-                        <motion.div
-                          onClick={() => navigate(tool.route)}
-                          className="cursor-pointer rounded-2xl border border-blue-100 shadow-sm transition flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px] relative ai-tool-inner"
-                        >
-                          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
-                            <Icon size={22} />
-                          </div>
-                          <p className="font-semibold text-blue-900 text-sm">
-                            {tool.title}
-                          </p>
-                          <span className="absolute top-3 right-3 text-yellow-500">
-                            <FiZap size={16} />
-                          </span>
-                        </motion.div>
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
-                >
-                  {manualTools.map((tool, i) => {
-                    const Icon = tool.icon;
-
-
-                    return (
-                      <motion.div
-                        key={i}
-                        whileHover={{ y: -5, scale: 1.02 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                        onClick={() => navigate(tool.route)}
-                        className="cursor-pointer rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 shadow-[0_6px_18px_rgba(37,99,235,0.15)] hover:shadow-[0_12px_28px_rgba(37,99,235,0.25)] transition flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px]"
-                      >
-                        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 ring-2 ring-blue-200">
-                          <Icon size={22} />
-                        </div>
-
-
-                        <p className="font-semibold text-blue-900 text-sm tracking-wide">
-                          {tool.title}
-                        </p>
-                      </motion.div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CreatePopup
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </div>
   );
 }

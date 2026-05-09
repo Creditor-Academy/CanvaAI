@@ -18,6 +18,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assuming you have one, or use simple text
 import { useAutoSave } from "./hooks/useAutoSave";
 import { useUIStore } from "./store/useUIStore";
+import LoadingPage from "../canva/components/LoadingPage";
 
 const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
@@ -107,7 +108,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   }, [id, isTemplate, initialData, user?._id, setPresentation, resetPresentation, navigate]);
 
   if (isLoading) {
-    return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>Loading Presentation...</div>;
+    return <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}><LoadingPage /></div>;
   }
 
   if (error) {

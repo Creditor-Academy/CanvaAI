@@ -240,7 +240,6 @@ const ImageUser = () => {
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             }
             .ai-btn-wrapper:hover {
-                transform: translateY(-4px);
                 box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
             }
             .ai-btn-inner {
@@ -265,7 +264,7 @@ const ImageUser = () => {
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             }
             .fresh-btn-wrapper:hover {
-                transform: translateY(-4px);
+               
                 box-shadow: 0 20px 25px -5px rgba(59,130,246,0.35), 0 10px 10px -5px rgba(59,130,246,0.15);
             }
             .fresh-btn-inner {
@@ -373,7 +372,7 @@ const ImageUser = () => {
 
                     {/* Action Buttons */}
                     <div style={imgStyles.actionGrid}>
-                        <div className="ai-btn-wrapper" onClick={() => window.open('/create/ai-design', '_blank')}>
+                        <div className="ai-btn-wrapper" onClick={() => window.open('/dashboard/create/ai-design', '_blank')}>
                             <div className="ai-btn-inner">
                                 <div style={imgStyles.iconContainer}>
                                     <Sparkles size={32} color="#fff" />

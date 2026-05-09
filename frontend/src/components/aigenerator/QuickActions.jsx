@@ -9,25 +9,25 @@ const actions = [
     label: 'Auto Design',
     icon: <MdFlashOn size={22} color="#9760ff" />,
     description: 'Generate a design from your idea.',
-    path: '/create/ai-design',
+    path: '/dashboard/create/ai-design',
   },
   {
     label: 'Smart Copy',
     icon: <MdTextFields size={22} color="#9760ff" />,
     description: 'AI marketing copy, ready to use.',
-    path:  '/create/content-writer',
+    path:  '/dashboard/create/content-writer',
   },
   {
     label: 'Layout Magic',
     icon: <MdWidgets size={22} color="#9760ff" />,
     description: 'Responsive layouts fast.',
-    path: '/create/Brand-Builder',
+    path: '/dashboard/create/Brand-Builder',
   },
   {
     label: 'AI Enhance',
     icon: <MdAutoAwesome size={22} color="#9760ff" />,
     description: 'Upgrade assets for web.',
-    path: '/create/artistic-image',
+    path: '/dashboard/create/artistic-image',
   },
 ];
 

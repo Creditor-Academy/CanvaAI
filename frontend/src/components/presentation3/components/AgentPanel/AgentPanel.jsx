@@ -317,7 +317,7 @@ const AgentPanel = ({ isOpen, onClose, manualSave, onRequestSaveHighlight }) => 
                 className="balance-popup-primary"
                 onClick={() => {
                   setShowBalancePopup(false);
-                  window.location.href = "/pricing";
+                  window.location.href = "/dashboard/pricing";
                 }}
               >
                 Renew Plan

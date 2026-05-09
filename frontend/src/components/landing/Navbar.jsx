@@ -22,7 +22,7 @@ const Navbar = () => {
   const handleLoginClick = (e) => {
     e.preventDefault();
     if (isTokenValid()) {
-      navigate("/home", { replace: true });
+      navigate("/dashboard/home", { replace: true });
     } else {
       navigate("/login");
     }
@@ -35,7 +35,7 @@ const Navbar = () => {
           <a className="brand">
             <img src={logo} alt="Designova AI" className="brand-logo" />
             <div className="brand-text"> <strong>Designova </strong> </div>
-            
+
           </a>
         </div>
 

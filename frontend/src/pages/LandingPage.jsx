@@ -27,12 +27,6 @@ const LandingPage = () => {
       <Hero />
       <Features />
       <HowItWorks />
-   
-    
-   
-      
-     
-      
       <FAQ />
       <CTA />
       <Footer />
