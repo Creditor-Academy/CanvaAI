@@ -416,11 +416,22 @@ const Presentation = () => {
                       <div
                         key={ppt._id}
                         onClick={() => window.open(`/presentation-editor-v3/${ppt._id}?template=false`, '_blank')}
-                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:border-indigo-500"
+                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:border-indigo-500 group"
                       >
-                        <div className="h-[140px] bg-slate-100 flex items-center justify-center">
+                        <div className="h-[140px] bg-slate-100 flex items-center justify-center relative">
                           {getSlideData(ppt) ? (
-                            <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
+                            <>
+                              <PresentationThumbnail slide={getSlideData(ppt)} width="100%" height="100%" />
+                              {/* Slide Count Overlay */}
+                              <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[1px]">
+                                <div className="absolute top-3 right-3 bg-white/95 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-xl transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 border border-indigo-100">
+                                  <FiLayout size={13} className="text-indigo-600" />
+                                  <span className="text-[0.7rem] font-extrabold text-slate-800 uppercase tracking-tight">
+                                    {getSlideCount(ppt)} {getSlideCount(ppt) === 1 ? 'Slide' : 'Slides'}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
                           ) : (
                             <FiFileText size={40} className="text-slate-400" />
                           )}
@@ -475,36 +486,25 @@ const Presentation = () => {
                       <div
                         key={tpl._id}
                         onClick={() => handleViewTemplate(tpl)}
-                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:border-indigo-500"
+                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:border-indigo-500 group"
                       >
                         <div className="h-[140px] bg-indigo-50 flex items-center justify-center relative">
                           {getSlideData(tpl) ? (
-                            <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
+                            <>
+                              <PresentationThumbnail slide={getSlideData(tpl)} width="100%" height="100%" />
+                              {/* Slide Count Overlay */}
+                              <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[1px]">
+                                <div className="absolute top-3 right-3 bg-white/95 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-xl transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 border border-indigo-100">
+                                  <FiLayout size={13} className="text-indigo-600" />
+                                  <span className="text-[0.7rem] font-extrabold text-slate-800 uppercase tracking-tight">
+                                    {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
                           ) : (
                             <FiLayout size={40} className="text-indigo-500" />
                           )}
-                        </div>
-                        <div className="p-4 flex justify-between items-center">
-                          <div className="overflow-hidden">
-                            <h3 className="font-sans text-base font-semibold m-0 whitespace-nowrap overflow-hidden text-ellipsis text-slate-900">{tpl.title}</h3>
-                            {getSlideCount(tpl) > 0 && (
-                              <div className="inline-flex items-center text-[0.75rem] text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-xl font-semibold mt-1">
-                                <FiLayout size={12} className="mr-1" />
-                                {getSlideCount(tpl)} {getSlideCount(tpl) === 1 ? 'Slide' : 'Slides'}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewTemplate(tpl);
-                              }}
-                              className="view-btn"
-                            >
-                              View
-                            </button>
-                          </div>
                         </div>
                       </div>
                     ))}

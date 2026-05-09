@@ -531,6 +531,8 @@ const ImageLayout = () => {
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </div>
+
+
                                             </div>
                                         )
                                     })}
@@ -597,26 +599,6 @@ const ImageLayout = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between gap-2 p-4">
-                                                    <div className="min-w-0 flex-1 overflow-hidden">
-                                                        <h3 className="truncate text-base font-semibold text-slate-900">
-                                                            {tpl.title || 'Untitled Template'}
-                                                        </h3>
-                                                        <p className="mt-0.5 text-sm text-slate-500">
-                                                            {new Date(tpl.createdAt).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            setSelectedImage(tpl)
-                                                        }}
-                                                        className="view-btn"
-                                                    >
-                                                        View
-                                                    </button>
-                                                </div>
                                             </div>
                                         )
                                     })}

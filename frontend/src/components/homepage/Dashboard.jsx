@@ -812,7 +812,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-
       {/* PPT TEMPLATE PREVIEW MODAL */}
       <TemplatePreviewModal
         isOpen={isPreviewOpen}
