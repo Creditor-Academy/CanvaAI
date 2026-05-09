@@ -286,7 +286,7 @@ const renderCurrentStep = () => {
   return (
     <>
       <Header
-        onBack={() => navigate('/presentation')}
+        onBack={() => navigate('/dashboard/presentation')}
         title="AI Presentation Studio"
         subtitle="Create stunning presentations with AI in seconds"
       />

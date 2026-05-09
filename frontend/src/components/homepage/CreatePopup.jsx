@@ -1,10 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import {
-    FiX,
-    FiZap
-} from "react-icons/fi";
+import { FiX, FiZap } from "react-icons/fi";
 import { HiOutlinePresentationChartLine } from "react-icons/hi2";
 import { FaRegImage } from "react-icons/fa";
 
@@ -28,7 +25,7 @@ const CreatePopup = ({ isOpen, onClose }) => {
     const aiTools = [
         {
             icon: HiOutlinePresentationChartLine,
-            title: "AI PPT",
+            title: "AI Presentation",
             route: "/dashboard/ai-presentation"
         },
         {
@@ -38,6 +35,8 @@ const CreatePopup = ({ isOpen, onClose }) => {
         }
     ];
 
+    const currentTools = tab === "manual" ? manualTools : aiTools;
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -45,117 +44,95 @@ const CreatePopup = ({ isOpen, onClose }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[10000] p-4 sm:p-5"
+                    className="fixed inset-0 bg-slate-950/30 backdrop-blur-sm flex items-center justify-center z-[10000] p-6"
                 >
                     <motion.div
-                        initial={{ y: -30, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -20, opacity: 0 }}
-                        className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
+                        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                        className="bg-white rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.12)] w-full max-w-[480px] overflow-hidden relative border border-slate-100"
                     >
-                        {/* CLOSE BUTTON */}
-                        <button
-                            onClick={onClose}
-                            className="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-600 hover:text-slate-900 w-10 h-10 rounded-full bg-white/70 hover:bg-white flex items-center justify-center border border-white/60 shadow-sm"
-                        >
-                            <FiX size={22} />
-                        </button>
-
-                        <h2 className="text-xl sm:text-2xl font-bold text-blue-900 mb-5 sm:mb-6">
-                            Quick Start
-                        </h2>
-
-                        {/* TAB SWITCH */}
-                        <div className="inline-flex bg-white/70 backdrop-blur-xl rounded-full p-1 w-fit mb-6 sm:mb-8 border border-white/70 shadow-sm">
+                        {/* Header */}
+                        <div className="p-8 pb-0 flex justify-between items-start">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                                    Create New
+                                </h2>
+                                <p className="text-slate-500 text-sm mt-1 font-medium">
+                                    Select a tool to start your project
+                                </p>
+                            </div>
                             <button
-                                onClick={() => setTab("manual")}
-                                className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "manual"
-                                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow"
-                                    : "text-slate-600 hover:text-slate-900"
-                                    }`}
+                                onClick={onClose}
+                                className="text-slate-400 hover:text-slate-900 transition-colors p-2 hover:bg-slate-50 rounded-full"
                             >
-                                Manual
-                            </button>
-
-                            <button
-                                onClick={() => setTab("ai")}
-                                className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition ${tab === "ai"
-                                    ? "bg-yellow-400 text-black shadow"
-                                    : "text-slate-600 hover:text-slate-900"
-                                    }`}
-                            >
-                                AI
+                                <FiX size={20} />
                             </button>
                         </div>
 
-                        {/* AI TOOLS */}
-                        {tab === "ai" ? (
-                            <motion.div
-                                key="ai"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
-                            >
-                                {aiTools.map((tool, i) => {
+                        {/* Tabs */}
+                        <div className="px-8 mt-8">
+                            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full">
+                                <button
+                                    onClick={() => setTab("manual")}
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                                        tab === "manual"
+                                            ? "bg-white text-slate-900 shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    Standard
+                                </button>
+                                <button
+                                    onClick={() => setTab("ai")}
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                                        tab === "ai"
+                                            ? "bg-white text-indigo-600 shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    AI Powered
+                                    <FiZap size={14} className={tab === 'ai' ? 'text-indigo-500' : 'text-slate-400'} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Grid */}
+                        <div className="p-8 pt-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                {currentTools.map((tool, i) => {
                                     const Icon = tool.icon;
-                                    return (
-                                        <div className="ai-tool-wrapper" key={i}>
-                                            <motion.div
-                                                onClick={() => {
-                                                    onClose();       // ✅ close popup
-                                                    window.open(tool.route, "_blank"); // ✅ then navigate
-                                                }}
-                                                className="cursor-pointer rounded-2xl border border-blue-100 shadow-sm flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px] relative ai-tool-inner"
-                                            >
-                                                <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
-                                                    <Icon size={22} />
-                                                </div>
-
-                                                <p className="font-semibold text-blue-900 text-sm">
-                                                    {tool.title}
-                                                </p>
-
-                                                <span className="absolute top-3 right-3 text-yellow-500">
-                                                    <FiZap size={16} />
-                                                </span>
-                                            </motion.div>
-                                        </div>
-                                    );
-                                })}
-                            </motion.div>
-                        ) : (
-                            /* MANUAL TOOLS */
-                            <motion.div
-                                key="manual"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
-                            >
-                                {manualTools.map((tool, i) => {
-                                    const Icon = tool.icon;
-
+                                    const isAI = tab === 'ai';
+                                    
                                     return (
                                         <motion.div
                                             key={i}
-                                            whileHover={{ y: -5, scale: 1.02 }}
+                                            whileHover={{ y: -4, backgroundColor: '#f8fafc', borderColor: isAI ? '#e0e7ff' : '#f1f5f9' }}
+                                            whileTap={{ scale: 0.98 }}
                                             onClick={() => {
-                                                onClose();       // ✅ close popup
-                                                window.open(tool.route, "_blank"); // ✅ then navigate
+                                                onClose();
+                                                window.open(tool.route, "_blank");
                                             }}
-                                            className="cursor-pointer rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 shadow-md flex flex-col items-center justify-center gap-3 h-[120px] sm:h-[130px]"
+                                            className={`cursor-pointer group p-6 rounded-[24px] border border-slate-100 bg-white shadow-[0_2px_4px_rgba(0,0,0,0.02)] flex flex-col items-center gap-4 transition-all`}
                                         >
-                                            <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-                                                <Icon size={22} />
+                                            <div className={`w-14 h-14 flex items-center justify-center rounded-2xl transition-colors ${
+                                                isAI 
+                                                ? 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100' 
+                                                : 'bg-slate-50 text-slate-600 group-hover:bg-slate-100'
+                                            }`}>
+                                                <Icon size={24} />
                                             </div>
-
-                                            <p className="font-semibold text-blue-900 text-sm">
+                                            <span className="font-bold text-slate-900 text-sm">
                                                 {tool.title}
-                                            </p>
+                                            </span>
                                         </motion.div>
                                     );
                                 })}
-                            </motion.div>
-                        )}
+                            </div>
+                        </div>
+
+                        {/* Bottom Decoration */}
+                        <div className="h-2 w-full bg-gradient-to-r from-transparent via-slate-100 to-transparent opacity-50" />
                     </motion.div>
                 </motion.div>
             )}
@@ -163,4 +140,4 @@ const CreatePopup = ({ isOpen, onClose }) => {
     );
 };
 
-export default CreatePopup;
+export default CreatePopup;
