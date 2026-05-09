@@ -333,7 +333,7 @@ const renderCurrentStep = () => {
 };
 
 return (
-  <div className="presentation-studio">
+  <div className="">
     <div className="presentation-studio-container">
       {renderCurrentStep()}
 

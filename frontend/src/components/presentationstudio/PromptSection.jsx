@@ -4,8 +4,11 @@ import ThemeBrowserModal from './ThemeBrowserModal';
 import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
 import './styles/PresentationStudio.css';
 
-const FieldLabel = ({ children }) => (
-  <label className="ps-field-label">{children}</label>
+const FieldLabel = ({ children, required }) => (
+  <label className="ps-field-label">
+    {children}
+    {required && <span className="ps-required-star"> *</span>}
+  </label>
 );
 
 const CustomSelect = ({
@@ -14,6 +17,7 @@ const CustomSelect = ({
   onChange,
   options,
   placeholder,
+  required,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -31,7 +35,7 @@ const CustomSelect = ({
 
   return (
     <div className="ps-field-block">
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel required={required}>{label}</FieldLabel>
 
       <div
         className={`ps-custom-select ${isOpen ? 'open' : ''}`}
@@ -75,7 +79,7 @@ const CustomSelect = ({
 const TitleInput = ({ prompt, setPrompt }) => (
   <div className="ps-field-block">
     <div className="ps-field-info-row">
-      <FieldLabel>Title</FieldLabel>
+      <FieldLabel required>Title</FieldLabel>
       <span className={`ps-char-counter ${prompt.length >= 60 ? 'limit' : ''}`}>
         {prompt.length}/60
       </span>
@@ -93,7 +97,7 @@ const TitleInput = ({ prompt, setPrompt }) => (
 const OutlineInput = ({ outlineText, setOutlineText }) => (
   <div className="ps-field-block">
     <div className="ps-field-info-row">
-      <FieldLabel>Outline (Optional)</FieldLabel>
+      <FieldLabel required>Outline</FieldLabel>
       <span className={`ps-char-counter ${(outlineText?.length || 0) >= 500 ? 'limit' : ''}`}>
         {outlineText?.length || 0}/500
       </span>
@@ -111,10 +115,10 @@ const OutlineInput = ({ outlineText, setOutlineText }) => (
 const ToneSelector = ({ tone, setTone }) => {
   const tones = ['Professional', 'Friendly', 'Creative', 'Corporate'];
 
-
   return (
     <CustomSelect
-    label="Tone"
+      label="Tone"
+      required
       value={tone}
       onChange={setTone}
       placeholder="Select tone"
@@ -123,7 +127,7 @@ const ToneSelector = ({ tone, setTone }) => {
         value: item,
       }))}
     />
-  );  
+  );
 };
 
 const SlideSelector = ({ length, setLength }) => {
@@ -132,6 +136,7 @@ const SlideSelector = ({ length, setLength }) => {
   return (
     <CustomSelect
       label="Slides"
+      required
       value={length ? `${length} Slides` : ''}
       onChange={(selectedLabel) => {
         const numberOnly = selectedLabel.split(' ')[0];
@@ -150,7 +155,7 @@ const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
   const options = ['Ai-Images', 'No Media'];
   return (
     <div className="ps-field-block">
-      <FieldLabel>Media</FieldLabel>
+      <FieldLabel required>Media</FieldLabel>
       <div className="ps-chip-group">
         {options.map((opt) => {
           const isActive = mediaStyle === opt;
@@ -206,7 +211,7 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
 
   return (
     <div className="ps-field-block ps-fade-in ps-image-style-block">
-      <FieldLabel>Image Style</FieldLabel>
+      <FieldLabel required>Image Style</FieldLabel>
 
       <div className="ps-image-style-strip">
         {styles.map((style) => {
@@ -238,7 +243,7 @@ const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
 
 const ThemeGrid = ({ selectedTheme, onOpenModal }) => (
   <div className="ps-field-block ps-theme-section">
-    <FieldLabel>Theme</FieldLabel>
+    <FieldLabel required>Theme</FieldLabel>
     <div className="ps-theme-scroll">
       <div className="ps-theme-grid">
         {PRESENTATION_THEMES.map((theme) => (
@@ -305,6 +310,7 @@ const PromptSection = ({
 
   const canGenerate =
     prompt.trim() &&
+    outlineText?.trim() &&
     tone &&
     length &&
     mediaStyle &&
@@ -313,7 +319,15 @@ const PromptSection = ({
 
   const handleGenerateClick = () => {
     const topic = prompt.trim();
-    if (!topic || !selectedTheme) return;
+    if (
+      !topic ||
+      !outlineText?.trim() ||
+      !tone ||
+      !length ||
+      !mediaStyle ||
+      !selectedTheme ||
+      (mediaStyle === "Ai-Images" && !imageStyle)
+    ) return;
 
     handleGenerate({
       topic,

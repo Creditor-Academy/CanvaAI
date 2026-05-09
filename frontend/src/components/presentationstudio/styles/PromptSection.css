@@ -115,6 +115,11 @@
   letter-spacing: 0.01em;
 }
 
+.ps-required-star {
+  color: #ef4444;
+  margin-left: 4px;
+}
+
 .ps-textarea {
   width: 100%;
   border: 1px solid #dbe3f0;
