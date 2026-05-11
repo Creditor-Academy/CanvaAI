@@ -20,6 +20,14 @@ const VOICE_COMMANDS = {
 };
 
 const VoiceTyping = ({ isOpen, onClose, editor }) => {
+    const isMounted = useRef(true);
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
+
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
@@ -80,33 +88,41 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
                     interim += result[0].transcript;
                 }
             }
-            setInterimTranscript(interim);
+            if (isMounted.current) {
+                setInterimTranscript(interim);
+            }
             if (final) {
                 const isCommand = processCommand(final);
                 if (!isCommand && editor) {
                     editor.chain().focus().insertContent(final).run();
-                    setTranscript(prev => prev + final);
+                    if (isMounted.current) {
+                        setTranscript(prev => prev + final);
+                    }
                 }
             }
         };
 
         recognition.onerror = (event) => {
             if (event.error === 'no-speech') return;
-            setError(`Speech recognition error: ${event.error}`);
-            setIsListening(false);
+            if (isMounted.current) {
+                setError(`Speech recognition error: ${event.error}`);
+                setIsListening(false);
+            }
             isListeningRef.current = false;
         };
 
         // Fix: Use ref instead of state to avoid stale closure
         recognition.onend = () => {
-            if (isListeningRef.current) {
+            if (isListeningRef.current && isMounted.current) {
                 recognition.start();
             }
         };
 
         recognitionRef.current = recognition;
         recognition.start();
-        setIsListening(true);
+        if (isMounted.current) {
+            setIsListening(true);
+        }
         isListeningRef.current = true;
         toast.success('Voice typing started. Speak now!');
     }, [isSupported, language, editor, processCommand]);

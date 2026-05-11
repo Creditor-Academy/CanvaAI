@@ -51,7 +51,7 @@ const useTablePicker = (editor, runWithSavedSelection, preventEditorBlur) => {
     if (editor) {
       onMenuOpen(editor);
       setShowTablePicker(!showTablePicker);
-      
+
       if (!showTablePicker) {
         toast.info('Select table size');
       }
@@ -67,15 +67,22 @@ const useTablePicker = (editor, runWithSavedSelection, preventEditorBlur) => {
   }, []);
 
   /**
-   * Insert table with selected dimensions
+   * Insert table with selected dimensions.
+   *
+   * CRITICAL: Must use `insertCustomTable` (registered by TableExtension.js,
+   * which creates a `customTable` atom node).
+   * `insertTable` belongs to @tiptap/extension-table which is NOT used in this
+   * project — calling it throws "chain.insertTable is not a function".
+   * `withHeaderRow` is also an @tiptap/extension-table-only attribute and must
+   * be omitted — CustomTable.jsx handles header styling via its own attrs.
    */
   const handleInsertTable = useCallback(() => {
     if (editor && selectedRows > 0 && selectedCols > 0) {
       preventEditorBlur(() => {
-        runWithSavedSelection(editor, (chain) => 
-          chain.insertTable({ rows: selectedRows, cols: selectedCols, withHeaderRow: true })
+        runWithSavedSelection(editor, (chain) =>
+          chain.insertCustomTable({ rows: selectedRows, cols: selectedCols })
         );
-        toast.success(`${selectedRows}x${selectedCols} table inserted`);
+        toast.success(`${selectedRows}×${selectedCols} table inserted`);
         setShowTablePicker(false);
         setSelectedRows(0);
         setSelectedCols(0);

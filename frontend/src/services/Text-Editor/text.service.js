@@ -281,7 +281,7 @@ async function updateDocumentKeepAlive(documentId, documentData) {
     // Use native fetch with keepalive: true
     // This ensures the request completes even if the page is closed
     await fetch(url, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -297,13 +297,13 @@ async function updateDocumentKeepAlive(documentId, documentData) {
 }
 
 /**
- * Update existing document
+ * Update existing document (Partial Update via PATCH)
  * @param {string} documentId - Document ID
- * @param {Object} documentData - Updated document data
+ * @param {Object} documentData - Updated document data (only changed fields)
  * @returns {Promise<{id: string, message: string}>}
  */
 async function updateDocument(documentId, documentData) {
-  const response = await axios.put(
+  const response = await axios.patch(
     `${API_BASE_URL}/api/text-editor/document/${documentId}`,
     documentData,
     getAuthConfig()
@@ -329,12 +329,9 @@ async function deleteDocument(documentId) {
 /**
  * Get all documents for the authenticated user
  * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string}>}>}
- * 
- * Using deprecated /all/documents endpoint as /my-documents returns 404
  */
 async function getAllDocuments() {
-  // Use the deprecated but working endpoint
-  const url = `${API_BASE_URL}/api/text-editor/all/documents`;
+  const url = `${API_BASE_URL}/api/text-editor/my-documents`;
   
   const response = await axios.get(url, getAuthConfig());
   

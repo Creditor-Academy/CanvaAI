@@ -80,7 +80,7 @@ const initialState = {
   // Pagination & Layout
   pageSize: 'A4',
   pageOrientation: 'portrait',
-  pageMargins: { top: 96, bottom: 96, left: 72, right: 72 },
+  pageMargins: { top: 86, bottom: 86, left: 96, right: 96 },
   pageColor: '#ffffff',
 };
 

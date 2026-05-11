@@ -3,14 +3,15 @@ import { Image as TiptapImage } from '@tiptap/extension-image';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useEditorContext } from '../contexts/EditorContent.jsx';
+import { USABLE_WIDTH_PX } from '../../../utils/pagination/constants';
 
 // Resizable Image View Component
 const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [activeHandle, setActiveHandle] = useState(null);
   const [dimensions, setDimensions] = useState({
-    width: node.attrs.width || 300,
-    height: node.attrs.height || 200
+    width: node.attrs.width || 400,
+    height: node.attrs.height || 300
   });
 
   const { zoom = 100 } = useEditorContext() || {};
@@ -20,12 +21,15 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
   const startDims = useRef({ width: 0, height: 0 });
   const aspectRatio = useRef(1);
 
+  // Sync state with node attributes when they change externally
   useEffect(() => {
-    setDimensions({
-      width: node.attrs.width || 300,
-      height: node.attrs.height || 200
-    });
-  }, [node.attrs.width, node.attrs.height]);
+    if (!isResizing) {
+      setDimensions({
+        width: node.attrs.width || 400,
+        height: node.attrs.height || 300
+      });
+    }
+  }, [node.attrs.width, node.attrs.height, isResizing]);
 
   const onResizeStart = (e, handle) => {
     e.preventDefault();
@@ -38,14 +42,13 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
     startDims.current = { width: dimensions.width, height: dimensions.height };
 
     if (imgRef.current) {
-      aspectRatio.current = imgRef.current.naturalWidth / imgRef.current.naturalHeight;
+      aspectRatio.current = imgRef.current.naturalWidth / imgRef.current.naturalHeight || (dimensions.width / dimensions.height);
     }
   };
 
   const onResize = useCallback((e) => {
     if (!isResizing || !activeHandle) return;
 
-    // Acknowledge the editor's zoom level for accurate movement
     const currentZoom = (zoom || 100) / 100;
     const dx = (e.clientX - startPos.current.x) / currentZoom;
     const dy = (e.clientY - startPos.current.y) / currentZoom;
@@ -53,50 +56,31 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
     let newWidth = startDims.current.width;
     let newHeight = startDims.current.height;
 
-    // Professional convention: Shifting LOCKS aspect ratio. 
-    // If not shifted, we might want to lock by default for corners but free for edges.
-    // However, to keep it simple and robust, let's stick to a clear rule.
-    const isShiftPressed = e.shiftKey;
-    const lockAspect = !isShiftPressed; // Locked by default, unlocked with Shift
+    // Standard behavior: corner handles lock aspect ratio by default. 
+    // Holding Shift unlocks it.
+    const lockAspect = !e.shiftKey;
 
-    switch (activeHandle) {
-      case 'bottom-right':
-        newWidth = startDims.current.width + dx;
-        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height + dy;
-        break;
-      case 'bottom-left':
-        newWidth = startDims.current.width - dx;
-        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height + dy;
-        break;
-      case 'top-right':
-        newWidth = startDims.current.width + dx;
-        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height - dy;
-        break;
-      case 'top-left':
-        newWidth = startDims.current.width - dx;
-        newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height - dy;
-        break;
-      case 'right':
-        newWidth = startDims.current.width + dx;
-        if (lockAspect && !activeHandle.includes('-')) newHeight = newWidth / aspectRatio.current;
-        break;
-      case 'left':
-        newWidth = startDims.current.width - dx;
-        if (lockAspect && !activeHandle.includes('-')) newHeight = newWidth / aspectRatio.current;
-        break;
-      case 'bottom':
-        newHeight = startDims.current.height + dy;
-        if (lockAspect && !activeHandle.includes('-')) newWidth = newHeight * aspectRatio.current;
-        break;
-      case 'top':
-        newHeight = startDims.current.height - dy;
-        if (lockAspect && !activeHandle.includes('-')) newWidth = newHeight * aspectRatio.current;
-        break;
+    if (activeHandle === 'bottom-right') {
+      newWidth = startDims.current.width + dx;
+      newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height + dy;
+    } else if (activeHandle === 'bottom-left') {
+      newWidth = startDims.current.width - dx;
+      newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height + dy;
+    } else if (activeHandle === 'top-right') {
+      newWidth = startDims.current.width + dx;
+      newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height - dy;
+    } else if (activeHandle === 'top-left') {
+      newWidth = startDims.current.width - dx;
+      newHeight = lockAspect ? newWidth / aspectRatio.current : startDims.current.height - dy;
     }
 
-    // Constraints: Don't allow tiny images or wider than A4/Screen (increased limit to 2000px)
-    newWidth = Math.max(50, Math.min(newWidth, 2000));
-    newHeight = Math.max(50, newHeight);
+    // Constraints: Don't allow tiny images or wider than usable area
+    newWidth = Math.max(48, Math.min(newWidth, USABLE_WIDTH_PX));
+    if (lockAspect) {
+      newHeight = newWidth / aspectRatio.current;
+    } else {
+      newHeight = Math.max(48, newHeight);
+    }
 
     setDimensions({ width: Math.round(newWidth), height: Math.round(newHeight) });
   }, [isResizing, activeHandle, zoom]);
@@ -109,13 +93,16 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
         width: dimensions.width,
         height: dimensions.height
       });
+      
+      // Force immediate pagination to shift content to next page
+      if (editor?.commands?.forceRepaginate) {
+        editor.commands.forceRepaginate();
+      }
     }
-  }, [isResizing, dimensions, updateAttributes]);
+  }, [isResizing, dimensions, updateAttributes, editor]);
 
   useEffect(() => {
     if (isResizing) {
-      // NOTE: We don't include 'dimensions' in dependency to avoid re-adding listeners every pixel
-      // We rely on the refs for start values and local state for visual update
       window.addEventListener('mousemove', onResize);
       window.addEventListener('mouseup', onResizeStop);
       return () => {
@@ -129,69 +116,77 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
     if (imgRef.current && !node.attrs.width) {
       const naturalWidth = imgRef.current.naturalWidth;
       const naturalHeight = imgRef.current.naturalHeight;
-      const initialWidth = Math.min(naturalWidth, 2000);
-      const initialHeight = Math.round(initialWidth * (naturalHeight / naturalWidth));
+      
+      // Auto-scale to fit usable width if original is too large
+      const maxWidth = Math.min(naturalWidth, USABLE_WIDTH_PX);
+      const ratio = naturalHeight / naturalWidth;
+      const initialWidth = maxWidth;
+      const initialHeight = Math.round(maxWidth * ratio);
 
       setDimensions({ width: initialWidth, height: initialHeight });
-      updateAttributes({ width: initialWidth, height: initialHeight });
+      updateAttributes({ 
+        width: initialWidth, 
+        height: initialHeight,
+        originalWidth: naturalWidth,
+        originalHeight: naturalHeight
+      });
+
+      // Force immediate pagination to shift content after image loads
+      if (editor?.commands?.forceRepaginate) {
+        editor.commands.forceRepaginate();
+      }
     }
   };
 
   const alignment = node.attrs.align || 'left';
 
   const containerStyle = {
-    display: 'block',
-    textAlign: alignment === 'center' ? 'center' : alignment,
+    display: 'flex',
+    justifyContent: alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start',
     width: '100%',
-    clear: 'both',
-    margin: '1rem 0',
-    lineHeight: 0
+    margin: '1.5rem 0',
+    userSelect: isResizing ? 'none' : 'auto',
   };
 
   const wrapperStyle = {
     position: 'relative',
     display: 'inline-block',
     lineHeight: 0,
-    maxWidth: '100%',
-    outline: selected ? '2px solid #3b82f6' : 'none',
-    transition: 'outline 0.1s ease-in-out',
+    outline: selected || isResizing ? '2px solid #3b82f6' : '1px solid transparent',
+    boxShadow: selected ? '0 0 0 4px rgba(59, 130, 246, 0.1)' : 'none',
+    transition: 'outline 0.15s ease-in-out, shadow 0.15s ease-in-out',
     borderRadius: `${node.attrs.borderRadius || 0}px`,
+    cursor: isResizing ? 'nwse-resize' : 'default',
   };
 
   const imgStyle = {
     width: `${dimensions.width}px`,
-    height: `${dimensions.height}px`,
-    maxWidth: '100%',
-    objectFit: 'contain',
+    height: 'auto', // Keep height auto for CSS fluidity, but controlled by width
+    minWidth: '48px',
     display: 'block',
     borderRadius: `${node.attrs.borderRadius || 0}px`,
     border: node.attrs.borderWidth ? `${node.attrs.borderWidth}px solid ${node.attrs.borderColor || '#000'}` : 'none',
     opacity: (node.attrs.opacity || 100) / 100,
     transform: `rotate(${node.attrs.rotation || 0}deg)`,
+    pointerEvents: isResizing ? 'none' : 'auto',
   };
 
-  // Helper for handles - only bottom-right corner
-  const renderHandle = (type, positionStyle) => (
-    <div
-      onMouseDown={(e) => onResizeStart(e, type)}
-      style={{
-        position: 'absolute',
-        width: '12px',
-        height: '12px',
-        backgroundColor: '#3b82f6',
-        border: '2px solid white',
-        borderRadius: '50%',
-        zIndex: 100,
-        cursor: 'nwse-resize',
-        ...positionStyle,
-        display: selected || isResizing ? 'block' : 'none'
-      }}
-    />
-  );
+  const handleStyle = {
+    position: 'absolute',
+    width: '12px',
+    height: '12px',
+    backgroundColor: '#3b82f6',
+    border: '2px solid white',
+    borderRadius: '2px', // Square handles for a more "design tool" look
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+    zIndex: 100,
+    display: selected || isResizing ? 'block' : 'none',
+    transition: 'transform 0.1s ease',
+  };
 
   return (
     <NodeViewWrapper style={containerStyle}>
-      <div style={wrapperStyle} className="resizable-image-wrapper">
+      <div style={wrapperStyle} className={`resizable-image-wrapper ${selected ? 'is-selected' : ''}`}>
         <img
           ref={imgRef}
           src={node.attrs.src}
@@ -201,23 +196,39 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
           draggable={false}
         />
 
-        {/* Only bottom-right corner handle */}
-        {renderHandle('bottom-right', { bottom: '-6px', right: '-6px' })}
+        {/* Only bottom-right corner handle per user preference */}
+        <div onMouseDown={(e) => onResizeStart(e, 'bottom-right')} style={{ ...handleStyle, bottom: '-6px', right: '-6px', cursor: 'nwse-resize' }} />
 
-        {isResizing && (
+        {/* Dimension Badge */}
+        {(isResizing || selected) && (
           <div style={{
             position: 'absolute',
-            top: '5px',
-            left: '5px',
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            bottom: '8px',
+            right: '8px',
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(4px)',
             color: 'white',
-            padding: '2px 6px',
+            padding: '2px 8px',
             borderRadius: '4px',
             fontSize: '10px',
-            pointerEvents: 'none'
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            pointerEvents: 'none',
+            zIndex: 101,
+            opacity: isResizing ? 1 : 0.6,
           }}>
-            {dimensions.width} x {dimensions.height}
+            {dimensions.width} × {dimensions.height}
           </div>
+        )}
+
+        {/* Selection Overlay */}
+        {selected && !isResizing && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+            pointerEvents: 'none',
+          }} />
         )}
       </div>
     </NodeViewWrapper>
@@ -225,7 +236,7 @@ const ResizableImageView = ({ node, updateAttributes, editor, selected }) => {
 };
 
 export const ResizableImage = TiptapImage.extend({
-  name: 'resizableImage',
+  name: 'image', // Overrides standard image extension
 
   addOptions() {
     return {
@@ -423,6 +434,9 @@ export const ResizableImage = TiptapImage.extend({
 
   addCommands() {
     return {
+      setImage: (options) => ({ commands }) => {
+        return commands.setResizableImage(options);
+      },
       setResizableImage: (options) => ({ commands }) => {
         // Ensure required options
         const attrs = {

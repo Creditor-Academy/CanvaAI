@@ -1,172 +1,178 @@
 /* ============================================================================
-   REAL PAGINATION — GOOGLE DOCS STYLE (MAXIMALLY COMPACT)
+   REAL PAGINATION — GOOGLE DOCS STYLE
    
    ALIGNMENT GUARANTEE — every number maps to constants.js:
-   ┌─────────────────────────────────────────────────┐
-   │  Page:       794 × 1123 px  (A4 @ 96 DPI)       │
-   │  Margins:    48px top, 48px bottom, 48px sides  │
-   │  Usable:     698 × 1027 px                      │
-   │  Font:       11pt = 14.667px at 96 DPI          │
-   │  Line-height:20.6px (1.404 multiplier)          │
-   │  Para margin:0px                                │
-   │  Lines/page: 49-50  (996 / 20)                  │
-   └─────────────────────────────────────────────────┘
+   ┌──────────────────────────────────────────────────────────┐
+   │  Page:         794 × 1123 px  (A4 @ 96 DPI)             │
+   │  Margin top:   86px  (PAGE_MARGIN_TOP_PX)                │
+   │  Margin bot:   100px (PAGE_MARGIN_BOTTOM_PX)             │
+   │  Margin sides: 96px  (PAGE_MARGIN_LEFT/RIGHT_PX)         │
+   │  Safety buf:   8px   (SAFETY_BUFFER_PX)                  │
+   │  Usable H:     929px (1123 - 86 - 100 - 8)              │
+   │  Usable W:     602px (794 - 96 - 96)                     │
+   │  Font:         14.667px = 11pt @ 96 DPI                  │
+   │  Line-height:  1.3 → 19px  (LINE_HEIGHT_PX)              │
+   │  Para margin:  8px  (PARA_MARGIN_PX)                     │
+   │  Table row H:  31px (6px×2 padding + 19px line)          │
+   │  Table margin: 22px (0.75em × 2 ≈ 11px + 11px)          │
+   │  Image margin: 24px (IMAGE_MARGIN = 12px × 2)            │
+   └──────────────────────────────────────────────────────────┘
    ============================================================================ */
 
-/* ============================================================================
-   REAL PAGINATION — GOOGLE DOCS STYLE (MAXIMALLY COMPACT)
-   
-   ALIGNMENT GUARANTEE — every number maps to constants.js:
-   ┌─────────────────────────────────────────────────┐
-   │  Page:       794 × 1193 px  (minimal margins)   │
-   │  Padding:    15px top, 0 bottom, 72px sides     │
-   │  Usable:     650 × 1178 px  ← SAME capacity!    │
-   │  Font:       11pt = 14.667px at 96 DPI          │
-   │  Line-height:1.6 → 23.47px → JS uses 24px       │
-   │  Para margin:1em → 14.67px → JS uses 15px       │
-   │  Chars/line: 92  (650px ÷ 7.07px avg char)     │
-   │  Lines/page: 48  (floor((1178−15) / 24))        │
-   │                                                 │
-   │  Total saved: 57px per page vs original         │
-   └─────────────────────────────────────────────────┘
-   ============================================================================ */
-
-/* ── Custom properties (mirror constants.js exactly) ──────────────────────── */
+/* ── 0. CUSTOM PROPERTIES — single source of truth, mirrors constants.js ── */
 :root {
-  --page-w:         794px;
-  --page-h:        1123px;   /* Standard A4 height at 96 DPI */
-  --pad-top:         48px;   /* ✅ Sync with 0.5-inch standard */
-  --pad-bot:         48px;   
-  --pad-h:           48px;   
-  --usable-h:       996px;   /* 1027 - 31px safety buffer */
-  --usable-w:       698px;   
-  /* Capacity: Exactly 49-50 lines @ 20px each */
-  --page-gap:        6px;    
-  --page-bg:       #f1f5f9;
-  --font-px:     14.667px;   /* 11pt at 96 DPI */
-  --lh:               1.36;   
-  --lh-px:           20px;   
-  --para-mb:         0px;   
+  --page-w: 794px;
+  --page-h: 1123px;
+  /* A4 at 96 DPI */
+  --pad-top: 86px;
+  /* PAGE_MARGIN_TOP_PX */
+  --pad-bot: 100px;
+  /* PAGE_MARGIN_BOTTOM_PX */
+  --pad-h: 96px;
+  /* PAGE_MARGIN_LEFT/RIGHT_PX = 1 inch */
+  --usable-h: 929px;
+  /* 1123 - 86 - 100 - 8 = USABLE_HEIGHT_PX */
+  --usable-w: 602px;
+  /* 794 - 96 - 96 = USABLE_WIDTH_PX */
+  --page-gap: 32px;
+  --page-bg: #f1f5f9;
+  --font-px: 14.667px;
+  /* 11pt at 96 DPI */
+  --lh: 1.3;
+  /* LINE_HEIGHT_PX = 19px */
+  --lh-px: 19px;
+  /* 14.667 × 1.3 ≈ 19px */
+  --para-mb: 8px;
+  /* PARA_MARGIN_PX */
+  --img-margin: 12px;
+  /* 12px × 2 = 24px = IMAGE_MARGIN */
+  --table-margin: 0.75em;
+  /* 0.75em × 2 ≈ 22px = TABLE_MARGIN */
 }
 
-/* ── 1. BACKDROP ──────────────────────────────────────────────────────────── */
+/* ── 1. BACKDROP ─────────────────────────────────────────────────────────── */
 .editor-pages-container {
   background: radial-gradient(circle at center, #f8fafc 0%, #f1f5f9 100%);
-  /* ✅ MATCH DOCUMENT OUTLINE HEIGHT: Use full available height */
   height: 100%;
   flex: 1;
   min-height: 0;
-  padding: 16px 0 !important;  /* ✅ Reduced from 40px to match outline height */
-  box-sizing: border-box !important; /* ✅ CRITICAL: Ensures height: 100% respects padding */
+  /* 56px above first page, 120px breathing room below last page */
+  padding: 56px 0 120px 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  /* ✅ FIX: Use 100% width instead of 100vw to stay within parent container */
-  /* This prevents pages from being hidden behind outlines/sidebars */
-  /* and keeps scrollbar positioned correctly within the container */
-  width: 100% !important;
-  max-width: 100% !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
   position: relative;
-  /* ❌ REMOVED: viewport-width centering technique that caused layout issues */
-  /* left: 50%; */
-  /* right: 50%; */
-  /* margin-left: -50vw !important; */
-  /* margin-right: -50vw !important; */
-  box-sizing: border-box;
-  /* CRITICAL FIX: Use 'auto' to prevent scroll jumping issues */
   scroll-behavior: auto;
   overscroll-behavior: contain;
 }
-.editor-pages-container::-webkit-scrollbar       { width: 12px !important; }
-.editor-pages-container::-webkit-scrollbar-track { background: #f1f5f9 !important; border-radius: 0 !important; margin-top: 2px; margin-bottom: 2px; }
-.editor-pages-container::-webkit-scrollbar-thumb { 
-  background: #cbd5e1 !important; 
-  border-radius: 10px !important;  
-  border: 4px solid transparent !important;  
-  background-clip: padding-box !important;  
-  min-height: 80px !important;  
-}
-.editor-pages-container::-webkit-scrollbar-thumb:hover { 
-  background: #94a3b8 !important;
-  border: 4px solid transparent !important;
-  background-clip: padding-box !important;
-}
-.editor-pages-container::-webkit-scrollbar-corner { background: #dde1e7 !important; }
-.editor-pages-container { scrollbar-width: auto !important; scrollbar-color: #9ca3af #dde1e7 !important; }  /* ✅ CHANGED: auto instead of thin */
 
-/* ── 2. PAGE NODE ─────────────────────────────────────────────────────────── */
+/* Scrollbar */
+.editor-pages-container::-webkit-scrollbar {
+  width: 12px;
+}
+
+.editor-pages-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 0;
+  margin: 2px 0;
+}
+
+.editor-pages-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+  min-height: 80px;
+}
+
+.editor-pages-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+}
+
+.editor-pages-container::-webkit-scrollbar-corner {
+  background: #dde1e7;
+}
+
+.editor-pages-container {
+  scrollbar-width: auto;
+  scrollbar-color: #9ca3af #dde1e7;
+}
+
+/* ── 2. PAGE NODE ────────────────────────────────────────────────────────── */
 /*
- * STANDARD A4 LAYOUT - Correct dimensions matching constants.js:
- *   • Page height: 1123px (A4 at 96 DPI)
- *   • Page width: 794px (A4 at 96 DPI)
- *   • Top margin: 48px
- *   • Bottom margin: 48px
- *   • Side margins: 48px
- *   • Usable content: 1027px (1123 - 48 - 48)
+ * OVERFLOW STRATEGY — fixes 3-5 extra lines visible on paste/large-doc load:
  *
- * Google Docs approach:
- *   • All non-last pages are FIXED at exactly var(--page-h).
- *     The JS engine fills each page to USABLE_HEIGHT - SAFETY_BUFFER of content.
- *     overflow:hidden clips anything the estimate got slightly wrong.
+ *   .page            { overflow: hidden }  ← visual firewall (hard clip)
+ *   .page-content    { overflow: visible } ← lets ProseMirror render first
  *
- *   • The LAST page uses height:auto so it shrinks to its content.
- *     This eliminates the giant blank area at the end of documents.
+ *   The JS engine redistributes content within ~300ms (forceRepaginate).
+ *   Until then, the parent .page box clips any bleed so users never see
+ *   stray lines hanging below the bottom margin boundary.
+ *
+ * MARGIN SPEC (Google Docs standard, matched to constants.js):
+ *   top: 86px | bottom: 100px | sides: 96px (1 inch)
+ *   These are applied via .page-content padding, NOT .page padding,
+ *   so the margin area is not editable/clickable.
  */
 .page {
   width: var(--page-w);
   height: var(--page-h);
   box-sizing: border-box;
-  flex-shrink: 0 !important;
-  overflow: hidden !important; /* ✅ CRITICAL: Prevent content bleed between pages */
+  flex-shrink: 0;
   padding: 0;
+  /* margins live in .page-content padding */
   margin: 0 auto var(--page-gap);
-  background: #fff;
+  background: #ffffff;
   box-shadow:
-    0 1px 3px rgba(0,0,0,0.10),
-    0 2px 12px rgba(0,0,0,0.07);
+    0 1px 3px rgba(0, 0, 0, 0.10),
+    0 2px 12px rgba(0, 0, 0, 0.07);
   border-radius: 2px;
   position: relative;
   display: block;
-  overflow: hidden !important;  /* ✅ STRICT: Fixes 'hiding' lines in margin */
+  text-align: left;
+  overflow: hidden;
+  /* hard clip — prevents paste bleed */
   contain: layout style;
 
-  /* Typography root — sets the baseline that JS constants are calibrated to */
+  /* Typography root — calibrated to match JS constants */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: var(--font-px);   /* 14.667px — Sync with LINE_HEIGHT_PX */
-  line-height: var(--lh);      /* 1.41 — Sync with LINE_HEIGHT_PX */
+  font-size: var(--font-px);
+  line-height: var(--lh);
   color: #1f2937;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* First page gap */
-.page:first-child { margin-top: 0; }
+/* No extra top margin on first page — container padding handles the gap */
+.page:first-child {
+  margin-top: 0;
+}
 
-/* ── LAST PAGE: shrinks to content ───────────────────────────────────────── */
+/* Last page: fixed height prevents "sliding" on font-size changes */
 .page:last-child {
-  height: auto;
-  /* Never collapse below top-pad + 3 lines */
-  min-height: calc(var(--pad-top) + var(--lh-px) * 3);
-  /* ✅ CRITICAL FIX: Prevent page from growing beyond usable height */
-  /* This stops the page from expanding when Shift+Enter creates empty paragraphs */
+  height: var(--page-h);
   max-height: var(--page-h);
-  overflow: hidden;    /* ✅ Clip content that exceeds page height */
-  /* ✅ REDUCED: Bottom margin from 40px to 20px for more compact appearance */
+  overflow: hidden;
   margin-bottom: 20px;
 }
 
-/* Single-page doc: keep full-page appearance */
+/* Single-page document */
 .page:only-child {
-  height: auto;
+  height: var(--page-h);
   min-height: var(--page-h);
-  overflow: visible;
+  overflow: hidden;
 }
 
-/* ── 3. PROSEMIRROR ROOT ──────────────────────────────────────────────────── */
+/* ── 3. PROSEMIRROR ROOT ─────────────────────────────────────────────────── */
 .ProseMirror {
   outline: none;
   width: 100%;
@@ -175,290 +181,370 @@
   position: relative;
   z-index: 1;
   pointer-events: auto;
-  display: flex !important;           /* ✅ FIXED: Force flex for page stacking */
-  flex-direction: column !important;
+  display: flex;
+  flex-direction: column;
   align-items: center;
 }
 
-/* ── PAGE CONTENT (EDITABLE AREA) ────────────────────────────────────────── */
+/* ── 4. PAGE CONTENT (EDITABLE AREA) ────────────────────────────────────── */
 /*
- * This is where users can actually type.
- * Margin creates non-editable margin area OUTSIDE the content.
- * This prevents clicking/typing in the margin regions.
+ * Padding = Google Docs margins (top 86px / bottom 100px / sides 96px).
+ * overflow: visible — lets ProseMirror render before engine re-paginates.
+ *   The parent .page { overflow: hidden } is the visual hard clamp.
+ * Do NOT set overflow: hidden here — it breaks cursor positioning
+ *   near the bottom margin boundary inside ProseMirror.
  */
 .page-content {
-  /* ✅ MARGIN instead of padding - creates non-editable margin zones */
-  margin: var(--pad-top) var(--pad-h) var(--pad-bot);
-  
-  /* ✅ CRITICAL FIX: Constrain width and height to prevent overflow */
-  width: var(--usable-w);
-  max-width: var(--usable-w);
-  height: var(--usable-h);
-  max-height: var(--usable-h);
-  overflow: hidden; /* ✅ Ensures content doesn't overflow */
-  
+  padding: var(--pad-top) var(--pad-h) var(--pad-bot);
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: visible;
   display: block;
   visibility: visible;
-  white-space: normal !important;
+  white-space: normal;
+  word-spacing: -0.02em;
+  letter-spacing: -0.01em;
   position: relative;
   z-index: 1;
-  
-  /* ❌ REMOVED: Gradual fade-out at bottom edge (shadow effect of safety) */
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
-/* ── 4. PARAGRAPHS ────────────────────────────────────────────────────────── */
+/* ── 5. PARAGRAPHS ───────────────────────────────────────────────────────── */
 /*
- * margin-bottom: var(--para-mb) = 8px (REDUCED from 15px to fit 49+ lines).
- * Do NOT add margin-top or the JS height estimate will be off.
- * ✅ REDUCED: Was 15px, now 8px to allow more lines per page
+ * margin-bottom: var(--para-mb) = 8px = PARA_MARGIN_PX in constants.js.
+ * NO margin-top — the JS height estimator does not account for top margin.
+ * Last child rule matches the JS BUG-6 fix (removes trailing margin on
+ * every page's last block, not just the final page of the document).
  */
 .ProseMirror .page p {
-  font-size: var(--font-px) !important;
-  line-height: 20px !important;  /* ✅ PDF SYNC: 45 lines per page */
-  margin: 0 0 0 !important;  
+  text-align: left;
+  font-size: var(--font-px);
+  line-height: var(--lh);
+  margin: 0 0 var(--para-mb);
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
 }
-.page p:last-child { 
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
 
-/* ── UNIVERSAL LAST-CHILD RULE ──────────────────────────────────────────── */
-/* Remove bottom margin from ANY last block element to eliminate white space */
-.page > *:last-child {
+/* Last block on any page: remove bottom margin — mirrors JS BUG-6 fix */
+.page>*:last-child {
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
 
-/* ── PROSEMIRROR CONTAINER ─────────────────────────────────────────────── */
-/* Ensure no extra spacing at bottom of content area */
+.page p:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
 .page .ProseMirror {
   padding-bottom: 0 !important;
   margin-bottom: 0 !important;
 }
 
-/* ── 5. HEADINGS ──────────────────────────────────────────────────────────── */
+/* ── 6. HEADINGS ─────────────────────────────────────────────────────────── */
 /*
- * JS HEADING_EXTRA[] values are calibrated to these exact sizes and margins.
- * HEADING_EXTRA = [0, 86, 49, 30, 19, 19, 19] (recalibrated for CSS accuracy)
- *
- * h1: font-size=2em(29.3px), line-height=1.3(38.1px), margin=1.5em+0.75em=2.25em(66px)
- *     → Total for 1 line: 38.1px + 66px = 104.1px
- *     → HEADING_EXTRA = 104.1 - 20(LINE_H) = 84px (rounded to 86)
- *
- * h2: font-size=1.5em(22px), line-height=1.3(28.6px), margin=1.25em+0.5em=1.75em(38.5px)
- *     → Total for 1 line: 28.6px + 38.5px = 67.1px
- *     → HEADING_EXTRA = 67.1 - 20 = 47px (rounded to 49)
- *
- * h3: font-size=1.25em(18.3px), line-height=1.4(25.7px), margin=1em+0.5em=1.5em(22px)
- *     → Total for 1 line: 25.7px + 22px = 47.7px
- *     → HEADING_EXTRA = 47.7 - 20 = 28px (rounded to 30)
- *
- * h4-h6: font-size=1em(14.7px), line-height=1.4(20.5px), margin=0.75em+0.4em=1.15em(16.9px)
- *     → Total for 1 line: 20.5px + 16.9px = 37.4px
- *     → HEADING_EXTRA = 37.4 - 20 = 17px (rounded to 19)
+ * Margins calibrated to match getHeadingExtra() in paginationEngine.js.
+ * See comment block in paginationEngine.js for derivation of each value.
+ * DO NOT adjust margins without updating HEADING_EXTRA in the engine.
  */
 .ProseMirror .page h1 {
-  font-size: 2em;           /* 29.3px */
+  text-align: left;
+  font-size: 2em;
+  /* 29.3px */
   font-weight: 700;
   line-height: 1.3;
   margin: 1.5em 0 0.75em;
+  /* HEADING_EXTRA[1] = 86 */
   color: #0f172a;
 }
+
 .ProseMirror .page h2 {
-  font-size: 1.5em;         /* 22px */
+  text-align: left;
+  font-size: 1.5em;
+  /* 22px */
   font-weight: 600;
   line-height: 1.3;
   margin: 1.25em 0 0.5em;
+  /* HEADING_EXTRA[2] = 49 */
   color: #1e293b;
 }
+
 .ProseMirror .page h3 {
-  font-size: 1.25em;        /* 18.3px */
+  text-align: left;
+  font-size: 1.25em;
+  /* 18.3px */
   font-weight: 600;
   line-height: 1.4;
   margin: 1em 0 0.5em;
+  /* HEADING_EXTRA[3] = 30 */
   color: #334155;
 }
-.ProseMirror .page h4, .ProseMirror .page h5, .ProseMirror .page h6 {
+
+.ProseMirror .page h4,
+.ProseMirror .page h5,
+.ProseMirror .page h6 {
+  text-align: left;
   font-size: 1em;
   font-weight: 600;
   line-height: 1.4;
   margin: 0.75em 0 0.4em;
+  /* HEADING_EXTRA[4-6] = 19 */
 }
 
-/* ── 6. LISTS ─────────────────────────────────────────────────────────────── */
-/* li margin: 0.25em ≈ 3.7px → JS uses 4px (rounded up) */
-.ProseMirror .page ul, .ProseMirror .page ol {
-  margin: 0 0 var(--para-mb);
-  padding-left: 1.75em;
-}
-.ProseMirror .page li { 
-  margin-bottom: 0px !important; 
-  line-height: 20px !important; 
-}
-
-/* ── 7. IMAGES ────────────────────────────────────────────────────────────── */
-/* margin: 0.75em × 2 = 22px → JS IMAGE_MARGIN = 22px ✓ */
-.page img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 0.75em auto;
-  object-fit: contain;
-}
-
-/* ── 8. TABLES ────────────────────────────────────────────────────────────── */
+/* ── 7. LISTS ────────────────────────────────────────────────────────────── */
 /*
- * td: padding 6px × 2 + line 24px = 36px per row → JS TABLE_ROW_H = 36px ✓
- * table margin: 0.75em × 2 ≈ 22px → JS TABLE_MARGIN = 22px ✓
+ * li line-height: 1.6 → 14.667 × 1.6 = 23.47px → JS ceil = 24px ✓
+ * li margin-bottom: 0.25em = 3.67px → JS uses 4px ✓
+ * padding-left: 2em = 29.3px → JS subtracts 29px for list child width ✓
+ * These are the second-rule-wins values that JS getBlockMetrics reads.
+ */
+.ProseMirror .page ul,
+.ProseMirror .page ol,
+.page ul,
+.page ol {
+  margin: 0 0 var(--para-mb);
+  padding-left: 2em;
+  list-style-type: inherit;
+}
+
+.ProseMirror .page ul {
+  list-style-type: disc;
+}
+
+.ProseMirror .page ul ul {
+  list-style-type: circle;
+}
+
+.ProseMirror .page ul ul ul {
+  list-style-type: square;
+}
+
+.ProseMirror .page ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror .page li,
+.page li {
+  margin-bottom: 0.25em;
+  /* 3.67px → JS 4px ✓ */
+  padding: 0.25rem 0 0.25rem 0.5rem;
+  line-height: 1.6;
+  /* 23.47px → JS ceil = 24px ✓ */
+  display: list-item;
+}
+
+.ProseMirror .page li::marker,
+.page li::marker {
+  color: inherit;
+  font-weight: normal;
+}
+
+/* ── 8. IMAGES ───────────────────────────────────────────────────────────── */
+/*
+ * IMAGE_MARGIN = 24px → 12px top + 12px bottom (--img-margin = 12px) ✓
+ * max-width: 100% → never exceeds 602px usable column ✓
+ * max-height: 90% of usable height → matches JS: Math.min(ih, USABLE_HEIGHT * 0.9)
+ *   = 929 × 0.9 ≈ 836px ✓
+ * object-fit: contain → preserves aspect ratio, no cropping ✓
+ *
+ * Inserted image: dimensions constrained on first render so the engine
+ *   gets a stable height estimate immediately.
+ * Pasted image: same CSS applies; engine recalculates after load event fires.
+ *
+ * Note: only ONE .page img rule is defined here.
+ *   (The original file had two conflicting rules — merged below.)
+ */
+.page img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(var(--usable-h) * 0.9);
+  /* ≈ 836px — matches JS cap */
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: var(--img-margin) auto;
+  /* 12px top+bot = 24px = IMAGE_MARGIN */
+  border-radius: 2px;
+}
+
+/* Resizable image wrappers */
+.page .image-resizer,
+.page [data-type="resizableImage"] {
+  display: block;
+  max-width: 100%;
+  margin: var(--img-margin) auto;
+}
+
+.page .image-resizer img,
+.page [data-type="resizableImage"] img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(var(--usable-h) * 0.9);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: 0;
+  /* wrapper provides the margin */
+  border-radius: 2px;
+}
+
+/* ── 9. TABLES ───────────────────────────────────────────────────────────── */
+/*
+ * TABLE_ROW_H = 31px:  6px top-pad + 6px bot-pad + 19px (--lh-px) = 31px ✓
+ * TABLE_MARGIN = 22px: 0.75em × 2 ≈ 11 + 11 = 22px ✓
+ *
+ * table-layout: fixed → column widths are predictable; no reflow surprises.
+ * word-break: break-word → long URLs / strings don't blow out columns.
+ * overflow: hidden on td → individual cells never bleed past column boundary.
+ *
+ * Copy-paste large tables: the engine splits across pages using TABLE_ROW_H
+ * per row. These CSS values MUST stay in sync with that JS constant.
+ *
+ * Note: original file had two conflicting .page table and .page th/.page td
+ *   blocks. Merged into one definitive block below.
  */
 .page table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0.75em 0;
+  margin: var(--table-margin) 0;
+  /* 0.75em × 2 ≈ 22px = TABLE_MARGIN */
   font-size: inherit;
   table-layout: fixed;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
-.page th, .page td {
+
+.page th,
+.page td {
   border: 1px solid #d1d5db;
-  padding: 6px 10px;        /* 6px vertical — matches JS TABLE_ROW_H calculation */
+  padding: 6px 10px;
+  /* 6px vert × 2 + 19px line = 31px = TABLE_ROW_H */
   line-height: var(--lh);
+  /* 1.3 → 19px — must match JS */
   text-align: left;
   vertical-align: top;
   word-break: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  /* prevent single-cell horizontal bleed */
+  min-width: 0;
+  /* required for table-layout: fixed */
 }
+
 .page th {
   font-weight: 600;
   background: #f9fafb;
 }
 
-/* Lists */
-.page ul,
-.page ol {
-  margin: 0.5em 0;
-  padding-left: 2em;
+/* Subtle zebra stripe for readability on long pasted tables */
+.page tr:nth-child(even) td {
+  background: #fafafa;
 }
 
-.page li {
-  margin-bottom: 0.25em;
-  line-height: 1.6;
-}
-
-/* Images */
-.page img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 1em auto;
-  object-fit: contain;
-}
-
-/* Tables */
-.page table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1em 0;
-}
-
-.page th,
-.page td {
-  border: 1px solid #e5e7eb;
-  padding: 0.5em;
-  text-align: left;
-}
-
-.page th {
-  background-color: #f9fafb;
-  font-weight: 600;
-}
-
-/* Code blocks */
+/* ── 10. CODE BLOCKS ─────────────────────────────────────────────────────── */
+/*
+ * CODE_LINE_H = 20px, CODE_PAD = 30px (15px×2), CODE_MARGIN = 22px (11px×2) ✓
+ */
 .page pre {
-  background: #f3f4f6;
-  padding: 1em;
-  border-radius: 4px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85em;
+  line-height: 20px;
+  /* CODE_LINE_H = 20px */
+  padding: 15px 1em;
+  /* 15px × 2 = 30px = CODE_PAD */
+  border-radius: 6px;
+  margin: 11px 0;
+  /* 11px × 2 = 22px = CODE_MARGIN */
   overflow-x: auto;
-  margin: 1em 0;
+  overflow-y: hidden;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  max-width: 100%;
 }
 
 .page code {
-  font-family: 'Fira Code', 'Consolas', monospace;
-  font-size: 0.9em;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85em;
+  color: #eb5757;
+  background: rgba(235, 87, 87, 0.1);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
 }
 
-/* Blockquotes */
+.page pre code {
+  color: inherit;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ── 11. BLOCKQUOTES ─────────────────────────────────────────────────────── */
+/*
+ * BLOCKQUOTE_PAD = 8px (top+bot) plus inner content heights ✓
+ */
 .page blockquote {
   border-left: 4px solid #3b82f6;
-  padding-left: 1em;
-  margin: 1em 0;
-  color: #6b7280;
+  padding: 4px 1em 4px 1em;
+  /* 4px × 2 = 8px = BLOCKQUOTE_PAD */
+  margin: 0.75em 0;
+  color: #475569;
   font-style: italic;
+  background: #f8fafc;
+  border-radius: 0 4px 4px 0;
 }
 
-/* Horizontal rules */
+.page blockquote p {
+  margin: 0;
+  line-height: var(--lh);
+}
+
+/* ── 12. HORIZONTAL RULES ────────────────────────────────────────────────── */
+/*
+ * HR_H = 24px → 1px border + 11px margin × 2 ≈ 24px ✓
+ */
 .page hr {
   border: none;
   border-top: 2px solid #e5e7eb;
-  margin: 2em 0;
+  margin: 11px 0;
+  /* 11px × 2 ≈ 24px = HR_H */
+  height: 2px;
 }
 
-/* ==================== RESPONSIVE DESIGN ==================== */
+/* ── 13. LINKS ───────────────────────────────────────────────────────────── */
+.page a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
 
-/* Tablet - Adjust for potentially different toolbar layout */
-/* Tablet - Center page, no width distortion */
-@media screen and (max-width: 1024px) {
-  .editor-pages-container {
-    min-height: calc(100vh - 168px);
-    max-height: calc(100vh - 168px);
-    height: calc(100vh - 168px);
+.page a:hover {
+  color: #1d4ed8;
+}
+
+/* ── 14. SELECTION & CURSOR ──────────────────────────────────────────────── */
+.ProseMirror ::selection {
+  background-color: #cce2ff;
+}
+
+@keyframes cursor-blink {
+  to {
+    visibility: hidden;
   }
 }
 
-/* Mobile - Compact toolbar, adjust accordingly */
-/* Mobile - Maintain fixed page size, scale handles visibility */
-@media screen and (max-width: 768px) {
-  .editor-pages-container {
-    min-height: calc(100vh - 168px);
-    max-height: calc(100vh - 168px);
-    height: calc(100vh - 168px);
-    padding: 20px 0 !important;
-  }
+.ProseMirror-cursor {
+  animation: cursor-blink 1.1s steps(2, start) infinite;
 }
 
-/* Small mobile - Minimal UI */
-@media screen and (max-width: 480px) {
-  .editor-pages-container {
-    /* Very compact mobile UI (~80px) */
-    min-height: calc(100vh - 80px);
-    max-height: calc(100vh - 80px);
-    padding: 12px 0 30px;
-  }
-  
-  :root {
-    --font-px: 13.5px;
-    --lh-px: 22px;
-    --para-mb: 13px;
-    --page-gap: 8px;
-  }
-}
-
-/* Landscape orientation - Account for reduced vertical space */
-@media screen and (max-height: 600px) and (orientation: landscape) {
-  .editor-pages-container {
-    /* ✅ INCREASED: Maximum height in landscape mode */
-    min-height: calc(100vh - 60px);
-    max-height: calc(100vh - 60px);
-    height: calc(100vh - 60px);
-    padding: 4px 0 4px !important;  /* ✅ Minimal padding in landscape */
-  }
-}
-
-/* ==================== 10. PAGE BREAK INDICATOR ==================== */
-/* Visual marker showing where pages split */
+/* ── 15. PAGE BREAK INDICATOR ────────────────────────────────────────────── */
 .page-break-indicator {
   position: absolute;
   bottom: -20px;
@@ -467,7 +553,7 @@
   text-align: center;
   font-size: 11px;
   color: #9ca3af;
-  pointer-events: none;  /* CRITICAL: Never interfere with clicking/typing */
+  pointer-events: none;
   user-select: none;
 }
 
@@ -478,21 +564,87 @@
   margin-bottom: 5px;
 }
 
-/* ==================== 11. PRINT STYLES ==================== */
+.page-number-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── 16. RESPONSIVE ──────────────────────────────────────────────────────── */
+
+@media screen and (max-width: 1024px) {
+  .editor-pages-container {
+    min-height: calc(100vh - 168px);
+    max-height: calc(100vh - 168px);
+    height: calc(100vh - 168px);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .editor-pages-container {
+    min-height: calc(100vh - 168px);
+    max-height: calc(100vh - 168px);
+    height: calc(100vh - 168px);
+    padding: 20px 0 80px 0;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .editor-pages-container {
+    min-height: calc(100vh - 80px);
+    max-height: calc(100vh - 80px);
+    padding: 12px 0 30px 0;
+  }
+
+  :root {
+    --font-px: 13.5px;
+    --lh-px: 22px;
+    --para-mb: 13px;
+    --page-gap: 8px;
+  }
+}
+
+@media screen and (max-height: 600px) and (orientation: landscape) {
+  .editor-pages-container {
+    min-height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    padding: 4px 0 4px 0;
+  }
+}
+
+/* ── 17. PRINT ───────────────────────────────────────────────────────────── */
 @media print {
   .editor-pages-container {
     background: white;
     padding: 0;
+    height: auto;
+    overflow: visible;
   }
-  
+
   .page {
     margin: 0;
     box-shadow: none;
     page-break-after: always;
     break-after: page;
+    overflow: visible;
+    /* print renderer handles page boundaries */
   }
-  
+
+  .page:last-child {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
   .page-break-indicator,
+  .page-number-label,
   .page-number-badge {
     display: none;
   }

@@ -57,13 +57,7 @@ const TOOLS = [
     icon: IoDocument,
     route: "/create/ai-document",
     color: "bg-green-500 text-white"
-  },
-   {
-    name: "AI Image",
-    icon: FaRegImage,
-    route: "/create/ai-design",
-    color: "bg-yellow-300 text-black"
-  },
+  }
 ];
 
 const toolImages = [
@@ -82,11 +76,12 @@ function LazyCard({ children, className = "", style = {} }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && isMounted) {
           setVisible(true);
           io.disconnect();
         }
@@ -94,7 +89,10 @@ function LazyCard({ children, className = "", style = {} }) {
       { rootMargin: "120px" }
     );
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      isMounted = false;
+      io.disconnect();
+    };
   }, []);
 
   return (
@@ -375,7 +373,7 @@ export default function Dashboard() {
             data: image.data,
           }));
           sessionStorage.setItem(`prefill_import_flag_${newId}`, '1');
-        } catch (e) { }
+        } catch (e) {}
         window.open(`/canva-clone/${newId}`, '_blank');
       }
       toast.success('Template imported to your account');
@@ -742,7 +740,7 @@ export default function Dashboard() {
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
+             className="bg-white/85 backdrop-blur-xl rounded-[24px] sm:rounded-3xl shadow-[0_30px_80px_rgba(15,23,42,0.25)] w-full max-w-[560px] max-h-[90vh] overflow-y-auto p-5 sm:p-6 md:p-7 lg:p-8 relative border border-white/70"
             >
               <button
                 onClick={() => setShowCreate(false)}
@@ -785,7 +783,7 @@ export default function Dashboard() {
                   key={tab}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
+                 className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
                 >
                   {aiTools.map((tool, i) => {
                     const Icon = tool.icon;

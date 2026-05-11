@@ -10,7 +10,8 @@
     overflow-wrap: break-word;
     font-family: inherit;
     font-size: inherit;
-    line-height: 1.3 !important; /* ✅ FORCE standard for exact line counting */
+    line-height: 1.36; /* ✅ Synced with paginationEngine.js ratio */
+
     color: inherit;
     width: 100%;
     box-sizing: border-box;

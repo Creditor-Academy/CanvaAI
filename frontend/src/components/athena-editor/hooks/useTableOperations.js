@@ -1,162 +1,198 @@
 /**
  * useTableOperations Hook
- * 
- * Table row/column CRUD operations
- * Handles all table manipulation commands
+ *
+ * Table row/column CRUD operations for the `customTable` atom node
+ * (TableExtension.js / CustomTable.jsx).
+ *
+ * ARCHITECTURE NOTE — why these commands differ from @tiptap/extension-table:
+ * ─────────────────────────────────────────────────────────────────────────────
+ * The project uses a custom `customTable` node with `atom: true`.
+ * Atom nodes have no ProseMirror children — all data lives in node.attrs:
+ *   { rows, cols, cells: string[][] }
+ *
+ * Commands like addRowAfter, addColumnAfter, deleteRow, deleteColumn,
+ * toggleHeaderCell, and deleteTable all belong to @tiptap/extension-table
+ * and do NOT exist in this schema. Calling them throws
+ * "chain.X is not a function" or silently returns false.
+ *
+ * Fix: every operation reads the current attrs, mutates the cells array,
+ * and writes back via editor.commands.updateAttributes / insertContent /
+ * deleteSelection. This keeps the ProseMirror transaction model intact.
  */
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import focusUtils from '../components/editor/focusUtils';
-
-const { runWithSavedSelection } = focusUtils;
 
 /**
- * @typedef {Object} UseTableOperationsReturn
- * @property {Function} isInsideTable - Check if cursor is in table
- * @property {Function} addTableRow - Add row after current position
- * @property {Function} addTableColumn - Add column after current position
- * @property {Function} deleteTableRow - Delete current row
- * @property {Function} deleteTableColumn - Delete current column
- * @property {Function} toggleTableHeader - Toggle header cell
- * @property {Function} deleteTable - Delete entire table
+ * Find the customTable node nearest to the current selection.
+ * Returns { node, pos } or null if cursor is not inside one.
  */
+function findCustomTableAtSelection(editor) {
+  if (!editor) return null;
+  const { state } = editor;
+  const { selection } = state;
+  const { $from } = selection;
+
+  // Walk up the ancestor chain
+  for (let depth = $from.depth; depth >= 0; depth--) {
+    const node = $from.node(depth);
+    if (node?.type.name === 'customTable') {
+      return { node, pos: $from.before(depth) };
+    }
+  }
+
+  // Also check if the selection IS directly on the atom node
+  const { from } = selection;
+  const resolved = state.doc.resolve(from);
+  for (let d = resolved.depth; d >= 0; d--) {
+    const n = resolved.node(d);
+    if (n?.type.name === 'customTable') {
+      return { node: n, pos: resolved.before(d) };
+    }
+  }
+
+  return null;
+}
 
 /**
  * useTableOperations Hook
- * 
+ *
  * @param {any} editor - TipTap editor instance
- * @param {Function} runWithSavedSelection - Selection preservation helper
  * @returns {UseTableOperationsReturn}
  */
-const useTableOperations = (editor, runWithSavedSelection) => {
+const useTableOperations = (editor) => {
   /**
-   * Check if cursor is inside a table
-   * CRITICAL: Moved to top to avoid initialization issues
+   * Check if cursor is inside (or on) a customTable node.
    */
   const isInsideTable = useCallback(() => {
-    if (!editor) return false;
-
-    try {
-      const { state } = editor;
-      const { selection } = state;
-      const { $from } = selection;
-
-      // Check if selection is inside a table
-      for (let depth = $from.depth; depth > 0; depth--) {
-        const node = $from.node(depth);
-        if (node && (
-          node.type.name === 'table' || 
-          node.type.name === 'tableRow' || 
-          node.type.name === 'tableCell' || 
-          node.type.name === 'customTable'
-        )) {
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Error checking table position:', error);
-      return false;
-    }
+    return findCustomTableAtSelection(editor) !== null;
   }, [editor]);
 
   /**
-   * Add table row
+   * Internal helper: update attrs of the nearest customTable.
+   * Returns true on success, false if no table found.
+   */
+  const updateTableAttrs = useCallback((updater) => {
+    if (!editor) return false;
+    const found = findCustomTableAtSelection(editor);
+    if (!found) {
+      toast.error('Place the cursor inside a table first');
+      return false;
+    }
+    const { node, pos } = found;
+    const newAttrs = updater(node.attrs);
+    if (!newAttrs) return false;
+
+    const { state, view } = editor;
+    const tr = state.tr.setNodeMarkup(pos, null, newAttrs);
+    view.dispatch(tr);
+    return true;
+  }, [editor]);
+
+  /**
+   * Add a row after the last row.
+   * Appends a new empty row to node.attrs.cells and increments rows.
    */
   const addTableRow = useCallback(() => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-    if (editor.can().addRowAfter) {
-      runWithSavedSelection(editor, (chain) => chain.addRowAfter());
-      toast.success('Row added to table');
-    } else {
-      toast.error('No table selected or feature not available');
-    }
-  }, [editor, runWithSavedSelection]);
+    const ok = updateTableAttrs(({ rows, cols, cells, ...rest }) => {
+      const newRow = Array.from({ length: cols }, () => '');
+      return {
+        ...rest,
+        rows: rows + 1,
+        cols,
+        cells: [...(cells || []), newRow],
+      };
+    });
+    if (ok) toast.success('Row added');
+  }, [updateTableAttrs]);
 
   /**
-   * Add table column
-   */
-  const addTableColumn = useCallback(() => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-    if (editor.can().addColumnAfter) {
-      runWithSavedSelection(editor, (chain) => chain.addColumnAfter());
-      toast.success('Column added to table');
-    } else {
-      toast.error('No table selected or feature not available');
-    }
-  }, [editor, runWithSavedSelection]);
-
-  /**
-   * Delete table row
+   * Delete the last row.
+   * Removes the last entry from cells and decrements rows.
+   * Prevents deleting the only remaining row.
    */
   const deleteTableRow = useCallback(() => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-    if (editor.can().deleteRow) {
-      runWithSavedSelection(editor, (chain) => chain.deleteRow());
-      toast.success('Row deleted from table');
-    } else {
-      toast.error('No table selected or feature not available');
-    }
-  }, [editor, runWithSavedSelection]);
+    const ok = updateTableAttrs(({ rows, cols, cells, ...rest }) => {
+      if (rows <= 1) {
+        toast.error('Table must have at least one row');
+        return null;
+      }
+      return {
+        ...rest,
+        rows: rows - 1,
+        cols,
+        cells: (cells || []).slice(0, rows - 1),
+      };
+    });
+    if (ok) toast.success('Last row deleted');
+  }, [updateTableAttrs]);
 
   /**
-   * Delete table column
+   * Add a column after the last column.
+   * Appends an empty string to every row in cells and increments cols.
+   */
+  const addTableColumn = useCallback(() => {
+    const ok = updateTableAttrs(({ rows, cols, cells, ...rest }) => {
+      return {
+        ...rest,
+        rows,
+        cols: cols + 1,
+        cells: (cells || []).map(row => [...row, '']),
+      };
+    });
+    if (ok) toast.success('Column added');
+  }, [updateTableAttrs]);
+
+  /**
+   * Delete the last column.
+   * Removes the last element from every row and decrements cols.
+   * Prevents deleting the only remaining column.
    */
   const deleteTableColumn = useCallback(() => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-    if (editor.can().deleteColumn) {
-      runWithSavedSelection(editor, (chain) => chain.deleteColumn());
-      toast.success('Column deleted from table');
-    } else {
-      toast.error('No table selected or feature not available');
-    }
-  }, [editor, runWithSavedSelection]);
+    const ok = updateTableAttrs(({ rows, cols, cells, ...rest }) => {
+      if (cols <= 1) {
+        toast.error('Table must have at least one column');
+        return null;
+      }
+      return {
+        ...rest,
+        rows,
+        cols: cols - 1,
+        cells: (cells || []).map(row => row.slice(0, cols - 1)),
+      };
+    });
+    if (ok) toast.success('Last column deleted');
+  }, [updateTableAttrs]);
 
   /**
-   * Toggle table header
+   * Toggle header styling.
+   * customTable uses a flat fontWeight attr for the entire table.
+   * Toggling bold on the first row is approximated by toggling fontWeight.
    */
   const toggleTableHeader = useCallback(() => {
-    if (!editor) {
-      toast.error('Editor not available');
-      return;
-    }
-    if (editor.can().toggleHeaderCell) {
-      runWithSavedSelection(editor, (chain) => chain.toggleHeaderCell());
-      toast.success('Table header toggled');
-    } else {
-      toast.error('No table selected or feature not available');
-    }
-  }, [editor, runWithSavedSelection]);
+    const ok = updateTableAttrs((attrs) => ({
+      ...attrs,
+      fontWeight: attrs.fontWeight === 'bold' ? 'normal' : 'bold',
+    }));
+    if (ok) toast.success('Table header style toggled');
+  }, [updateTableAttrs]);
 
   /**
-   * Delete entire table
-   * Note: Should be wrapped in dialog confirmation before calling
+   * Delete the entire customTable node from the document.
    */
   const deleteTable = useCallback(() => {
-    if (!editor) {
-      toast.error('Editor not available');
+    if (!editor) return;
+    const found = findCustomTableAtSelection(editor);
+    if (!found) {
+      toast.error('Place the cursor inside a table first');
       return;
     }
-    if (editor.can().deleteTable) {
-      runWithSavedSelection(editor, (chain) => chain.deleteTable());
-      toast.success('Table deleted');
-    } else {
-      toast.error('No table selected or feature not available');
-    }
-  }, [editor, runWithSavedSelection]);
+    const { node, pos } = found;
+    const { state, view } = editor;
+    const tr = state.tr.delete(pos, pos + node.nodeSize);
+    view.dispatch(tr);
+    toast.success('Table deleted');
+  }, [editor]);
 
   return {
     isInsideTable,

@@ -1,84 +1,66 @@
 /**
  * constants.js — Single source of truth for all page dimensions.
  *
+ * ── STANDARD ──────────────────────────────────────────────────────────────────
+ * Google Docs / Production Editor Standard (1 inch = 96px at 96 DPI)
+ *
+ * A4 Page:   794 × 1123 px  (210mm × 297mm at 96 DPI)
+ * Margins:   96px all sides (1 inch = 25.4mm = 96px at 96 DPI)
+ *
+ * Content Area:
+ *   Usable Height = 1123 − 96 − 96 = 931 px
+ *   Usable Width  = 794  − 96 − 96 = 602 px
+ *
+ * Typography:
+ *   Font size:   14.667px (11pt at 96 DPI)
+ *   Line height: 1.4 × 14.667 = 20.5px
+ *   Para margin: 0px
+ *
  * ── RULE ──────────────────────────────────────────────────────────────────────
- * Every value here has an exact CSS counterpart in real-pagination.css.
- * Change one → change both. Drift = empty space or content overflow.
- *
- * ── PAGE GEOMETRY ─────────────────────────────────────────────────────────────
- * Custom large page: 794 × 1208 px (with comfortable top margin)
- * Margins:           30 px top, 0 bottom, 72 px left/right
- * Usable area:       650 × 1178 px
- *
- *   USABLE_HEIGHT = 1123 − 48 − 48 = 1027 px
- *
- * ── TYPOGRAPHY ────────────────────────────────────────────────────────────────
- * CSS:    --editor-font-size: 14.667px;
- *         --editor-line-height: 1.27;
- *         --editor-line-height-px: 18.6px;
- *         --editor-para-margin: 0px;
- *       usable width: 650 px, avg Inter char @11pt ≈ 7.07 px → 92 chars/line
- *
- * ── LINE CAPACITY VERIFICATION ────────────────────────────────────────────────
- * lines/page = floor((1178 − 15) / 24) = floor(1163 / 24) = 48 lines
- * height used = 48 × 24 + 15 = 1167 px
- * natural buffer = 1178 − 1167 = 11 px  ← enough, no artificial reduction needed
- *
- * ── RESPONSIVE DESIGN ─────────────────────────────────────────────────────────
- * On mobile devices, CSS media queries adjust:
- *   • Font sizes scale down (14.667px → 13.5px → 12.5px → 11.5px)
- *   • Line heights adjust proportionally
- *   • Side margins reduce for better space utilization
- *   • Page widths become fluid (100% with max-width constraint)
- * The JS pagination engine uses these base constants; CSS handles visual scaling.
+ * Change one value → change ALL of:
+ *   1. constants.js (this file)
+ *   2. real-pagination.css (:root variables)
+ *   3. 01-variables.css (--editor-margin-*)
  */
 
-// ── A4-custom page dimensions ─────────────────────────────────────────────────
-// Standard A4 dimensions at 96 DPI
+// ── A4 page dimensions (standard at 96 DPI) ──────────────────────────────────
 export const A4_HEIGHT_PX = 1123;
 export const A4_WIDTH_PX  = 794;
+export const SAFETY_BUFFER_PX = 8; // Refined for 50-line target
 
-// ── Margins — MUST match .page padding in real-pagination.css ─────────────────
-export const PAGE_MARGIN_TOP_PX    = 48; /* Professional 0.5-inch margin */
-export const PAGE_MARGIN_BOTTOM_PX = 48; /* Professional 0.5-inch margin */
-export const PAGE_MARGIN_LEFT_PX   = 48; /* Professional 0.5-inch margin */
-export const PAGE_MARGIN_RIGHT_PX  = 48; /* Professional 0.5-inch margin */
+// ── Margins — Thinner top/bottom (96 - 10 = 86px) ─────────────────────────
+export const PAGE_MARGIN_TOP_PX    = 86; 
+export const PAGE_MARGIN_BOTTOM_PX = 100; 
+export const PAGE_MARGIN_LEFT_PX   = 96; // 1 inch
+export const PAGE_MARGIN_RIGHT_PX  = 96; // 1 inch
 
-// ── Derived usable area ───────────────────────────────────────────────────────
-export const USABLE_HEIGHT_PX = A4_HEIGHT_PX - PAGE_MARGIN_TOP_PX - PAGE_MARGIN_BOTTOM_PX;
-// USABLE_HEIGHT = 1027px
+// ── Derived usable area ────────────────────────────────────────────────────
+export const USABLE_HEIGHT_PX = A4_HEIGHT_PX - PAGE_MARGIN_TOP_PX - PAGE_MARGIN_BOTTOM_PX - SAFETY_BUFFER_PX;
+// = 1123 - 86 - 86 - 12 = 939 px (Safe area for text)
 
 export const USABLE_WIDTH_PX = A4_WIDTH_PX - PAGE_MARGIN_LEFT_PX - PAGE_MARGIN_RIGHT_PX;
-// = 794 − 48 − 48 = 698 px
+// = 794 - 96 - 96 = 602 px
 
-// ── Typography — MUST match CSS font-size / line-height ───────────────────────
-export const LINE_HEIGHT_PX  = 20;   // 11pt font @ 1.36 multiplier ≈ 20px
-export const PARA_MARGIN_PX  = 0;    
-export const CHARS_PER_LINE  = 98;   
-export const SAFETY_BUFFER_PX = 31;
+// ── Typography ──────────────────────────────────────────────────────────────
+export const FONT_SIZE_PX    = 14.667; // 11pt at 96 DPI
+export const LINE_HEIGHT_PX  = 19;     // 14.667 × 1.3 ≈ 19px (Target: 50 lines/page)
+export const PARA_MARGIN_PX  = 8;
+export const CHARS_PER_LINE  = 72;     // Recalibrated: 602px usable / ~8.3px per char ≈ 72
 
-// ── Line Capacity Verification ────────────────────────────────────────────────
-// Usable Height = 1123 - 48 - 48 = 1027px
-// Effective Height = 996px (with 31px safety buffer)
-// Lines per page = floor(996 / 20) = Exactly 49-50 lines per page
+// ── Line Capacity Verification ───────────────────────────────────────────────────
+// Usable Height = 1027px, Line = 22px → floor(1027/22) ≈ 46 lines/page
 
 // ── Responsive Breakpoints ────────────────────────────────────────────────────
-// These match the CSS media query breakpoints in real-pagination.css
 export const RESPONSIVE_BREAKPOINTS = {
-  TABLET_LANDSCAPE: 1024,  // ≤ 1024px
-  TABLET_PORTRAIT: 880,    // ≤ 880px
-  LARGE_MOBILE: 640,       // ≤ 640px
-  MEDIUM_MOBILE: 480,      // ≤ 480px
-  SMALL_MOBILE: 360,       // ≤ 360px
+  TABLET_LANDSCAPE: 1024,
+  TABLET_PORTRAIT: 880,
+  LARGE_MOBILE: 640,
+  MEDIUM_MOBILE: 480,
+  SMALL_MOBILE: 360,
 };
 
-/**
- * Get current responsive tier based on viewport width
- * @returns {string} Current breakpoint tier name
- */
 export function getResponsiveTier() {
   if (typeof window === 'undefined') return 'desktop';
-  
   const width = window.innerWidth;
   if (width <= RESPONSIVE_BREAKPOINTS.SMALL_MOBILE) return 'small-mobile';
   if (width <= RESPONSIVE_BREAKPOINTS.MEDIUM_MOBILE) return 'medium-mobile';
@@ -88,20 +70,11 @@ export function getResponsiveTier() {
   return 'desktop';
 }
 
-/**
- * Check if current viewport is mobile (≤ 640px)
- * @returns {boolean} True if on mobile device
- */
 export function isMobileViewport() {
   if (typeof window === 'undefined') return false;
   return window.innerWidth <= RESPONSIVE_BREAKPOINTS.LARGE_MOBILE;
 }
 
-/**
- * Get responsive font size multiplier based on viewport
- * Desktop: 1.0, Large Mobile: 0.92, Medium Mobile: 0.85, Small Mobile: 0.78
- * @returns {number} Font size multiplier
- */
 export function getFontSizeMultiplier() {
   const tier = getResponsiveTier();
   switch (tier) {

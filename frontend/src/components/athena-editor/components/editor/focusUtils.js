@@ -220,8 +220,25 @@ export function createFocusUtils() {
       if (!preserveFocus) {
         chain = chain.focus();
       }
-      
-      const resultChain = commandFn(chain);
+
+      // Run the command function and guard against missing chain methods.
+      // The most common cause of "chain.X is not a function" is calling a
+      // command from @tiptap/extension-table (e.g. insertTable) when the
+      // project uses a custom table extension (insertCustomTable).
+      // This wrapper surfaces that as a clear console warning instead of
+      // a silent catch that swallows the real error.
+      let resultChain;
+      try {
+        resultChain = commandFn(chain);
+      } catch (cmdErr) {
+        // Re-throw TypeError so callers can see the real missing-method name
+        console.error(
+          '[focusUtils] commandFn threw — likely calling a chain method that does not exist.',
+          'Check that the Tiptap extension for this command is registered in the editor.',
+          cmdErr
+        );
+        throw cmdErr;
+      }
 
       let result = false;
       if (resultChain && typeof resultChain.run === 'function') {

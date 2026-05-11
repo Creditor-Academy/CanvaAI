@@ -52,6 +52,15 @@ export function useDocumentPersistence({
   onMongoIdSaved,
   documentTitle,
 }) {
+  // ✅ Rules of Hooks: Mounted guard must be at the top level
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   // State
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'modified' | 'error'
   const [lastSaved, setLastSaved] = useState(null);
@@ -63,6 +72,10 @@ export function useDocumentPersistence({
   const documentTitleRef = useRef(documentTitle);
   const saveRef = useRef(null);
   const hasUnsavedChangesRef = useRef(false);
+
+  // 🔥 OPTIMIZATION: Track last saved state to enable partial updates
+  const lastSavedTitleRef = useRef(documentTitle);
+  const lastSavedDataRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => {
@@ -106,38 +119,76 @@ export function useDocumentPersistence({
           const tempDoc = sessionStorage.getItem(`doc_${id}`);
           if (tempDoc) {
             console.log('⏭️ Skipping auto-save for temporary template document:', id);
-            setSaveStatus('saved');
-            setLastSaved(new Date());
+            if (isMounted.current) {
+              setSaveStatus('saved');
+              setLastSaved(new Date());
+            }
             return;
           }
           console.log('📝 Template document was saved to backend - continuing auto-save');
         }
 
         try {
-          // Save as TipTap JSON
+          if (isMounted.current) {
+            setIsSaving(true);
+          }
+
           // 🔥 PRODUCTION FIX: Strip base64 to prevent MongoDB 16MB document limit crash
           const jsonContent = stripBase64Images(ed.state.doc.toJSON());
           const htmlContent = ed.getHTML();
+          const currentTitle = documentTitleRef.current;
           const tokenUsageData = getTokenUsageForSave(id);
 
-          console.log('💾 Auto-saving document:', id);
+          // 🚀 PARTIAL UPDATE OPTIMIZATION: Only send what changed
+          const jsonString = JSON.stringify(jsonContent);
+          const titleChanged = currentTitle !== lastSavedTitleRef.current;
+          const dataChanged = jsonString !== lastSavedDataRef.current;
 
-          await TextEditorService.updateDocument(id, {
-            data: {
+          if (!titleChanged && !dataChanged && !tokenUsageData) {
+            console.log('⏭️ Skipping save - no changes detected since last save');
+            if (isMounted.current) {
+              setSaveStatus('saved');
+              setIsSaving(false);
+            }
+            return;
+          }
+
+          const patchData = {
+            hasBeenEdited: true,
+            updatedAt: new Date()
+          };
+
+          if (titleChanged) patchData.title = currentTitle;
+          if (dataChanged) {
+            patchData.data = {
               content: jsonContent,
               html: htmlContent
-            },
-            hasBeenEdited: true,
-            ...(tokenUsageData && { metadata: { tokenUsage: tokenUsageData } }),
-            updatedAt: new Date()
-          });
+            };
+          }
+          if (tokenUsageData) {
+            patchData.metadata = { tokenUsage: tokenUsageData };
+          }
 
-          setSaveStatus('saved');
-          setLastSaved(new Date());
+          console.log('💾 Auto-saving document (Partial PATCH):', id, { titleChanged, dataChanged });
+
+          await TextEditorService.updateDocument(id, patchData);
+
+          // Update last saved state
+          lastSavedTitleRef.current = currentTitle;
+          lastSavedDataRef.current = jsonString;
+
+          if (isMounted.current) {
+            setSaveStatus('saved');
+            setLastSaved(new Date());
+            setIsSaving(false);
+          }
           hasUnsavedChangesRef.current = false;
           console.log(`✅ Document ${id} auto-saved successfully`, tokenUsageData ? 'with token usage' : '');
         } catch (error) {
-          setSaveStatus('error');
+          if (isMounted.current) {
+            setSaveStatus('error');
+            setIsSaving(false);
+          }
           console.error('❌ Auto-save failed:', error);
           
           // Show specific error messages
@@ -175,51 +226,93 @@ export function useDocumentPersistence({
       return;
     }
 
-    setIsSaving(true);
-    setSaveStatus('modified');
+    if (isMounted.current) {
+      setIsSaving(true);
+      setSaveStatus('modified');
+    }
 
     try {
-      const effectiveDocId = docIdRef.current;
-      const isTemporaryId = typeof effectiveDocId === 'string' && effectiveDocId.startsWith('doc_');
+      const id = docIdRef.current;
+      const isTemporaryId = typeof id === 'string' && id.startsWith('doc_');
 
-      if (effectiveDocId && !isTemporaryId) {
-        // Update existing document
-        console.log('📝 Updating existing document with ID:', effectiveDocId);
+      if (id && !isTemporaryId) {
+        // Update existing document (Partial PATCH)
+        console.log('📝 Updating existing document with ID:', id);
 
-        await TextEditorService.updateDocument(effectiveDocId, {
-          title: documentTitleRef.current,
-          data: {
-            // 🔥 PRODUCTION FIX: Strip base64
-            content: stripBase64Images(ed.getJSON()),
-            html: ed.getHTML()
-          },
-          hasBeenEdited: true
-        });
+        const currentTitle = documentTitleRef.current;
+        const jsonContent = stripBase64Images(ed.getJSON());
+        const htmlContent = ed.getHTML();
+        const jsonString = JSON.stringify(jsonContent);
 
-        setLastSaved(new Date());
-        setSaveStatus('saved');
+        const titleChanged = currentTitle !== lastSavedTitleRef.current;
+        const dataChanged = jsonString !== lastSavedDataRef.current;
+
+        if (!titleChanged && !dataChanged) {
+          console.log('⏭️ Skipping manual save - no changes detected since last save');
+          if (isMounted.current) {
+            setSaveStatus('saved');
+            setLastSaved(new Date());
+            setIsSaving(false);
+          }
+          toast.success('Document is already up to date! 💾');
+          return;
+        }
+
+        const patchData = {
+          hasBeenEdited: true,
+          updatedAt: new Date()
+        };
+
+        if (titleChanged) patchData.title = currentTitle;
+        if (dataChanged) {
+          patchData.data = {
+            content: jsonContent,
+            html: htmlContent
+          };
+        }
+
+        await TextEditorService.updateDocument(id, patchData);
+
+        // Update last saved state
+        lastSavedTitleRef.current = currentTitle;
+        lastSavedDataRef.current = jsonString;
+
+        if (isMounted.current) {
+          setSaveStatus('saved');
+          setLastSaved(new Date());
+          setIsSaving(false);
+        }
         hasUnsavedChangesRef.current = false;
-        toast.success('Document saved to backend successfully! 💾');
+        toast.success('Document saved successfully! 💾');
 
         // Notify other tabs to refresh
         localStorage.setItem('athena_document_refresh', Date.now().toString());
       } else {
-        // Create new document
+        // Create new document (POST)
         console.log('🆕 No document ID - saving as NEW document');
         
+        const jsonContent = stripBase64Images(ed.getJSON());
+        const currentTitle = documentTitleRef.current || 'Untitled Document';
+
         const result = await TextEditorService.saveDocument({
-          title: documentTitleRef.current || 'Untitled Document',
+          title: currentTitle,
           data: {
-            // 🔥 PRODUCTION FIX: Strip base64
-            content: stripBase64Images(ed.getJSON()),
+            content: jsonContent,
             html: ed.getHTML()
           }
         });
 
-        setLastSaved(new Date());
-        setSaveStatus('saved');
+        // Update last saved state
+        lastSavedTitleRef.current = currentTitle;
+        lastSavedDataRef.current = JSON.stringify(jsonContent);
+
+        if (isMounted.current) {
+          setSaveStatus('saved');
+          setLastSaved(new Date());
+          setIsSaving(false);
+        }
         hasUnsavedChangesRef.current = false;
-        toast.success('New document saved to backend successfully! 💾');
+        toast.success('New document saved successfully! 💾');
 
         // Notify parent of new document ID
         onMongoIdSaved?.(null, result.id);
@@ -228,11 +321,12 @@ export function useDocumentPersistence({
         localStorage.setItem('athena_document_refresh', Date.now().toString());
       }
     } catch (error) {
-      console.error('Backend save error:', error);
-      toast.error('Failed to save to backend: ' + (error.message || 'Unknown error'));
-      setSaveStatus('error');
-    } finally {
-      setIsSaving(false);
+      console.error('❌ Manual save failed:', error);
+      if (isMounted.current) {
+        setSaveStatus('error');
+        setIsSaving(false);
+      }
+      toast.error('Failed to save document: ' + (error.message || 'Unknown error'));
     }
   }, [onMongoIdSaved]);
 

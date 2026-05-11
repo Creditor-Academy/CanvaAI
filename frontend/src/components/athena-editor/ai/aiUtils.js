@@ -274,7 +274,7 @@ export const generateDocument = async (params, onChunk, options = {}) => {
     onChunk ? 'chat' : 'generate',
     onChunk
       ? { messages: [{ role: 'user', content: prompt }] }
-      : { prompt },
+      : { userPrompt: prompt },
     { onChunk, signal: options.signal, fallback: '# Generation failed\nPlease try again.' },
   );
 };
@@ -359,7 +359,7 @@ const _codeCall = async (prompt, options = {}) => {
   const { onChunk, signal } = options;
   const result = await _call(
     'generate',
-    { prompt },
+    { userPrompt: prompt },
     { onChunk, signal, fallback: null },
   );
   return result ? _stripCodeFences(result) : null;
@@ -414,7 +414,7 @@ export const reviewCode = async (code, language = 'javascript', options = {}) =>
     `\nIf the code is correct, say so.\n\n${code}`;
   const result = await _call(
     'generate',
-    { prompt },
+    { userPrompt: prompt },
     { onChunk, signal, fallback: 'Code review could not be completed.' },
   );
   return result ?? 'Code review could not be completed.';

@@ -9,9 +9,8 @@
  * 
  * @module EditorSurface
  */
-
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import Document from '@tiptap/extension-document';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -27,7 +26,6 @@ import { Link as TiptapLink } from '@tiptap/extension-link';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
 import { ListItem } from '@tiptap/extension-list-item';
-import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import { FontFamily } from '@tiptap/extension-font-family';
@@ -36,7 +34,11 @@ import { Superscript as TiptapSuperscript } from '@tiptap/extension-superscript'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
 import { Blockquote } from '@tiptap/extension-blockquote';
 import { createLowlight, common } from 'lowlight';
-import { Fragment } from '@tiptap/pm/model';
+import { Fragment, Slice } from '@tiptap/pm/model';
+import { Table } from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
 
 // Custom extensions
 import Indent from '../extensions/Indent.js';
@@ -46,6 +48,7 @@ import { ResizableImage } from '../extensions/ResizableImage.jsx';
 import TableExtension from '../extensions/TableExtension.js';
 import FontSize from '../extensions/FontSize.js';
 import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js';
+import { USABLE_HEIGHT_PX as USABLE_HEIGHT } from '../../../utils/pagination/constants';
 
 // Utils
 const log = process.env.NODE_ENV === 'development' ? (...args) => console.log(...args) : () => { };
@@ -97,6 +100,12 @@ export function EditorSurface({
         orderedList: false,
         hardBreak: false
       }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Document.extend({ content: 'page+' }),
       Page,
       TextStyle,
@@ -107,14 +116,20 @@ export function EditorSurface({
       Typography,
       CharacterCount,
       Focus.configure({ className: 'has-focus', mode: 'all' }),
+      // ── LIST EXTENSIONS ───────────────────────────────────────────────────
+      // StarterKit has bulletList, orderedList, listItem all disabled above.
+      // We register the standalone packages so toggleBulletList() and
+      // toggleOrderedList() exist on the chain. Without these three, the
+      // commands are absent from the schema and silently fail in the toolbar.
+      BulletList,
+      OrderedList,
+      ListItem,
       TaskList,
       TaskItem.configure({ nested: true }),
       Indent,
       TextDirection,
       TableExtension.configure({ resizable: true }),
-      TableRow,
-      TableHeader,
-      TableCell,
+
       FontSize,
       Color,
       FontFamily,
@@ -122,6 +137,17 @@ export function EditorSurface({
       TiptapSuperscript,
       ResizableImage,
       Blockquote,
+      Extension.create({
+        name: 'paginationCommands',
+        addCommands() {
+          return {
+            forceRepaginate: () => ({ editor }) => {
+              paginateDocument(editor, { force: true, reason: 'manual-trigger' });
+              return true;
+            },
+          };
+        },
+      }),
       Placeholder.configure({
         placeholder: ({ node }) => {
           if (node.type.name === 'page') return placeholderText;
@@ -131,20 +157,130 @@ export function EditorSurface({
       }),
     ],
     editorProps: {
-      transformPasted: (slice) => {
-        const hasPageNodes = slice.content.some(node => node.type.name === 'page');
-        if (!hasPageNodes) return slice;
+      transformPastedHTML: (html) => {
+        // 🔥 GOOGLE DOCS-LEVEL PASTE SANITIZATION
+        if (typeof document === 'undefined') return html;
 
-        const newNodes = [];
-        slice.content.forEach(node => {
-          if (node.type.name === 'page') {
-            node.content.forEach(child => newNodes.push(child));
-          } else {
-            newNodes.push(node);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const body = doc.body;
+
+        // 1. Recursively Unwrap Structural Wrappers (Internal Athena or External Layouts)
+        const unwrapRecursive = (root) => {
+          const selectors = '.page, .page-content, .editor-pages-container, [data-page-number]';
+          let found = root.querySelectorAll(selectors);
+          while (found.length > 0) {
+            found.forEach(el => {
+              while (el.firstChild) {
+                el.parentNode.insertBefore(el.firstChild, el);
+              }
+              el.remove();
+            });
+            found = root.querySelectorAll(selectors);
+          }
+        };
+        unwrapRecursive(body);
+
+        // 2. Surgical Style Stripping
+        // Rule: Remove "Layout" (where it is), Keep "Formatting" (how it looks)
+        const allElements = body.querySelectorAll('*');
+        allElements.forEach(el => {
+          if (el.style) {
+            // ── REMOVE: Physical Layout & Positioning ──────────────────────
+            el.style.position = '';
+            el.style.top = '';
+            el.style.left = '';
+            el.style.right = '';
+            el.style.bottom = '';
+            el.style.float = '';
+            el.style.transform = '';
+            el.style.zoom = '';
+
+            // ── REMOVE: External Margin/Padding (Athena owns these) ────────
+            el.style.marginTop = '';
+            el.style.marginBottom = '';
+            el.style.paddingTop = '';
+            el.style.paddingBottom = '';
+
+            // ── REMOVE: Fixed Sizing (Let it flow) ──────────────────────────
+            if (!['IMG', 'TABLE', 'IFRAME', 'VIDEO'].includes(el.tagName)) {
+              el.style.width = '';
+              el.style.height = '';
+              el.style.maxHeight = '';
+              el.style.minHeight = '';
+            }
+
+            // ── NORMALIZE: Line Height ──────────────────────────────────────
+            el.style.lineHeight = '';
+          }
+
+          // 3. Remove metadata attributes
+          el.removeAttribute('data-page-number');
+          el.removeAttribute('data-block-id');
+          el.removeAttribute('aria-hidden');
+
+          // Cleanup Google Docs internal wrappers
+          if (el.tagName === 'B' && el.style.fontWeight === 'normal') {
+            while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+            el.remove();
           }
         });
 
-        return slice.copy(Fragment.fromArray(newNodes));
+        // 3. Final Cleanup: Remove empty structural artifacts
+        body.querySelectorAll('div:empty, p:empty, span:empty').forEach(el => {
+          if (el.tagName !== 'BR' && !el.hasChildNodes()) {
+            el.remove();
+          }
+        });
+
+        return body.innerHTML;
+      },
+      transformPasted: (slice) => {
+        const unwrapPages = (fragment) => {
+          const nodes = [];
+          fragment.forEach(node => {
+            if (node.type.name === 'page') {
+              nodes.push(...unwrapPages(node.content));
+            } else {
+              nodes.push(node);
+            }
+          });
+          return nodes;
+        };
+
+        const newNodes = unwrapPages(slice.content);
+        if (newNodes.length === slice.content.childCount) return slice;
+
+        // Correct depth adjustment: if we removed a 'page' wrapper, 
+        // the content is now 1 level shallower.
+        const openStart = Math.max(0, slice.openStart - 1);
+        const openEnd = Math.max(0, slice.openEnd - 1);
+
+        return new Slice(Fragment.fromArray(newNodes), openStart, openEnd);
+      },
+      handlePaste: (view) => {
+        // ✅ Stage 1: Force immediate browser reflow before measurement
+        // Accessing offsetHeight triggers a synchronous layout calculation
+        void view.dom.offsetHeight;
+
+        // ✅ Stage 2: Immediate "Flash" Pass (Pessimistic Estimation)
+        requestAnimationFrame(() => {
+          if (view.state.editor) {
+            log('[EditorSurface] Paste detected: triggering immediate estimation pass');
+            paginateDocument(view.state.editor, { force: true, reason: 'paste-immediate' });
+          }
+        });
+
+        // ✅ Stage 3: Delayed "Final Audit" (Pixel-Perfect DOM measurement)
+        // Gives the browser 500ms to finish rendering complex elements (images, tables)
+        setTimeout(() => {
+          if (!view.isDestroyed && view.state.editor) {
+            log('[EditorSurface] Paste settling: triggering final DOM-aware audit');
+            paginateDocument(view.state.editor, { force: true, reason: 'paste-final-audit' });
+          }
+        }, 500);
+
+        return false;
       },
       handleKeyDown: (view, event) => {
         if (event.shiftKey && event.key === 'Enter') {
@@ -192,23 +328,28 @@ export function EditorSurface({
       if (shouldCheckSync) {
         lastCheckTimeRef.current = now;
         try {
-          const currentPage = editorInstance.view.dom.closest('.page');
-          const pageContent = currentPage?.querySelector('.page-content');
-          
-          if (currentPage && pageContent) {
-            const contentHeight = pageContent.scrollHeight;
-            const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
-            const maxHeight = pageHeight - 96;
-            
-            if (contentHeight > maxHeight) {
-              requestAnimationFrame(() => {
-                if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
-                  paginateDocument(editorInstance, { force: true, reason: 'content-overflow' });
-                }
-              });
-              debouncePaginate(editorInstance, 150);
-              return;
+          // ✅ GLOBAL HEIGHT AUDIT: Check all pages for overflows.
+          // Images/tables might push content into the NEXT page, which also needs checking.
+          const pages = document.querySelectorAll('.page-content');
+          let hasOverflow = false;
+
+          for (const page of pages) {
+            // scrollHeight represents the total height of content inside the container
+            if (page.scrollHeight > USABLE_HEIGHT - 2) {
+              hasOverflow = true;
+              break;
             }
+          }
+
+          if (hasOverflow) {
+            requestAnimationFrame(() => {
+              if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
+                log('[EditorSurface] Visual overflow detected, forcing repagination');
+                paginateDocument(editorInstance, { force: true, reason: 'visual-overflow' });
+              }
+            });
+            debouncePaginate(editorInstance, 150);
+            return;
           }
         } catch (err) {
           log('[EditorSurface.onUpdate] DOM measurement failed:', err);

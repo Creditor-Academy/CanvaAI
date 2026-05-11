@@ -24,8 +24,10 @@ const error = process.env.NODE_ENV === 'development'
 import { useDocumentPersistence } from '../hooks/useDocumentPersistence.js';
 import { useEditorStats } from '../hooks/useEditorStats.js';
 import { EditorSurface } from './EditorSurface.jsx';
-
-import Portal from './ui/Portal';
+import { FindReplaceModal } from './editor/FindReplaceModal.jsx';
+import ExportDialog from './ExportDialog.jsx';
+import { AIAssistant } from './editor/AIAssistant.jsx';
+import Portal from './ui/Portal.jsx';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Fragment, Slice, DOMSerializer } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from 'prosemirror-state';
@@ -50,11 +52,15 @@ import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../extensions/Indent.js';
 import { Page, initializePagination } from '../extensions/Page.js';
 import { addHeadingStyles, updateHeadingStyles } from '../components/editor/EditorPagination.js';  // Heading styles functions
-import { paginateDocument, debouncePaginate, cleanupPagination } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import { paginateDocument, debouncePaginate, cleanupPagination, invalidatePaginationCache } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
 import { usePastePagination } from '../hooks/usePastePagination';
 import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
 import '../../../styles/editor/athena-editor-master.css'; // 🎨 New consolidated CSS architecture
-import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
+// NOTE: @tiptap/extension-table is NOT used. The project uses the custom
+// TableExtension.js (customTable atom node) registered in EditorSurface.jsx.
+// Importing TiptapTable/TableRow/TableCell/TableHeader here would add them to
+// the bundle but they are never registered, so insertTable/addRowAfter etc.
+// would still throw "chain.X is not a function".
 import { TextStyle } from '@tiptap/extension-text-style';
 import TableExtension from '../extensions/TableExtension.js';
 import { Color } from '@tiptap/extension-color';
@@ -74,6 +80,7 @@ import { EditorProvider, useEditorContext } from '../contexts/EditorContent.jsx'
 import { ImageProvider, useImageContext } from '../contexts/ImageContext.jsx';
 import { useExportState } from '../hooks/useExportState.js';
 import { toast } from 'sonner';
+import HeaderMenuBar from './editor/HeaderMenuBar';
 import { debounce } from 'lodash'; // 🔥 For debounced auto-save
 import {
   rewriteText,
@@ -90,14 +97,6 @@ import { DocumentExporter } from '../../../utils/documentExporter.js';
 import { saveTokenUsage, getTokenUsageForSave } from '../../../utils/tokenPersistence.js';
 import { DocumentOutline } from './editor/DocumentOutline';
 import { TemplateSidebar } from './editor/TemplateSidebar.jsx';
-import HeaderMenuBar from './editor/HeaderMenuBar';
-import { FindReplaceModal } from './editor/FindReplaceModal';
-import { AIAssistant } from './editor/AIAssistant.jsx';
-import { ExportDialog } from './ExportDialog';
-import { EditorLayout } from './EditorLayout.jsx';
-import { EditorHeader } from './editor/EditorHeader.jsx';
-import { EditorFooter } from './editor/EditorFooter.jsx';
-import { EditorModals } from './editor/EditorModals.jsx';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
@@ -416,7 +415,10 @@ const FontSize = Extension.create({
   },
   addCommands() {
     return {
-      setFontSize: (fontSize) => ({ chain }) => chain().setMark('textStyle', { fontSize: fontSize.includes('px') ? fontSize : `${fontSize}px` }).run(),
+      setFontSize: (fontSize) => ({ chain }) => {
+        if (typeof invalidatePaginationCache === 'function') invalidatePaginationCache();
+        return chain().setMark('textStyle', { fontSize: fontSize.includes('px') ? fontSize : `${fontSize}px` }).run();
+      },
       unsetFontSize: () => ({ chain }) => chain().setMark('textStyle', { fontSize: null }).run(),
     };
   },
@@ -434,6 +436,15 @@ const TextEditorContent = ({
   // A4_HEIGHT_PX = 1123, A4_WIDTH_PX = 794
 
   const { state: editorState = {}, actions: editorActions = {} } = useEditorContext() || {};
+
+  // ✅ Rules of Hooks: Mounted guard must be at the top level
+  const isMounted = useRef(false);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   const { state: imageState = {}, actions: imageActions = {} } = useImageContext() || {};
   const { exportToPDF, exportToDOCX, exportToEPUB, exportToJSON, exportToHTML, exportToMarkdown, exportToPlainText, exportLoading, exportProgress } = useExportState();
 
@@ -441,8 +452,8 @@ const TextEditorContent = ({
     showReferencesPanel = false, showExportDialog = false,
     showTemplateSidebar = false, exportFormat = 'pdf',
     exportOptions = { includePageNumbers: true, includeHeader: true, includeFooter: true, exportComments: false, exportTrackChanges: false },
-    documentTitle = 'Untitled Document', lastSaved = null, zoom = 100,
-    saveStatus = 'saved', documentStats = { paragraphs: 0, images: 0, tables: 0, pages: 1 },
+    documentTitle = 'Untitled Document', zoom = 100,
+    documentStats = { paragraphs: 0, images: 0, tables: 0, pages: 1 },
     isOutlineOpen = true, isStarred = false,
     showFindReplaceModal = false, findReplaceMode = 'find',
     showAIAssistant = false, showImportModal = false,
@@ -451,13 +462,13 @@ const TextEditorContent = ({
     showDeleteConfirm = false, showImageModal = false, imageInsertMethod = 'url',
     imageUrl = '', selectedImageAlt = '', isImageUploading = false,
     uploadProgress = 0, pageSize = 'A4', pageOrientation = 'portrait',
-    pageMargins = { top: 96, bottom: 96, left: 72, right: 72 },
+    pageMargins = { top: 86, bottom: 86, left: 96, right: 96 },
     pageColor = '#ffffff', collapsedSections = {},
     activeHeadingLevel = 0, lineSpacing = 1.5
   } = editorState;
 
   const {
-    setSaveStatus = () => { }, setLastSaved = () => { }, setDocumentStats = () => { },
+    setDocumentStats = () => { },
     setDocumentTitle = () => { }, updateEditorFeatures = () => { }, updateExportOptions = () => { },
     updateUIState = () => { }, updateDocumentStats: updateDocumentStatsAction = () => { },
     toggleSectionCollapse = () => { }, updateFormatting = () => { }
@@ -545,6 +556,7 @@ const TextEditorContent = ({
   const AVG_CHARS_PER_LINE = 65;         // Conservative estimate at 12 pt
   const STATS_DELAY = 500;               // ms delay before updating stats to prevent cursor jump
 
+  const [editor, setEditor] = useState(null);
   const editorRef = useRef(null);
   const contentContainerRef = useRef(null);
   const editorContainerRef = useRef(null);
@@ -553,7 +565,7 @@ const TextEditorContent = ({
   const paginationTimeoutRef = useRef(null);
   const pagesUpdateTimeoutRef = useRef(null);
   const autoSaveTimeoutRef = useRef(null);
-  const handleAutoSaveRef = useRef(null);
+  const saveRef = useRef(null);
   const lastPaginationContentRef = useRef('');
   const paragraphHeightCacheRef = useRef(new Map());
 
@@ -617,7 +629,14 @@ const TextEditorContent = ({
 
   // useDocumentPersistence provides a simpler save implementation; rename to avoid conflict
   // with the comprehensive local handleSave below (which reads from content refs).
-  const { saveStatus: hookSaveStatus, lastSaved: hookLastSaved, handleSave: _hookHandleSave, triggerAutoSave } = useDocumentPersistence({
+  const {
+    saveStatus,
+    lastSaved,
+    isSaving,
+    handleSave,
+    triggerAutoSave,
+    docIdRef: persistenceDocIdRef
+  } = useDocumentPersistence({
     docId: urlMongoId,
     editor: editorRef.current,
     onMongoIdSaved,
@@ -672,112 +691,6 @@ const TextEditorContent = ({
   // Use cached data or API response
   const fetchedDoc = cachedDoc || backendResponse?.document || backendResponse;
 
-  // 🔥 CRITICAL FIX: Ref-based debounce to prevent document corruption
-  // 
-  // PROBLEM: useCallback(debounce(...), [docId]) creates a new debounced function
-  // when docId changes, but the old timer still fires with the old docId closure,
-  // potentially saving Document A's content to Document B if user navigates quickly.
-  //
-  // SOLUTION: Use a ref to always read the latest docId and editor state
-  const saveRef = useRef(null);
-
-  // Initialize debounced save function once (on mount)
-  if (!saveRef.current) {
-    saveRef.current = debounce(async () => {
-      // Always read latest values from refs
-      const id = docIdRef.current;
-      const ed = editorRef.current;
-
-      if (!id || !ed || ed.isDestroyed) {
-        console.log('⏭️ Skipping save - no document ID or editor not ready');
-        return;
-      }
-
-      // 🔥 CRITICAL: Validate that docId is a proper MongoDB ObjectId
-      // Temporary IDs (doc_*) should not be saved to backend
-      const isValidMongoId = /^[0-9a-fA-F]{24}$/.test(id);
-      if (!isValidMongoId) {
-        console.log('⏭️ Skipping save - invalid MongoDB ObjectId:', id);
-        return;
-      }
-
-      // Skip auto-save for template documents ONLY if they haven't been saved to backend yet
-      // Template documents start with 'doc_' but get a MongoDB ObjectId after first save
-      // We check sessionStorage to see if this is still a temporary document
-      const isTemporaryDoc = id.startsWith('doc_');
-
-      if (isTemporaryDoc) {
-        // Check if document exists in sessionStorage (temporary, not yet saved)
-        const tempDoc = sessionStorage.getItem(`doc_${id}`);
-        if (tempDoc) {
-          console.log('⏭️ Skipping auto-save for temporary template document:', id);
-          setSaveStatus('saved');
-          setLastSaved(new Date());
-          return;
-        }
-        // If not in sessionStorage, it means it was saved to backend - continue with auto-save
-        console.log('📝 Template document was saved to backend - continuing auto-save');
-      }
-
-      try {
-        // 🔥 Save as TipTap JSON, NOT HTML or Markdown
-        const jsonContent = ed.state.doc.toJSON();
-        const htmlContent = ed.getHTML();
-
-        // Get token usage data to persist
-        const tokenUsageData = getTokenUsageForSave(id);
-
-        console.log('💾 Auto-saving document:', id);
-
-        // Update existing document
-        await TextEditorService.updateDocument(id, {
-          data: {
-            content: jsonContent, // ✅ Save TipTap JSON structure
-            html: htmlContent // For compatibility/fallback
-          },
-          hasBeenEdited: true, // Mark as edited to prevent cleanup
-          ...(tokenUsageData && { metadata: { tokenUsage: tokenUsageData } }), // 🔥 Persist token usage
-          updatedAt: new Date()
-        });
-
-        setSaveStatus('saved');
-        setLastSaved(new Date());
-        console.log(`✅ Document ${id} auto-saved successfully`, tokenUsageData ? 'with token usage' : '');
-      } catch (error) {
-        setSaveStatus('error');
-        console.error('❌ Auto-save failed:', error);
-        console.error('Error details:', {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status,
-          documentId: id
-        });
-
-        // Show more specific error message
-        if (error.response?.status === 400) {
-          toast.error('Invalid document ID format. Please refresh and try again.');
-        } else if (error.response?.status === 404) {
-          toast.error('Document not found. It may have been deleted.');
-        } else if (error.response?.status >= 500) {
-          toast.error('Server error. Please try again later.');
-        } else if (!error.response) {
-          toast.error('Cannot connect to server. Please check your internet connection.');
-        } else {
-          toast.error('Failed to save document. Please check your connection.');
-        }
-      }
-    }, 1000); // Wait 1 second after user stops typing
-  }
-
-  // Cancel debounce timer on unmount to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      if (saveRef.current) {
-        saveRef.current.cancel();
-        console.log('🧹 Cancelled pending save on unmount');
-      }
-    };
-  }, []);
   // ── ProseMirror paste-interception plugin ────────────────────────────────
   // Simplified paste handling without auto-pagination
   //   1. doc.forEach (top-level blocks only) — descendants() visits inline
@@ -805,631 +718,24 @@ const TextEditorContent = ({
    * @param {Editor} editorInstance - TipTap editor instance
    * @returns {number} Number of page breaks inserted
    */
-  const runPastePageBreaks = useCallback((editorInstance) => {
-    // DOM-BASED PAGINATION: This function is deprecated
-    // Pagination is now handled automatically by the DOM layout
-    // No manual page break insertion needed
-    // console.log('[TextEditor] DOM-based pagination active - skipping manual pagination');
-    return 0;
+  // Legacy pagination logic removed. 
+  // Document layout is now managed exclusively by paginationEngine.js via EditorSurface.jsx.
 
-    // Legacy pagination code removed - see version control history if needed
-    /*
-    if (isInsertingRef.current || !editorInstance?.state?.doc) return 0;
-
-    isInsertingRef.current = true;
-    const { state, view } = editorInstance;
-    const { doc } = state;
-    const totalChars = doc.textContent.length;
-
-    try {
-      // ── Step 1: Prepare Pagination Engine ────────────────────────────────
-      let blocks = flattenDocument(doc);
-
-      // 🔍 PDF Paste Detection: Check for single giant block
-      if (blocks.length === 1 && blocks[0].textContent.length > 1000) {
-        console.warn('⚠️ PDF Paste Detected: Single giant block found. Attempting to normalize...');
-
-        // Try to split the giant block by double newlines before pagination
-        const giantBlock = blocks[0];
-        const textContent = giantBlock.textContent;
-
-        // If text contains paragraph breaks, split it
-        const hasParagraphBreaks = textContent.includes('\n\n') || textContent.includes('\r\n\r\n');
-
-        if (hasParagraphBreaks) {
-          console.log('[TextEditor] Splitting PDF content into paragraphs...');
-
-          // Use String.split() instead of regex to avoid line break issues
-          const splitPattern = textContent.includes('\r\n\r\n') ? '\r\n\r\n' : '\n\n';
-          const paragraphs = textContent.split(splitPattern).filter(p => p.trim().length > 0);
-
-          if (paragraphs.length > 1) {
-            // Replace the giant block with multiple paragraphs
-            try {
-              const pos = doc.content.indexOf(giantBlock);
-              if (pos >= 0) {
-                let chain = editorInstance.chain();
-                chain = chain.deleteRange({ from: pos, to: pos + giantBlock.nodeSize });
-
-                // Insert normalized paragraphs
-                paragraphs.forEach((para, index) => {
-                  if (index > 0) {
-                    chain = chain.insertContent({ type: 'paragraph', content: [{ type: 'text', text: para }] });
-                  } else {
-                    chain = chain.insertContentAt(pos, { type: 'paragraph', content: [{ type: 'text', text: para }] });
-                  }
-                });
-
-                chain.run();
-
-                // Re-fetch blocks after normalization
-                const newDoc = editorInstance.state.doc;
-                blocks = flattenDocument(newDoc);
-                console.log(`[TextEditor] ✅ Normalized into ${blocks.length} paragraphs`);
-              }
-            } catch (splitErr) {
-              console.error('[TextEditor] Failed to split PDF content:', splitErr);
-              // Continue with original blocks if split fails
-            }
-          }
-        }
-      }
-
-      if (blocks.length === 0) {
-        lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
-        return 0;
-      }
-
-      const engine = new PaginationEngine({
-        useGoogleDocsConfig: true,  // 810px preferred height
-        debugMode: false,
-        perfLogEnabled: false,
-        editorView: view,
-      });
-
-      const pages = engine.paginate(blocks);
-
-      // 🔬 Run calibration in development mode
-      if (process.env.NODE_ENV === 'development' || blocks.length < 10) {
-        runCalibration(engine, blocks).then(results => {
-          console.log('[Calibration] Complete - See detailed table above');
-        });
-      }
-
-      console.log('[TextEditor] Google Docs pagination:', {
-        totalBlocks: blocks.length,
-        totalPages: pages.length,
-        usableHeight: engine.usableHeight,
-        googleDocsMode: engine.useGoogleDocsConfig,
-      });
-
-      // ── Step 2: Map Page Boundaries to Document Positions ───────────────
-      // O(n) single pass using descendants() instead of O(n²) nested loops
-      // CRITICAL FIX FOR TABLES: Skip page break insertion if position is inside a table
-      const insertPositions = [];
-      let blockCounter = 0;
-
-      // Helper function to check if a position is inside a table
-      const isPositionInsideTable = (position) => {
-        try {
-          const resolvedPos = doc.resolve(position);
-          for (let depth = resolvedPos.depth; depth > 0; depth--) {
-            const node = resolvedPos.node(depth);
-            if (node && (node.type.name === 'table' || node.type.name === 'tableRow' ||
-                node.type.name === 'tableCell' || node.type.name === 'customTable')) {
-              return true;
-            }
-          }
-          return false;
-        } catch (err) {
-          console.error('[isPositionInsideTable] error:', err);
-          return false;
-        }
-      };
-
-      doc.descendants((node, pos) => {
-        if (node.isBlock) {
-          // If this block index marks the end of a page (excluding last page)
-          if (pages.some((p, i) => i < pages.length - 1 && p.endIndex === blockCounter)) {
-            const potentialPos = pos + node.nodeSize;
-
-            // CRITICAL: Don't insert page breaks inside tables
-            // Instead, insert after the table ends
-            if (isPositionInsideTable(potentialPos)) {
-              console.log('[TextEditor] Skipping page break inside table at pos', potentialPos);
-              // Find the end of the table and insert after it
-              let tableEndPos = potentialPos;
-              if (node.type.name === 'table' || node.type.name === 'customTable') {
-                tableEndPos = pos + node.nodeSize;
-              }
-              // Only add if not already in the list
-              if (!insertPositions.includes(tableEndPos)) {
-                insertPositions.push(tableEndPos);
-              }
-            } else {
-              insertPositions.push(potentialPos);
-            }
-          }
-          blockCounter++;
-          return false; // Don't descend into inline children
-        }
-        return true;
-      });
-
-      console.log('[TextEditor] Page break positions to insert:', insertPositions);
-
-      if (insertPositions.length === 0) {
-        lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
-        isInsertingRef.current = false;
-        return 0;
-      }
-
-      // ── Step 3: Execution - Reverse-Order Insertion ─────────────────────
-      // Sort descending - inserting at bottom doesn't shift top positions
-      // CRITICAL: Remove duplicates more aggressively to prevent multiple breaks
-      const sortedPositions = [...new Set(insertPositions)].sort((a, b) => b - a);
-
-      // Additional deduplication: filter out positions that are too close (< 5 chars)
-      const filteredPositions = sortedPositions.filter((pos, idx, arr) => {
-        if (idx === 0) return true;
-        return Math.abs(pos - arr[idx - 1]) >= 5;
-      });
-
-      // CRITICAL PRODUCTION FIX: Check existing page breaks before insertion
-      // This prevents duplicate page breaks on re-runs
-      const positionsToInsert = [];
-      for (const pos of filteredPositions) {
-        const nodeAfter = doc.nodeAt(pos);
-        if (nodeAfter?.type.name !== 'pageBreak') {
-          // Also check adjacent positions to avoid clustering
-          const nodeBefore = pos > 0 ? doc.nodeAt(pos - 1) : null;
-          const nodeTwoBefore = pos > 1 ? doc.nodeAt(pos - 2) : null;
-
-          // Only insert if no page break exists at or near this position
-          if (nodeBefore?.type.name !== 'pageBreak' && nodeTwoBefore?.type.name !== 'pageBreak') {
-            positionsToInsert.push(pos);
-          } else {
-            console.log('[TextEditor] Skipping - page break already exists near pos', pos);
-          }
-        } else {
-          console.log('[TextEditor] Skipping duplicate page break at pos', pos);
-        }
-      }
-
-      // CRITICAL: Save cursor position before inserting page breaks
-      // This prevents cursor from jumping to first page after pagination
-      const savedSelection = editorInstance.state.selection;
-      const savedFrom = savedSelection.from;
-      const savedTo = savedSelection.to;
-
-      let chain = editorInstance.chain();
-
-      for (const pos of positionsToInsert) {
-        chain = chain.insertContentAt(pos, { type: 'pageBreak' });
-      }
-
-      console.log(`[TextEditor] Executing reverse-order insertion with ${positionsToInsert.length} breaks (filtered from ${filteredPositions.length})`);
-
-      // Execute the chain and preserve cursor position
-      chain.run();
-
-      // CRITICAL: Restore cursor position after pagination
-      // Use requestAnimationFrame to ensure DOM is settled
-      requestAnimationFrame(() => {
-        if (!editorInstance.isDestroyed && savedFrom >= 0) {
-          try {
-            // Adjust position if it shifted due to page break insertions
-            // Count how many page breaks were inserted before the cursor
-            const breaksBeforeCursor = positionsToInsert.filter(pos => pos <= savedFrom).length;
-            const adjustedFrom = savedFrom + breaksBeforeCursor;
-            const adjustedTo = savedTo + breaksBeforeCursor;
-
-            editorInstance.commands.setTextSelection({
-              from: Math.min(adjustedFrom, editorInstance.state.doc.content.size),
-              to: Math.min(adjustedTo, editorInstance.state.doc.content.size)
-            });
-
-            // Focus without scrolling to prevent viewport jump
-            editorInstance.view.focus({ preventScroll: true });
-
-            console.log('[TextEditor] Cursor position restored after pagination');
-          } catch (err) {
-            console.error('[TextEditor] Failed to restore cursor position:', err);
-            // Fallback: just focus the editor
-            if (!editorInstance.isDestroyed) {
-              editorInstance.view.focus({ preventScroll: true });
-            }
-          }
-        }
-      });
-
-      // ── Step 4: Cleanup & Feedback ──────────────────────────────────────
-      lastFingerprintRef.current = `${totalChars}:${doc.textContent.substring(0, 80)}`;
-
-      if (totalChars > 5000) {
-        toast.success(`Document paginated: ${pages.length} page${pages.length > 1 ? 's' : ''}`, {
-          id: 'paste-processing',
-          duration: 2000,
-        });
-      }
-
-      console.log('[TextEditor] ✅ Page breaks inserted:', sortedPositions.length);
-      isInsertingRef.current = false;
-      return sortedPositions.length;
-
-    } catch (err) {
-      console.error('[PastePageBreaks] error:', err);
-      toast.error('Failed to paginate document', {
-        id: 'paste-processing',
-        duration: 4000,
-      });
-      isInsertingRef.current = false;
-      return 0;
-    }
-    */
-  }, []); // pageCfg is a stable plain-object literal — no closure deps
-
-  // 🔥 DEPRECATED - Legacy word-count pagination REMOVED
-  // 
-  // This function used word/char heuristics (MAX_WORDS_PER_PAGE = 380) which
-  // diverged from actual rendered height, causing PDF export mismatch.
-  // 
-  // REPLACED BY: runPastePageBreaksOptimized (uses DOM height measurement)
-  const runProgressivePageBreaks = useCallback(async (editorInstance) => {
-    console.warn('[TextEditor] runProgressivePageBreaks is DEPRECATED - use runPastePageBreaksOptimized');
-    return 0;
-  }, []);
-
-  // ── checkAndInsertAutoPageBreaks ─────────────────────────────────────────
-  //
-  // Called from onUpdate for normal typing (NOT during paste).
-  //
-  // Optimisation layers (innermost to outermost):
-  //   1. Paste guard — skip entirely if paste is in flight.
-  //   2. Re-entrancy guard — skip if an insertion is running.
-  //   3. Content fingerprint — skip if doc text hasn't changed since last scan.
-  //   4. Quick capacity check — count words/chars in the WHOLE doc first;
-  //      if still well under capacity (< 80 % of one page) skip the full scan.
-  //      This avoids the full forEach on every keystroke for short documents.
-  //   5. TABLE GUARD — skip pagination when cursor is inside a table to prevent
-  //      cursor focus loss and multiple page break insertions during table editing.
-  //   6. POST-PASTE COOLDOWN — wait 3 seconds after paste before allowing
-  //      pagination to prevent cursor jump when user clicks to edit pasted content.
-  //   7. EDITING DETECTION — skip pagination if user is actively editing (typing/cursor moving).
-  //
-  const checkAndInsertAutoPageBreaks = useCallback((editorInstance) => {
-    if (isPastingRef.current) return; // paste system handles it
-    if (isInsertingRef.current) return; // re-entrancy guard
-    if (!editorInstance?.state?.doc) return;
-
-    // CRITICAL FIX #1: Don't run pagination when editing inside tables
-    // This prevents cursor focus loss and multiple page breaks during table edits
-    try {
-      const { selection } = editorInstance.state;
-      const { $from } = selection;
-      for (let depth = $from.depth; depth > 0; depth--) {
-        const node = $from.node(depth);
-        if (node && (node.type.name === 'table' || node.type.name === 'tableRow' ||
-          node.type.name === 'tableCell' || node.type.name === 'customTable')) {
-          console.log('[TextEditor] Skipping pagination - cursor inside table');
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('[checkAndInsertAutoPageBreaks] table check error:', err);
-      // Continue with normal flow if table check fails
-    }
-
-    // CRITICAL FIX #2: Extended post-paste cooldown - prevent pagination immediately after paste
-    // Users need to click/edit pasted content without cursor jumping away
-    // Extended from 2s to 3s for more robust handling
-    const timeSinceLastPaste = Date.now() - (lastPasteTimeRef.current || 0);
-    if (timeSinceLastPaste < 3000) {
-      console.log('[TextEditor] checkAndInsertAutoPageBreaks BLOCKED - post-paste cooldown active', {
-        timeSinceLastPaste: Math.round(timeSinceLastPaste),
-        selectionPos: editorInstance.state.selection.from
-      });
-      return;
-    }
-
-    // CRITICAL FIX #3: Detect if user is actively editing (typing or moving cursor)
-    // If the selection position changed very recently, user is likely still editing
-    // Skip pagination to avoid interrupting the editing flow
-    const currentTime = Date.now();
-    if (currentTime - lastSelectionChangeRef.current < 500) {
-      // User just moved cursor or started typing - wait before paginating
-      console.log('[TextEditor] Skipping pagination - user actively editing');
-      return;
-    }
-
-    const doc = editorInstance.state.doc;
-    const text = doc.textContent;
-
-    // Fingerprint guard — no change since last scan
-    const fingerprint = `${text.length}:${text.substring(0, 80)}`;
-    if (fingerprint === lastFingerprintRef.current) return;
-
-    // Simple character count check - no word-count heuristics
-    // Very small docs don't need pagination
-    const totalChars = text.length;
-    if (totalChars < 500) {
-      lastFingerprintRef.current = fingerprint;
-      return;
-    }
-
-    // Full scan needed — stamp fingerprint first so the resulting onUpdate exits
-    lastFingerprintRef.current = fingerprint;
-    runPastePageBreaks(editorInstance);
-  }, [runPastePageBreaks]);
-
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        document: false,
-        heading: { levels: [1, 2, 3, 4, 5, 6] },
-        blockquote: false,
-        underline: false,
-        link: false,
-        listItem: false,
-        codeBlock: false,
-        bulletList: false,
-        orderedList: false,
-        hardBreak: false
-      }),
-      Document.extend({ content: 'page+' }),  // Allow page nodes in document
-      Page,  // Register page node extension
-      TextStyle, Color, FontFamily, FontSize,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TiptapUnderline,
-      TiptapLink.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          class: 'text-blue-600 underline',
-          target: '_blank',
-          rel: 'noopener noreferrer'
-        }
-      }),
-      ListItem,
-      Blockquote.configure({ HTMLAttributes: { class: 'blockquote' } }),
-      CodeBlockLowlight.configure({ lowlight: createLowlight(common) }),
-      Highlight.configure({ multicolor: true }),
-      Typography, CharacterCount,
-      Focus.configure({ className: 'has-focus', mode: 'all' }),
-      Placeholder.configure({ placeholder: 'Start typing or press / for commands...' }),
-      TiptapImage.configure({ HTMLAttributes: { class: 'rounded-lg' } }),
-      ResizableImage,
-      TaskList.configure({ HTMLAttributes: { class: 'task-list' } }),
-      TaskItem.configure({ HTMLAttributes: { class: 'task-item' }, nested: true }),
-      TiptapTable.configure({ resizable: true, HTMLAttributes: { class: 'table-border-black' } }),
-      TableRow, TableCell, TableHeader, TableExtension,
-      TiptapSubscript, TiptapSuperscript, Indent, TextDirection,
-      BulletList.configure({ HTMLAttributes: { class: 'bullet-list' } }),
-      OrderedList.configure({ HTMLAttributes: { class: 'ordered-list' } }),
-    ],
-    content: '',  // Start empty - will auto-create page on first edit
-    editable: true,
-    autofocus: true,
-    // CRITICAL FIX: Preserve selection during content changes
-    preserveSelectionOnUpdate: true,
-    // CRITICAL FIX: Disable immediate render on update to prevent cursor jump
-    immediatelyRender: false,
-    // CRITICAL FIX: Disable corec to prevent React from reconciling during typing
-    corec: false,
-    // 🔥 CRITICAL: Custom Shift+Enter handler - create new paragraph instead of hard break
-    editorProps: {
-      // Strips page-wrapper nodes from pasted content.
-      // Runs before handlePaste — catches copy-paste from within this editor.
-      transformPasted(slice) {
-        // ✅ Bug A fixed: removed `const { Fragment } = this.schema`
-        //    Fragment is imported from '@tiptap/pm/model' at the top of this file.
-        //    `this` is undefined here — ProseMirror calls this as a plain function.
-
-        // ✅ Bug B fixed: slice.content is a ProseMirror Fragment, not a JS Array.
-        //    Fragment has .forEach() but NOT .some()/.map()/.filter().
-        //    Use a forEach + boolean flag instead.
-        let hasPageNodes = false;
-        slice.content.forEach(node => {
-          if (node.type.name === 'page') hasPageNodes = true;
-        });
-
-        if (!hasPageNodes) return slice;
-
-        // Flatten: pull children out of each page wrapper
-        const newNodes = [];
-        slice.content.forEach(node => {
-          if (node.type.name === 'page') {
-            node.content.forEach(child => newNodes.push(child));
-          } else {
-            newNodes.push(node);
-          }
-        });
-
-        // Fragment is in module scope from: import { Fragment } from '@tiptap/pm/model'
-        return slice.copy(Fragment.fromArray(newNodes));
-      },
-
-      handleKeyDown: (view, event) => {
-        if (event.shiftKey && event.key === 'Enter') {
-          event.preventDefault();
-          const { state, dispatch } = view;
-          const { $from } = state.selection;
-          // Inherit attrs from current paragraph
-          const parentAttrs = $from.parent.attrs;
-          const tr = state.tr.replaceSelectionWith(
-            state.schema.nodes.paragraph.create(parentAttrs)
-          );
-          dispatch(tr);
-          // ✅ The transaction will trigger onUpdate, which handles pagination
-          // No need for manual trigger - the existing debounce will handle it
-          return true;
-        }
-        return false;
-      },
-      attributes: { class: 'focus:outline-none table-border-black', spellcheck: 'true', 'data-testid': 'editor-content' },
-    },
-    onCreate: ({ editor }) => {
-      // 🔥 Initialize with 2 pages minimum on fresh load
-      console.log('[TextEditor.onCreate] Editor created, initializing pages...');
-
-      // const result1 = initializePagination(editor);
-      // console.log('[TextEditor.onCreate] Immediate init result:', result1);
-
-      // Try again after 50ms delay
-      setTimeout(() => {
-        initializePagination(editor);
-        // console.log('[TextEditor.onCreate] Delayed init result:', result2);
-      }, 50);
-
-      // ✅ BUG 3 FIX: Removed setupPasteDetection - conflicts with paste plugin
-      // The paste plugin in TextEditor.jsx already handles paste interception
-      // setupPasteDetection creates duplicate listeners that fight each other
-    },
-    onUpdate: ({ editor: editorInstance }) => {
-      // ── INFINITE LOOP GUARD ──────────────────────────────────────────────
-      // paginateDocument tags its own transactions with this flag so we don't
-      // re-enter pagination in response to our own dispatch.
-      if (editorInstance.storage.athena_is_paginating) {
-        // log('[onUpdate] Skipping - pagination in flight');
-        return;
-      }
-
-      // 🔥 CRITICAL: Skip pagination during paste - let paste handler trigger it
-      if (isPastingRef.current) {
-        log('[onUpdate] Skipping pagination - paste in progress');
-        return;
-      }
-
-      // ── IMMEDIATE PAGINATION CHECK: Detect overflow BEFORE debounce ──────
-      // 🔥 CRITICAL FIX: Check if current page content exceeds page height
-      // If yes, trigger pagination IMMEDIATELY (no debounce) to prevent clipping
-      try {
-        const currentPage = editorInstance.view.dom.closest('.page');
-        const pageContent = currentPage?.querySelector('.page-content');
-
-        if (currentPage && pageContent) {
-          const contentHeight = pageContent.scrollHeight;
-          const pageHeight = parseInt(getComputedStyle(currentPage).height) || 1123;
-          const maxHeight = pageHeight - 96; // Subtract top+bottom margins (48+48)
-
-          // If content exceeds usable height, trigger IMMEDIATE pagination
-          if (contentHeight > maxHeight) {
-            log(`[onUpdate] 🚨 Content overflow detected: ${contentHeight}px > ${maxHeight}px. Immediate pagination!`);
-
-            // Bypass debounce - run pagination immediately
-            requestAnimationFrame(() => {
-              if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
-                paginateDocument(editorInstance, { force: true, reason: 'content-overflow' });
-              }
-            });
-
-            // Still run debounced pagination as backup
-            lastContentChangeRef.current = Date.now();
-            debouncePaginate(editorInstance, 150);
-
-            // Skip further processing - pagination will handle it
-            return;
-          }
-        }
-      } catch (err) {
-        // If DOM measurement fails, fall back to debounced pagination
-        log('[onUpdate] DOM measurement failed, using debounced pagination:', err);
-      }
-
-      // ── DEBOUNCED RE-PAGINATION (only after DOM settles) ─────────────────
-      // ENHANCEMENT: Dynamic debounce based on recent activity
-      const timeSinceLastChange = Date.now() - (lastContentChangeRef.current || 0);
-      const isFastTyping = timeSinceLastChange < 200; // Less than 200ms between keystrokes
-      const debounceDelay = isFastTyping ? 200 : 150; // ✅ Reduced from 400/300 for faster response
-
-      lastContentChangeRef.current = Date.now();
-
-      debouncePaginate(editorInstance, debounceDelay);
-
-      // ── Stats + autosave (DEBOUNCED - not on every keystroke) ────────────
-      // ✅ CRITICAL FIX: Debounce stats calculation to prevent 450ms+ delays
-      // Stats update every 1000ms instead of on every keystroke
-      if (statsTimeoutRef.current) clearTimeout(statsTimeoutRef.current);
-      statsTimeoutRef.current = setTimeout(() => {
-        if (!editorInstance?.state?.doc) return;
-
-        // ✅ OPTIMIZED: Use textContent instead of traversing entire tree
-        const text = editorInstance.state.doc.textContent;
-        const words = text.trim().split(/\s+/).filter(Boolean).length;
-
-        // Update refs ONLY (no re-render)
-        wordCountRef.current = words;
-        characterCountRef.current = text.length;
-        readingTimeRef.current = Math.ceil(words / 200);
-
-        // ✅ OPTIMIZED: Only extract headings if document structure changed
-        // Skip expensive tree traversal on simple text edits
-        const needsHeadingUpdate = headingsRef.current.length === 0 ||
-          lastContentChangeRef.current % 10 === 0; // Update every 10th change
-
-        if (needsHeadingUpdate) {
-          const newHeadings = [];
-          let paragraphs = 0, images = 0, tables = 0;
-
-          editorInstance.state.doc.descendants((node, pos) => {
-            const type = node.type.name;
-            if (type === 'heading') {
-              newHeadings.push({ level: node.attrs.level, text: node.textContent, id: `heading-${pos}` });
-            } else if (type === 'paragraph') {
-              paragraphs++;
-            } else if (type === 'image') {
-              images++;
-            } else if (type === 'table') {
-              tables++;
-            }
-          });
-
-          headingsRef.current = newHeadings;
-          paragraphsRef.current = paragraphs;
-          imagesRef.current = images;
-          tablesRef.current = tables;
-        }
-
-        // REMOVED: State updates that were causing cursor to jump to beginning
-        // Word count UI now updates only when user explicitly opens the dialog
-      }, 1000); // ✅ Increased to 1000ms to reduce performance impact
-
-      // 🔥 CRITICAL FIX: Only save if NOT currently paginating or inserting page breaks
-      if (!editorInstance.storage.athena_is_paginating && !isInsertingRef.current) {
-        // 🔥 DELTA-BASED AUTO-SAVE: Trigger debounced save on every content change
-        // Only fires when pagination is settled - prevents half-paginated saves
-        const json = editorInstance.state.doc.toJSON();
-        saveRef.current?.(json);
-      } else {
-        // log('[onUpdate] Skipping auto-save - pagination or insertion in progress');
-      }
-    },
-    onSelectionUpdate: ({ editor: editorInstance }) => {
-      // ENHANCEMENT: Ultra-lightweight selection tracking
-      // Only updates a timestamp ref - zero re-renders, zero state updates
-      // This is critical for smooth typing experience without cursor jumps
-
-      const { from, to } = editorInstance.state.selection;
-
-      // Track selection change time for pagination timing decisions
-      lastSelectionChangeRef.current = Date.now();
-
-      // NOTE: All selection-based UI updates (toolbar state, etc.) are handled
-      // by Tiptap's built-in reactivity. We don't need manual state updates here.
-      // This prevents the "cursor reset" bug that occurred with frequent setState calls.
-    },
-  });
-
-  // ── Document statistics — placed here because useEditor must be declared first ──
+  // Document statistics are now reactively linked to the editor state
   const { wordCount, characterCount, readingTime, headings, forceUpdateStats } = useEditorStats({
     editor,
     updateDelay: 1000,
   });
 
+  // Sync ref for legacy compatibility where needed
+  useEffect(() => {
+    if (editor) {
+      editorRef.current = editor;
+    }
+  }, [editor]);
+
   useEffect(() => {
     if (!editor) return;
-    editorRef.current = editor;
-
     console.log('🔍 Editor mounted with props:', { mongoId, activeDocId });
     console.log('🔍 Current URL:', window.location.href);
 
@@ -1476,10 +782,10 @@ const TextEditorContent = ({
         headingsRef.current = newHeadings;
 
         // Force state update to refresh outline sidebar
-        if (forceUpdateStats) forceUpdateStats();
+        if (forceUpdateStats && isMounted.current) forceUpdateStats();
 
         // Update document stats to trigger parent component updates
-        if (updateDocumentStatsAction) {
+        if (updateDocumentStatsAction && isMounted.current) {
           updateDocumentStatsAction(prev => ({
             ...prev,
             paragraphs,
@@ -1492,7 +798,7 @@ const TextEditorContent = ({
         console.log('✅ Outline sidebar updated via automatic scanner');
 
         // Auto-open outline if it's closed and document has headings
-        if (newHeadings.length > 0 && !isOutlineOpen) {
+        if (newHeadings.length > 0 && !isOutlineOpen && isMounted.current) {
           console.log('📖 Auto-opening outline panel for document with', newHeadings.length, 'headings');
           setIsOutlineOpen(true);
         }
@@ -1505,6 +811,11 @@ const TextEditorContent = ({
     editor.storage.onPaginationComplete = extractHeadingsForOutline;
     console.log('✅ Outline scanner registered with editor storage');
 
+    return () => {
+      if (editor && editor.storage) {
+        editor.storage.onPaginationComplete = null;
+      }
+    };
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ✅ CRITICAL FIX: Wire up paste pagination plugin
@@ -1546,120 +857,92 @@ const TextEditorContent = ({
     console.log('📝 Content extraction:', {
       jsonContentType: typeof jsonContent,
       htmlContentType: typeof htmlContent,
-      jsonContentLength: typeof jsonContent === 'string' ? jsonContent.length : 'N/A',
-      htmlContentLength: typeof htmlContent === 'string' ? htmlContent.length : 'N/A',
-      willUse: jsonContent ? 'jsonContent' : (htmlContent ? 'htmlContent' : 'NOTHING')
+      willUse: jsonContent ? 'jsonContent' : (htmlContent ? 'htmlContent' : 'NOTHING'),
     });
 
     // Defer setContent to avoid flushSync warning in React 19
     requestAnimationFrame(() => {
 
-      // 🔥 CRITICAL FIX: Use Markdown transformer for string content
       const content = jsonContent || htmlContent;
-
-      console.log('📝 TextEditor Content Loading:', {
-        hasJson: !!jsonContent,
-        hasHtml: !!htmlContent,
-        docId: mongoId,
-        isTemporary: mongoId?.startsWith('doc_'),
-        contentLength: typeof content === 'string' ? content.length : 'object'
-      });
 
       if (!content) {
         console.warn('⚠️ No content available to display in editor!');
-        if (mongoId?.startsWith('doc_')) {
-          console.error('❌ Temporary document content missing from sessionStorage!');
-        }
         return;
       }
 
-      console.log('📝 Processing content:', {
-        type: typeof content,
-        length: typeof content === 'string' ? content.length : 'N/A',
-        first100Chars: typeof content === 'string' ? content.substring(0, 100) : 'object'
-      });
-
-
-      // Try to parse JSON if content is a string
+      // ── Parse JSON strings ─────────────────────────────────────────────────
       let parsedJsonContent = null;
       if (typeof content === 'string' && !isMarkdown(content) && !content.trim().startsWith('<')) {
         try {
           parsedJsonContent = JSON.parse(content);
-          console.log('✅ Successfully parsed JSON string');
-        } catch (error) {
-          console.warn('⚠️ Could not parse string as JSON (might be plain text):', error.message);
-          parsedJsonContent = null;
-        }
+        } catch (_) { /* plain text — keep null */ }
       }
 
+      // ── Set editor content ─────────────────────────────────────────────────
       if (typeof content === 'string') {
-        console.log('📝 Content is a string - checking if it\'s Markdown');
-
-        // Check if it looks like Markdown
         if (isMarkdown(content)) {
-          console.log('✅ Detected Markdown format - using transformer');
           transformMarkdownToEditor(editor, content);
         } else {
-          console.log('ℹ️ Content is HTML or plain text');
           editor.commands.setContent(normalizeInlineStyles(content));
-          console.log('✅ HTML/text content set in editor');
-
-          // Trigger pagination
-          setTimeout(() => {
-            import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
-              forceRepaginate(editor);
-              console.log('[setContent] forceRepaginate called for HTML/text');
-            });
-          }, 100);
         }
       } else if (parsedJsonContent && typeof parsedJsonContent === 'object') {
-        console.log('✅ Setting content from parsed JSON');
-        // ✅ FIX 2: Normalize paragraphs by splitting \n into separate nodes
-        const normalized = normalizeParagraphs(parsedJsonContent);
-
-        editor.commands.setContent(normalized);
-        console.log('✅ Content set successfully from JSON');
-
-        // 🔥 CRITICAL: Force pagination after setting content
-        // This will trigger the automatic outline scanner via onPaginationComplete callback
-        setTimeout(() => {
-          console.log('[setContent] Forcing pagination after content load');
-          import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
-            forceRepaginate(editor);
-            console.log('[setContent] forceRepaginate called');
-          });
-        }, 100);
+        editor.commands.setContent(normalizeParagraphs(parsedJsonContent));
       } else if (typeof content === 'object' && content !== null) {
-        // Handle case where content is already an object (TipTap JSON)
-        console.log('✅ Content is already a TipTap JSON object');
-        const normalized = normalizeParagraphs(content);
-        editor.commands.setContent(normalized);
-        console.log('✅ Object content set successfully');
-
-        setTimeout(() => {
-          import('../utils/paginationEngine.js').then(({ forceRepaginate }) => {
-            forceRepaginate(editor);
-            console.log('[setContent] forceRepaginate called for object');
-          });
-        }, 100);
+        editor.commands.setContent(normalizeParagraphs(content));
       }
 
-      // 🔥 CRITICAL FIX: Set document title from fetched document
+      console.log('✅ Content loaded into editor');
+
+      // ── Robust post-load repagination ──────────────────────────────────────
+      // PROBLEM: A simple setTimeout(100ms) fires before fonts are measured,
+      // before the DOM paint cycle is complete, and before images have
+      // determined their intrinsic sizes. The engine under-estimates block
+      // heights → too much content on one page → overflow:hidden clips text.
+      //
+      // SOLUTION:
+      //   Stage 1: fonts.ready + double-RAF — waits for real glyph metrics
+      //   Stage 2: 600ms safety net — catches lazy images / FOUT reflows
+      const runRepaginationAfterLoad = async () => {
+        try {
+          if (typeof document !== 'undefined' && document.fonts) {
+            await document.fonts.ready;
+          }
+          // Two RAFs: first queues after current paint, second fires after browser repaints
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+          if (editor && !editor.isDestroyed) {
+            const { forceRepaginate } = await import('../utils/paginationEngine.js');
+            forceRepaginate(editor);
+            console.log('[loadDoc] Stage 1 repagination done (fonts.ready + double-RAF)');
+          }
+
+          // Safety net for lazy-loading images and large web-font FOUT
+          await new Promise(resolve => setTimeout(resolve, 600));
+          if (editor && !editor.isDestroyed) {
+            const { forceRepaginate } = await import('../utils/paginationEngine.js');
+            forceRepaginate(editor);
+            console.log('[loadDoc] Stage 2 repagination done (600ms safety net)');
+          }
+        } catch (err) {
+          console.warn('[loadDoc] Repagination error:', err.message);
+        }
+      };
+
+      runRepaginationAfterLoad();
+
+      // Set document title
       if (fetchedDoc.title) {
-        console.log('📝 Setting document title:', fetchedDoc.title);
         setDocumentTitle(fetchedDoc.title);
       }
 
-      // Note: Outline will be automatically updated by the pagination callback
-      // No need for manual heading extraction - it happens via onPaginationComplete
-
-      // Mark as loaded in editor storage to prevent re-runs
+      // Mark as loaded to prevent re-runs
       editor.storage.athena_loaded_id = fetchedDoc.id || fetchedDoc._id;
     });
   }, [editor, isDocLoaded, fetchedDoc, cachedDoc, setDocumentTitle, setIsAiGeneratedDoc]);
 
   // 🔥 CRITICAL FIX: Removed localStorage usage - URL is single source of truth
   // Document ID is now tracked ONLY via URL path and React props
+
 
   const handleCopy = useCallback(async () => {
     if (!editor) return;
@@ -1855,14 +1138,6 @@ const TextEditorContent = ({
       el.removeAttribute('inert');
     }
   }, []); // ✅ Stable deps - editorContainerRef is stable
-  // SOLUTION: Delegate to debouncedSave so auto-save actually saves to backend
-  const handleAutoSave = useCallback(async () => {
-    // debouncedSave already handles auto-saving — just trigger it
-    if (editor && !editor.isDestroyed) {
-      saveRef.current?.(); // call the ref-based debounced save
-    }
-  }, [editor]); // ✅ Stable deps only - refs give live access to editor state
-
   // ========================
   // VERSION MANAGEMENT
   // ========================
@@ -1870,7 +1145,7 @@ const TextEditorContent = ({
   const saveCurrentVersion = useCallback(async (options = {}) => {
     if (!editor) return;
 
-    const id = docIdRef.current;
+    const id = persistenceDocIdRef.current || docIdRef.current;
     if (!id) {
       toast.error('Save document before creating a version');
       return;
@@ -1884,224 +1159,24 @@ const TextEditorContent = ({
       });
 
       // ✅ Only store metadata in state — no HTML blob!
-      setDocumentVersions(prev => [{
-        id: result.versionId || result.id || Date.now(),
-        title: result.title || `Version ${prev.length + 1}`,
-        timestamp: new Date(result.timestamp || Date.now()),
-        wordCount: wordCountRef.current,
-        author: result.author || 'You',
-      }, ...prev].slice(0, 50)); // Cap at 50 versions to prevent unbounded growth
+      if (updateUIState) {
+        updateUIState({
+          documentVersions: [{
+            id: result.versionId || result.id || Date.now(),
+            title: result.title || `Version ${documentVersions.length + 1}`,
+            timestamp: new Date(result.timestamp || Date.now()),
+            wordCount: wordCountRef.current,
+            author: result.author || 'You',
+          }, ...documentVersions].slice(0, 50)
+        });
+      }
 
       toast.success('Version saved to backend');
     } catch (error) {
       console.error('Failed to save version:', error);
-      toast.error('Failed to save version: ' + error.message);
+      toast.error('Failed to save version: ' + (error.message || 'Unknown error'));
     }
-  }, [editor, documentVersions.length]);
-
-  // Wire handleAutoSave to ref to avoid TDZ and stale closures
-  handleAutoSaveRef.current = handleAutoSave;
-
-  const handleSave = useCallback(async () => {
-    if (!editor) return;
-    try {
-      // 🔥 CRITICAL FIX: Read volatile values from refs (always fresh, stable closure)
-      const title = documentTitleRef.current;
-      const currentZoom = zoomRef.current;
-
-      // 🔥 CRITICAL FIX: Use already-computed refs from onUpdate stats collector
-      // PROBLEM: editor.state.doc.descendants() is O(n) and was being called twice - once
-      // in onUpdate stats and again here in save path. This doubles main-thread work.
-      // 
-      // SOLUTION: Read from refs that are continuously updated in onUpdate - no re-traversal needed
-      const documentData = {
-        // Document Metadata
-        metadata: {
-          title: title || 'Untitled Document',
-          createdAt: new Date().toISOString(),
-          savedAt: new Date().toISOString(),
-          version: '1.0',
-          application: 'Athena Editor',
-          applicationVersion: '1.0.0'
-        },
-
-        // Document Content
-        content: {
-          html: editor.getHTML(),
-          text: editor.getText(),
-          json: editor.getJSON()
-        },
-
-        // Document Statistics - READ FROM REFS (no re-traversal)
-        statistics: {
-          characterCount: characterCountRef.current,
-          wordCount: wordCountRef.current,
-          paragraphCount: paragraphsRef.current,
-          headings: headingsRef.current,
-          selection: {
-            from: editor.state.selection.from,
-            to: editor.state.selection.to,
-            anchor: editor.state.selection.anchor,
-            head: editor.state.selection.head
-          }
-        },
-
-        // Document Styles and Formatting
-        styles: {
-          marks: editor.getAttributes('textStyle'),
-          activeStyles: {
-            bold: editor.isActive('bold'),
-            italic: editor.isActive('italic'),
-            underline: editor.isActive('underline'),
-            strike: editor.isActive('strike'),
-            code: editor.isActive('code'),
-            link: editor.isActive('link')
-          }
-        },
-
-        // Document Structure - READ FROM REFS (no re-traversal)
-        structure: {
-          headings: headingsRef.current,
-          paragraphs: { count: paragraphsRef.current },
-          lists: listsRef.current,
-          tables: { count: tablesRef.current },
-          images: imagesDataRef.current,
-          links: linksRef.current
-        },
-
-        // Editor State
-        editorState: {
-          zoom: currentZoom,
-          isEditable: editor.isEditable,
-          isFocused: editor.isFocused
-        }
-      };
-
-      // REMOVED: Redundant doc traversal - now reads from refs populated in onUpdate
-      // editor.state.doc.descendants(...) - REMOVED TO AVOID DUPLICATE O(n) WORK
-
-      // Note: Removed localStorage backup. Only save to backend (MongoDB).
-
-      // 🔥 CRITICAL FIX: Determine document ID from URL ONLY (Single Source of Truth)
-      // Priority: 1) mongoId prop, 2) Extract from URL path
-      // NO localStorage fallback - MongoDB is the single source of truth
-      const effectiveMongoId = mongoId || (() => {
-        const pathParts = window.location.pathname.split('/').filter(Boolean);
-        const lastPart = pathParts[pathParts.length - 1];
-        if (/^[0-9a-fA-F]{24}$/.test(lastPart)) return lastPart;
-        return null;
-      })();
-
-      console.log('💾 SAVE DEBUG - Single Source of Truth:', {
-        mongoIdProp: mongoId,
-        urlExtractedId: (() => {
-          const pathParts = window.location.pathname.split('/').filter(Boolean);
-          const lastPart = pathParts[pathParts.length - 1];
-          return /^[0-9a-fA-F]{24}$/.test(lastPart) ? lastPart : null;
-        })(),
-        effectiveMongoId,
-        hasValidDocId: !!(mongoId || effectiveMongoId),
-        urlPath: window.location.pathname,
-        urlQuery: window.location.search
-      });
-
-      // 🔥 CRITICAL FIX: Always use the mongoId from URL if available
-      // This prevents creating duplicate documents when editing existing ones
-      const docIdToUpdate = effectiveMongoId || activeDocId;
-      const isTemporaryId = typeof docIdToUpdate === 'string' && docIdToUpdate.startsWith('doc_');
-
-      // If we have a permanent document ID, update existing document
-      if (docIdToUpdate && !isTemporaryId) {
-        console.log('📝 Updating existing document with ID:', docIdToUpdate);
-
-        console.log('🔍 Document ID source:', {
-          from_mongoId_prop: !!mongoId,
-          from_url_path: !!(function () {
-            const pathParts = window.location.pathname.split('/').filter(Boolean);
-            const lastPart = pathParts[pathParts.length - 1];
-            return /^[0-9a-fA-F]{24}$/.test(lastPart) ? lastPart : null;
-          })(),
-          from_localStorage: !!localStorage.getItem('athena_current_mongo_id')
-        });
-
-        try {
-          // Update existing document using /api/text-editor/document/:id
-          console.log('📤 SENDING TO BACKEND:', {
-            docIdToUpdate,
-            title: documentTitle,
-            data: {
-              hasContent: !!editor.getJSON(),
-              hasHtml: !!editor.getHTML(),
-              contentStructure: editor.getJSON()?.type,
-              firstBlockType: editor.getJSON()?.content?.[0]?.type,
-              hasMarks: JSON.stringify(editor.getJSON()).includes('marks')
-            }
-          });
-
-          await TextEditorService.updateDocument(docIdToUpdate, {
-            title: documentTitleRef.current,
-            data: {
-              content: editor.getJSON(),
-              html: editor.getHTML()
-            },
-            hasBeenEdited: true // Mark as edited to prevent cleanup
-          });
-
-          console.log('✅ SAVE SUCCESSFUL - Check network tab to verify backend stored JSON');
-
-          setLastSaved(new Date());
-          setSaveStatus('saved');
-          toast.success('Document saved to backend successfully! 💾');
-
-          // Notify other tabs (EditorIntro) to refresh document list
-          localStorage.setItem('athena_document_refresh', Date.now().toString());
-        } catch (backendError) {
-          console.error('Backend save error:', backendError);
-          toast.error('Failed to save to backend: ' + (backendError.message || 'Unknown error'));
-          setSaveStatus('error');
-          return; // Stop here if backend save fails
-        }
-      } else {
-        // No document ID - this is a NEW document, save it to backend
-        console.log('🆕 No document ID - saving as NEW document');
-        try {
-          const result = await TextEditorService.saveDocument({
-            title: documentTitleRef.current || 'Untitled Document',
-            data: {
-              content: editor.getJSON(),
-              html: editor.getHTML()
-            }
-          });
-
-          setLastSaved(new Date());
-          setSaveStatus('saved');
-          toast.success('New document saved to backend successfully! 💾');
-
-          // Notify parent component of the new document ID
-          onMongoIdSaved?.(null, result.id);
-
-          // Notify other tabs to refresh document list
-          localStorage.setItem('athena_document_refresh', Date.now().toString());
-        } catch (backendError) {
-          console.error('Backend save error:', backendError);
-          toast.error('Failed to save to backend: ' + (backendError.message || 'Unknown error'));
-          setSaveStatus('error');
-          return;
-        }
-      }
-
-      // Document saved successfully to backend - no file export
-    } catch (error) {
-      console.error('❌ Save error:', error);
-      console.error('Error stack:', error.stack);
-      // Only show error if it's not just an export failure
-      if (error.message && error.message.includes('export')) {
-        console.warn('Export failed but document was saved');
-      } else {
-        toast.error('Failed to save document: ' + (error.message || 'Unknown error'));
-      }
-    }
-  }, [editor, setLastSaved, setSaveStatus]); // ✅ Stable deps only - refs give live access to title/zoom
+  }, [editor, documentVersions, persistenceDocIdRef, updateUIState]);
 
   const handlePrint = useCallback(async () => {
     if (!editor) return;
@@ -2677,8 +1752,12 @@ const TextEditorContent = ({
               }}
               onInsertImage={() => setShowImageModal(true)}
               onInsertTable={() => {
-                // console.log('🎯 [TextEditor] onInsertTable called');
-                runWithSavedSelection(editor, (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }));
+                // CRITICAL: Must use insertCustomTable (registered by TableExtension.js).
+                // insertTable belongs to @tiptap/extension-table which is NOT used here.
+                // withHeaderRow is also @tiptap/extension-table-only — omit it.
+                runWithSavedSelection(editor, (chain) =>
+                  chain.insertCustomTable({ rows: 3, cols: 3 })
+                );
               }}
               onInsertLink={() => {
                 console.log('🔗 [TextEditor] onInsertLink called');
@@ -2692,10 +1771,10 @@ const TextEditorContent = ({
                 setLinkUrl('https://');
                 setLinkDisplayText('');
               }}
-              onUndo={() => { /* console.log('onUndo called'); */ runWithSavedSelection(editor, (chain) => chain.undo()); }}
-              onRedo={() => { /* console.log('onRedo called'); */ runWithSavedSelection(editor, (chain) => chain.redo()); }}
-              onSelectAll={() => { /* console.log('onSelectAll called'); */ runWithSavedSelection(editor, (chain) => chain.selectAll()); }}
-              onCut={() => { /* console.log('onCut called'); */ document.execCommand('cut'); }}
+              onUndo={() => { runWithSavedSelection(editor, (chain) => chain.undo()); }}
+              onRedo={() => { runWithSavedSelection(editor, (chain) => chain.redo()); }}
+              onSelectAll={() => { runWithSavedSelection(editor, (chain) => chain.selectAll()); }}
+              onCut={() => { document.execCommand('cut'); }}
               onCopy={() => {
                 // console.log('onCopy called');
                 // Fallback: use execCommand with a temp textarea
@@ -2809,11 +1888,14 @@ const TextEditorContent = ({
                 }
                 toast.success(`Spell check ${newState ? 'enabled' : 'disabled'}`);
               }}
-              onToggleBulletList={() => { console.log('onToggleBulletList called'); runWithSavedSelection(editor, (chain) => chain.toggleBulletList()); }}
-              onToggleOrderedList={() => { console.log('onToggleOrderedList called'); runWithSavedSelection(editor, (chain) => chain.toggleOrderedList()); }}
-              onToggleTaskList={() => { console.log('onToggleTaskList called'); runWithSavedSelection(editor, (chain) => chain.toggleTaskList()); }}
-              onIndent={() => { console.log('onIndent called'); runWithSavedSelection(editor, (chain) => chain.indent()); }}
-              onOutdent={() => { console.log('onOutdent called'); runWithSavedSelection(editor, (chain) => chain.outdent()); }}
+              // BulletList, OrderedList, ListItem are registered in EditorSurface.jsx.
+              // StarterKit has them disabled there; the standalone extensions provide
+              // toggleBulletList() and toggleOrderedList() on the chain.
+              onToggleBulletList={() => { runWithSavedSelection(editor, (chain) => chain.toggleBulletList()); }}
+              onToggleOrderedList={() => { runWithSavedSelection(editor, (chain) => chain.toggleOrderedList()); }}
+              onToggleTaskList={() => { runWithSavedSelection(editor, (chain) => chain.toggleTaskList()); }}
+              onIndent={() => { runWithSavedSelection(editor, (chain) => chain.indent()); }}
+              onOutdent={() => { runWithSavedSelection(editor, (chain) => chain.outdent()); }}
               onInsertPageBreak={() => {
                 console.log('onInsertPageBreak called');
                 runWithSavedSelection(editor, () => {
@@ -2826,8 +1908,8 @@ const TextEditorContent = ({
                   toast.success('Page break inserted');
                 });
               }}
-              onInsertHorizontalRule={() => { console.log('onInsertHorizontalRule called'); runWithSavedSelection(editor, (chain) => chain.setHorizontalRule()); }}
-              onToggleBlockquote={() => { console.log('onToggleBlockquote called'); runWithSavedSelection(editor, (chain) => chain.toggleBlockquote()); }}
+              onInsertHorizontalRule={() => { runWithSavedSelection(editor, (chain) => chain.setHorizontalRule()); }}
+              onToggleBlockquote={() => { runWithSavedSelection(editor, (chain) => chain.toggleBlockquote()); }}
             />
           </div>
         </header>
@@ -2892,23 +1974,31 @@ const TextEditorContent = ({
             onCopy={handleCopy}
             style={{ position: 'relative', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}
           >
-            {/* Real Pagination - Pages Container with Zoom */}
-            {editor && (
-              <div
-                className="editor-pages-container"
-                style={{
-                  transform: `scale(${effectiveZoom / 100})`,
-                  transformOrigin: 'top center',
-                  transition: 'transform 0.2s ease-out',
-                  width: `${100 * (100 / effectiveZoom)}%`,
-                  flex: 1,
-                  minHeight: 0,
-                  padding: '56px 0 16px 0' // Added 40px top padding (16+40=56px) for 20px spacing from toolbar
-                }}
-              >
-                <EditorContent editor={editor} />
-              </div>
-            )}
+            <EditorSurface
+              initialContent={fetchedDoc?.data?.content || fetchedDoc?.content || ''}
+              editorRef={editorRef}
+              zoom={zoom}
+              onUpdate={({ editor: editorInstance }) => {
+                // 🔥 CRITICAL FIX: Defer state update to next frame to avoid flushSync violation
+                // PROBLEM: TipTap's onUpdate fires during a transaction flush. Calling setState synchronously
+                // causes React to attempt a synchronous render (flushSync), which is prohibited inside lifecycles.
+                requestAnimationFrame(() => {
+                  if (isMounted.current) {
+                    if (triggerAutoSave) triggerAutoSave();
+                  }
+                });
+              }}
+              onCreate={({ editor: editorInstance }) => {
+                // Defer to avoid "Can't perform a React state update on a component that hasn't mounted yet"
+                requestAnimationFrame(() => {
+                  if (isMounted.current) {
+                    setEditor(editorInstance);
+                    editorRef.current = editorInstance;
+                  }
+                });
+              }}
+              placeholderText="Start typing or press / for AI commands..."
+            />
           </div>
 
 
@@ -3341,4 +2431,4 @@ const TextEditorWithProviders = ({
   );
 };
 
-export default TextEditorWithProviders;        
+export default TextEditorWithProviders;

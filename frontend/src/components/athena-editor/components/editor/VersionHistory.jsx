@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
     History, X, Clock, RotateCcw, Eye, Tag, Plus,
@@ -8,6 +8,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import { TextEditorService } from '../../../../services/Text-Editor/text.service.js';
+import DOMPurify from 'dompurify'; // 🔥 Fix: Added missing DOMPurify import
 
 const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersion, onRestoreVersion }) => {
     const [previewVersion, setPreviewVersion] = useState(null);
@@ -15,6 +16,14 @@ const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersio
     const [tempName, setTempName] = useState('');
     const [compareMode, setCompareMode] = useState(false);
     const [compareVersions, setCompareVersions] = useState([]);
+    const isMounted = useRef(true);
+
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
 
     if (!isOpen) return null;
 
@@ -49,7 +58,7 @@ const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersio
             });
             
             // Update local state with new metadata
-            if (onSaveVersion) {
+            if (isMounted.current && onSaveVersion) {
                 onSaveVersion({ ...version, title: tempName || version.title });
             }
             toast.success('Version named');
@@ -57,7 +66,9 @@ const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersio
             console.error('Failed to update version name:', error);
             toast.error('Failed to update version name');
         } finally {
-            setNamingId(null);
+            if (isMounted.current) {
+                setNamingId(null);
+            }
         }
     };
 
@@ -122,7 +133,7 @@ const VersionHistory = ({ isOpen, onClose, editor, docId, versions, onSaveVersio
                             });
                             
                             // Only metadata in React state — no HTML blob
-                            if (onSaveVersion) {
+                            if (isMounted.current && onSaveVersion) {
                                 onSaveVersion({ 
                                     id: versionId, 
                                     title, 

@@ -54,25 +54,25 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
     e.preventDefault();
     window.isToolbarInteraction = true;
     window.wasToolbarInteractionRecent = true;
-    
+
     // LOCK SCROLL when select opens
     const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
     if (editorContainer) {
       require('../../utils/scrollLockManager').scrollLockManager.lock(editorContainer);
     }
-    
+
     setTimeout(() => {
       window.isToolbarInteraction = false;
       require('../../utils/scrollLockManager').scrollLockManager.unlock();
     }, 500);
-    
+
     setTimeout(() => {
       window.wasToolbarInteractionRecent = false;
     }, 1000);
-    
+
     onOpenAutoFocus?.(e);
   };
-  
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content

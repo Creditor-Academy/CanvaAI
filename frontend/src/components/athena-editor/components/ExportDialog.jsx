@@ -483,7 +483,7 @@ export function ExportDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!isRunning) onOpenChange?.(v); }}>
       <DialogContent
-        className="p-0 gap-0 max-w-2xl w-full bg-white rounded-2xl border border-slate-200 overflow-hidden"
+        className="p-0 gap-0 max-w-2xl w-full bg-white rounded-2xl border border-slate-200 overflow-hidden [&>button.absolute]:hidden"
         aria-describedby="export-dialog-desc"
         // suppress default DialogContent padding
         style={{ padding: 0 }}
