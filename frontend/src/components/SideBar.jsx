@@ -112,15 +112,17 @@ const SideBar = () => {
     <>
       <aside
         className={`
-                fixed z-[9999] flex items-center gap-0 md:gap-2 xl:gap-6
-                bottom-3 left-1/2 -translate-x-1/2 w-[95%] 
-                px-2 py-1.5 rounded-xl
-                bg-white/90 backdrop-blur-xl shadow-lg border border-white/50
-                flex-row justify-between
-                md:relative md:left-0 md:top-0 md:bottom-0 md:translate-x-0 md:translate-y-0 
-                md:h-screen md:w-20 md:flex-col md:justify-start md:py-8 md:px-0 
-                md:overflow-y-auto md:rounded-none md:bg-transparent md:shadow-none md:border-none
-        `}
+    hide-scrollbar
+    fixed z-[9999] flex items-center gap-0 md:gap-4 xl:gap-6
+    bottom-3 left-1/2 -translate-x-1/2 w-[95%] 
+    px-2 py-1.5 rounded-xl
+    bg-white/90 backdrop-blur-xl shadow-lg border border-white/50
+    flex-row justify-between
+    md:relative md:left-0 md:top-0 md:bottom-0 md:translate-x-0 md:translate-y-0 
+    md:h-screen md:w-20 md:flex-col md:justify-start md:py-8 md:px-0 
+    md:overflow-y-auto
+    md:rounded-none md:bg-transparent md:shadow-none md:border-none 
+  `}
       >
         <div className="flex items-center justify-center">
           <button

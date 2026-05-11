@@ -466,7 +466,7 @@ const Help = () => {
             <div className="flex items-center justify-center">
               <div className="group relative">
 
-                <div className="relative flex items-center justify-center w-40 h-40 sm:w-64 sm:h-64 lg:w-96 lg:h-96 animate-float">
+                <div className="relative flex items-center justify-center w-40 h-40 sm:w-64 sm:h-64 lg:w-96 lg:h-96">
                   <img
                     src="https://cdn-icons-png.flaticon.com/512/14865/14865140.png"
                     alt="Support Illustration"
