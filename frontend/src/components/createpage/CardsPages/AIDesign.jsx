@@ -52,6 +52,12 @@ export const AIDesign = () => {
     "Minimalist flat-design icon set for a finance app",
   ];
 
+  const getAspectRatio = (size) => {
+    if (size === "portrait") return "3 / 4";
+    if (size === "landscape") return "4 / 3";
+    return "1 / 1";
+  };
+
   const isPromptValid = Boolean(prompt.trim());
   const isStyleValid = Boolean(selectedStyle);
   const isSizeValid = Boolean(selectedSize);
@@ -418,11 +424,12 @@ export const AIDesign = () => {
                         setShowPanel(true);
                       }}
                       className="relative rounded-2xl overflow-hidden border cursor-pointer group"
+                      style={{ aspectRatio: getAspectRatio(selectedSize || "square") }}
                     >
                       <img
                         src={img}
                         alt=""
-                        className="w-full aspect-square object-cover"
+                        className="w-full h-full object-cover"
                       />
 
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
@@ -456,7 +463,8 @@ export const AIDesign = () => {
               <img
                 src={generatedImages[panelIndex]}
                 alt=""
-                className="max-h-[75vh] rounded-2xl"
+                className="rounded-2xl"
+                style={{ maxHeight: '75vh', aspectRatio: getAspectRatio(selectedSize || "square") }}
               />
 
               <div className="flex flex-wrap items-center gap-3 mt-6">
