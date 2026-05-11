@@ -15,6 +15,8 @@ const TopNavbar = () => {
 
 
   const profileRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuBtnRef = useRef(null);
   const [openProfile, setopenProfile] = useState(false);
   const [openMenu, setOpenMenu] = useState(false);
 
@@ -36,8 +38,9 @@ const TopNavbar = () => {
         !menuRef.current.contains(e.target) &&
         menuBtnRef.current &&
         !menuBtnRef.current.contains(e.target)
-      )
+      ) {
         setOpenMenu(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -157,6 +160,7 @@ const TopNavbar = () => {
 
       {openMenu && (
         <div
+          ref={menuRef}
           className="absolute top-[70px] right-4 w-64 rounded-xl shadow-xl p-4 md:hidden"
           style={{
             background: "rgba(255,255,255,0.95)",
