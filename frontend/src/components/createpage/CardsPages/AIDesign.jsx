@@ -76,6 +76,14 @@ export const AIDesign = () => {
   }, [isLoading]);
 
 
+  const handleRefresh = () => {
+    setGeneratedImages([]);
+    setPrompt("");
+    setSelectedSize(null);
+    setSelectedStyle(null);
+    setSubmitAttempted(false);
+  };
+
   const handleGenerate = async () => {
     setSubmitAttempted(true);
 
@@ -250,20 +258,18 @@ export const AIDesign = () => {
               />
 
               <div className="mt-4">
-                <p className="text-xs font-medium text-gray-500 mb-2">
+                <p className="text-xs font-semibold text-gray-700 mb-2">
                   Example Prompts
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {examplePrompts.slice(0, 3).map((ex, i) => (
+                  {examplePrompts.map((ex, i) => (
                     <button
                       key={i}
                       onClick={() => setPrompt(ex)}
-                      className="text-xs rounded-sm px-3 py-1 hover:bg-gray-100"
+                      className="text-sm sm:text-xs rounded-lg px-3 py-2 border border-gray-200 bg-white hover:bg-gray-100 hover:border-gray-300 transition text-left"
                     >
-                      {ex.length > 25
-                        ? ex.substring(0, 25) + "..."
-                        : ex}
+                      {ex}
                     </button>
                   ))}
                 </div>
@@ -276,7 +282,7 @@ export const AIDesign = () => {
                 <h2 className="text-sm font-bold">Styles</h2>
 
                 {selectedStyle && (
-                  <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded-full">
                     {selectedStyle}
                   </span>
                 )}
@@ -292,7 +298,7 @@ export const AIDesign = () => {
                       onClick={() => setSelectedStyle(style.name)}
                       className={`rounded-xl overflow-hidden border transition
                       ${active
-                          ? "border-black ring-1 ring-black"
+                          ? "border-blue-500 ring-1 ring-blue-500"
                           : "border-gray-200"
                         }
                     `}
@@ -314,7 +320,7 @@ export const AIDesign = () => {
 
             {/* Sizes */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <h2 className="text-sm font-bold mb-3">Image Size</h2>
+              <h2 className="text-sm font-bold mb-3 ">Image Size</h2>
 
               <div className="grid grid-cols-3 gap-2">
                 {sizes.map((size) => {
@@ -324,11 +330,13 @@ export const AIDesign = () => {
                     <button
                       key={size.value}
                       onClick={() => setSelectedSize(size.value)}
+                      disabled={generatedImages.length > 0}
                       className={`rounded-xl border p-2 text-center transition
                       ${active
-                          ? "bg-black text-white border-black"
-                          : "border-gray-200 hover:bg-gray-100"
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "border-gray-200 hover:bg-blue-100"
                         }
+                        ${generatedImages.length > 0 ? "opacity-50 cursor-not-allowed" : ""}
                     `}
                     >
                       <div
@@ -361,11 +369,11 @@ export const AIDesign = () => {
 
             {/* Generate Button */}
             <button
-              onClick={handleGenerate}
+              onClick={generatedImages.length > 0 ? handleRefresh : handleGenerate}
               disabled={isLoading}
-              className="w-full bg-black hover:bg-gray-800 text-white py-3 rounded-2xl font-bold text-sm transition disabled:opacity-50"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-2xl font-bold text-sm transition disabled:opacity-50"
             >
-              {isLoading ? "Generating..." : "Generate Image"}
+              {generatedImages.length > 0 ? "Refresh" : (isLoading ? "Generating..." : "Generate Image")}
             </button>
           </div>
 
@@ -375,22 +383,11 @@ export const AIDesign = () => {
 
               {/* Loading */}
               {isLoading && (
-                <div className="flex flex-col items-center justify-center h-full">
+                <div className="flex flex-col items-center justify-center h-[600px]">
                   <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
 
-                  <p className="mt-4 font-medium">
+                  <p className="mt-4 font-medium text-blue-600">
                     Generating image...
-                  </p>
-
-                  <div className="w-64 h-2 bg-gray-200 rounded-full mt-4 overflow-hidden">
-                    <div
-                      className="h-full bg-black transition-all"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-
-                  <p className="text-sm text-gray-500 mt-2">
-                    {Math.round(progress)}%
                   </p>
                 </div>
               )}
