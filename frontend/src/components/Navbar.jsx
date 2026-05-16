@@ -1,10 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { FiHelpCircle, FiBell, FiLogOut, FiUser } from "react-icons/fi";
-import logo from "../assets/logo.png";
+import logo from "../assets/designovalogo.png";
 import { FiMenu } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
-
 
 
 const TopNavbar = () => {
@@ -63,9 +62,9 @@ const TopNavbar = () => {
         <img
           src={logo}
           alt="Designova Logo"
-          className="h-12 md:h-16 object-contain cursor-pointer"
+          className="h-26 md:h-32 object-contain cursor-pointer"
         />
-        <div className="flex items-center  text-slate-700 font-semibold text-[16px] tracking-wide">Designova</div>
+        {/* <div className="flex items-center  text-slate-700 font-semibold text-[16px] tracking-wide">Designova</div> */}
 
 
       </div>

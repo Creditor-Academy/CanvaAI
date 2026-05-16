@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Navbar.css";
-import logo from "../../assets/logo.png";
+import logo from "../../assets/designovalogo.png";
 
 const isTokenValid = () => {
   const token = localStorage.getItem("token");
@@ -33,12 +33,12 @@ const Navbar = () => {
       <div className="navv-inner">
         <div className="navv-left">
           <a className="brand">
-            <img src={logo} alt="Designova AI" className="brand-logo" />
-            <div className="brand-text"> <strong>Designova </strong> </div>
-
+            <img src={logo}
+              className="h-26 md:h-32"
+              alt="Designova AI" />
           </a>
         </div>
-
+ 
         <nav className={`navv-links ${open ? "open" : ""}`}>
           <a href="#features" className="navv-link">Features</a>
           <a href="#how-it-works" className="navv-link">How It Works</a>
