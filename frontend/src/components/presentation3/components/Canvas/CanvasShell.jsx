@@ -349,12 +349,15 @@ const CanvasShell = () => {
   if (!activeSlide) return null;
 
   return (
-    <div style={styles.canvasWrapper}>
-      <div style={styles.editorCenter}>
+    <div className="flex-1 bg-gray-100 p-24 pt-16 overflow-hidden  flex flex-col bg-[radial-gradient(circle,_#d1d5db_1px,_transparent_1px)] bg-[length:20px_20px]">
+
+      <div className=" mr-14">
+
+      <div className="max-w-[1000px] w-full mx-auto flex justify-center">
         <div
           ref={slideRef}
+          className="w-full max-w-[900px] aspect-video relative overflow-visible flex-shrink-0  bg-white"
           style={{
-            ...styles.slide,
             backgroundColor: activeSlide.background,
             backgroundImage: activeSlide.backgroundImage
               ? `url(${activeSlide.backgroundImage})`
@@ -364,6 +367,7 @@ const CanvasShell = () => {
             backgroundPosition: "center",
             transform: `scale(${canvasZoom})`,
             transformOrigin: "center center",
+            boxShadow: "0 10px 20px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08)",
           }}
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
@@ -412,7 +416,13 @@ const CanvasShell = () => {
                   {selected && (
                     <>
                       <div
-                        style={styles.resizeHandle}
+                        className="absolute bg-blue-600 cursor-nwse-resize"
+                        style={{
+                          right: -HANDLE_SIZE / 2,
+                          bottom: -HANDLE_SIZE / 2,
+                          width: HANDLE_SIZE,
+                          height: HANDLE_SIZE,
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           saveToHistory();
@@ -428,7 +438,12 @@ const CanvasShell = () => {
                         }}
                       />
                       <div
-                        style={styles.rotateHandle}
+                        className="absolute w-[10px] h-[10px] rounded-full bg-white border border-blue-600 cursor-grab z-[100]"
+                        style={{
+                          left: "50%",
+                          top: -24,
+                          marginLeft: -5,
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           saveToHistory();
@@ -449,20 +464,15 @@ const CanvasShell = () => {
                     if (el) layerRefs.current[layer.id] = el;
                     else delete layerRefs.current[layer.id];
                   }}
+                  className="absolute cursor-move select-none"
                   style={{
-                    position: "absolute",
                     left: layer.x,
                     top: layer.y,
                     width: layer.width,
                     height: layer.height,
-                    border: selected
-                      ? "1.5px solid #2563eb"
-                      : "none",
-                    cursor: "move",
-                    userSelect: "none",
+                    border: selected ? "1.5px solid #2563eb" : "none",
                     transform: `rotate(${layer.rotation || 0}deg)`,
                     transformOrigin: "center center",
-                    borderRadius: layer.borderRadius || 0,
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -480,22 +490,24 @@ const CanvasShell = () => {
                     }
                   }}
                 >
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    position: 'relative',
-                    pointerEvents: 'none',
-                    overflow: 'hidden',
-                    borderRadius: layer.borderRadius || 0,
-                    border: `${layer.borderWidth || 0}px solid ${layer.borderColor || '#000'}`,
-                    boxSizing: 'border-box',
-                  }}>
+                  <div className="w-full h-full relative pointer-events-none overflow-hidden"
+                    style={{
+                      borderRadius: layer.borderRadius || 0,
+                      border: `${layer.borderWidth || 0}px solid ${layer.borderColor || '#000'}`,
+                      boxSizing: 'border-box',
+                    }}>
                     <ImageLayer layer={layer} />
                   </div>
                   {selected && (
                     <>
                       <div
-                        style={styles.resizeHandle}
+                        className="absolute bg-blue-600 cursor-nwse-resize"
+                        style={{
+                          right: -HANDLE_SIZE / 2,
+                          bottom: -HANDLE_SIZE / 2,
+                          width: HANDLE_SIZE,
+                          height: HANDLE_SIZE,
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           saveToHistory();
@@ -511,7 +523,12 @@ const CanvasShell = () => {
                         }}
                       />
                       <div
-                        style={styles.rotateHandle}
+                        className="absolute w-[10px] h-[10px] rounded-full bg-white border border-blue-600 cursor-grab z-[100]"
+                        style={{
+                          left: "50%",
+                          top: -24,
+                          marginLeft: -5,
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           saveToHistory();
@@ -532,14 +549,13 @@ const CanvasShell = () => {
                     if (el) layerRefs.current[layer.id] = el;
                     else delete layerRefs.current[layer.id];
                   }}
+                  className="absolute box-border"
                   style={{
-                    position: "absolute",
                     left: layer.x,
                     top: layer.y,
                     width: layer.width,
                     height: layer.height,
                     border: selected ? "2px solid #2563eb" : "none",
-                    boxSizing: "border-box",
                     transform: `rotate(${layer.rotation || 0}deg)`,
                     transformOrigin: "center center",
                   }}
@@ -566,7 +582,13 @@ const CanvasShell = () => {
                   {selected && (
                     <>
                       <div
-                        style={styles.resizeHandle}
+                        className="absolute bg-blue-600 cursor-nwse-resize"
+                        style={{
+                          right: -HANDLE_SIZE / 2,
+                          bottom: -HANDLE_SIZE / 2,
+                          width: HANDLE_SIZE,
+                          height: HANDLE_SIZE,
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           saveToHistory();
@@ -582,7 +604,12 @@ const CanvasShell = () => {
                         }}
                       />
                       <div
-                        style={styles.rotateHandle}
+                        className="absolute w-[10px] h-[10px] rounded-full bg-white border border-blue-600 cursor-grab z-[100]"
+                        style={{
+                          left: "50%",
+                          top: -24,
+                          marginLeft: -5,
+                        }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
                           saveToHistory();
@@ -604,20 +631,16 @@ const CanvasShell = () => {
                   if (el) layerRefs.current[layer.id] = el;
                   else delete layerRefs.current[layer.id];
                 }}
+                className="absolute box-border"
                 style={{
-                  position: "absolute",
                   left: layer.x,
                   top: layer.y,
                   width: layer.width,
                   height: layer.height,
                   padding: "6px",
-                  border:
-                    selected && !isEditing
-                      ? "1.5px solid #2563eb"
-                      : "1px solid transparent",
+                  border: selected && !isEditing ? "1.5px solid #2563eb" : "1px solid transparent",
                   cursor: isEditing ? "text" : "move",
                   userSelect: isEditing ? "text" : "none",
-                  boxSizing: "border-box",
                   transform: `rotate(${layer.rotation || 0}deg)`,
                   transformOrigin: "center center",
                 }}
@@ -650,7 +673,13 @@ const CanvasShell = () => {
                 {selected && !isEditing && (
                   <>
                     <div
-                      style={styles.resizeHandle}
+                      className="absolute bg-blue-600 cursor-nwse-resize"
+                      style={{
+                        right: -HANDLE_SIZE / 2,
+                        bottom: -HANDLE_SIZE / 2,
+                        width: HANDLE_SIZE,
+                        height: HANDLE_SIZE,
+                      }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         saveToHistory();
@@ -666,7 +695,12 @@ const CanvasShell = () => {
                       }}
                     />
                     <div
-                      style={styles.rotateHandle}
+                      className="absolute w-[10px] h-[10px] rounded-full bg-white border border-blue-600 cursor-grab z-[100]"
+                      style={{
+                        left: "50%",
+                        top: -24,
+                        marginLeft: -5,
+                      }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         saveToHistory();
@@ -683,36 +717,25 @@ const CanvasShell = () => {
           {activeGuides.map((guide, i) => (
             <div
               key={i}
+              className="absolute pointer-events-none z-[999]"
               style={{
-                position: "absolute",
                 left: guide.type === 'v' ? guide.x : 0,
                 top: guide.type === 'h' ? guide.y : 0,
                 width: guide.type === 'v' ? 1 : SLIDE_WIDTH,
                 height: guide.type === 'h' ? 1 : SLIDE_HEIGHT,
                 borderLeft: guide.type === 'v' ? '1px dashed #ff00ff' : 'none',
                 borderTop: guide.type === 'h' ? '1px dashed #ff00ff' : 'none',
-                pointerEvents: "none",
-                zIndex: 999,
               }}
             />
           ))}
 
           {/* Position Readout Tooltip */}
           {dragCoords && (
-            <div style={{
-              position: 'absolute',
-              left: dragCoords.x,
-              top: dragCoords.y - 30,
-              background: 'rgba(37, 99, 235, 0.9)', // Using a more theme-consistent blue
-              color: '#fff',
-              padding: '2px 6px',
-              borderRadius: '2px',
-              fontSize: '11px',
-              pointerEvents: 'none',
-              zIndex: 1000,
-              whiteSpace: 'nowrap',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            }}>
+            <div className="absolute text-white text-xs bg-blue-500 bg-opacity-90 px-1.5 py-0.5 rounded pointer-events-none z-[1000] whitespace-nowrap shadow-md"
+              style={{
+                left: dragCoords.x,
+                top: dragCoords.y - 30,
+              }}>
               {dragCoords.x}, {dragCoords.y}
             </div>
           )}
@@ -725,20 +748,10 @@ const CanvasShell = () => {
 
             return (
               <div
+                className="absolute bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-3 z-[1000] shadow-lg"
                 style={{
-                  position: "absolute",
                   left: sLayer.x,
                   top: sLayer.y + sLayer.height + 14,
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "8px 12px",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  zIndex: 1000,
-                  cursor: "default",
                 }}
                 onMouseDown={(e) => e.stopPropagation()} // Prevent deselection
               >
@@ -746,22 +759,11 @@ const CanvasShell = () => {
                   href={sLayer.link.startsWith("http") ? sLayer.link : `https://${sLayer.link}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    color: "#0c4a6e",
-                    textDecoration: "underline",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    maxWidth: "200px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseOver={(e) => e.target.style.color = "#f59e0b"}
-                  onMouseOut={(e) => e.target.style.color = "#0c4a6e"}
+                  className="text-slate-800 underline text-sm font-medium max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap hover:text-amber-500 transition-colors"
                 >
                   {sLayer.link}
                 </a>
-                <div style={{ width: "1px", height: "16px", background: "#cbd5e1" }} />
+                <div className="w-px h-4 bg-slate-300" />
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -769,22 +771,7 @@ const CanvasShell = () => {
                       setEditingLayer(sLayer.id);
                     }
                   }}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#0c4a6e",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "4px 8px",
-                    fontWeight: 600,
-                    borderRadius: "4px",
-                    transition: "all 0.2s ease"
-                  }}
-                  onMouseOver={(e) => e.target.style.background = "#f1f5f9"}
-                  onMouseOut={(e) => e.target.style.background = "transparent"}
+                  className="bg-transparent border-0 text-slate-800 cursor-pointer text-xs flex items-center gap-1 px-2 py-1 font-semibold rounded transition-all hover:bg-slate-100"
                 >
                   ✎ Edit Text
                 </button>
@@ -793,22 +780,7 @@ const CanvasShell = () => {
                     e.stopPropagation();
                     updateTextLayer(sLayer.id, { link: "" });
                   }}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#e11d48",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    padding: "4px 8px",
-                    fontWeight: 600,
-                    borderRadius: "4px",
-                    transition: "all 0.2s ease"
-                  }}
-                  onMouseOver={(e) => e.target.style.background = "#fff1f2"}
-                  onMouseOut={(e) => e.target.style.background = "transparent"}
+                  className="bg-transparent border-0 text-red-600 cursor-pointer text-xs flex items-center gap-1 px-2 py-1 font-semibold rounded transition-all hover:bg-red-50"
                   title="Remove Link"
                 >
                   ✕ Remove
@@ -818,64 +790,11 @@ const CanvasShell = () => {
           })()}
         </div>
       </div>
+
+      </div>
+
     </div>
   );
 };
 
 export default CanvasShell;
-
-/* =========================
-   STYLES
-========================= */
-
-const styles = {
-  canvasWrapper: {
-    flex: 1,
-    background: "#f3f4f6",
-    padding: "60px 24px",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    marginRight: "60px", // IMPORTANT: right properties panel ki width
-  },
-  editorCenter: {
-    maxWidth: 1000,        // Design max width
-    width: "100%",         // Take up available space up to max
-    margin: "0 auto",      // Center horizontally
-    display: "flex",
-    justifyContent: "center",
-    // alignItems: "center", // Optional: if we want vertical centering when zoomed out highly
-    // Ensure it can grow
-  },
-  slide: {
-    width: "100%",
-    maxWidth: "900px",   // canvas chhota ho jayega
-    aspectRatio: "16 / 9",
-    position: "relative",
-    overflow: "visible",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-    flexShrink: 0,
-  },
-  resizeHandle: {
-    position: "absolute",
-    right: -HANDLE_SIZE / 2,
-    bottom: -HANDLE_SIZE / 2,
-    width: HANDLE_SIZE,
-    height: HANDLE_SIZE,
-    background: "#2563eb",
-    cursor: "nwse-resize",
-  },
-  rotateHandle: {
-    position: "absolute",
-    left: "50%",
-    top: -24, // Place above the element
-    width: 10,
-    height: 10,
-    marginLeft: -5,
-    borderRadius: "50%",
-    background: "#fff",
-    border: "1px solid #2563eb",
-    cursor: "grab",
-    zIndex: 100,
-  },
-};
