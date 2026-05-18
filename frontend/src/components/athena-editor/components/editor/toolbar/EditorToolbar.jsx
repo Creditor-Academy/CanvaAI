@@ -44,11 +44,9 @@ import { ListItem } from '@tiptap/extension-list-item';
 import Indent from '../../../extensions/Indent.js';
 import { Page, initializePagination } from '../../../extensions/Page.js';
 import { addHeadingStyles, updateHeadingStyles } from '../EditorPagination.js';  // Heading styles functions
-import { paginateDocument, debouncePaginate, cleanupPagination } from '../../../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
+import { paginateDocument, debouncePaginate, cleanupPagination, invalidatePaginationCache } from '../../../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
 import { usePastePagination } from '../../../hooks/usePastePagination';
 import { transformMarkdownToEditor, isMarkdown } from '../../../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
-import '../../../../../styles/editor/athena-editor-master.css'; // 🎨 New consolidated CSS architecture
-import { Table as TiptapTable, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyle } from '@tiptap/extension-text-style';
 import TableExtension from '../../../extensions/TableExtension.js';
 import { Color } from '@tiptap/extension-color';
@@ -554,15 +552,15 @@ export const EditorToolbar = ({
   // ✅ Sync pageMargins state → CSS variables so every stylesheet sees the values
   useEffect(() => {
     const r = document.documentElement;
-    r.style.setProperty('--editor-margin-top',    `${pageMargins.top}px`);
+    r.style.setProperty('--editor-margin-top', `${pageMargins.top}px`);
     r.style.setProperty('--editor-margin-bottom', `${pageMargins.bottom}px`);
-    r.style.setProperty('--editor-margin-left',   `${pageMargins.left}px`);
-    r.style.setProperty('--editor-margin-right',  `${pageMargins.right}px`);
+    r.style.setProperty('--editor-margin-left', `${pageMargins.left}px`);
+    r.style.setProperty('--editor-margin-right', `${pageMargins.right}px`);
     // Also sync legacy variable names used by real-pagination.css
-    r.style.setProperty('--doc-margin-top',    `${pageMargins.top}px`);
+    r.style.setProperty('--doc-margin-top', `${pageMargins.top}px`);
     r.style.setProperty('--doc-margin-bottom', `${pageMargins.bottom}px`);
-    r.style.setProperty('--doc-margin-left',   `${pageMargins.left}px`);
-    r.style.setProperty('--doc-margin-right',  `${pageMargins.right}px`);
+    r.style.setProperty('--doc-margin-left', `${pageMargins.left}px`);
+    r.style.setProperty('--doc-margin-right', `${pageMargins.right}px`);
   }, [pageMargins]);
 
   // Auto-hide export progress messages after 5 seconds
@@ -965,7 +963,7 @@ export const EditorToolbar = ({
         setTimeout(() => {
           if (!editor.isDestroyed) {
             editor.commands.focus();
-            
+
             // ✅ FORCE PAGINATION: Trigger pagination after table insertion
             // Tables need immediate pagination to shift content to new page if needed
             paginateDocument(editor, { force: true, reason: 'table-insertion' });
@@ -1226,8 +1224,22 @@ export const EditorToolbar = ({
   // SOLUTION: Use CSS variable on editor container - cascade handles all block types uniformly
   const setLineSpacingValue = (spacing) => {
     setLineSpacing(spacing);
-    // Update the CSS variable on the editor container
+    // Update the CSS variables on the root document element
     document.documentElement.style.setProperty('--editor-line-height', String(spacing));
+    document.documentElement.style.setProperty('--lh', String(spacing));
+    
+    // Invalidate pagination cache since all block heights are changed
+    if (typeof invalidatePaginationCache === 'function') {
+      invalidatePaginationCache();
+    }
+    
+    // Force immediate repagination of the document
+    if (editor) {
+      setTimeout(() => {
+        paginateDocument(editor, { force: true, reason: 'line-spacing-change' });
+      }, 50);
+    }
+    
     toast.success(`Line spacing set to ${spacing}`);
     // No per-node attribute update needed — CSS cascade handles it
   };
@@ -2184,8 +2196,22 @@ export const EditorToolbar = ({
   // 🔥 CRITICAL FIX: Apply via CSS variable — one source of truth, affects all block types
   const applyLineSpacing = (value) => {
     setLineSpacing(value);
-    // Update the CSS variable on the editor container
+    // Update the CSS variables on the root document element
     document.documentElement.style.setProperty('--editor-line-height', String(value));
+    document.documentElement.style.setProperty('--lh', String(value));
+    
+    // Invalidate pagination cache since all block heights are changed
+    if (typeof invalidatePaginationCache === 'function') {
+      invalidatePaginationCache();
+    }
+    
+    // Force immediate repagination of the document
+    if (editor) {
+      setTimeout(() => {
+        paginateDocument(editor, { force: true, reason: 'line-spacing-change' });
+      }, 50);
+    }
+    
     toast.success(`Line spacing set to ${value}`);
     // No per-node attribute update needed — CSS cascade handles it
   };
@@ -4653,15 +4679,15 @@ export const EditorToolbar = ({
                     toast.error('Please enter a URL');
                     return;
                   }
-                  
+
                   console.log('🔗 Inserting link:', linkUrl, 'Display text:', linkDisplayText);
                   console.log('📍 Saved selection:', savedSelection);
-                  
+
                   if (!editor) {
                     toast.error('Editor not available');
                     return;
                   }
-                  
+
                   // Restore selection and apply link
                   if (savedSelection && savedSelection.from !== savedSelection.to) {
                     // There was a text selection - apply link to it
@@ -4689,7 +4715,7 @@ export const EditorToolbar = ({
                       .run();
                     toast.success('Link inserted');
                   }
-                  
+
                   setShowInsertLink(false);
                   setLinkUrl('');
                   setLinkDisplayText('');

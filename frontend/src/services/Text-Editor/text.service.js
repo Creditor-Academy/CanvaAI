@@ -15,43 +15,52 @@ const getAuthConfig = () => {
 /**
  * Call Backend AI API for text generation (OpenAI)
  */
-async function callAI({ 
-  systemPrompt, 
-  userPrompt, 
-  temperature = 0.7, 
-  maxTokens = 4096, 
-  onChunk, 
-  signal 
+async function callAI({
+  systemPrompt,
+  userPrompt,
+  temperature = 0.7,
+  maxTokens = 4096,
+  onChunk,
+  signal
 }) {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/text-editor/ai/generate`, {
-      systemPrompt,
-      userPrompt,
-      temperature,
-      maxTokens
-    }, { ...getAuthConfig(), signal });
+    const response = await axios.post(
+      `${API_BASE_URL}/api/text-editor/generate-text`,
+      {
+        systemPrompt,
+        userPrompt,
+        temperature,
+        maxTokens
+      },
+      { ...getAuthConfig(), signal }
+    );
 
     const result = response.data.text;
-    onChunk?.(result); // Single chunk for now as backend is non-streaming
+    onChunk?.(result);
+
     return result;
   } catch (error) {
     console.error("AI Generation Error:", error);
-    throw new Error(error.response?.data?.message || "AI failed to generate content");
+
+    throw new Error(
+      error.response?.data?.message ||
+      "AI failed to generate content"
+    );
   }
 }
 
 /**
  * Call Backend AI API for chat (OpenAI)
  */
-async function callAIChat({ 
-  messages, 
-  systemPrompt, 
-  temperature = 0.7, 
-  onChunk, 
-  signal 
+async function callAIChat({
+  messages,
+  systemPrompt,
+  temperature = 0.7,
+  onChunk,
+  signal
 }) {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/text-editor/ai/chat`, {
+    const response = await axios.post(`${API_BASE_URL}/api/text-editor/chat`, {
       messages,
       systemPrompt,
       temperature
@@ -77,7 +86,8 @@ async function callAIChat({
 function buildPollinationsUrl(prompt, size) {
   const [w, h] = size.split('x');
   const encoded = encodeURIComponent(prompt);
-  return `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&nologo=true&enhance=true&model=flux`;
+  // Using a more reliable default model and ensuring parameters are clean
+  return `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&nologo=true&enhance=true`;
 }
 
 /**
@@ -102,7 +112,7 @@ async function generateDocument({
   signal
 }) {
   const PROMPTS = {
-    generate: (type, tone, pages) => 
+    generate: (type, tone, pages) =>
       `You are a professional ${type.toLowerCase()} writer. Create a well-structured, engaging ${type.toLowerCase()} with a ${tone} tone. Target length: approximately ${pages * 380} words.`
   };
 
@@ -133,7 +143,7 @@ async function generateImage({
   signal
 }) {
   let finalPrompt = prompt;
-  
+
   if (enhancePrompt) {
     try {
       const enhanced = await callAI({
@@ -151,7 +161,7 @@ async function generateImage({
   } else {
     finalPrompt = `${prompt}, ${style}, high quality, detailed`;
   }
-  
+
   const url = buildPollinationsUrl(finalPrompt, size);
   return { url, enhancedPrompt: finalPrompt };
 }
@@ -179,18 +189,18 @@ async function transformText({
   systemPrompt: systemPromptOverride, // Allow caller to override system prompt
 }) {
   const TRANSFORM_PROMPTS = {
-    rewrite:           `Rewrite this text to improve clarity, flow, and engagement while maintaining the original meaning:\n\n"${text}"`,
-    enhance:           `Enhance this text to be more professional, engaging, and impactful while preserving the original meaning:\n\n"${text}"`,
-    expand:            `Expand this text with more details, examples, and depth:\n\n"${text}"`,
-    summarize:         `Summarize this text concisely, keeping only the key points:\n\n"${text}"`,
-    simplify:          `Simplify this text to make it easier to read and understand:\n\n"${text}"`,
-    change_tone:       `Rewrite this text in a ${tone} tone:\n\n"${text}"`,
-    translate:         `Translate this text to ${language}:\n\n"${text}"`,
-    paraphrase:        `Paraphrase this text using completely different words while keeping the same meaning:\n\n"${text}"`,
+    rewrite: `Rewrite this text to improve clarity, flow, and engagement while maintaining the original meaning:\n\n"${text}"`,
+    enhance: `Enhance this text to be more professional, engaging, and impactful while preserving the original meaning:\n\n"${text}"`,
+    expand: `Expand this text with more details, examples, and depth:\n\n"${text}"`,
+    summarize: `Summarize this text concisely, keeping only the key points:\n\n"${text}"`,
+    simplify: `Simplify this text to make it easier to read and understand:\n\n"${text}"`,
+    change_tone: `Rewrite this text in a ${tone} tone:\n\n"${text}"`,
+    translate: `Translate this text to ${language}:\n\n"${text}"`,
+    paraphrase: `Paraphrase this text using completely different words while keeping the same meaning:\n\n"${text}"`,
     make_professional: `Rewrite this text in a polished, professional tone suitable for business communication. Remove informal language:\n\n"${text}"`,
-    make_concise:      `Remove all unnecessary words and redundancy from this text. Keep every essential idea but cut aggressively:\n\n"${text}"`,
-    add_examples:      `Enhance this text by inserting relevant, concrete examples and illustrations to support each key claim:\n\n"${text}"`,
-    custom:            customPrompt ? `${customPrompt}\n\nApply to this text:\n\n"${text}"` : `Transform this text:\n\n"${text}"`,
+    make_concise: `Remove all unnecessary words and redundancy from this text. Keep every essential idea but cut aggressively:\n\n"${text}"`,
+    add_examples: `Enhance this text by inserting relevant, concrete examples and illustrations to support each key claim:\n\n"${text}"`,
+    custom: customPrompt ? `${customPrompt}\n\nApply to this text:\n\n"${text}"` : `Transform this text:\n\n"${text}"`,
   };
 
   const resolvedSystemPrompt = systemPromptOverride ||
@@ -249,7 +259,7 @@ async function saveDocument({ title, data }) {
     { title, data },
     getAuthConfig()
   );
-  
+
   return response.data;
 }
 
@@ -263,7 +273,7 @@ async function getDocumentById(documentId) {
     `${API_BASE_URL}/api/text-editor/document/${documentId}`,
     getAuthConfig()
   );
-  
+
   return response.data;
 }
 
@@ -275,11 +285,9 @@ async function getDocumentById(documentId) {
  */
 async function updateDocumentKeepAlive(documentId, documentData) {
   const token = localStorage.getItem('token');
-  const url = `${API_BASE_URL}/api/text-editor/document/${documentId}`;
-  
+  const url = `${API_BASE_URL}/api/text-editor/update/${documentId}`;
+
   try {
-    // Use native fetch with keepalive: true
-    // This ensures the request completes even if the page is closed
     await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -287,15 +295,15 @@ async function updateDocumentKeepAlive(documentId, documentData) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(documentData),
-      keepalive: true // 🔥 CRITICAL: Prevents browser from aborting on tab close
+      keepalive: true
     });
+
     return { success: true };
   } catch (error) {
     console.error("Keep-alive save failed:", error);
     return { success: false, error };
   }
 }
-
 /**
  * Update existing document (Partial Update via PATCH)
  * @param {string} documentId - Document ID
@@ -304,11 +312,11 @@ async function updateDocumentKeepAlive(documentId, documentData) {
  */
 async function updateDocument(documentId, documentData) {
   const response = await axios.patch(
-    `${API_BASE_URL}/api/text-editor/document/${documentId}`,
+    `${API_BASE_URL}/api/text-editor/update/${documentId}`,
     documentData,
     getAuthConfig()
   );
-  
+
   return response.data;
 }
 
@@ -322,7 +330,7 @@ async function deleteDocument(documentId) {
     `${API_BASE_URL}/api/text-editor/document/${documentId}`,
     getAuthConfig()
   );
-  
+
   return response.data;
 }
 
@@ -331,10 +339,10 @@ async function deleteDocument(documentId) {
  * @returns {Promise<{documents: Array<{id: string, title: string, createdAt: string, updatedAt: string}>}>}
  */
 async function getAllDocuments() {
-  const url = `${API_BASE_URL}/api/text-editor/my-documents`;
-  
+  const url = `${API_BASE_URL}/api/text-editor/all/documents`;
+
   const response = await axios.get(url, getAuthConfig());
-  
+
   return response.data;
 }
 
@@ -356,7 +364,7 @@ async function uploadImage(formData) {
         }
       }
     );
-    
+
     return response.data;
   } catch (error) {
     console.error("Image upload error:", error);
@@ -377,7 +385,7 @@ async function createVersion(documentId, versionData) {
       versionData,
       getAuthConfig()
     );
-    
+
     return response.data;
   } catch (error) {
     console.error("Create version error:", error);
@@ -397,7 +405,7 @@ async function getVersionById(documentId, versionId) {
       `${API_BASE_URL}/api/text-editor/${documentId}/versions/${versionId}`,
       getAuthConfig()
     );
-    
+
     return response.data;
   } catch (error) {
     console.error("Get version error:", error);
@@ -417,7 +425,7 @@ async function cloneDocument(documentId) {
       {},
       getAuthConfig()
     );
-    
+
     return response.data; // { newId, title, ... }
   } catch (error) {
     console.error("Clone document error:", error);
@@ -438,7 +446,7 @@ async function addComment(documentId, commentData) {
       commentData,
       getAuthConfig()
     );
-    
+
     return response.data;
   } catch (error) {
     console.error("Add comment error:", error);
@@ -457,7 +465,7 @@ async function getComments(documentId) {
       `${API_BASE_URL}/api/text-editor/${documentId}/comments`,
       getAuthConfig()
     );
-    
+
     return response.data || [];
   } catch (error) {
     console.error("Get comments error:", error);
@@ -479,7 +487,7 @@ async function updateComment(documentId, commentId, updateData) {
       updateData,
       getAuthConfig()
     );
-    
+
     return response.data;
   } catch (error) {
     console.error("Update comment error:", error);
@@ -515,7 +523,7 @@ export const TextEditorService = {
   generateImage,
   transformText,
   chatWithAI,
-  
+
   // Backend Document Management
   saveDocument,
   getDocumentById,
@@ -523,17 +531,17 @@ export const TextEditorService = {
   updateDocumentKeepAlive,
   deleteDocument,
   getAllDocuments,
-  
+
   // Image Upload
   uploadImage,
-  
+
   // Version Management
   createVersion,
   getVersionById,
-  
+
   // Document Cloning
   cloneDocument,
-  
+
   // Comments Management
   addComment,
   getComments,

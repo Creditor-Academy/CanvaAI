@@ -24,15 +24,15 @@
  */
 
 // ── A4 page dimensions (standard at 96 DPI) ──────────────────────────────────
-export const A4_HEIGHT_PX = 1123;
-export const A4_WIDTH_PX  = 794;
+export const A4_HEIGHT_PX = 1128;
+export const A4_WIDTH_PX = 794;
 export const SAFETY_BUFFER_PX = 8; // Refined for 50-line target
 
 // ── Margins — Thinner top/bottom (96 - 10 = 86px) ─────────────────────────
-export const PAGE_MARGIN_TOP_PX    = 86; 
-export const PAGE_MARGIN_BOTTOM_PX = 100; 
-export const PAGE_MARGIN_LEFT_PX   = 96; // 1 inch
-export const PAGE_MARGIN_RIGHT_PX  = 96; // 1 inch
+export const PAGE_MARGIN_TOP_PX = 86;
+export const PAGE_MARGIN_BOTTOM_PX = 100;
+export const PAGE_MARGIN_LEFT_PX = 96; // 1 inch
+export const PAGE_MARGIN_RIGHT_PX = 96; // 1 inch
 
 // ── Derived usable area ────────────────────────────────────────────────────
 export const USABLE_HEIGHT_PX = A4_HEIGHT_PX - PAGE_MARGIN_TOP_PX - PAGE_MARGIN_BOTTOM_PX - SAFETY_BUFFER_PX;
@@ -42,10 +42,10 @@ export const USABLE_WIDTH_PX = A4_WIDTH_PX - PAGE_MARGIN_LEFT_PX - PAGE_MARGIN_R
 // = 794 - 96 - 96 = 602 px
 
 // ── Typography ──────────────────────────────────────────────────────────────
-export const FONT_SIZE_PX    = 14.667; // 11pt at 96 DPI
-export const LINE_HEIGHT_PX  = 19;     // 14.667 × 1.3 ≈ 19px (Target: 50 lines/page)
-export const PARA_MARGIN_PX  = 8;
-export const CHARS_PER_LINE  = 72;     // Recalibrated: 602px usable / ~8.3px per char ≈ 72
+export const FONT_SIZE_PX = 14.667; // 11pt at 96 DPI
+export const LINE_HEIGHT_PX = 19;     // 14.667 × 1.3 ≈ 19px (Target: 50 lines/page)
+export const PARA_MARGIN_PX = 8;
+export const CHARS_PER_LINE = 72;     // Recalibrated: 602px usable / ~8.3px per char ≈ 72
 
 // ── Line Capacity Verification ───────────────────────────────────────────────────
 // Usable Height = 1027px, Line = 22px → floor(1027/22) ≈ 46 lines/page

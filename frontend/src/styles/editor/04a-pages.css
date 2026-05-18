@@ -13,6 +13,7 @@
   width: var(--editor-page-width);
   height: var(--editor-page-height);
   box-sizing: border-box;
+  flex-shrink: 0;
 
   /* ❌ REMOVED: Padding for margins - this made margins editable!
    * Padding is inside the element, so clicks in padding area were editable.
@@ -29,8 +30,8 @@
   position: relative;
   display: block;
 
-  /* Content clipping - Changed to visible to prevent hidden lines during pagination */
-  overflow: visible;
+  /* Content clipping - visual firewall (hard clip) */
+  overflow: hidden;
 
   /* Performance optimization */
   contain: layout style;
@@ -49,7 +50,6 @@
   isolation: isolate;
   z-index: 0;
   page-break-after: always;
-  overflow: visible; /* Prevent margin collapse with children */
   box-sizing: border-box;
 }
 
@@ -58,20 +58,19 @@
   margin-top: 0;
 }
 
-/* Last page - shrinks to content */
+/* Last page: fixed height prevents "sliding" on font-size changes */
 .page:last-child {
-  height: auto;
-  min-height: calc(var(--editor-margin-top) + var(--editor-line-height-px) * 3);
-  overflow: visible;
-  /* ✅ REDUCED: Bottom margin from 40px to 20px for more compact appearance */
+  height: var(--editor-page-height);
+  max-height: var(--editor-page-height);
+  overflow: hidden;
   margin-bottom: 20px;
 }
 
 /* Single-page document */
 .page:only-child {
-  height: auto;
+  height: var(--editor-page-height);
   min-height: var(--editor-page-height);
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* ══════════════════════════════════════════════════════════

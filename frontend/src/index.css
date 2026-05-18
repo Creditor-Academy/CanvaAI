@@ -1,8 +1,8 @@
 @importurl('https://fonts.googleapis.com/css2?family=Allura&family=Imperial+Script&family=Luxurious+Script&display=swap');
 @import "tailwindcss";
 @import "./styles/athena-variables.css";
-@import "./styles/editor/athena-editor-master.css"; /* 🎨 Athena Editor Master CSS */
-@import "./styles/real-pagination.css"; /* 📄 Real Pagination CSS */
+@import "./styles/real-pagination.css";
+/* 📄 Real Pagination CSS */
 
 
 /* Base reset and selection */
@@ -227,11 +227,12 @@ body {
 
 /* Tablet Landscape (≤1024px) */
 @media screen and (max-width: 1024px) {
+
   /* Adjust main content padding */
   main {
     padding: 1rem !important;
   }
- 
+
   /* Scale down large containers */
   .container,
   .max-w-7xl,
@@ -245,37 +246,38 @@ body {
 
 /* Tablet Portrait (≤768px) */
 @media screen and (max-width: 768px) {
+
   /* Global adjustments */
   html {
     font-size: 15px;
   }
- 
+
   body {
     overflow-x: hidden;
   }
- 
+
   /* Main content area */
   main {
     padding: 0.75rem !important;
     margin-left: 0 !important;
   }
- 
+
   /* Grid layouts - reduce columns */
   .grid {
     gap: 0.75rem !important;
   }
- 
+
   .grid-cols-4,
   .grid-cols-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
- 
+
   /* Cards and containers */
   .card,
   [class*="card"] {
     padding: 1rem !important;
   }
- 
+
   /* Buttons - make touch-friendly */
   button,
   .btn {
@@ -283,14 +285,15 @@ body {
     min-width: 44px;
     padding: 0.5rem 1rem;
   }
- 
+
   /* Forms */
   input,
   textarea,
   select {
-    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    font-size: 16px !important;
+    /* Prevents iOS zoom on focus */
   }
- 
+
   /* Modals and dialogs */
   [role="dialog"],
   .modal {
@@ -298,14 +301,14 @@ body {
     max-width: 95vw !important;
     margin: 1rem auto !important;
   }
- 
+
   /* Tables - enable horizontal scroll */
   table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
   }
- 
+
   /* Images */
   img {
     max-width: 100%;
@@ -319,34 +322,34 @@ body {
   html {
     font-size: 14px;
   }
- 
+
   main {
     padding: 0.5rem !important;
   }
- 
+
   /* Single column grids */
   .grid-cols-2,
   .grid-cols-3,
   .grid-cols-4 {
     grid-template-columns: 1fr !important;
   }
- 
+
   /* Reduce spacing */
   .gap-4,
   .gap-6,
   .gap-8 {
     gap: 0.75rem !important;
   }
- 
+
   /* Headings */
   h1 {
     font-size: 1.75rem !important;
   }
- 
+
   h2 {
     font-size: 1.5rem !important;
   }
- 
+
   h3 {
     font-size: 1.25rem !important;
   }
@@ -358,23 +361,23 @@ body {
   html {
     font-size: 13px;
   }
- 
+
   /* Minimal padding */
   main {
     padding: 0.375rem !important;
   }
- 
+
   /* Stack all flex containers vertically */
   .flex-row {
     flex-direction: column !important;
   }
- 
+
   /* Full width buttons */
   button.w-auto,
   .btn.w-auto {
     width: 100% !important;
   }
- 
+
   /* Smaller avatars and icons */
   .avatar,
   [class*="avatar"] {
@@ -389,12 +392,12 @@ body {
   html {
     font-size: 12px;
   }
- 
+
   /* Ultra compact layout */
   main {
     padding: 0.25rem !important;
   }
- 
+
   /* Hide non-essential elements */
   .hidden-xs {
     display: none !important;
@@ -404,6 +407,7 @@ body {
 
 /* Touch device optimizations */
 @media (hover: none) and (pointer: coarse) {
+
   /* Larger touch targets */
   button,
   a,
@@ -413,12 +417,12 @@ body {
     min-height: 44px;
     min-width: 44px;
   }
- 
+
   /* Remove hover effects on touch devices */
   *:hover {
     transition: none !important;
   }
- 
+
   /* Better scrolling on mobile */
   * {
     -webkit-overflow-scrolling: touch;
@@ -428,15 +432,16 @@ body {
 
 /* Landscape orientation on mobile */
 @media screen and (max-height: 500px) and (orientation: landscape) {
+
   /* Adjust for landscape mode */
   header {
     height: 44px !important;
   }
- 
+
   main {
     padding-top: 52px !important;
   }
- 
+
   /* Reduce vertical spacing */
   .py-8,
   .py-12,
@@ -449,6 +454,7 @@ body {
 
 /* Print styles */
 @media print {
+
   /* Hide navigation and UI chrome */
   header,
   nav,
@@ -457,13 +463,13 @@ body {
   .navbar {
     display: none !important;
   }
- 
+
   /* Reset margins for print */
   main {
     margin: 0 !important;
     padding: 0 !important;
   }
- 
+
   /* Ensure content is black on white */
   body {
     background: white !important;
@@ -473,12 +479,14 @@ body {
 
 
 /* High DPI / Retina displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+
   /* Sharper borders and shadows */
   .border {
     border-width: 0.5px;
   }
- 
+
   box-shadow {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
@@ -487,6 +495,7 @@ body {
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
+
   /* Auto-adjust for users with dark mode enabled */
   :root {
     color-scheme: dark light;
@@ -496,6 +505,7 @@ body {
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -512,7 +522,7 @@ body {
   html {
     font-size: 18px;
   }
- 
+
   .container,
   .max-w-7xl {
     max-width: 1600px !important;

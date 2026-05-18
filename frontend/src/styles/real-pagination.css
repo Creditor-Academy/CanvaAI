@@ -22,7 +22,7 @@
 /* ── 0. CUSTOM PROPERTIES — single source of truth, mirrors constants.js ── */
 :root {
   --page-w: 794px;
-  --page-h: 1123px;
+  --page-h: 1190px;
   /* A4 at 96 DPI */
   --pad-top: 86px;
   /* PAGE_MARGIN_TOP_PX */
@@ -30,19 +30,16 @@
   /* PAGE_MARGIN_BOTTOM_PX */
   --pad-h: 96px;
   /* PAGE_MARGIN_LEFT/RIGHT_PX = 1 inch */
-  --usable-h: 929px;
-  /* 1123 - 86 - 100 - 8 = USABLE_HEIGHT_PX */
-  --usable-w: 602px;
-  /* 794 - 96 - 96 = USABLE_WIDTH_PX */
+  --usable-h: calc(var(--page-h) - var(--pad-top) - var(--pad-bot));
+  --usable-w: calc(var(--page-w) - var(--pad-h) * 2);
   --page-gap: 32px;
   --page-bg: #f1f5f9;
   --font-px: 14.667px;
   /* 11pt at 96 DPI */
-  --lh: 1.3;
-  /* LINE_HEIGHT_PX = 19px */
-  --lh-px: 19px;
-  /* 14.667 × 1.3 ≈ 19px */
-  --para-mb: 8px;
+  --lh: 1.15;
+  /* LINE_HEIGHT_PX */
+  --lh-px: calc(var(--font-px) * var(--lh));
+  --para-mb: calc(var(--font-px) * 0.55);
   /* PARA_MARGIN_PX */
   --img-margin: 12px;
   /* 12px × 2 = 24px = IMAGE_MARGIN */

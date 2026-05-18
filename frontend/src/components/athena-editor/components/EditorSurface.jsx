@@ -47,8 +47,144 @@ import { TextDirection } from '../extensions/TextDirection.js';
 import { ResizableImage } from '../extensions/ResizableImage.jsx';
 import TableExtension from '../extensions/TableExtension.js';
 import FontSize from '../extensions/FontSize.js';
-import { paginateDocument, debouncePaginate } from '../utils/paginationEngine.js';
+import { paginateDocument, debouncePaginate, invalidatePaginationCache } from '../utils/paginationEngine.js';
 import { USABLE_HEIGHT_PX as USABLE_HEIGHT } from '../../../utils/pagination/constants';
+import { TextEditorService } from '../../../services/Text-Editor/text.service.js';
+import { toast } from 'sonner';
+import { useFormattingState } from '../contexts/EditorContent.jsx';
+
+// Helper to convert base64 data URL to a File object
+const dataURLtoFile = (dataurl, filename) => {
+  try {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  } catch (err) {
+    console.error('Failed to convert dataURL to File:', err);
+    return null;
+  }
+};
+
+// Helper to upload a file to backend and insert it into ProseMirror
+const uploadAndInsertImage = async (editor, file, pos = null) => {
+  if (!editor || editor.isDestroyed) return;
+  const toastId = toast.loading(`Uploading image: ${file.name || 'image'}...`);
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await TextEditorService.uploadImage(formData);
+    
+    if (response && response.url) {
+      toast.success('Image uploaded and inserted successfully! 🎉', { id: toastId });
+      
+      // Use Tiptap command to set image at target pos
+      if (pos !== null) {
+        editor.chain().focus().insertContentAt(pos, {
+          type: 'image',
+          attrs: {
+            src: response.url,
+            alt: file.name || 'image',
+            title: file.name || 'image',
+            width: 400,
+            height: 300,
+            align: 'left'
+          }
+        }).run();
+      } else {
+        editor.chain().focus().setResizableImage({
+          src: response.url,
+          alt: file.name || 'image',
+          title: file.name || 'image',
+          width: 400,
+          height: 300,
+          align: 'left'
+        }).run();
+      }
+      
+      // Trigger pagination to update layouts
+      setTimeout(() => {
+        if (!editor.isDestroyed) {
+          paginateDocument(editor, { force: true, reason: 'image-paste-drop' });
+        }
+      }, 300);
+    } else {
+      throw new Error('Upload returned no URL');
+    }
+  } catch (error) {
+    console.error('Failed to upload pasted/dropped image:', error);
+    toast.error('Failed to upload image: ' + (error.message || 'Unknown error'), { id: toastId });
+  }
+};
+
+// Helper to insert parsed HTML at selection
+const insertHTMLAtSelection = (editor, html) => {
+  if (!editor || editor.isDestroyed) return;
+  editor.commands.insertContent(html);
+  
+  // Trigger estimation and pagination
+  setTimeout(() => {
+    if (!editor.isDestroyed) {
+      paginateDocument(editor, { force: true, reason: 'html-paste-settled' });
+    }
+  }, 300);
+};
+
+// Helper to upload base64 images within pasted HTML to S3 and then insert
+const uploadBase64ImagesAndInsert = async (editor, html) => {
+  if (!editor || editor.isDestroyed) return;
+  const toastId = toast.loading('Processing pasted image(s)...');
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const imgs = Array.from(doc.querySelectorAll('img[src^="data:"]'));
+
+    if (imgs.length === 0) {
+      toast.dismiss(toastId);
+      insertHTMLAtSelection(editor, html);
+      return;
+    }
+
+    toast.loading(`Uploading ${imgs.length} image(s)...`, { id: toastId });
+
+    const uploadPromises = imgs.map(async (img, idx) => {
+      const src = img.getAttribute('src');
+      const filename = img.getAttribute('alt') || `pasted-image-${idx + 1}.png`;
+      const file = dataURLtoFile(src, filename);
+      if (file) {
+        const formData = new FormData();
+        formData.append('image', file);
+        const response = await TextEditorService.uploadImage(formData);
+        if (response && response.url) {
+          img.setAttribute('src', response.url);
+          // Set custom attributes for our resizable image
+          img.setAttribute('data-type', 'resizable-image');
+          img.setAttribute('data-width', '400');
+          img.setAttribute('data-height', '300');
+          img.setAttribute('data-align', 'left');
+        }
+      }
+    });
+
+    await Promise.all(uploadPromises);
+
+    toast.success('Pasted images uploaded to S3 successfully! 🎉', { id: toastId });
+    
+    const cleanedHtml = doc.body.innerHTML;
+    insertHTMLAtSelection(editor, cleanedHtml);
+
+  } catch (err) {
+    console.error('Failed to process pasted base64 images:', err);
+    toast.error('Failed to process pasted images, inserting as is...', { id: toastId });
+    insertHTMLAtSelection(editor, html);
+  }
+};
 
 // Utils
 const log = process.env.NODE_ENV === 'development' ? (...args) => console.log(...args) : () => { };
@@ -81,6 +217,7 @@ export function EditorSurface({
   containerRef,
   isPasting = false,
 }) {
+  const { lineSpacing } = useFormattingState() || { lineSpacing: 1.3 };
   const internalEditorRef = useRef(null);
   const lastCheckTimeRef = useRef(0);
   const CHECK_THROTTLE = 250; // ms
@@ -258,28 +395,72 @@ export function EditorSurface({
 
         return new Slice(Fragment.fromArray(newNodes), openStart, openEnd);
       },
-      handlePaste: (view) => {
+      handlePaste: (view, event) => {
+        const editorInstance = editor || view.state.editor;
+
+        // 1. Intercept Image File Paste
+        const items = event.clipboardData?.items;
+        if (items) {
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.indexOf('image') === 0) {
+              const file = item.getAsFile();
+              if (file) {
+                event.preventDefault();
+                uploadAndInsertImage(editorInstance, file);
+                return true; // handled
+              }
+            }
+          }
+        }
+
+        // 2. Intercept HTML containing base64 images
+        const html = event.clipboardData?.getData('text/html');
+        if (html && html.includes('src="data:image/')) {
+          event.preventDefault();
+          uploadBase64ImagesAndInsert(editorInstance, html);
+          return true; // handled
+        }
+
+        // 3. Fallback to normal paste logic
         // ✅ Stage 1: Force immediate browser reflow before measurement
-        // Accessing offsetHeight triggers a synchronous layout calculation
         void view.dom.offsetHeight;
 
         // ✅ Stage 2: Immediate "Flash" Pass (Pessimistic Estimation)
         requestAnimationFrame(() => {
-          if (view.state.editor) {
+          if (editorInstance && !editorInstance.isDestroyed) {
             log('[EditorSurface] Paste detected: triggering immediate estimation pass');
-            paginateDocument(view.state.editor, { force: true, reason: 'paste-immediate' });
+            paginateDocument(editorInstance, { force: true, reason: 'paste-immediate' });
           }
         });
 
         // ✅ Stage 3: Delayed "Final Audit" (Pixel-Perfect DOM measurement)
-        // Gives the browser 500ms to finish rendering complex elements (images, tables)
         setTimeout(() => {
-          if (!view.isDestroyed && view.state.editor) {
+          if (editorInstance && !editorInstance.isDestroyed) {
             log('[EditorSurface] Paste settling: triggering final DOM-aware audit');
-            paginateDocument(view.state.editor, { force: true, reason: 'paste-final-audit' });
+            paginateDocument(editorInstance, { force: true, reason: 'paste-final-audit' });
           }
         }, 500);
 
+        return false;
+      },
+      handleDrop: (view, event) => {
+        const editorInstance = editor || view.state.editor;
+        const files = event.dataTransfer?.files;
+        if (files && files.length > 0) {
+          const file = files[0];
+          if (file.type.startsWith('image/')) {
+            event.preventDefault();
+            // Get coordinates of the drop
+            const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+            if (coordinates) {
+              uploadAndInsertImage(editorInstance, file, coordinates.pos);
+            } else {
+              uploadAndInsertImage(editorInstance, file);
+            }
+            return true; // handled
+          }
+        }
         return false;
       },
       handleKeyDown: (view, event) => {
@@ -304,9 +485,16 @@ export function EditorSurface({
     },
     onCreate: ({ editor: editorInstance }) => {
       log('[EditorSurface.onCreate] Editor created, initializing pages...');
-      setTimeout(() => {
-        initializePagination(editorInstance);
-      }, 50);
+      
+      // ✅ LCP OPTIMIZATION: Use double RAF instead of arbitrary setTimeout(50).
+      // This ensures the first paint has happened and the browser is ready for measurement.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!editorInstance.isDestroyed) {
+            initializePagination(editorInstance);
+          }
+        });
+      });
 
       if (onCreate) {
         onCreate({ editor: editorInstance });
@@ -318,53 +506,75 @@ export function EditorSurface({
         return;
       }
 
-      // 🚀 OPTIMIZATION (Suggestion 3): Throttle immediate overflow check
-      // PROBLEM: DOM measurements (scrollHeight) trigger reflow. Doing this on every
-      // keystroke causes typing latency.
-      // SOLUTION: Only check synchronously every 250ms or if pasting.
-      const now = Date.now();
-      const shouldCheckSync = isPasting || (now - lastCheckTimeRef.current > CHECK_THROTTLE);
-
-      if (shouldCheckSync) {
-        lastCheckTimeRef.current = now;
-        try {
-          // ✅ GLOBAL HEIGHT AUDIT: Check all pages for overflows.
-          // Images/tables might push content into the NEXT page, which also needs checking.
-          const pages = document.querySelectorAll('.page-content');
-          let hasOverflow = false;
-
-          for (const page of pages) {
-            // scrollHeight represents the total height of content inside the container
-            if (page.scrollHeight > USABLE_HEIGHT - 2) {
-              hasOverflow = true;
-              break;
-            }
-          }
-
-          if (hasOverflow) {
-            requestAnimationFrame(() => {
-              if (!editorInstance.isDestroyed && !editorInstance.storage.athena_is_paginating) {
-                log('[EditorSurface] Visual overflow detected, forcing repagination');
-                paginateDocument(editorInstance, { force: true, reason: 'visual-overflow' });
-              }
-            });
-            debouncePaginate(editorInstance, 150);
-            return;
-          }
-        } catch (err) {
-          log('[EditorSurface.onUpdate] DOM measurement failed:', err);
-        }
-      }
-
-      debouncePaginate(editorInstance, 150);
-
+      // Always fire the parent callback synchronously — it only reads state, no DOM work.
       if (onUpdate) {
         onUpdate({ editor: editorInstance });
       }
+
+      // Defer all DOM measurement and pagination out of React's commit phase.
+      requestAnimationFrame(() => {
+        if (editorInstance.isDestroyed || editorInstance.storage.athena_is_paginating) return;
+
+        // 🚀 OPTIMIZATION: Throttle the synchronous overflow check.
+        // DOM measurements (scrollHeight) force reflow — skip on rapid keystrokes.
+        const now = Date.now();
+        const shouldCheckSync = isPasting || (now - lastCheckTimeRef.current > CHECK_THROTTLE);
+
+        if (shouldCheckSync) {
+          lastCheckTimeRef.current = now;
+          try {
+            // ✅ LOCALIZED HEIGHT AUDIT: Only check the page where the cursor is.
+            // This is much faster than checking every page in the document.
+            const { from } = editorInstance.state.selection;
+            const pos = editorInstance.view.domAtPos(from);
+            const currentPage = pos.node instanceof HTMLElement 
+              ? pos.node.closest('.page-content') 
+              : pos.node.parentElement?.closest('.page-content');
+
+            if (currentPage) {
+              const zoomFactor = (zoom || 100) / 100;
+              const style = window.getComputedStyle(currentPage);
+              const pt = parseFloat(style.paddingTop) || 0;
+              const pb = parseFloat(style.paddingBottom) || 0;
+              const contentHeight = (currentPage.scrollHeight - pt - pb) / zoomFactor;
+
+              if (contentHeight > USABLE_HEIGHT - 2) {
+                log('[EditorSurface] Visual overflow detected on current page, forcing repagination');
+                paginateDocument(editorInstance, { force: true, reason: 'localized-overflow' });
+                return;
+              }
+            } else {
+              // Fallback: if we can't find current page, check all (but this should be rare)
+              const pages = document.querySelectorAll('.page-content');
+              const zoomFactor = (zoom || 100) / 100;
+              for (const page of pages) {
+                const style = window.getComputedStyle(page);
+                const pt = parseFloat(style.paddingTop) || 0;
+                const pb = parseFloat(style.paddingBottom) || 0;
+                const contentHeight = (page.scrollHeight - pt - pb) / zoomFactor;
+
+                if (contentHeight > USABLE_HEIGHT - 2) {
+                  paginateDocument(editorInstance, { force: true, reason: 'global-overflow-fallback' });
+                  return;
+                }
+              }
+            }
+          } catch (err) {
+            log('[EditorSurface.onUpdate] DOM measurement failed:', err);
+          }
+        }
+
+        debouncePaginate(editorInstance, 150);
+      });
     },
     onSelectionUpdate: ({ editor: editorInstance }) => {
       if (onSelectionUpdate) {
-        onSelectionUpdate({ editor: editorInstance });
+        // 🔥 CRITICAL: Defer selection updates to avoid flushSync warnings in React 18/19
+        requestAnimationFrame(() => {
+          if (!editorInstance.isDestroyed) {
+            onSelectionUpdate({ editor: editorInstance });
+          }
+        });
       }
     },
     onDestroy: () => {
@@ -373,6 +583,30 @@ export function EditorSurface({
       }
     },
   });
+
+  // Sync line-spacing custom properties and trigger repagination on change
+  useEffect(() => {
+    if (lineSpacing) {
+      document.documentElement.style.setProperty('--editor-line-height', String(lineSpacing));
+      document.documentElement.style.setProperty('--lh', String(lineSpacing));
+      
+      // Calculate dynamic pixel values too
+      const baseFontSize = 14.667;
+      const lhPx = `${Math.ceil(baseFontSize * lineSpacing)}px`;
+      document.documentElement.style.setProperty('--editor-line-height-px', lhPx);
+      document.documentElement.style.setProperty('--lh-px', lhPx);
+      
+      // Invalidate pagination cache since block metrics changed
+      if (typeof invalidatePaginationCache === 'function') {
+        invalidatePaginationCache();
+      }
+      
+      // Repaginate the editor
+      if (editor && !editor.isDestroyed) {
+        paginateDocument(editor, { force: true, reason: 'line-spacing-change-effect' });
+      }
+    }
+  }, [lineSpacing, editor]);
 
   // Sync editor instance to parent ref
   useEffect(() => {

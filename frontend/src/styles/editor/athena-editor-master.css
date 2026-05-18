@@ -14,40 +14,57 @@
    ============================================================================ */
 
 /* ── 1. VARIABLES & TOKENS (MUST BE FIRST) ─────────────────────────────── */
-@import './01-variables.css';           /* Main editor variables (margins, colors, typography) */
-@import './core/tokens.css';            /* Design tokens (colors, shadows, fonts) */
-@import '../athena-variables.css';      /* Global Athena brand variables */
+@import './01-variables.css';
+/* Main editor variables (margins, colors, typography) */
+@import './core/tokens.css';
+/* Design tokens (colors, shadows, fonts) */
+@import '../athena-variables.css';
+/* Global Athena brand variables */
 
 /* ── 2. CORE & RESET ───────────────────────────────────────────────────── */
-@import './core/reset.css';             /* CSS reset and base styles */
+@import './core/reset.css';
+/* CSS reset and base styles */
 
 /* ── 3. LAYOUT & WORKSPACE ─────────────────────────────────────────────── */
-@import './03-layout.css';              /* Main layout (editor-pages-container) */
-@import './layout/workspace.css';       /* Workspace scrolling and zoom */
-/* @import './layout/sidebar.css'; */  /* Sidebar styles (if needed) */
+@import './03-layout.css';
+/* Main layout (editor-pages-container) */
+@import './layout/workspace.css';
+/* Workspace scrolling and zoom */
+/* @import './layout/sidebar.css'; */
+/* Sidebar styles (if needed) */
 
 /* ── 4. PAGES & COMPONENTS ─────────────────────────────────────────────── */
-@import './04a-pages.css';              /* Page nodes and pagination */
-@import './components/page.css';        /* Page component styling */
+/* Page nodes and pagination */
+/* Page component styling */
 
 /* ── 5. EDITOR CONTENT ─────────────────────────────────────────────────── */
-@import './04b-editor-content.css';     /* Editor content and typography */
-@import './components/content.css';     /* Content area styling */
+@import './04b-editor-content.css';
+/* Editor content and typography */
+@import './components/content.css';
+/* Content area styling */
 
 /* ── 6. EDITOR NODES (EXTENSIONS) ────────────────────────────────────────── */
-@import './nodes/tables.css';           /* Table styling */
-@import './nodes/images.css';           /* Image styling */
-/* @import './nodes/lists.css'; */     /* List styling (if needed) */
-/* @import './nodes/code.css'; */      /* Code block styling (if needed) */
+@import './nodes/tables.css';
+/* Table styling */
+@import './nodes/images.css';
+/* Image styling */
+/* @import './nodes/lists.css'; */
+/* List styling (if needed) */
+/* @import './nodes/code.css'; */
+/* Code block styling (if needed) */
 
 /* ── 7. UI ELEMENTS ──────────────────────────────────────────────────────── */
-@import './ui/toolbar.css';             /* Toolbar styling */
-@import './ui/menus.css';               /* Menus and dropdowns */
-/* @import './ui/modals.css'; */       /* Modal styling (if needed) */
+@import './ui/toolbar.css';
+/* Toolbar styling */
+@import './ui/menus.css';
+/* Menus and dropdowns */
+/* @import './ui/modals.css'; */
+/* Modal styling (if needed) */
 
 /* ── 8. REAL PAGINATION (Legacy Support) ────────────────────────────────── */
 /* This file contains the production pagination CSS used by the editor */
-@import '../real-pagination.css';       /* Real pagination engine CSS */
+@import '../real-pagination.css';
+/* Real pagination engine CSS */
 
 /* ── 9. PRINT STYLES ─────────────────────────────────────────────────────── */
 /* Handled within individual component files via @media print */

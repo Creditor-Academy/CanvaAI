@@ -6,12 +6,12 @@ const getAuthHeaders = () => {
   const headers = {
     'Content-Type': 'application/json',
   };
-  
+
   // Only add Authorization header if token exists
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   return headers;
 };
 
@@ -31,7 +31,7 @@ class ApiService {
       if (options.body) {
         console.log('Request body:', JSON.parse(options.body));
       }
-      
+
       const response = await fetch(url, config);
       const contentType = response.headers.get('content-type') || '';
 
@@ -63,7 +63,7 @@ class ApiService {
       if (data) {
         console.log('Response data:', data);
       }
-      
+
       if (!response.ok && !data?.unverified) {
         console.error('Response error:', data);
         throw new Error((data && (data.msg || data.error || data.message)) || 'Something went wrong');
@@ -544,7 +544,7 @@ class ApiService {
 
   // ============= DOCUMENT GENERATION =============
   async generateDocument(prompt, format) {
-    return this.request('/api/generate-document', {
+    return this.request('/api/text-editor/document', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ prompt, format }),

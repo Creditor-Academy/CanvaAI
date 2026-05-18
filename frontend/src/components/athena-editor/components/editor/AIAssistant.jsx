@@ -435,6 +435,7 @@ export const AIAssistant = ({
       const { url, enhancedPrompt } = await TextEditorService.generateImage({
         prompt: imagePrompt.trim(), style: imageStyle, enhancePrompt: true, signal,
       });
+      console.log('🖼️ [AIAssistant] Image generated:', url);
       setGeneratedImageUrl(url);
       setEnhancedPrompt(enhancedPrompt);
       

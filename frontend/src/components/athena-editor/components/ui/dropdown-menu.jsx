@@ -41,42 +41,45 @@ const DropdownMenuSubContent = React.forwardRef(({ className, onOpenAutoFocus, o
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when submenu opens
   const handleOpenAutoFocus = useCallback((e) => {
     e.preventDefault();
-    window.isToolbarInteraction = true;
-    window.wasToolbarInteractionRecent = true;
-    
-    // LOCK SCROLL when submenu opens
-    const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
-    if (editorContainer) {
-      require('../../utils/scrollLockManager').scrollLockManager.lock(editorContainer);
-    }
-    
-    setTimeout(() => {
-      window.isToolbarInteraction = false;
-      require('../../utils/scrollLockManager').scrollLockManager.unlock();
-    }, 500);
-    
-    setTimeout(() => {
-      window.wasToolbarInteractionRecent = false;
-    }, 1000);
-    
+
+    // Defer all side-effects so React can finish its current render cycle
+    // before we mutate window flags and trigger scroll-lock (avoids flushSync conflict)
+    Promise.resolve().then(() => {
+      window.isToolbarInteraction = true;
+      window.wasToolbarInteractionRecent = true;
+
+      // LOCK SCROLL when submenu opens
+      const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
+      if (editorContainer) {
+        scrollLockManager.lock(editorContainer);
+      }
+
+      setTimeout(() => {
+        window.isToolbarInteraction = false;
+        scrollLockManager.unlock();
+      }, 500);
+
+      setTimeout(() => {
+        window.wasToolbarInteractionRecent = false;
+      }, 1000);
+    });
+
     onOpenAutoFocus?.(e);
   }, [onOpenAutoFocus]);
-  
+
   return (
     <DropdownMenuPrimitive.SubContent
       ref={ref}
+      {...props}
       className={cn(
         "z-[300] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         className
       )}
-      onOpenAutoFocus={(e) => {
-        handleOpenAutoFocus(e);
-      }}
+      onOpenAutoFocus={handleOpenAutoFocus}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
         onCloseAutoFocus?.(e);
       }}
-      {...props}
     />
   );
 })
@@ -87,27 +90,32 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, onOpe
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when dropdown opens
   const handleOpenAutoFocus = useCallback((e) => {
     e.preventDefault();
-    window.isToolbarInteraction = true;
-    window.wasToolbarInteractionRecent = true;
-    
-    // LOCK SCROLL when dropdown opens
-    const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
-    if (editorContainer) {
-      scrollLockManager.lock(editorContainer);
-    }
-    
-    setTimeout(() => {
-      window.isToolbarInteraction = false;
-      scrollLockManager.unlock();
-    }, 500);
-    
-    setTimeout(() => {
-      window.wasToolbarInteractionRecent = false;
-    }, 1000);
-    
+
+    // Defer all side-effects so React can finish its current render cycle
+    // before we mutate window flags and trigger scroll-lock (avoids flushSync conflict)
+    Promise.resolve().then(() => {
+      window.isToolbarInteraction = true;
+      window.wasToolbarInteractionRecent = true;
+
+      // LOCK SCROLL when dropdown opens
+      const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
+      if (editorContainer) {
+        scrollLockManager.lock(editorContainer);
+      }
+
+      setTimeout(() => {
+        window.isToolbarInteraction = false;
+        scrollLockManager.unlock();
+      }, 500);
+
+      setTimeout(() => {
+        window.wasToolbarInteractionRecent = false;
+      }, 1000);
+    });
+
     onOpenAutoFocus?.(e);
   }, [onOpenAutoFocus]);
-  
+
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -117,18 +125,16 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, onOpe
         avoidCollisions={true}
         collisionPadding={8}
         position="popper"
+        {...props}
         className={cn(
           "z-[300] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           className
         )}
-        onOpenAutoFocus={(e) => {
-          handleOpenAutoFocus(e);
-        }}
+        onOpenAutoFocus={handleOpenAutoFocus}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           onCloseAutoFocus?.(e);
         }}
-        {...props}
       />
     </DropdownMenuPrimitive.Portal>
   );
@@ -140,7 +146,7 @@ const DropdownMenuItem = React.forwardRef(({ className, inset, onClick, ...props
     console.log('🎯 [DropdownMenuItem] Click handler called!');
     onClick?.(e);
   };
-  
+
   return (
     <DropdownMenuPrimitive.Item
       ref={ref}

@@ -25,7 +25,7 @@ const stripBase64Images = (json) => {
     if (node.type === 'image' || node.type === 'resizableImage') {
       if (node.attrs?.src?.startsWith('data:')) {
         console.warn('[stripBase64Images] Stripping large base64 image to prevent DB overflow');
-        return { ...node, attrs: { ...node.attrs, src: '' } };
+        return { ...node, attrs: { ...node.attrs, src: null } };
       }
     }
     if (node.content) {

@@ -2,6 +2,7 @@ import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 import { cn } from "../utils"
+import { scrollLockManager } from '../../utils/scrollLockManager'
 
 const Popover = PopoverPrimitive.Root
 
@@ -11,45 +12,48 @@ const PopoverContent = React.forwardRef(({ className, align = "center", sideOffs
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when popover opens
   const handleOpenAutoFocus = (e) => {
     e.preventDefault();
-    window.isToolbarInteraction = true;
-    window.wasToolbarInteractionRecent = true;
-    
-    // LOCK SCROLL when popover opens
-    const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
-    if (editorContainer) {
-      require('../../utils/scrollLockManager').scrollLockManager.lock(editorContainer);
-    }
-    
-    setTimeout(() => {
-      window.isToolbarInteraction = false;
-      require('../../utils/scrollLockManager').scrollLockManager.unlock();
-    }, 500);
-    
-    setTimeout(() => {
-      window.wasToolbarInteractionRecent = false;
-    }, 1000);
-    
+
+    // Defer all side-effects so React can finish its current render cycle
+    // before we mutate window flags and trigger scroll-lock (avoids flushSync conflict)
+    Promise.resolve().then(() => {
+      window.isToolbarInteraction = true;
+      window.wasToolbarInteractionRecent = true;
+
+      // LOCK SCROLL when popover opens
+      const editorContainer = document.querySelector('.editor-scroll-container, .content-container');
+      if (editorContainer) {
+        scrollLockManager.lock(editorContainer);
+      }
+
+      setTimeout(() => {
+        window.isToolbarInteraction = false;
+        scrollLockManager.unlock();
+      }, 500);
+
+      setTimeout(() => {
+        window.wasToolbarInteractionRecent = false;
+      }, 1000);
+    });
+
     onOpenAutoFocus?.(e);
   };
-  
+
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
         ref={ref}
         align={align}
         sideOffset={sideOffset}
+        {...props}
         className={cn(
           "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           className
         )}
-        onOpenAutoFocus={(e) => {
-          handleOpenAutoFocus(e);
-        }}
+        onOpenAutoFocus={handleOpenAutoFocus}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           onCloseAutoFocus?.(e);
         }}
-        {...props}
       />
     </PopoverPrimitive.Portal>
   );

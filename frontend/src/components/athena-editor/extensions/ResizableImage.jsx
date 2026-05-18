@@ -256,8 +256,27 @@ export const ResizableImage = TiptapImage.extend({
 
   addAttributes() {
     return {
-      // Inherit all attributes from parent Image extension
-      ...this.parent?.(),
+      src: {
+        default: null,
+        parseHTML: element => element.getAttribute('src'),
+        renderHTML: attributes => ({
+          src: attributes.src,
+        }),
+      },
+      alt: {
+        default: null,
+        parseHTML: element => element.getAttribute('alt'),
+        renderHTML: attributes => ({
+          alt: attributes.alt,
+        }),
+      },
+      title: {
+        default: null,
+        parseHTML: element => element.getAttribute('title'),
+        renderHTML: attributes => ({
+          title: attributes.title,
+        }),
+      },
       // Add resize-specific attributes
       width: {
         default: 400,

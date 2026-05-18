@@ -96,6 +96,14 @@ const MAX_PAGES = 200;
 const getFlag = (k) => window[`__athena_${k}`] ?? false;
 const setFlag = (k, v) => { window[`__athena_${k}`] = v; };
 
+// ── Dynamic typography metrics cache (aligned with active CSS variables) ──
+let _activeLh = 1.3;
+let _activeBaseFontSize = 14.667;
+let _dynamicLineH = 19;
+let _dynamicParaMargin = 8;
+let _dynamicTableRowH = 31;
+let _dynamicTableMargin = 22;
+
 // ── Height cache (Now versioned to prevent stale measurements after zoom/width changes) ─────
 let _heightCache = new WeakMap();
 let _currentCacheVersion = '';
@@ -148,12 +156,12 @@ const getMaxFontSize = (node) => {
  * Large text scales proportionally via 1.5× multiplier.
  * List items use 1.6× line-height (CSS .page li { line-height: 1.6 } wins cascade).
  */
-const getBlockMetrics = (fontSize, width = USABLE_WIDTH, isListChild = false) => {
-  // CSS: .page li { line-height: 1.6 } (second rule wins over the 1.36 rule)
-  const lhMultiplier = isListChild ? 1.6 : 1.3; // Synced with CSS --lh: 1.3
+const getBlockMetrics = (fontSize, width = USABLE_WIDTH, isListChild = false, isHeading = false) => {
+  // CSS: headings use tight 1.15 line-height; body uses active multiplier; lists use 1.6
+  const lhMultiplier = isHeading ? 1.15 : (isListChild ? 1.6 : _activeLh);
   if (fontSize <= 15) {
     return {
-      lh: Math.ceil(LINE_H * (isListChild ? 1.6 / 1.3 : 1)), // Normalize list-items relative to base LINE_H
+      lh: Math.ceil(_dynamicLineH * (isListChild ? 1.6 / _activeLh : 1)), // Normalize relative to dynamic LINE_H
       cpl: CHARS_PER_LINE
     };
   }
@@ -180,7 +188,7 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
       const rows = node.attrs?.rows ?? CUSTOM_TABLE_DEFAULT_ROWS;
       // Replicate the same heuristic as the standard table case:
       // each row = TABLE_ROW_H, plus TABLE_MARGIN for the wrapper.
-      h = rows * TABLE_ROW_H + TABLE_MARGIN;
+      h = rows * _dynamicTableRowH + _dynamicTableMargin;
       break;
     }
 
@@ -220,8 +228,16 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
 
     case 'heading': {
       const lvl = Math.min(node.attrs?.level ?? 1, 6);
-      const maxFS = getMaxFontSize(node);
-      const { lh, cpl } = getBlockMetrics(maxFS);
+      let maxFS = getMaxFontSize(node);
+      
+      // If no explicit mark-based font size was found, use the CSS heading font size!
+      if (maxFS === 14.667) {
+        const baseFS = _activeBaseFontSize;
+        const multipliers = { 1: 2.5, 2: 2.0, 3: 1.75, 4: 1.5, 5: 1.25, 6: 1.1 };
+        maxFS = baseFS * (multipliers[lvl] ?? 1.1);
+      }
+      
+      const { lh, cpl } = getBlockMetrics(maxFS, width, false, true); // isHeading = true
 
       const len = node.textContent.length || 1;
       const lines = Math.max(1, Math.ceil(len / cpl));
@@ -246,11 +262,11 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
     case 'table': {
       // Per-row height: measure each row independently to avoid a single long cell
       // inflating every other row's height estimate.
-      let totalTableH = TABLE_MARGIN;
+      let totalTableH = _dynamicTableMargin;
 
       node.forEach(row => {
         let rowMaxLines = 1;
-        let rowMaxLH = LINE_H;
+        let rowMaxLH = _dynamicLineH;
 
         row.forEach(cell => {
           if (!cell.content) return;
@@ -261,15 +277,15 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
           cell.forEach(cellContent => {
             if (!cellContent.textContent) return;
             const textLen = cellContent.textContent.length;
-            const cellCPL = Math.max(10, Math.floor(60 * (14.667 / cellFS)));
+            const cellCPL = Math.max(10, Math.floor(60 * (_activeBaseFontSize / cellFS)));
             const lines = Math.ceil(textLen / cellCPL);
             rowMaxLines = Math.max(rowMaxLines, lines);
           });
         });
 
         const rowH = rowMaxLines > 1
-          ? TABLE_ROW_H + (rowMaxLines - 1) * rowMaxLH
-          : Math.max(TABLE_ROW_H, rowMaxLH + 12);
+          ? _dynamicTableRowH + (rowMaxLines - 1) * rowMaxLH
+          : Math.max(_dynamicTableRowH, rowMaxLH + 12);
 
         totalTableH += rowH;
       });
@@ -283,27 +299,28 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
     case 'taskList': {
       h = 0;
       node.forEach(item => {
-        // CSS: li { margin-bottom: 0.25em } = 0.25 * 14.667 = 3.67px → 4px
-        // No top padding on li (the second CSS rule wins the cascade — it has no padding)
-        let itemH = 4; // margin-bottom only, matching splitOversizedNode and CSS
+        // CSS: li { margin-bottom: 0.25em } = 0.25 * _activeBaseFontSize
+        const liMarginBottom = Math.round(_activeBaseFontSize * 0.25);
+        let itemH = liMarginBottom; // margin-bottom only, matching splitOversizedNode and CSS
         item.forEach(child => {
           itemH += estimateHeight(child, true, width);
         });
         h += itemH;
       });
-      h += PARA_MARGIN_PX;
+      h += _dynamicParaMargin;
       break;
     }
 
     default: { // paragraph + unknown block types
       if (!node.textContent) {
-        h = LINE_H + PARA_MARGIN_PX;
+        h = _dynamicLineH + _dynamicParaMargin;
         break;
       }
 
       // CSS: .page ul, .page ol { padding-left: 2em } (second rule wins cascade)
-      // 2em = 2 * 14.667 = 29.3px indent for list children
-      const maxWidth = isListChild ? (width - 29) : width;
+      // 2em = 2 * _activeBaseFontSize indent for list children
+      const listIndent = Math.round(_activeBaseFontSize * 2);
+      const maxWidth = isListChild ? (width - listIndent) : width;
 
       // ── GRANULAR LINE-BY-LINE ESTIMATION ──
       const items = [];
@@ -325,7 +342,7 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
       items.forEach(item => {
         if (item.type === 'break') {
           // Hard break forces the current line to end and a new line to start
-          totalParaH += Math.max(currentLineMaxLH, LINE_H);
+          totalParaH += Math.max(currentLineMaxLH, _dynamicLineH);
           currentLineSpace = maxWidth;
           currentLineMaxLH = 0;
           return;
@@ -355,10 +372,10 @@ export const estimateHeight = (node, isListChild = false, width = USABLE_WIDTH) 
       // For paragraphs with font sizes above body size, the char-width model
       // tends to slightly undercount wrapped lines due to kerning and font metrics.
       // Apply a 1.08 expansion factor when max font > 16px to avoid underestimation.
-      const maxFontInPara = items.reduce((m, it) => it.lh ? Math.max(m, it.lh) : m, LINE_H);
-      const expansionFactor = maxFontInPara > Math.ceil(16 * 1.3) ? 1.08 : 1.0;
+      const maxFontInPara = items.reduce((m, it) => it.lh ? Math.max(m, it.lh) : m, _dynamicLineH);
+      const expansionFactor = maxFontInPara > Math.ceil(16 * _activeLh) ? 1.08 : 1.0;
 
-      h = (totalParaH + (isListChild ? 0 : PARA_MARGIN_PX)) * expansionFactor;
+      h = (totalParaH + (isListChild ? 0 : _dynamicParaMargin)) * expansionFactor;
       break;
     }
 
@@ -386,7 +403,7 @@ const flattenBlocks = (node) => {
 // ── Split oversized nodes into real independent nodes ─────────────────────
 // targetHeight should be USABLE_HEIGHT - PARA_MARGIN for full pages, or 
 // remaining height for partial pages.
-const splitOversizedNode = (node, schema, targetHeight = (USABLE_HEIGHT - PARA_MARGIN_PX), width = USABLE_WIDTH) => {
+const splitOversizedNode = (node, schema, targetHeight = (USABLE_HEIGHT - _dynamicParaMargin), width = USABLE_WIDTH) => {
   if (!node) return [];
 
   // 1. HANDLE LISTS
@@ -606,30 +623,25 @@ const WIDOW_ORPHAN_MIN_LINES = 2;
  * or if the DOM content doesn't match the PM node (stale after paste).
  * Falls back to estimateHeight() in that case.
  */
+// Simple cache for computed margins by element type to avoid repeated getComputedStyle calls
+const _marginCache = new Map();
+
 const measureDOMHeight = (editor, pmPos, pmNode) => {
   try {
     if (!editor?.view) return null;
 
     // Resolve the actual DOM element for this position.
-    // ProseMirror's nodeDOM() sometimes returns wrappers or virtual nodes.
-    // we use domAtPos to get the container and then find the nearest block.
     const { node: parentDOM } = editor.view.domAtPos(pmPos);
     let domEl = editor.view.nodeDOM(pmPos);
 
-    // Fallback: If nodeDOM fails, try to find the actual element from parent
     if (!domEl || !(domEl instanceof HTMLElement)) {
       domEl = parentDOM instanceof HTMLElement ? parentDOM : parentDOM.parentElement;
     }
 
     if (!domEl || !(domEl instanceof HTMLElement)) return null;
-
-    // Safety check: ensure we aren't measuring the whole page content area or page wrapper
     if (domEl.classList.contains('page-content') || domEl.classList.contains('page')) return null;
 
-    // ── STALE DOM GUARD (BUG-F fix) ──────────────────────────────────────────
-    // After paste, TipTap may not have flushed its DOM update yet.
-    // If the PM node has text content but the DOM element shows different text,
-    // the measurement is stale. Return null to fall back to estimateHeight.
+    // ── STALE DOM GUARD ──
     if (pmNode && pmNode.textContent && domEl.textContent !== undefined) {
       const pmText = pmNode.textContent.trim().slice(0, 50);
       const domText = domEl.textContent.trim().slice(0, 50);
@@ -639,10 +651,15 @@ const measureDOMHeight = (editor, pmPos, pmNode) => {
     const rect = domEl.getBoundingClientRect();
     if (rect.height <= 0) return null;
 
-    // ✅ CRITICAL FIX: Account for vertical margins which are excluded from getBoundingClientRect
-    // This resolves the 14-15 line overflow issue by accurately measuring paragraph/heading spacing.
-    const style = window.getComputedStyle(domEl);
-    const margins = (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+    // ✅ OPTIMIZATION: Cache vertical margins by tag+class to avoid expensive getComputedStyle
+    const styleKey = `${domEl.tagName}_${domEl.className}`;
+    let margins = _marginCache.get(styleKey);
+    
+    if (margins === undefined) {
+      const style = window.getComputedStyle(domEl);
+      margins = (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+      _marginCache.set(styleKey, margins);
+    }
 
     const zoom = editor.storage?.athena_zoom || 100;
     return (rect.height + margins) / (zoom / 100);
@@ -839,28 +856,43 @@ export const paginateDocument = async (editor, options = {}) => {
     requestAnimationFrame(() => {
       const pageContent = document.querySelector('.page-content');
       if (pageContent) {
-        const contentHeight = pageContent.scrollHeight;
-        const pageHeight = 1123; // Standard A4
-        const maxHeight = USABLE_HEIGHT;   // Use the calibrated constant directly
+        // ── CORRECT USABLE HEIGHT DERIVATION ─────────────────────────────────
+        // .page-content has height:100% of .page (= A4_HEIGHT_PX = 1128px) and
+        // uses padding to create the margin zones. clientHeight returns the full
+        // box height (1128px), NOT the inner content area.
+        //
+        // To get the true usable height we must subtract the vertical padding that
+        // .page-content uses as top/bottom margins.
+        // This matches exactly what the engine reads in the dynamic calibration
+        // block below (samplePage.clientHeight) and what USABLE_HEIGHT_PX encodes.
+        const style = window.getComputedStyle(pageContent);
+        const pt = parseFloat(style.paddingTop) || 0;
+        const pb = parseFloat(style.paddingBottom) || 0;
+        // clientHeight = full page height including padding zones
+        const cssUsableH = Math.round(pageContent.clientHeight - pt - pb);
 
-        // If content exceeds usable height, trigger IMMEDIATE pagination
-        if (contentHeight > maxHeight) {
-          paginateDocument(editor, { force: true });
-        }
+        // If the live CSS-derived usable height deviates by more than 2px from
+        // the JS constant (subpixel rounding tolerance), report it.
+        const delta = Math.abs(cssUsableH - USABLE_HEIGHT);
+        const matches = delta <= 2;
 
-        const computedHeight = parseInt(getComputedStyle(pageContent).height);
-        const cssUsableH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--usable-h'));
-
-        console.log(`[paginateDocument] Usable Height Validation:`, {
+        console.log('[paginateDocument] Usable Height Validation:', {
           js_USABLE_HEIGHT: USABLE_HEIGHT,
-          css_computed_height: computedHeight,
-          css_variable_usable_h: cssUsableH,
-          matches: computedHeight === USABLE_HEIGHT || cssUsableH === USABLE_HEIGHT ? '✅ YES' : '❌ NO - MISMATCH!'
+          css_client_height: pageContent.clientHeight,
+          css_padding_top: pt,
+          css_padding_bottom: pb,
+          css_usable_height: cssUsableH,
+          delta_px: delta,
+          matches: matches ? '✅ YES' : '❌ NO - MISMATCH!',
         });
 
-        if (computedHeight !== USABLE_HEIGHT && cssUsableH !== USABLE_HEIGHT) {
-          console.warn(`[paginateDocument] ⚠️ USABLE_HEIGHT mismatch detected!`,
-            `JS expects ${USABLE_HEIGHT}px, but CSS renders ${computedHeight}px (computed) or ${cssUsableH}px (CSS variable)`);
+        if (!matches) {
+          console.warn(
+            `[paginateDocument] ⚠️ USABLE_HEIGHT mismatch detected! ` +
+            `JS expects ${USABLE_HEIGHT}px, CSS renders ${cssUsableH}px usable ` +
+            `(clientHeight ${pageContent.clientHeight}px − ${pt + pb}px padding). ` +
+            `Update PAGE_MARGIN_TOP_PX / PAGE_MARGIN_BOTTOM_PX in constants.js to match CSS.`
+          );
         }
       }
       window.__paginationValidated = true;
@@ -900,31 +932,39 @@ export const paginateDocument = async (editor, options = {}) => {
     }
 
     // ── EDGE CASE 3: Micro-change optimisation (BUG-4 fixed) ─────────────
-    // Only skip when document is safely under 90% full AND change is tiny.
-    // _lastDocSize is updated ONLY when pagination actually runs (not on skip).
+    // Updated for performance: Skip if change is tiny AND document has headroom.
     if (!options.force) {
       const currentSize = doc.content.size;
       const lastSize = editor.storage._lastDocSize ?? 0;
       const delta = Math.abs(currentSize - lastSize);
 
-      if (lastSize > 0 && delta > 0 && delta < 4) {
-        const totalH = rawBlocks.reduce((s, n) => s + estimateHeight(n), 0);
-        if (totalH < USABLE_HEIGHT * 0.90) {
-          // Tiny change + document well under capacity → safe to skip
-          // Do NOT update _lastDocSize here (BUG-4 fix)
-          setFlag('isPaginating', false);
-          return false;
-        }
+      if (lastSize > 0 && delta > 0 && delta < 5) {
+        // Optimization: don't calculate totalH for large documents on every keystroke
+        // If it's a micro-change, we only care if the current page is overflowing (handled in EditorSurface)
+        // We can safely skip a full pagination pass here unless delta is large.
+        setFlag('isPaginating', false);
+        return false;
       }
-      // Update size only when we proceed with pagination
       editor.storage._lastDocSize = currentSize;
+    }
+
+    // ── DYNAMIC METRICS CALIBRATION ──
+    // Read the active CSS typography custom properties from the root document style.
+    if (typeof document !== 'undefined') {
+      const rootStyle = window.getComputedStyle(document.documentElement);
+      _activeLh = parseFloat(rootStyle.getPropertyValue('--lh')) || parseFloat(rootStyle.getPropertyValue('--editor-line-height')) || 1.3;
+      _activeBaseFontSize = parseFloat(rootStyle.getPropertyValue('--font-px')) || parseFloat(rootStyle.getPropertyValue('--editor-font-size')) || 14.667;
+      _dynamicLineH = Math.ceil(_activeBaseFontSize * _activeLh);
+      _dynamicParaMargin = Math.round(_activeBaseFontSize * 0.55);
+      _dynamicTableRowH = 12 + _dynamicLineH; // 6px*2 padding + dynamic line height
+      _dynamicTableMargin = Math.round(_activeBaseFontSize * 1.5); // 0.75em * 2
     }
 
     // ── DYNAMIC USABLE HEIGHT MEASUREMENT ──
     // We read the CSS-constrained height of .page-content, NOT getBoundingClientRect
     // which returns the expanded content height (overflow:visible makes it grow).
-    // The correct approach is clientHeight (content box height declared by CSS padding
-    // model), or parsing the computed height style directly.
+    // To get the true usable height where content lives, we must subtract the top and 
+    // bottom padding (margins) from the clientHeight.
     let dynamicUsableHeight = USABLE_HEIGHT;
     const zoom = editor.storage?.athena_zoom || 100;
     const zoomFactor = zoom / 100;
@@ -932,13 +972,14 @@ export const paginateDocument = async (editor, options = {}) => {
     if (typeof document !== 'undefined') {
       const samplePage = document.querySelector('.page-content');
       if (samplePage) {
-        // clientHeight = padded content area height (matches what the CSS padding model
-        // declares via padding-top + padding-bottom + inner height).
-        // This is stable regardless of how much content is inside.
-        const cssHeight = samplePage.clientHeight;
+        // Subtract top padding and bottom padding to find the true usable text area height!
+        const style = window.getComputedStyle(samplePage);
+        const pt = parseFloat(style.paddingTop) || 0;
+        const pb = parseFloat(style.paddingBottom) || 0;
+        const cssHeight = samplePage.clientHeight - pt - pb;
         if (cssHeight > 100) {
           dynamicUsableHeight = cssHeight / zoomFactor;
-          console.debug('[paginateDocument] Calibrated usable height (clientHeight):', dynamicUsableHeight);
+          console.debug('[paginateDocument] Calibrated usable height (excluding margins):', dynamicUsableHeight);
         }
       }
     }
@@ -967,17 +1008,17 @@ export const paginateDocument = async (editor, options = {}) => {
     // ── DYNAMIC BOTTOM CALIBRATION ──
     // The effective usable height must guarantee that NO content ever hides
     // behind the bottom margin. We reserve:
-    //   • LINE_H (19px) — one full body line as a hard safety margin.
+    //   • _dynamicLineH — one full body line as a hard safety margin.
     //     This is the primary fix for "last few lines hidden behind bottom margin".
     //     Even if CSS clips at exactly dynamicUsableHeight, subpixel rendering and
     //     font metrics cause the last line to occasionally overlap the bottom padding.
     //   • 2px — subpixel rounding tolerance on top of that.
-    // Together: 21px safety floor ≈ one body line. This corrects the edge cases for:
+    // Together: safety floor ≈ one body line. This corrects the edge cases for:
     //   a) Arial 11pt (default): last line sits 2px above bottom margin
     //   b) Large font (18-24pt): bottom of last line is fully clear of margin
     //   c) Images: bottom edge never bleeds into margin
     //   d) Tables: last row is fully visible
-    const dynamicBuffer = LINE_H + 2; // one full line + subpixel tolerance
+    const dynamicBuffer = _dynamicLineH + 2; // one full line + subpixel tolerance
     const effectiveUsableHeight = dynamicUsableHeight - dynamicBuffer;
 
     const pages = [];
@@ -1006,8 +1047,20 @@ export const paginateDocument = async (editor, options = {}) => {
 
       // ── PRIMARY: DOM height measurement ────────────────────────────────────
       const pmPos = blockPosMap.get(node);
-      const domH = pmPos != null ? measureDOMHeight(editor, pmPos, node) : null;
-      const h = domH ?? estimateHeight(node, false, effectiveWidth);
+      
+      // ✅ PERFORMANCE: Check cache BEFORE DOM measurement.
+      // Since ProseMirror nodes are immutable, if the node object is the same,
+      // its height MUST be the same (given zoom/width haven't changed).
+      let h = _heightCache.get(node);
+      let domH = null;
+      
+      if (h === undefined) {
+        domH = pmPos != null ? measureDOMHeight(editor, pmPos, node) : null;
+        h = domH ?? estimateHeight(node, false, effectiveWidth);
+        _heightCache.set(node, h);
+      } else if (pmPos != null) {
+        domH = measureDOMHeight(editor, pmPos, node);
+      }
 
       if (pages.length >= MAX_PAGES) break;
 
@@ -1163,20 +1216,29 @@ export const paginateDocument = async (editor, options = {}) => {
       try {
         tr.setSelection(TextSelection.create(tr.doc, clamp(newFrom), clamp(newTo)));
       } catch (selectionErr) {
-        // If selection creation fails (e.g. position in non-selectable node like page),
-        // use a fallback selection at the nearest valid position
-        console.debug('[paginateDocument] Selection at invalid position, using fallback');
+        // TextSelection.create() throws when the position lands inside a node that
+        // does not allow inline content (e.g. inside a listItem or taskItem token
+        // rather than inside the paragraph nested within it). This happens when
+        // computeNewCursorPos maps the cursor to the list-node boundary instead of
+        // into the paragraph child.
+        //
+        // TextSelection.findFrom() walks forward (dir=1) or backward (dir=-1) from
+        // the resolved position until it finds a valid inline-content ancestor,
+        // handling listItem > paragraph nesting automatically.
+        console.debug('[paginateDocument] Selection at invalid position, using findFrom fallback');
         try {
-          // Try to find nearest valid text position
-          const resolved = tr.doc.resolve(clamp(newFrom));
-          if (resolved.parent.type.spec.content && resolved.parent.type.spec.content.includes('text')) {
-            tr.setSelection(TextSelection.create(tr.doc, clamp(newFrom)));
-          } else {
-            // If still invalid, leave selection unset - ProseMirror will handle it
-            console.debug('[paginateDocument] Using default selection placement');
+          const resolvedFrom = tr.doc.resolve(clamp(newFrom));
+          const safeSelection =
+            TextSelection.findFrom(resolvedFrom, 1) ??  // walk forward first
+            TextSelection.findFrom(resolvedFrom, -1);   // then backward
+
+          if (safeSelection) {
+            tr.setSelection(safeSelection);
           }
+          // If findFrom also yields null (empty doc edge case), leave selection
+          // unset — ProseMirror will place it at a valid default position.
         } catch (_) {
-          // Final fallback: leave selection as-is
+          // Truly unreachable doc state — leave selection as-is
         }
       }
 
@@ -1226,6 +1288,22 @@ export const paginateDocument = async (editor, options = {}) => {
       }
 
       setFlag('isPaginating', false);
+
+      // ── Focus restore after pagination ───────────────────────────────────
+      // After view.dispatch(tr) the ProseMirror selection is correctly placed
+      // (BUG-1 fix), but the browser's native focus may have drifted because the
+      // DOM node the caret was anchored to was moved or replaced during the full-
+      // document replacement. This is the direct cause of the "Enter key focus
+      // jump" where the visual cursor ends up on the wrong page 2/5 times.
+      //
+      // editor.view.focus() tells ProseMirror to re-sync the DOM selection from
+      // its internal state (the selection we just set via tr.setSelection), which
+      // re-anchors the native caret to the correct DOM node without moving it to
+      // a different position. We guard with hasFocus() to avoid stealing focus
+      // from toolbar dropdowns, popovers, or other UI elements.
+      if (editor.view.hasFocus()) {
+        editor.view.focus();
+      }
 
       try { editor.storage.onPaginationComplete?.(); } catch (_) { }
     });

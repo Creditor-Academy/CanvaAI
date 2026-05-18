@@ -55,7 +55,6 @@ import { addHeadingStyles, updateHeadingStyles } from '../components/editor/Edit
 import { paginateDocument, debouncePaginate, cleanupPagination, invalidatePaginationCache } from '../utils/paginationEngine.js'; // 🔥 CRITICAL: Full pagination + paste detection
 import { usePastePagination } from '../hooks/usePastePagination';
 import { transformMarkdownToEditor, isMarkdown } from '../utils/transformMarkdownToEditor.js'; // 🔥 NEW: Markdown transformer
-import '../../../styles/editor/athena-editor-master.css'; // 🎨 New consolidated CSS architecture
 // NOTE: @tiptap/extension-table is NOT used. The project uses the custom
 // TableExtension.js (customTable atom node) registered in EditorSurface.jsx.
 // Importing TiptapTable/TableRow/TableCell/TableHeader here would add them to
@@ -101,7 +100,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
 import { TextEditorService } from '../../../services/Text-Editor/text.service.js';
-import { useDocument, useUpdateDocument } from '../../../hooks/useDocuments.js';
+import { useDocument } from '../../../hooks/useDocuments.js';
 import {
   Bold,
   Italic,
@@ -299,6 +298,15 @@ const normalizeParagraphs = (jsonContent) => {
   if (!jsonContent?.content) return jsonContent;
 
   const splitNode = (node) => {
+    // ── IMAGE SANITIZATION ──
+    if (node.type === 'image' || node.type === 'resizableImage') {
+      // Ensure src is never an empty string (prevents browser re-download warning)
+      if (node.attrs && (node.attrs.src === '' || node.attrs.src === undefined)) {
+        return [{ ...node, attrs: { ...node.attrs, src: null } }];
+      }
+      return [node];
+    }
+
     // Only split paragraphs with newlines embedded in text
     if (node.type !== 'paragraph') {
       return [{ ...node, content: node.content?.map ? node.content.flatMap(splitNode) : node.content }];
@@ -722,7 +730,7 @@ const TextEditorContent = ({
   // Document layout is now managed exclusively by paginationEngine.js via EditorSurface.jsx.
 
   // Document statistics are now reactively linked to the editor state
-  const { wordCount, characterCount, readingTime, headings, forceUpdateStats } = useEditorStats({
+  const { wordCount, characterCount, readingTime, headings, tokenCount, forceUpdateStats } = useEditorStats({
     editor,
     updateDelay: 1000,
   });
@@ -1400,62 +1408,44 @@ const TextEditorContent = ({
 
     try {
       setIsImageUploading(true);
-      setUploadProgress(0);
+      setUploadProgress(10);
 
-      // Simulate upload progress for better UX
-      const simulateProgress = () => {
-        return new Promise((resolve) => {
-          let progress = 0;
-          const interval = setInterval(() => {
-            progress += Math.random() * 15 + 5; // Random progress between 5-20%
-            if (progress >= 90) {
-              progress = 90;
-              clearInterval(interval);
-              resolve();
-            } else {
-              setUploadProgress(Math.min(progress, 90));
-            }
-          }, 200); // Update every 200ms
+      // Create FormData to send file to the uploader API
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Simulate a small initial progress step while loading
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 85) {
+            clearInterval(progressInterval);
+            return 85;
+          }
+          return prev + Math.random() * 10 + 2;
         });
-      };
+      }, 150);
 
-      // Start simulating progress
-      await simulateProgress();
+      // Upload image to backend uploader (S3 uploader)
+      const response = await TextEditorService.uploadImage(formData);
 
-      // Read the file
-      const reader = new FileReader();
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
-      reader.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = (event.loaded / event.total) * 100;
-          setUploadProgress(Math.min(percentComplete + 90, 95)); // Scale to 90-95% range
-        }
-      };
+      if (response && response.url) {
+        // Insert the uploaded permanent S3 URL instead of local base64 data URL
+        insertImage(response.url, file.name);
+        toast.success('Image uploaded successfully! 🎉');
+      } else {
+        throw new Error('No URL returned from server');
+      }
 
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setUploadProgress(100);
-
-          // Small delay to show 100% completion
-          setTimeout(() => {
-            insertImage(e.target.result, file.name);
-            setIsImageUploading(false);
-            setUploadProgress(0);
-            toast.success('Image uploaded successfully! 🎉');
-          }, 300);
-        }
-      };
-
-      reader.onerror = () => {
-        toast.error('Failed to read image file');
+      setTimeout(() => {
         setIsImageUploading(false);
         setUploadProgress(0);
-      };
-
-      reader.readAsDataURL(file);
+      }, 300);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload image');
+      toast.error(error.message || 'Failed to upload image');
       setIsImageUploading(false);
       setUploadProgress(0);
     }
@@ -2009,6 +1999,7 @@ const TextEditorContent = ({
           <div className="flex items-center gap-3">
             <span>{wordCount} words</span>
             <span>{characterCount} chars</span>
+            <span>{tokenCount} tokens</span>
             <span>{readingTime}m read</span>
             <div className="flex items-center gap-1.5 pl-3 border-l border-gray-300/50">
 
@@ -2379,9 +2370,19 @@ const TextEditorContent = ({
           }}
           onImageInsert={(imageUrl, altText) => {
             if (!editor) return;
+
+            // Defensive: ensure imageUrl is a string (handle potential object responses)
+            const finalUrl = typeof imageUrl === 'string' ? imageUrl : (imageUrl?.url || imageUrl?.src || '');
+
+            if (!finalUrl) {
+              toast.error('Could not determine image source');
+              console.error('❌ [onImageInsert] Invalid imageUrl:', imageUrl);
+              return;
+            }
+
             try {
               editor.chain().focus(null, { scrollIntoView: false }).setResizableImage({
-                src: imageUrl,
+                src: finalUrl,
                 alt: altText,
                 title: altText || 'AI Generated Image',
                 width: 400,
@@ -2390,7 +2391,7 @@ const TextEditorContent = ({
               }).run();
               toast.success('AI image inserted successfully');
             } catch (error) {
-              editor.chain().focus().setImage({ src: imageUrl, alt: altText }).run();
+              editor.chain().focus().setImage({ src: finalUrl, alt: altText }).run();
               toast.success('AI image inserted');
             }
           }}

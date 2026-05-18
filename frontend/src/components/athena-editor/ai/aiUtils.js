@@ -8,8 +8,8 @@ import { toast } from 'sonner';
 
 const API_BASE_URL = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_AI_API_URL) ||
-  (typeof process   !== 'undefined' && process.env?.REACT_APP_AI_API_URL)  ||
-  'http://localhost:5000/api/text-editor/ai'
+  (typeof process !== 'undefined' && process.env?.REACT_APP_AI_API_URL) ||
+  'http://localhost:5000/api/text-editor'
 ).replace(/\/$/, '');
 
 const getAuthHeader = () => {
@@ -32,10 +32,10 @@ async function _parseResponse(response, endpoint) {
     const preview = (await response.text()).slice(0, 200);
     console.error(`[aiUtils] Non-JSON response from /${endpoint}:`, preview);
     const label =
-      response.status === 404 ? `API endpoint not found: /api/text-editor/ai/${endpoint}` :
-      response.status === 401 ? 'Unauthorized — check your API key'                   :
-      response.status === 403 ? 'Forbidden — insufficient permissions'                 :
-      `Unexpected response format (HTTP ${response.status})`;
+      response.status === 404 ? `API endpoint not found: /api/text-editor/${endpoint}` :
+        response.status === 401 ? 'Unauthorized — check your API key' :
+          response.status === 403 ? 'Forbidden — insufficient permissions' :
+            `Unexpected response format (HTTP ${response.status})`;
     throw new AiApiError(label, response.status, false);
   }
   return response.json();
@@ -44,8 +44,8 @@ async function _parseResponse(response, endpoint) {
 class AiApiError extends Error {
   constructor(message, status = 0, retryable = false) {
     super(message);
-    this.name      = 'AiApiError';
-    this.status    = status;
+    this.name = 'AiApiError';
+    this.status = status;
     this.retryable = retryable;
   }
 }
@@ -71,19 +71,19 @@ async function _request(endpoint, body, opts = {}) {
   let attempt = 0;
   while (true) {
     const timeoutCtrl = new AbortController();
-    const timeoutId   = setTimeout(() => timeoutCtrl.abort(), REQUEST_TIMEOUT_MS);
-    const signal      = externalSignal
+    const timeoutId = setTimeout(() => timeoutCtrl.abort(), REQUEST_TIMEOUT_MS);
+    const signal = externalSignal
       ? _combineSignals(externalSignal, timeoutCtrl.signal)
       : timeoutCtrl.signal;
 
     try {
       const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-        method:  'POST',
-        headers: { 
+        method: 'POST',
+        headers: {
           'Content-Type': 'application/json',
           ...getAuthHeader()
         },
-        body:    JSON.stringify(body),
+        body: JSON.stringify(body),
         signal,
       });
       clearTimeout(timeoutId);
@@ -100,8 +100,13 @@ async function _request(endpoint, body, opts = {}) {
       }
 
       const data = await _parseResponse(response, endpoint);
-      // Support both data.result and data.text (legacy/new formats)
-      return data.result || data.text || data;
+      return (
+        data.result ||
+        data.text ||
+        data.document?.data?.html ||
+        data.document ||
+        data
+      );
     } catch (err) {
       clearTimeout(timeoutId);
       if (_isAbort(err)) throw err;
@@ -118,33 +123,33 @@ async function _request(endpoint, body, opts = {}) {
 
 async function _stream(endpoint, body, onChunk, signal) {
   const timeoutCtrl = new AbortController();
-  const timeoutId   = setTimeout(() => timeoutCtrl.abort(), REQUEST_TIMEOUT_MS);
-  const merged      = signal
+  const timeoutId = setTimeout(() => timeoutCtrl.abort(), REQUEST_TIMEOUT_MS);
+  const merged = signal
     ? _combineSignals(signal, timeoutCtrl.signal)
     : timeoutCtrl.signal;
 
   try {
     const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method:  'POST',
-      headers: { 
+      method: 'POST',
+      headers: {
         'Content-Type': 'application/json',
         ...getAuthHeader()
       },
-      body:    JSON.stringify({ ...body, stream: true }),
-      signal:  merged,
+      body: JSON.stringify({ ...body, stream: true }),
+      signal: merged,
     });
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       const data = await _parseResponse(response, endpoint);
       throw new AiApiError(data.error || `HTTP ${response.status}`, response.status,
-                            RETRYABLE_STATUSES.has(response.status));
+        RETRYABLE_STATUSES.has(response.status));
     }
 
-    const reader  = response.body.getReader();
+    const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8', { fatal: false });
-    let   fullText = '';
-    let   buffer   = '';
+    let fullText = '';
+    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -231,8 +236,8 @@ async function _call(endpoint, body, opts = {}) {
     if (!silent) {
       const msg =
         err.status === 401 ? 'AI service: authentication failed. Check your API key.' :
-        err.status === 429 ? 'AI service: rate limit reached. Please wait a moment.'  :
-        err.message || 'AI request failed';
+          err.status === 429 ? 'AI service: rate limit reached. Please wait a moment.' :
+            err.message || 'AI request failed';
       toast.error(msg);
     }
     return fallback;
@@ -248,16 +253,16 @@ export const callAIStreamAPI = (endpoint, body, onChunk, signal) =>
 export const generateDocument = async (params, onChunk, options = {}) => {
   const {
     topic,
-    pages        = 1,
-    tone         = 'professional',
-    type         = 'article',
-    audience     = '',
-    keyPoints    = [],
+    pages = 1,
+    tone = 'professional',
+    type = 'article',
+    audience = '',
+    keyPoints = [],
   } = params;
 
   _validate(topic, 'topic');
 
-  const audienceLine  = audience   ? `\nTarget audience: ${audience}.`        : '';
+  const audienceLine = audience ? `\nTarget audience: ${audience}.` : '';
   const keyPointsLine = keyPoints.length
     ? `\nYou MUST cover these points:\n${keyPoints.map(p => `- ${p}`).join('\n')}`
     : '';
@@ -271,14 +276,29 @@ export const generateDocument = async (params, onChunk, options = {}) => {
     `\nOutput ONLY the document content — no preamble, no "Here is your document:" prefix.`;
 
   return await _call(
-    onChunk ? 'chat' : 'generate',
+    onChunk ? 'chat' : 'generate-text',
     onChunk
-      ? { messages: [{ role: 'user', content: prompt }] }
-      : { userPrompt: prompt },
-    { onChunk, signal: options.signal, fallback: '# Generation failed\nPlease try again.' },
+      ? {
+        messages: [{ role: 'user', content: prompt }]
+      }
+      : {
+        topic,
+        documentType: type,
+        length:
+          pages <= 1
+            ? 'short'
+            : pages <= 3
+              ? 'medium'
+              : 'long',
+        tone
+      },
+    {
+      onChunk,
+      signal: options.signal,
+      fallback: '# Generation failed\nPlease try again.'
+    },
   );
 };
-
 /** Generate an image. */
 export const generateAIImage = async (prompt, options = {}) => {
   _validate(prompt, 'image prompt');
@@ -358,7 +378,7 @@ const _codeCall = async (prompt, options = {}) => {
   _validate(prompt, 'code prompt');
   const { onChunk, signal } = options;
   const result = await _call(
-    'generate',
+    'generate-text',
     { userPrompt: prompt },
     { onChunk, signal, fallback: null },
   );
@@ -379,7 +399,7 @@ export const explainCode = async (code, language = 'javascript', options = {}) =
   const { onChunk, signal } = options;
   const prompt = `Explain the following ${language} code clearly and concisely:\n\n${code}`;
   const result = await _call(
-    'generate',
+    'generate-text',
     { prompt },
     { onChunk, signal, fallback: 'Explanation could not be generated.' },
   );
@@ -413,7 +433,7 @@ export const reviewCode = async (code, language = 'javascript', options = {}) =>
     `\nFor each issue found: describe it, explain why it is a problem, and suggest a fix.` +
     `\nIf the code is correct, say so.\n\n${code}`;
   const result = await _call(
-    'generate',
+    'generate-text',
     { userPrompt: prompt },
     { onChunk, signal, fallback: 'Code review could not be completed.' },
   );

@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { estimateTokensFast } from '../../../utils/realtimeTokenCounter';
 
 /**
  * Custom hook for editor statistics
@@ -35,6 +36,7 @@ export function useEditorStats({ editor, updateDelay = 1000 }) {
   const listsRef = useRef([]);
   const imagesDataRef = useRef([]);
   const linksRef = useRef([]);
+  const tokenCountRef = useRef(0);
 
   // State for UI display (updated infrequently)
   const [wordCount, setWordCount] = useState(0);
@@ -44,6 +46,7 @@ export function useEditorStats({ editor, updateDelay = 1000 }) {
   const [paragraphs, setParagraphs] = useState(0);
   const [images, setImages] = useState(0);
   const [tables, setTables] = useState(0);
+  const [tokenCount, setTokenCount] = useState(0);
 
   /**
    * Extract document statistics from TipTap document
@@ -59,6 +62,11 @@ export function useEditorStats({ editor, updateDelay = 1000 }) {
     wordCountRef.current = words;
     characterCountRef.current = text.length;
     readingTimeRef.current = Math.ceil(words / 200); // 200 WPM reading speed
+
+    // Async token estimation (runs in background, doesn't block sync stats)
+    estimateTokensFast(text).then(result => {
+      tokenCountRef.current = result.tokens;
+    });
 
     // Extract headings and content structure
     const newHeadings = [];
@@ -151,6 +159,9 @@ export function useEditorStats({ editor, updateDelay = 1000 }) {
     setParagraphs((prev) => prev !== newParagraphs ? newParagraphs : prev);
     setImages((prev) => prev !== newImages ? newImages : prev);
     setTables((prev) => prev !== newTables ? newTables : prev);
+    
+    const newTokenCount = tokenCountRef.current;
+    setTokenCount((prev) => prev !== newTokenCount ? newTokenCount : prev);
   }, [editor]);
 
   /**
@@ -199,6 +210,7 @@ export function useEditorStats({ editor, updateDelay = 1000 }) {
     paragraphs,
     images,
     tables,
+    tokenCount,
     
     // Raw refs (for internal use without re-renders)
     refs: {
@@ -212,6 +224,7 @@ export function useEditorStats({ editor, updateDelay = 1000 }) {
       listsRef,
       imagesDataRef,
       linksRef,
+      tokenCountRef,
     },
     
     // Helpers
