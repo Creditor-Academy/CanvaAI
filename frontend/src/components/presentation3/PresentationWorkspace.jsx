@@ -19,6 +19,7 @@ import LoadingSpinner from "../../components/loading/LoadingSpinner"; // Assumin
 import { useAutoSave } from "./hooks/useAutoSave";
 import { useUIStore } from "./store/useUIStore";
 import LoadingPage from "../canva/components/LoadingPage";
+import ThemePanel from "./components/Theme/ThemePanel";
 
 const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { id } = useParams();
@@ -28,6 +29,7 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { user } = useAuth();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(true);
   const [highlightSave, setHighlightSave] = useState(false);
   // Loading if ID is present and we don't have initialData
   const [isLoading, setIsLoading] = useState(!!id && !initialData);
@@ -139,6 +141,10 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
           <CanvasShell />
 
           <PropertiesPanel />
+
+          {isThemePanelOpen && (
+            <ThemePanel onClose={() => setIsThemePanelOpen(false)} />
+          )}
 
           <AgentPanel
             isOpen={isAgentPanelOpen}
