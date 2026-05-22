@@ -82,3 +82,9 @@ export const ROLE_COLOR = {
   caption:    "#64748b",
   fallback:   "#334155",
 };
+
+// Default theme object
+export const DEFAULT_THEME = {
+  titleColor: "#0f172a",
+  bodyColor:  "#334155",
+};

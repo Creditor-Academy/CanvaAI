@@ -70,6 +70,7 @@ const SlidePresenter = ({ slide, scale }) => {
                 };
 
                 if (layer.type === "text") {
+                    const isHeading = layer.role === "heading" || layer.role === "title";
                     return (
                         <div
                             key={layer.id}
@@ -91,6 +92,7 @@ const SlidePresenter = ({ slide, scale }) => {
                                     wordBreak: "break-word",
                                     whiteSpace: "normal",
                                     lineHeight: 1.4,
+                                    ...(isHeading && { textTransform: "uppercase" }),
                                 }}
                             >
                                 <SlateStaticRenderer value={layer.content} />

@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import ThemeCard from './ThemeCard';
 import ThemeBrowserModal from './ThemeBrowserModal';
 import { PRESENTATION_THEMES } from '../../constants/presentationThemes';
+import usePresentationFormStore from './usePresentationFormStore';
+import TextAmountSelector from './TextAmountSelector';
+import MediaSelector from './MediaSelector';
 import './styles/PresentationStudio.css';
 
 const FieldLabel = ({ children, required }) => (
@@ -34,7 +37,7 @@ const CustomSelect = ({
   }, []);
 
   return (
-    <div className="ps-field-block">
+    <div className={`ps-field-block ${isOpen ? 'dropdown-open' : ''}`}>
       <FieldLabel required={required}>{label}</FieldLabel>
 
       <div
@@ -151,95 +154,6 @@ const SlideSelector = ({ length, setLength }) => {
   );
 };
 
-const MediaSelector = ({ mediaStyle, setMediaStyle }) => {
-  const options = ['Ai-Images', 'No Media'];
-  return (
-    <div className="ps-field-block">
-      <FieldLabel required>Media</FieldLabel>
-      <div className="ps-chip-group">
-        {options.map((opt) => {
-          const isActive = mediaStyle === opt;
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => setMediaStyle(opt)}
-              className={`ps-chip ${isActive ? 'active' : ''}`}
-            >
-              {opt}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const ImageStyleSelector = ({ imageStyle, setImageStyle }) => {
-  const styles = [
-    {
-      id: 'Realistic',
-      label: 'Realistic',
-      image:
-        'https://i.pinimg.com/736x/5c/b9/62/5cb9627a8d35ff42a96510c58fd68cd2.jpg',
-    },
-    {
-      id: 'Anime',
-      label: 'Anime',
-      image:
-        'https://i.pinimg.com/736x/92/bf/03/92bf03bfcd83247fab3b468fe560cfc7.jpg',
-    },
-    {
-      id: 'Cartoon',
-      label: 'Cartoon',
-      image:
-        'https://i.pinimg.com/736x/69/a2/7e/69a27e12ec3e857c925abb47590dd928.jpg',
-    },
-    {
-      id: 'Sketch',
-      label: 'Sketch',
-      image:
-        'https://i.pinimg.com/736x/98/18/3a/98183a4a3b3e8ea0dec2ff3fb3c33317.jpg',
-    },
-    {
-      id: 'Painting',
-      label: 'Painting',
-      image:
-        'https://i.pinimg.com/736x/ee/3d/9b/ee3d9bbd7bcba1287c2ba4f995423e8c.jpg',
-    },
-  ];
-
-  return (
-    <div className="ps-field-block ps-fade-in ps-image-style-block">
-      <FieldLabel required>Image Style</FieldLabel>
-
-      <div className="ps-image-style-strip">
-        {styles.map((style) => {
-          const isActive = imageStyle === style.id;
-
-          return (
-            <button
-              key={style.id}
-              type="button"
-              onClick={() => setImageStyle(style.id)}
-              className={`ps-image-style-card ${isActive ? 'active' : ''}`}
-              title={style.label}
-            >
-              <img
-                src={style.image}
-                alt={style.label}
-                className="ps-image-style-thumb"
-              />
-              <div className="ps-image-style-overlay">
-                <span>{style.label}</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 const ThemeGrid = ({ selectedTheme, onOpenModal }) => (
   <div className="ps-field-block ps-theme-section">
@@ -294,17 +208,22 @@ const PromptSection = ({
   setTone,
   length,
   setLength,
-  mediaStyle,
-  setMediaStyle,
-  imageStyle,
-  setImageStyle,
-  selectedTheme,
-  setSelectedTheme,
   outlineText,
   setOutlineText,
+  useBrandStyle,
+  setUseBrandStyle,
   handleGenerate,
   isGenerating,
 }) => {
+  const {
+    textAmount,
+    media,
+    selectedTheme,
+    setTextAmount,
+    setMediaStyle,
+    setTheme,
+  } = usePresentationFormStore();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [previewTheme, setPreviewTheme] = useState(null);
 
@@ -313,32 +232,37 @@ const PromptSection = ({
     outlineText?.trim() &&
     tone &&
     length &&
-    mediaStyle &&
-    (mediaStyle !== "Ai-Images" || imageStyle) &&
+    media?.style &&
     selectedTheme;
 
   const handleGenerateClick = () => {
     const topic = prompt.trim();
-    if (
-      !topic ||
-      !outlineText?.trim() ||
-      !tone ||
-      !length ||
-      !mediaStyle ||
-      !selectedTheme ||
-      (mediaStyle === "Ai-Images" && !imageStyle)
-    ) return;
+    if (!topic || !outlineText?.trim() || !tone || !length || !media?.style || !selectedTheme) return;
 
-    handleGenerate({
+    const payload = {
       topic,
-      outline: outlineText?.trim() || '',
+      tone: tone ? tone.toLowerCase() : 'professional',
+      length: String(length),
+      mediaStyle: media.style,
+      useBrandStyle,
+      outlineText: outlineText?.trim() || '',
+      textAmount,
+      theme: {
+        name: selectedTheme.name,
+        slideBackground: selectedTheme.slideBackground,
+        titleColor: selectedTheme.titleColor,
+        bodyColor: selectedTheme.bodyColor,
+        accentColor: selectedTheme.accentColor,
+      },
       meta: {
+        topic,
         tone: tone ? tone.toLowerCase() : 'professional',
-        slideCount: length ? Number(length) : 5,
+        textAmount,
         media: {
-          mediaType: mediaStyle,
-          mediaStyle: mediaStyle === "Ai-Images" ? imageStyle : undefined,
+          enabled: media.enabled,
+          style: media.style,
         },
+        slideCount: length ? Number(length) : 5,
         theme: {
           name: selectedTheme.name,
           slideBackground: selectedTheme.slideBackground,
@@ -347,7 +271,9 @@ const PromptSection = ({
           accentColor: selectedTheme.accentColor,
         },
       },
-    });
+    };
+
+    handleGenerate(payload);
   };
 
   return (
@@ -367,6 +293,9 @@ const PromptSection = ({
               <ToneSelector tone={tone} setTone={setTone} />
               <SlideSelector length={length} setLength={setLength} />
             </div>
+
+            <TextAmountSelector value={textAmount} onChange={setTextAmount} />
+            <MediaSelector value={media.style} onChange={setMediaStyle} />
           </div>
 
           <div className="ps-panel ps-panel-fixed">
@@ -374,15 +303,6 @@ const PromptSection = ({
               <h3>Visual Settings</h3>
               <p>Choose media preferences, image style, and theme.</p>
             </div>
-
-            <MediaSelector mediaStyle={mediaStyle} setMediaStyle={setMediaStyle} />
-
-            {mediaStyle === "Ai-Images" && (
-              <ImageStyleSelector
-                imageStyle={imageStyle}
-                setImageStyle={setImageStyle}
-              />
-            )}
 
             <ThemeGrid
               selectedTheme={selectedTheme}
@@ -398,7 +318,7 @@ const PromptSection = ({
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           initialTheme={previewTheme || selectedTheme}
-          onSelect={setSelectedTheme}
+          onSelect={setTheme}
         />
 
         <GenerateButton

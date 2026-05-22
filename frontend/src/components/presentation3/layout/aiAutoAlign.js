@@ -85,6 +85,10 @@ export function autoAlignAISlides(slides, config = {}) {
       meta: { ...(slide.meta || {}), autoAligned: true } 
     };
 
+    if (slideIndex === 0) {
+      return newSlide;
+    }
+
     if (!newSlide.layers || newSlide.layers.length === 0) return newSlide;
 
     // 1. Normalize

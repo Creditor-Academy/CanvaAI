@@ -3,7 +3,7 @@
 // and returns those elements with { x, y, width, height } assigned.
 // NO imports from the store. NO side effects.
 
-import { SAFE, GAP, ROLE_HEIGHT, MARGIN } from "./constants";
+import { SAFE, GAP, ROLE_HEIGHT, MARGIN, SLIDE } from "./constants";
 
 // ─────────────────────────────────────────────────────────────
 // Internal helper: stack elements vertically, top to bottom
@@ -116,13 +116,25 @@ export const imageLeft = (elements) => {
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const textEls = elements.filter((e) => e !== imageEl);
 
-  const imgW   = Math.round(SAFE.WIDTH * 0.44);
-  const textW  = SAFE.WIDTH - imgW - GAP.COLUMN;
-  const textX  = SAFE.X + imgW + GAP.COLUMN;
+  const imgW = 350;
+  const imgH = 260;
+  const imgX = MARGIN.LEFT;
+  const imgY = SAFE.Y + Math.round((SAFE.HEIGHT - imgH) / 2);
+
+  const textX = imgX + imgW + GAP.COLUMN;
+  const textW = SLIDE.WIDTH - MARGIN.RIGHT - textX;
 
   const out = [];
   if (imageEl) {
-    out.push({ ...imageEl, x: SAFE.X, y: SAFE.Y, width: imgW, height: SAFE.HEIGHT });
+    out.push({
+      ...imageEl,
+      x: imgX,
+      y: imgY,
+      width: imgW,
+      height: imgH,
+      borderRadius: 28,
+      borderWidth: 0,
+    });
   }
   out.push(...stackVertically(textEls, textX, SAFE.Y, textW));
   return out;
@@ -136,18 +148,25 @@ export const imageRight = (elements) => {
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const textEls = elements.filter((e) => e !== imageEl);
 
-  const imgW  = Math.round(SAFE.WIDTH * 0.44);
-  const textW = SAFE.WIDTH - imgW - GAP.COLUMN;
+  const imgW = 350;
+  const imgH = 260;
+  const padRight = 56;
+  const imgX = SLIDE.WIDTH - padRight - imgW;
+  const imgY = SAFE.Y + Math.round((SAFE.HEIGHT - imgH) / 2);
+
+  const textW = imgX - SAFE.X - GAP.COLUMN;
 
   const out = [];
   out.push(...stackVertically(textEls, SAFE.X, SAFE.Y, textW));
   if (imageEl) {
     out.push({
       ...imageEl,
-      x: SAFE.X + textW + GAP.COLUMN,
-      y: SAFE.Y,
+      x: imgX,
+      y: imgY,
       width: imgW,
-      height: SAFE.HEIGHT,
+      height: imgH,
+      borderRadius: 28,
+      borderWidth: 0,
     });
   }
   return out;
@@ -245,6 +264,84 @@ export const comparison = (elements) => {
   return out;
 };
 
+export const heroImageRight = (elements) => {
+  const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
+  const textEls = elements.filter((e) => e !== imageEl);
+  const heading =
+    textEls.find((e) => e.role === "heading") || textEls[0];
+
+  const out = [];
+  if (imageEl) {
+    out.push({
+      ...imageEl,
+      x: 512,
+      y: 0,
+      width: 448,
+      height: 540,
+      borderRadius: 0,
+      borderWidth: 0,
+    });
+  }
+  if (heading) {
+    out.push({
+      ...heading,
+      x: 60,
+      y: 180,
+      width: 380,
+      height: 140,
+      fontSize: heading.fontSize ?? 48,
+      fontWeight: "bold",
+      textAlign: "left",
+    });
+  }
+  return out;
+};
+
+export const visualInsight = (elements) => {
+  const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
+  const textEls = elements.filter((e) => e !== imageEl);
+
+  const imgW = 380;
+  const imgH = 280;
+  const padRight = 52;
+  const imgX = SLIDE.WIDTH - padRight - imgW;
+  const imgY = SAFE.Y + Math.round((SAFE.HEIGHT - imgH) / 2);
+  const textW = imgX - SAFE.X - GAP.COLUMN;
+
+  const out = [];
+  out.push(...stackVertically(textEls, SAFE.X, SAFE.Y, textW));
+  if (imageEl) {
+    out.push({
+      ...imageEl,
+      x: imgX,
+      y: imgY,
+      width: imgW,
+      height: imgH,
+      borderRadius: 32,
+      borderWidth: 0,
+    });
+  }
+  return out;
+};
+
+export const centerStat = (elements) => {
+  const ROLE_ORDER = ["eyebrow", "heading", "subheading", "body", "caption", "shape", "table"];
+  const sorted = [...elements].sort(
+    (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
+  );
+  const innerWidth = SAFE.WIDTH - 120;
+  const innerX = SAFE.X + 60;
+  const withHeights = distributeHeight(sorted, SAFE.HEIGHT);
+  const stacked = stackVertically(withHeights, innerX, SAFE.Y, innerWidth);
+  return stacked.map((el) =>
+    ["heading", "body", "subheading", "eyebrow"].includes(el.role)
+      ? { ...el, textAlign: "center", x: innerX, width: innerWidth }
+      : el
+  );
+};
+
+export const textFocus = (elements) => comparison(elements);
+
 // ─────────────────────────────────────────────────────────────
 // TEMPLATE: fallback — plain vertical stack, always safe
 // ─────────────────────────────────────────────────────────────
@@ -264,5 +361,16 @@ export const TEMPLATE_MAP = {
   "quote":              quote,
   "three-column-icons": threeColumnIcons,
   "comparison":         comparison,
+  "hero-image-right":   heroImageRight,
+  "hero_layout":        heroImageRight,
+  "image_right_content_left": imageRight,
+  "image_left_content_right": imageLeft,
+  "center-stat":        centerStat,
+  "center_stat_layout": centerStat,
+  "text-focus":         textFocus,
+  "text_focus_layout":  textFocus,
+  "visual-insight":     visualInsight,
+  "visual_insight_layout": visualInsight,
+  "image-focus":        visualInsight,
   "fallback":           fallbackStack,
 };

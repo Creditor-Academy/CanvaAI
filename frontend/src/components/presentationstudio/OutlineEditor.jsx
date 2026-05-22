@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { finalizePresentation } from "../../services/OutlineEditorService";
+import { generatePresentation } from "../../services/PresentationStudioService";
+import { processAIGeneration } from "../presentation3/processor/processAIGeneration";
+import usePresentationStore from "../presentation3/store/usePresentationStore";
 import { savePresentation } from "../../services/presentation";
 import { useAuth } from "../../contexts/AuthContext";
 import "./styles/OutlineEditor.css";
@@ -12,23 +15,66 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   const currentUserId = user?._id || user?.id;
   const CONTENT_CHAR_LIMIT = 350;
 
+  const normalizeBulletText = (bullet) => {
+    if (bullet == null) return '';
+    if (typeof bullet === 'string') return bullet;
+    if (typeof bullet === 'object') {
+      if (typeof bullet.text === 'string' && bullet.text.trim()) return bullet.text;
+      if (typeof bullet.title === 'string' && bullet.title.trim()) return bullet.title;
+      if (typeof bullet.label === 'string' && bullet.label.trim()) return bullet.label;
+      const composed = [bullet.text, bullet.why, bullet.soWhat]
+        .filter(Boolean)
+        .map(String)
+        .join('\n\n')
+        .trim();
+      if (composed) return composed;
+      return JSON.stringify(bullet);
+    }
+    return String(bullet);
+  };
+
+  const normalizeBulletArray = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map(normalizeBulletText)
+      .filter((item) => item && item.trim().length > 0);
+  };
+
   const [slides, setSlides] = useState(() => {
     if (!outlineData?.slides) return [];
+
+    const buildInitialRawText = (slide) => {
+      const explicitRaw = slide?.content?.rawText;
+      if (typeof explicitRaw === 'string' && explicitRaw.trim()) return explicitRaw;
+
+      const stringContent = typeof slide?.content === 'string' ? slide.content.trim() : '';
+      const bullets = normalizeBulletArray(
+        slide?.bullets ||
+        (Array.isArray(slide?.points) ? slide.points : []) ||
+        (slide?.content?.mode === 'bullets' ? slide.content.bullets : [])
+      );
+      const bulletsText = bullets.length ? bullets.map((b) => `• ${b}`).join('\n') : '';
+
+      return [stringContent, bulletsText].filter(Boolean).join('\n\n');
+    };
 
     return outlineData.slides.map((slide, index) => ({
       slideId: slide.slideId || `slide-${index + 1}`,
       slideNo: slide.slideNo || index + 1,
-      source: slide.source || "ai",
-      title: slide.title || "",
+      source: slide.source || 'ai',
+      title: slide.title || '',
       content: {
-        mode: "raw",
-        rawText: slide.content?.rawText || "",
+        mode: 'raw',
+        rawText: buildInitialRawText(slide),
       },
-      bullets: slide.bullets || [],
-      layout: slide.layout || "content",
-      contentType: slide.contentType || "paragraph",
-      image:
-        slide.content?.images?.[0]?.url || slide.image || null,
+      bullets: normalizeBulletArray(
+        slide.bullets ||
+        slide.points ||
+        (slide?.content?.mode === 'bullets' ? slide.content.bullets : [])
+      ),
+      layout: slide.layout || 'content',
+      contentType: slide.contentType || 'paragraph',
+      image: slide.content?.images?.[0]?.url || slide.image || null,
     }));
   });
 
@@ -158,26 +204,25 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         slides: cleanedSlides,
       };
 
-      const finalPresentation = await finalizePresentation(updatedOutline);
+      // Call final-generation API (server) and process AI response through layout engine
+      const finalPayload = await finalizePresentation(updatedOutline);
 
-      if (!finalPresentation?.slides?.length) {
+      if (!finalPayload || !finalPayload.slides || finalPayload.slides.length === 0) {
         throw new Error("AI returned empty slides");
       }
 
-      const pSlides = finalPresentation.slides;
+      // Load slides into the presentation store (preserves layoutProcessed flag)
+      usePresentationStore.getState().setPresentation({ slides: finalPayload.slides });
 
-      const firstSlideTitle =
-        pSlides?.[0]?.title?.trim() ||
-        finalPresentation?.meta?.topic ||
-        "Untitled Presentation";
+      const firstSlideTitle = finalPayload.slides?.[0]?.title?.trim() || (updatedOutline.meta && updatedOutline.meta.topic) || "Untitled Presentation";
 
-      const payload = {
+      const savePayload = {
         userId: currentUserId,
         title: firstSlideTitle,
-        data: { slides: pSlides }
+        data: { slides: finalPayload.slides },
       };
 
-      const saveResponse = await savePresentation(payload);
+      const saveResponse = await savePresentation(savePayload);
 
       const presentationId =
         saveResponse?.presentationId || saveResponse?.data?._id || saveResponse?.data?.id || saveResponse?._id || saveResponse?.id;

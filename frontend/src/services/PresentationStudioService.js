@@ -19,7 +19,8 @@ const getAxiosConfig = () => {
  * @returns {Promise<Object>} - Generated outline with slides
  */
 export const generateOutline = async (params) => {
-  const response = await axios.post(`${API_BASE_URL}/get-presentation-outline`, params, getAxiosConfig());
+  const payload = { ...params };
+  const response = await axios.post(`${API_BASE_URL}/get-presentation-outline`, payload, getAxiosConfig());
   return response.data;
 };
 

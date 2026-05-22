@@ -35,10 +35,36 @@ const clampElement = (el) => ({
  * @param {Array}            elements    — normalized elements (no x/y yet)
  * @returns {Array}                      — elements with x, y, width, height set
  */
-export const resolveLayout = (layoutName, elements) => {
+export const resolveLayout = (layoutName, elements, meta = {}, slideIndex = -1) => {
   if (!elements || elements.length === 0) return [];
 
-  const name       = (layoutName || "").toLowerCase().trim();
+  // Minimal meta-aware routing
+  const textAmount = meta?.textAmount || "medium";
+  const mediaEnabled = meta?.media?.enabled ?? true;
+  const hasImage = elements.some((e) => e.role === "image" || e.type === "image");
+  const effectiveHeroImage = hasImage && mediaEnabled;
+
+  let resolvedName = layoutName;
+  if (slideIndex === 0) {
+    resolvedName = effectiveHeroImage ? "hero-image-right" : "title-only";
+  } else {
+    // For subsequent slides
+    if (textAmount === "high" && !hasImage) {
+      resolvedName = "comparison";
+    } else if (!resolvedName) {
+      if (!mediaEnabled) {
+        resolvedName = "title-content";
+      } else if (textAmount === "low") {
+        resolvedName = "visual-insight";
+      } else if (textAmount === "high") {
+        resolvedName = "two-column";
+      } else {
+        resolvedName = "title-content";
+      }
+    }
+  }
+
+  const name = (resolvedName || "").toLowerCase().trim();
   const templateFn = TEMPLATE_MAP[name] ?? TEMPLATE_MAP[autoDetectLayout(elements)];
 
   try {

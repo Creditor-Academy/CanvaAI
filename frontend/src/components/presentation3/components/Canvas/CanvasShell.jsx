@@ -101,39 +101,56 @@ const CanvasShell = () => {
 
   const autoStackLayers = useCallback(
     (layers) => {
-      let currentY = STACK_START_Y;
+      const stackable = layers.filter(isStackableLayer);
 
-      const updatedLayers = layers.map((layer) => {
-        if (!isStackableLayer(layer)) return layer;
-
-        if (!shouldAutoStackLayer(layer)) {
-          const layerBottom = (layer.y || 0) + (layer.height || 0);
-          currentY = Math.max(currentY, layerBottom + STACK_GAP);
-          return layer;
+      const columns = [];
+      stackable.forEach((layer) => {
+        let col = columns.find((c) => Math.abs(c.x - (layer.x || 0)) < 15);
+        if (!col) {
+          col = { x: layer.x || 0, layers: [] };
+          columns.push(col);
         }
-
-        const el = layerRefs.current[layer.id];
-        if (!el) return layer;
-
-        const textContentEl = el.querySelector('[data-text-content="true"]');
-        const measuredContentHeight = textContentEl
-          ? Math.ceil(textContentEl.scrollHeight || textContentEl.getBoundingClientRect().height || 0)
-          : 0;
-        const actualHeight = measuredContentHeight > 0
-          ? Math.max(30, measuredContentHeight + 12)
-          : Math.max(30, Math.ceil(el.offsetHeight || layer.height || 30));
-
-        const updatedLayer = {
-          ...layer,
-          y: currentY,
-          height: actualHeight,
-        };
-
-        currentY += actualHeight + STACK_GAP;
-        return updatedLayer;
+        col.layers.push(layer);
       });
 
-      return updatedLayers;
+      const updatedStackable = columns.flatMap((col) => {
+        const sortedLayers = [...col.layers].sort((a, b) => (a.y || 0) - (b.y || 0));
+        let currentY = sortedLayers.length > 0 ? Math.max(40, sortedLayers[0].y || 0) : 40;
+        const colStackGap = 14;
+
+        return sortedLayers.map((layer) => {
+          if (!shouldAutoStackLayer(layer)) {
+            const layerBottom = (layer.y || 0) + (layer.height || 0);
+            currentY = Math.max(currentY, layerBottom + colStackGap);
+            return layer;
+          }
+
+          const el = layerRefs.current[layer.id];
+          if (!el) return layer;
+
+          const textContentEl = el.querySelector('[data-text-content="true"]');
+          const measuredContentHeight = textContentEl
+            ? Math.ceil(textContentEl.scrollHeight || textContentEl.getBoundingClientRect().height || 0)
+            : 0;
+          const actualHeight = measuredContentHeight > 0
+            ? Math.max(30, measuredContentHeight + 12)
+            : Math.max(30, Math.ceil(el.offsetHeight || layer.height || 30));
+
+          const updatedLayer = {
+            ...layer,
+            y: currentY,
+            height: actualHeight,
+          };
+
+          currentY += actualHeight + colStackGap;
+          return updatedLayer;
+        });
+      });
+
+      return layers.map((origLayer) => {
+        const updated = updatedStackable.find((l) => l.id === origLayer.id);
+        return updated || origLayer;
+      });
     },
     [isStackableLayer, shouldAutoStackLayer]
   );

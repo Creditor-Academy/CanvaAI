@@ -35,7 +35,7 @@ export const buildLayoutFromAIResponse = (rawResponse) => {
  * @returns {Object}        — store-ready slide with layoutProcessed: true
  */
 export const buildLayoutFromAISlide = (rawSlide) => {
-  return applyLayoutToSlide(rawSlide, true);
+  return applyLayoutToSlide(rawSlide, {}, true, 0, null);
 };
 
 // Re-export for convenience so callers don't need to import layoutEngine directly

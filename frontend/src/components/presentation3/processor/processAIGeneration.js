@@ -13,6 +13,28 @@
 //     → auto-save hook                (persist with layoutProcessed flag)
 
 import { buildLayoutFromAIResponse, buildLayoutFromAISlide } from "../../../services/ai/aiLayoutService";
+import { applyLayoutToPresentation } from "../layout/layoutEngine";
+
+/**
+ * Simple processor wrapper that applies the layout engine to a full AI response.
+ * This is the ONLY place where the layout engine should be invoked for full responses.
+ */
+export const processAIGeneration = (aiResponse) => {
+  try {
+    if (!aiResponse || typeof aiResponse !== "object") {
+      console.error("[processAIGeneration] Invalid AI response");
+      return [];
+    }
+
+    // 🔥 CORE STEP: Apply layout engine
+    const slides = applyLayoutToPresentation(aiResponse);
+
+    return slides;
+  } catch (error) {
+    console.error("[processAIGeneration] Failed:", error);
+    return [];
+  }
+};
 
 /**
  * Process a full AI-generated presentation and load it into the store.

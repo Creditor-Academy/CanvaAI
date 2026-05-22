@@ -23,10 +23,41 @@ const getAuthHeaders = () => {
  * @returns {Promise<Object>} - Finalized presentation data
  */
 export const finalizePresentation = async (outlineData) => {
+  const normalizeMedia = (rawMeta = {}) => {
+    const incomingType =
+      rawMeta?.media?.mediaType ||
+      rawMeta?.mediaType ||
+      rawMeta?.mediaStyle ||
+      "None";
+    const t = String(incomingType || "").toLowerCase();
+    
+    // Always use AI images when media is enabled
+    const isAi = t.includes("ai") || rawMeta?.media?.enabled !== false;
+    
+    return {
+      ...rawMeta,
+      media: {
+        ...(rawMeta.media || {}),
+        enabled: rawMeta?.media?.enabled !== false,
+        mediaType: isAi ? "Ai-Images" : "None",
+        mediaStyle:
+          rawMeta?.media?.mediaStyle ||
+          rawMeta?.media?.style ||
+          rawMeta?.mediaStyle ||
+          "Realistic",
+        style:
+          rawMeta?.media?.style ||
+          rawMeta?.media?.mediaStyle ||
+          rawMeta?.mediaStyle ||
+          "Realistic",
+      },
+    };
+  };
+
   // Use the exact meta object that was sent to get-presentation-outline (preserved in originalMeta).
   // Note: `topic` is a top-level payload field (not inside meta), so we inject it separately.
   // Fall back to reconstructing meta only if originalMeta is unavailable.
-  const meta = outlineData.originalMeta
+  const meta = normalizeMedia(outlineData.originalMeta
     ? {
       ...outlineData.originalMeta,
       topic: outlineData.meta?.topic || outlineData.topic || '',
@@ -44,7 +75,7 @@ export const finalizePresentation = async (outlineData) => {
         bodyColor: '#333333',
         accentColor: '#3b82f6'
       }
-    };
+    });
 
 
   // Transform slides to backend format
@@ -128,6 +159,9 @@ export const finalizePresentation = async (outlineData) => {
       slideNo: slide.slideNo || 1,
       title: slide.title || '',
       layout: slide.layout || 'content',
+      intent: slide.intent || 'content',
+      preferredLayout: slide.preferredLayout || '',
+      visualPriority: slide.visualPriority || 'medium',
       contentType: contentType,
       content: content
     };
@@ -207,23 +241,28 @@ export const finalizePresentation = async (outlineData) => {
       success: true,
       presentationId: responseData.presentationId,
       meta: responseData.data.meta,
-      // title: responseData.data.title || responseData.data.meta?.topic || '',
+      title:
+        meta.topic ||
+        responseData.data.title ||
+        responseData.data.meta?.topic ||
+        '',
       slides: responseData.data.data.slides
     };
 
     try {
       // 1. Convert raw AI structure to base coordinates
-      let { slides } = buildLayoutFromAIResponse(finalPayload);
+      const layoutResult = buildLayoutFromAIResponse(finalPayload);
+      let layoutSlides = layoutResult?.slides || [];
       
       // 2. Hydrate metadata flags for the transformer
-      slides = slides.map(slide => ({
+      layoutSlides = layoutSlides.map(slide => ({
           ...slide,
           meta: { ...(slide.meta || {}), isAIGenerated: true }
       }));
       
       // 3. Auto Aligned layout recomposition
       try {
-          slides = slides.map((slide, index) => {
+          layoutSlides = layoutSlides.map((slide, index) => {
               if (slide.meta?.isAIGenerated) {
                   return autoAlignAISlides([slide], { slideIndex: index })[0];
               }
@@ -233,7 +272,7 @@ export const finalizePresentation = async (outlineData) => {
           console.error("AutoAlign step failed:", alignErr);
       }
 
-      finalPayload.slides = slides;
+      finalPayload.slides = layoutSlides;
     } catch (err) {
         console.error("Layout normalization pipeline completely failed:", err);
     }
