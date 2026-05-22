@@ -79,7 +79,7 @@ const CustomSelect = ({
 const TitleInput = ({ prompt, setPrompt }) => (
   <div className="ps-field-block">
     <div className="ps-field-info-row">
-      <FieldLabel required>Title</FieldLabel>
+      <FieldLabel required>Title.</FieldLabel>
       <span className={`ps-char-counter ${prompt.length >= 60 ? 'limit' : ''}`}>
         {prompt.length}/60
       </span>
