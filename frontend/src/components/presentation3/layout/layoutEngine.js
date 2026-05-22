@@ -3,8 +3,11 @@ import { normalizeAISlide } from "./layoutNormalizer";
 import { resolveLayout } from "./layoutResolver";
 
 // 🆕 NEW IMPORTS
-import { selectLayoutStrategy } from "./layoutStrategyEngine";
+import { selectLayoutStrategy, slideShouldHaveImage } from "./layoutStrategyEngine";
 import { resolveStyles } from "./styleResolver";
+import { normalizeSlateListContent } from "../editors/slate/slateHelpers";
+import { getTypographyForRole } from "./layoutTypography";
+import { countListItems } from "./layoutUtils";
 
 /**
  * Convert one AI slide JSON object → a store-ready slide.
@@ -15,7 +18,30 @@ export const applyLayoutToSlide = (aiSlide, meta = {}, forceNewId = true, slideI
   }
 
   // ✅ Step 1: Normalize AI → internal schema
-  const normalizedElements = normalizeAISlide(aiSlide);
+  let normalizedElements = normalizeAISlide(aiSlide);
+
+  const mediaEnabled = meta?.media?.enabled !== false;
+  const wantsImageOnSlide =
+    slideIndex >= 0 && mediaEnabled && slideShouldHaveImage(meta, slideIndex);
+  const hasImageElement = normalizedElements.some(
+    (e) => e.role === "image" || e.type === "image"
+  );
+  if (wantsImageOnSlide && !hasImageElement) {
+    normalizedElements = [
+      ...normalizedElements,
+      {
+        role: "image",
+        type: "image",
+        src: "IMAGE_URL",
+        imageUrl: "IMAGE_URL",
+        alt: "",
+        rotation: 0,
+        borderRadius: slideIndex === 0 ? 0 : 28,
+        borderWidth: 0,
+        borderColor: "#ffffff",
+      },
+    ];
+  }
 
   // 🧠 Step 2: Decide layout strategy — slide-type aware, non-consecutive rotation
   const strategy = selectLayoutStrategy(
@@ -44,6 +70,7 @@ const applyStylesToNodes = (nodes, styles) => {
       const newNode = { ...node };
       if (styles.color !== undefined) newNode.color = styles.color;
       if (styles.fontFamily !== undefined) newNode.fontFamily = styles.fontFamily;
+      if (styles.fontSize !== undefined) newNode.fontSize = styles.fontSize;
       return newNode;
     }
     if (node.children) {
@@ -56,37 +83,37 @@ const applyStylesToNodes = (nodes, styles) => {
   });
 };
 
+  const templateName = strategy.template;
+
   const layers = positionedElements.map(({ _id, _reservedHeight, role, ...layer }) => {
     if (layer.type === "text") {
       const resolvedRole = role === "heading" ? "title" : role;
       const resolvedStyle = resolveStyles(meta, resolvedRole);
+      const isList = countListItems(layer.content) > 0;
+      const typoRole =
+        role === "heading" ? "heading" : isList ? "list" : "body";
+      const typo = getTypographyForRole(templateName, typoRole, isHero);
+
       layer.color = resolvedStyle.color;
-      
-      if (role === "heading") {
-        layer.fontSize = resolvedStyle.fontSize;
-        layer.fontWeight = resolvedStyle.fontWeight;
-        if (isHero) {
-          layer.fontFamily = "Oswald";
-          layer.fontSize = Math.min(
-            54,
-            Math.max(42, (resolvedStyle.fontSize || 40) + 8)
-          );
-        }
-      } else if (role === "subheading") {
-        layer.fontSize = resolvedStyle.fontSize;
-        layer.fontWeight = resolvedStyle.fontWeight;
-      } else {
-        layer.fontSize = resolvedStyle.fontSize;
+      layer.fontSize = layer.fontSize ?? typo.fontSize;
+      layer.fontWeight = typo.fontWeight ?? layer.fontWeight;
+
+      if (isHero && role === "heading") {
+        layer.fontFamily = "Oswald";
+        layer.fontSize = getTypographyForRole("hero-image-right", "heading", true).fontSize;
       }
-      
+
       if (layer.content) {
-        layer.content = applyStylesToNodes(layer.content, {
-          color: layer.color,
-          fontFamily: layer.fontFamily
-        });
+        layer.content = normalizeSlateListContent(
+          applyStylesToNodes(layer.content, {
+            color: layer.color,
+            fontFamily: layer.fontFamily,
+            fontSize: layer.fontSize,
+          })
+        );
       }
     }
-    
+
     return {
       ...layer,
       role,

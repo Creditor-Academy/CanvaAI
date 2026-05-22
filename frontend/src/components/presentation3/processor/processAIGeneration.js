@@ -13,6 +13,7 @@
 //     → auto-save hook                (persist with layoutProcessed flag)
 
 import { buildLayoutFromAIResponse, buildLayoutFromAISlide } from "../../../services/ai/aiLayoutService";
+import { resolvePresentationTitle } from "../../../utils/presentationTitle";
 import { applyLayoutToPresentation } from "../layout/layoutEngine";
 
 /**
@@ -45,14 +46,21 @@ export const processAIGeneration = (aiResponse) => {
  */
 export const processFullAIPresentation = (rawResponse, { setPresentation, setTitle }) => {
   try {
-    const { title, slides } = buildLayoutFromAIResponse(rawResponse);
+    const { title: parsedTitle, slides } = buildLayoutFromAIResponse(rawResponse);
+    const meta = rawResponse?.meta || rawResponse?.data?.meta;
+    const topic = rawResponse?.topic || meta?.topic;
+    const title = resolvePresentationTitle({
+      topic,
+      meta,
+      apiTitle: parsedTitle,
+    });
 
     if (!slides || slides.length === 0) {
       console.warn("[processAIGeneration] No slides produced from AI response.");
       return false;
     }
 
-    if (setTitle)        setTitle(title);
+    if (setTitle) setTitle(title);
     if (setPresentation) setPresentation({ slides, title });
     return true;
   } catch (err) {

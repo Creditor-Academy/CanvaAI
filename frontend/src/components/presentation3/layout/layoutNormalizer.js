@@ -5,7 +5,11 @@
 
 import { nanoid } from "nanoid";
 import { ROLE_FONT_SIZE, ROLE_FONT_WEIGHT, ROLE_TEXT_ALIGN, ROLE_COLOR } from "./constants";
-import { createInitialValue, convertTextToSlate } from "../editors/slate/slateHelpers";
+import {
+  createInitialValue,
+  convertTextToSlate,
+  normalizeSlateListContent,
+} from "../editors/slate/slateHelpers";
 
 // ─────────────────────────────────────────────────────────────
 // Role alias table — maps every variant the AI might return
@@ -65,7 +69,9 @@ export const resolveRole = (el) => {
 const toSlateContent = (raw) => {
   if (!raw) return createInitialValue();
   if (typeof raw === "string") return convertTextToSlate(raw);
-  if (Array.isArray(raw) && raw.length > 0) return raw; // already Slate
+  if (Array.isArray(raw) && raw.length > 0) {
+    return normalizeSlateListContent(raw);
+  }
   if (typeof raw === "object" && (raw.text || raw.value)) {
     return convertTextToSlate(raw.text || raw.value);
   }

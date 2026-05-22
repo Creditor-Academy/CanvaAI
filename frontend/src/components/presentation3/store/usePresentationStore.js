@@ -2,7 +2,11 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { createShapeLayer, createImageLayer } from "../models/presentationModel";
 import useHistoryStore from "./useHistoryStore";
-import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
+import {
+  convertTextToSlate,
+  createInitialValue,
+  normalizeSlateListContent,
+} from "../editors/slate/slateHelpers";
 
 // Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
 // Not persisted to the store state so it is never saved to the database.
@@ -185,12 +189,14 @@ export function normalizeAILayer(layer) {
     return layer;
   }
 
-  const hasList = layer.content.some(
+  const contentWithLists = normalizeSlateListContent(layer.content);
+
+  const hasList = contentWithLists.some(
     (node) => node?.type === "bulleted-list" || node?.type === "numbered-list"
   );
 
   if (!hasList) {
-    return layer;
+    return { ...layer, content: contentWithLists };
   }
 
   const cleanNode = (node) => {
@@ -226,7 +232,7 @@ export function normalizeAILayer(layer) {
 
   return {
     ...layer,
-    content: layer.content.map(cleanNode).filter((node) => node !== null),
+    content: contentWithLists.map(cleanNode).filter((node) => node !== null),
   };
 }
 
@@ -347,6 +353,10 @@ const normalizeSlide = (slide, forceNewId = false) => {
     return {
       ...slide,
       id: forceNewId ? nanoid() : (slide.id || nanoid()),
+      layers: (slide.layers || []).map((layer) => {
+        if (layer.type !== "text" || !Array.isArray(layer.content)) return layer;
+        return normalizeAILayer(layer);
+      }),
     };
   }
 

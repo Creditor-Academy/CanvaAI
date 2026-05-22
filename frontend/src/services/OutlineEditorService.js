@@ -6,7 +6,7 @@ const API_BASE_URL = BASE_URL ? `${BASE_URL}/api/pp` : '/api/pp';
 // const API_BASE_URL = '/api/pp';
 
 import { buildLayoutFromAIResponse } from './ai/aiLayoutService';
-import { autoAlignAISlides } from '../components/presentation3/layout/aiAutoAlign';
+import { resolvePresentationTitle } from '../utils/presentationTitle';
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -241,11 +241,14 @@ export const finalizePresentation = async (outlineData) => {
       success: true,
       presentationId: responseData.presentationId,
       meta: responseData.data.meta,
-      title:
-        meta.topic ||
-        responseData.data.title ||
-        responseData.data.meta?.topic ||
-        '',
+      title: resolvePresentationTitle({
+        topic: outlineData.topic,
+        meta,
+        apiTitle:
+          responseData.data.title ||
+          responseData.data.meta?.topic ||
+          meta.topic,
+      }),
       slides: responseData.data.data.slides
     };
 
@@ -260,17 +263,12 @@ export const finalizePresentation = async (outlineData) => {
           meta: { ...(slide.meta || {}), isAIGenerated: true }
       }));
       
-      // 3. Auto Aligned layout recomposition
-      try {
-          layoutSlides = layoutSlides.map((slide, index) => {
-              if (slide.meta?.isAIGenerated) {
-                  return autoAlignAISlides([slide], { slideIndex: index })[0];
-              }
-              return slide;
-          });
-      } catch (alignErr) {
-          console.error("AutoAlign step failed:", alignErr);
-      }
+      // Layout engine already assigns positions via layoutTemplates.
+      // Skip legacy autoAlign — it overwrote image-right layouts with full-width banners.
+      layoutSlides = layoutSlides.map((slide) => ({
+        ...slide,
+        meta: { ...(slide.meta || {}), autoAligned: false },
+      }));
 
       finalPayload.slides = layoutSlides;
     } catch (err) {

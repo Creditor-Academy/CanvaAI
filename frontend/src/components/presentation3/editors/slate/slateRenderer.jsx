@@ -1,4 +1,5 @@
 import React from "react";
+import { normalizeSlateListContent } from "./slateHelpers";
 
 /* ============================= */
 /* ========= LEAF ============== */
@@ -105,6 +106,8 @@ const Element = ({ attributes, children, element }) => {
 export const SlateStaticRenderer = ({ value, style }) => {
   if (!value || !Array.isArray(value)) return null;
 
+  const normalizedValue = normalizeSlateListContent(value);
+
   return (
     <div
       className="slate-static-content"
@@ -112,7 +115,7 @@ export const SlateStaticRenderer = ({ value, style }) => {
         ...style,
       }}
     >
-      {value.map((node, i) => renderNode(node, i))}
+      {normalizedValue.map((node, i) => renderNode(node, i))}
     </div>
   );
 };

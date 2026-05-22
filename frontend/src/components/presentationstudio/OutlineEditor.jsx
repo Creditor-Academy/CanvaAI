@@ -7,6 +7,7 @@ import { processAIGeneration } from "../presentation3/processor/processAIGenerat
 import usePresentationStore from "../presentation3/store/usePresentationStore";
 import { savePresentation } from "../../services/presentation";
 import { useAuth } from "../../contexts/AuthContext";
+import { resolvePresentationTitle } from "../../utils/presentationTitle";
 import "./styles/OutlineEditor.css";
 
 const OutlineEditor = ({ outlineData, onFinalize }) => {
@@ -211,14 +212,15 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         throw new Error("AI returned empty slides");
       }
 
-      // Load slides into the presentation store (preserves layoutProcessed flag)
-      usePresentationStore.getState().setPresentation({ slides: finalPayload.slides });
-
-      const firstSlideTitle = finalPayload.slides?.[0]?.title?.trim() || (updatedOutline.meta && updatedOutline.meta.topic) || "Untitled Presentation";
+      const presentationTitle = resolvePresentationTitle({
+        topic: updatedOutline.topic,
+        meta: updatedOutline.meta,
+        apiTitle: finalPayload.title,
+      });
 
       const savePayload = {
         userId: currentUserId,
-        title: firstSlideTitle,
+        title: presentationTitle,
         data: { slides: finalPayload.slides },
       };
 
@@ -230,6 +232,13 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
       if (!presentationId) {
         throw new Error("Presentation save failed");
       }
+
+      // Load into editor with user topic as title (not "Untitled Presentation")
+      usePresentationStore.getState().setPresentation({
+        slides: finalPayload.slides,
+        title: presentationTitle,
+        presentationId,
+      });
 
       navigate(`/presentation-editor-v3/${presentationId}`);
 

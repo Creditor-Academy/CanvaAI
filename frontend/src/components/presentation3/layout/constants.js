@@ -45,12 +45,12 @@ export const ROLE_HEIGHT = {
 
 // Font size per semantic role
 export const ROLE_FONT_SIZE = {
-  eyebrow:    13,
-  heading:    44,
-  subheading: 28,
-  body:       18,
-  caption:    13,
-  fallback:   16,
+  eyebrow:    12,
+  heading:    28,
+  subheading: 22,
+  body:       17,
+  caption:    12,
+  fallback:   17,
 };
 
 // Font weight per role

@@ -6,17 +6,17 @@ export function resolveStyles(meta = {}, role = "body") {
 
   const base = {
     title: {
-      fontSize: 42,
+      fontSize: 30,
       fontWeight: "bold",
       color: theme.titleColor,
     },
     subheading: {
-      fontSize: 28,
+      fontSize: 22,
       fontWeight: "600",
       color: theme.titleColor,
     },
     body: {
-      fontSize: 20,
+      fontSize: 17,
       color: theme.bodyColor,
     },
     eyebrow: {
@@ -34,7 +34,7 @@ export function resolveStyles(meta = {}, role = "body") {
 
   // Density adjustments
   if (meta.textAmount === "low") {
-    styles.fontSize += 6;
+    styles.fontSize = Math.max(14, styles.fontSize - 1);
   } else if (meta.textAmount === "high") {
     styles.fontSize -= 4;
   }

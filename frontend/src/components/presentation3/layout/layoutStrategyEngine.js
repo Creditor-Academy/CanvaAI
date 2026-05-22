@@ -126,21 +126,33 @@ export const selectLayoutStrategy = (
     );
 
     let template = aiMapped;
+    const imageLayoutPool = [
+      LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT,
+      LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT,
+      LAYOUT_TYPES.VISUAL_INSIGHT_LAYOUT,
+    ];
 
-    // Density / cadence overrides when AI drifted from rules
-    if (!cadenceWantsImage || !hasImageLayer) {
+    // Low-density decks must stay visual — never route to text-only layouts.
+    if (cadenceWantsImage) {
+      if (
+        !template ||
+        template === LAYOUT_TYPES.HERO_LAYOUT ||
+        template === LAYOUT_TYPES.TEXT_FOCUS_LAYOUT ||
+        template === LAYOUT_TYPES.CENTER_STAT_LAYOUT
+      ) {
+        template = rotateAway(previousTemplate, imageLayoutPool);
+      }
+    } else if (!cadenceWantsImage) {
       const textCandidates = [
         LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
         LAYOUT_TYPES.CENTER_STAT_LAYOUT,
         LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
       ];
       template = rotateAway(previousTemplate, textCandidates);
-    } else if (!template || template === LAYOUT_TYPES.HERO_LAYOUT) {
-      template = LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT;
     }
 
     // Intent-aware nudging (still respects cadence)
-    if (cadenceWantsImage && hasImageLayer) {
+    if (cadenceWantsImage) {
       if (intent === "comparison") {
         template = rotateAway(previousTemplate, [
           LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
@@ -150,8 +162,8 @@ export const selectLayoutStrategy = (
       } else if (intent === "summary") {
         template = rotateAway(previousTemplate, [
           LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT,
-          LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
           LAYOUT_TYPES.VISUAL_INSIGHT_LAYOUT,
+          LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT,
         ]);
       } else if (intent === "analysis") {
         template = rotateAway(previousTemplate, [
@@ -169,18 +181,13 @@ export const selectLayoutStrategy = (
     }
 
     if (template === previousTemplate) {
-      const pool =
-        cadenceWantsImage && hasImageLayer
-          ? [
-              LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT,
-              LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT,
-              LAYOUT_TYPES.VISUAL_INSIGHT_LAYOUT,
-            ]
-          : [
-              LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
-              LAYOUT_TYPES.CENTER_STAT_LAYOUT,
-              LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
-            ];
+      const pool = cadenceWantsImage
+        ? imageLayoutPool
+        : [
+            LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
+            LAYOUT_TYPES.CENTER_STAT_LAYOUT,
+            LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
+          ];
       template = rotateAway(previousTemplate, pool);
     }
 

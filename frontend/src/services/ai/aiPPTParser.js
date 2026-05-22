@@ -92,8 +92,20 @@ export const parseAIPresentationResponse = (raw) => {
     console.warn("[aiPPTParser] No slides found in AI response:", data);
   }
 
+  const topic =
+    data?.topic ||
+    meta?.topic ||
+    data?.meta?.topic;
+
+  const title =
+    (typeof topic === "string" && topic.trim()) ||
+    data?.title ||
+    data?.name ||
+    data?.presentationTitle ||
+    "Untitled Presentation";
+
   return {
-    title:  data?.title || data?.name || data?.presentationTitle || "Untitled Presentation",
+    title: typeof title === "string" ? title.trim() : "Untitled Presentation",
     slides: rawSlides.map(sanitizeSlide),
     meta:   data?.meta || meta,
   };

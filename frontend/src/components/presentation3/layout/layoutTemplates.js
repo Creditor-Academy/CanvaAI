@@ -4,6 +4,17 @@
 // NO imports from the store. NO side effects.
 
 import { SAFE, GAP, ROLE_HEIGHT, MARGIN, SLIDE } from "./constants";
+import {
+  hasVisibleText,
+  estimateTextLayerHeight,
+  estimateHeadingHeight,
+  partitionBodyElements,
+  applyTypography,
+  isListElement,
+  HEADING_BOX_HEIGHT,
+  SLIDE_CONTENT_BOTTOM,
+} from "./layoutUtils";
+import { getTypographyForRole } from "./layoutTypography";
 
 // ─────────────────────────────────────────────────────────────
 // Internal helper: stack elements vertically, top to bottom
@@ -21,20 +32,42 @@ const stackVertically = (elements, startX, startY, width) => {
 // ─────────────────────────────────────────────────────────────
 // Internal helper: distribute remaining vertical space to body elements
 // ─────────────────────────────────────────────────────────────
-const distributeHeight = (elements, totalHeight) => {
+const distributeHeight = (elements, totalHeight, contentWidth = SAFE.WIDTH) => {
   const fixedTotal = elements
     .filter((e) => e.role !== "body")
-    .reduce((sum, e) => sum + (ROLE_HEIGHT[e.role] ?? ROLE_HEIGHT.fallback) + GAP.ELEMENT, 0);
+    .reduce((sum, e) => {
+      const h =
+        e.role === "heading"
+          ? estimateHeadingHeight(e, contentWidth)
+          : ROLE_HEIGHT[e.role] ?? ROLE_HEIGHT.fallback;
+      return sum + h + GAP.ELEMENT;
+    }, 0);
 
   const bodyCount = elements.filter((e) => e.role === "body").length;
-  const bodyHeight = bodyCount > 0
-    ? Math.max(40, Math.floor((totalHeight - fixedTotal) / bodyCount))
-    : ROLE_HEIGHT.body;
+  const fallbackBodyHeight =
+    bodyCount > 0
+      ? Math.max(40, Math.floor((totalHeight - fixedTotal) / bodyCount))
+      : ROLE_HEIGHT.body;
 
-  return elements.map((el) => ({
-    ...el,
-    _reservedHeight: el.role === "body" ? bodyHeight : (ROLE_HEIGHT[el.role] ?? ROLE_HEIGHT.fallback),
-  }));
+  return elements.map((el) => {
+    if (el.role === "heading") {
+      return {
+        ...el,
+        _reservedHeight: estimateHeadingHeight(el, contentWidth),
+      };
+    }
+    if (el.role === "body") {
+      const measured = estimateTextLayerHeight(el, contentWidth);
+      return {
+        ...el,
+        _reservedHeight: measured > 0 ? measured : fallbackBodyHeight,
+      };
+    }
+    return {
+      ...el,
+      _reservedHeight: ROLE_HEIGHT[el.role] ?? ROLE_HEIGHT.fallback,
+    };
+  });
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -113,18 +146,27 @@ export const twoColumn = (elements) => {
 // Image occupies left ~45 %, text fills right ~55 %
 // ─────────────────────────────────────────────────────────────
 export const imageLeft = (elements) => {
+  const TEMPLATE = "image-left";
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
-  const textEls = elements.filter((e) => e !== imageEl);
+  const heading = elements.find((e) => e.role === "heading");
+  const bodyEls = elements.filter(
+    (e) => e !== imageEl && e !== heading && hasVisibleText(e)
+  );
+  const { lists, paragraphs } = partitionBodyElements(bodyEls);
 
-  const imgW = 350;
-  const imgH = 260;
-  const imgX = MARGIN.LEFT;
-  const imgY = SAFE.Y + Math.round((SAFE.HEIGHT - imgH) / 2);
+  const imgX = 3;
+  const imgY = 6;
+  const imgW = 419;
+  const imgH = 492;
+  const textX = 434;
+  const textW = 474;
 
-  const textX = imgX + imgW + GAP.COLUMN;
-  const textW = SLIDE.WIDTH - MARGIN.RIGHT - textX;
+  const headingTypo = getTypographyForRole(TEMPLATE, "heading");
+  const bodyTypo = getTypographyForRole(TEMPLATE, "body");
+  const listTypo = getTypographyForRole(TEMPLATE, "list");
 
   const out = [];
+
   if (imageEl) {
     out.push({
       ...imageEl,
@@ -136,7 +178,36 @@ export const imageLeft = (elements) => {
       borderWidth: 0,
     });
   }
-  out.push(...stackVertically(textEls, textX, SAFE.Y, textW));
+
+  let cursorY = 28;
+
+  if (heading) {
+    const styled = applyTypography(heading, headingTypo);
+    const headingH = estimateHeadingHeight(styled, textW, TEMPLATE);
+    out.push({
+      ...styled,
+      x: textX,
+      y: cursorY,
+      width: textW,
+      height: headingH,
+    });
+    cursorY += headingH + 16;
+  }
+
+  [...paragraphs, ...lists].forEach((el) => {
+    const typo = isListElement(el) ? listTypo : bodyTypo;
+    const styled = applyTypography(el, typo);
+    const h = Math.min(estimateTextLayerHeight(styled, textW), 140);
+    out.push({
+      ...styled,
+      x: textX,
+      y: cursorY,
+      width: textW,
+      height: h,
+    });
+    cursorY += h + 16;
+  });
+
   return out;
 };
 
@@ -145,19 +216,44 @@ export const imageLeft = (elements) => {
 // Mirror of image-left
 // ─────────────────────────────────────────────────────────────
 export const imageRight = (elements) => {
+  const TEMPLATE = "image-right";
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
-  const textEls = elements.filter((e) => e !== imageEl);
+  const heading = elements.find((e) => e.role === "heading");
+  const bodyEls = elements.filter(
+    (e) => e !== imageEl && e !== heading && hasVisibleText(e)
+  );
+  const { lists, paragraphs } = partitionBodyElements(bodyEls);
 
-  const imgW = 350;
-  const imgH = 260;
-  const padRight = 56;
-  const imgX = SLIDE.WIDTH - padRight - imgW;
-  const imgY = SAFE.Y + Math.round((SAFE.HEIGHT - imgH) / 2);
+  const imgW = 384;
+  const imgH = 299;
+  const imgX = 505;
+  const imgY = 21;
+  const imgBottom = imgY + imgH;
+  const leftX = 8;
+  const leftW = 470;
+  const rightX = 434;
+  const rightW = 464;
 
-  const textW = imgX - SAFE.X - GAP.COLUMN;
+  const headingTypo = getTypographyForRole(TEMPLATE, "heading");
+  const bodyTypo = getTypographyForRole(TEMPLATE, "body");
+  const listTypo = getTypographyForRole(TEMPLATE, "list");
 
   const out = [];
-  out.push(...stackVertically(textEls, SAFE.X, SAFE.Y, textW));
+  const headingY = 13;
+  let headingH = 0;
+
+  if (heading) {
+    const styled = applyTypography(heading, headingTypo);
+    headingH = estimateHeadingHeight(styled, leftW, TEMPLATE);
+    out.push({
+      ...styled,
+      x: leftX,
+      y: headingY,
+      width: leftW,
+      height: headingH,
+    });
+  }
+
   if (imageEl) {
     out.push({
       ...imageEl,
@@ -169,6 +265,35 @@ export const imageRight = (elements) => {
       borderWidth: 0,
     });
   }
+
+  const headingBottom = headingY + headingH;
+  const listY = Math.max(headingBottom + 24, 230);
+
+  lists.forEach((el) => {
+    const styled = applyTypography(el, listTypo);
+    const h = estimateTextLayerHeight(styled, leftW);
+    out.push({
+      ...styled,
+      x: 18,
+      y: listY,
+      width: leftW,
+      height: h,
+    });
+  });
+
+  const paraY = Math.max(350, imgBottom + 20);
+  paragraphs.forEach((el) => {
+    const styled = applyTypography(el, bodyTypo);
+    const h = estimateTextLayerHeight(styled, rightW);
+    out.push({
+      ...styled,
+      x: rightX,
+      y: paraY,
+      width: rightW,
+      height: h,
+    });
+  });
+
   return out;
 };
 
@@ -251,11 +376,15 @@ export const comparison = (elements) => {
   const out = [];
   const headingY = SAFE.Y;
 
+  const headingH = heading
+    ? estimateHeadingHeight(heading, SAFE.WIDTH)
+    : 0;
+
   if (heading) {
-    out.push({ ...heading, x: SAFE.X, y: headingY, width: SAFE.WIDTH, height: ROLE_HEIGHT.heading });
+    out.push({ ...heading, x: SAFE.X, y: headingY, width: SAFE.WIDTH, height: headingH });
   }
 
-  const bodyStartY = headingY + ROLE_HEIGHT.heading + GAP.ELEMENT;
+  const bodyStartY = headingY + headingH + GAP.ELEMENT;
   const colWidth   = Math.floor((SAFE.WIDTH - GAP.COLUMN) / 2);
   const mid        = Math.ceil(rest.length / 2);
 
@@ -269,6 +398,9 @@ export const heroImageRight = (elements) => {
   const textEls = elements.filter((e) => e !== imageEl);
   const heading =
     textEls.find((e) => e.role === "heading") || textEls[0];
+  const subbody = textEls.find(
+    (e) => e.role === "subheading" || (e.role === "body" && e !== heading)
+  );
 
   const out = [];
   if (imageEl) {
@@ -276,21 +408,43 @@ export const heroImageRight = (elements) => {
       ...imageEl,
       x: 512,
       y: 0,
-      width: 448,
-      height: 540,
+      width: 390,
+      height: 510,
       borderRadius: 0,
       borderWidth: 0,
     });
   }
+  const heroTextW = 380;
+  const heroStartY = 72;
+  let cursorY = heroStartY;
+
   if (heading) {
+    const heroTypo = getTypographyForRole("hero-image-right", "heading", true);
+    const styledHeading = applyTypography(heading, heroTypo);
+    const headingH = estimateHeadingHeight(styledHeading, heroTextW, "hero-image-right");
     out.push({
-      ...heading,
+      ...styledHeading,
       x: 60,
-      y: 180,
-      width: 380,
-      height: 140,
-      fontSize: heading.fontSize ?? 48,
+      y: cursorY,
+      width: heroTextW,
+      height: headingH,
       fontWeight: "bold",
+      textAlign: "left",
+      fontFamily: "Oswald",
+    });
+    cursorY += headingH + 20;
+  }
+  if (subbody) {
+    const bodyTypo = getTypographyForRole("hero-image-right", "body", true);
+    const styled = applyTypography(subbody, bodyTypo);
+    const subH = Math.min(90, Math.max(48, estimateTextLayerHeight(styled, heroTextW)));
+    out.push({
+      ...styled,
+      x: 60,
+      y: cursorY,
+      width: heroTextW,
+      height: subH,
+      fontWeight: "normal",
       textAlign: "left",
     });
   }
@@ -340,7 +494,80 @@ export const centerStat = (elements) => {
   );
 };
 
-export const textFocus = (elements) => comparison(elements);
+export const textFocus = (elements) => {
+  const TEMPLATE = "text-focus";
+  const heading = elements.find((e) => e.role === "heading");
+  const bodyEls = elements.filter((e) => e !== heading && hasVisibleText(e));
+
+  const headingTypo = getTypographyForRole(TEMPLATE, "heading");
+  const bodyTypo = getTypographyForRole(TEMPLATE, "body");
+  const listTypo = getTypographyForRole(TEMPLATE, "list");
+
+  const out = [];
+  const startX = 52;
+  const fullW = 856;
+  let cursorY = 40;
+
+  if (heading) {
+    const styled = applyTypography(heading, headingTypo);
+    const headingH = estimateHeadingHeight(styled, fullW, TEMPLATE);
+    out.push({
+      ...styled,
+      x: startX,
+      y: cursorY,
+      width: fullW,
+      height: headingH,
+    });
+    cursorY += headingH + GAP.ELEMENT;
+  }
+
+  const colW = Math.floor((fullW - GAP.COLUMN) / 2);
+  const maxY = SLIDE_CONTENT_BOTTOM;
+
+  if (bodyEls.length >= 2) {
+    const [left, right] = bodyEls;
+    const leftTypo = isListElement(left) ? listTypo : bodyTypo;
+    const rightTypo = isListElement(right) ? listTypo : bodyTypo;
+    const leftStyled = applyTypography(left, leftTypo);
+    const rightStyled = applyTypography(right, rightTypo);
+    const rowRemaining = maxY - cursorY;
+    const leftH = Math.min(estimateTextLayerHeight(leftStyled, colW), rowRemaining);
+    const rightH = Math.min(estimateTextLayerHeight(rightStyled, colW), rowRemaining);
+
+    out.push({
+      ...leftStyled,
+      x: startX,
+      y: cursorY,
+      width: colW,
+      height: leftH,
+    });
+    out.push({
+      ...rightStyled,
+      x: startX + colW + GAP.COLUMN,
+      y: cursorY,
+      width: colW,
+      height: rightH,
+    });
+  } else {
+    bodyEls.forEach((el) => {
+      const typo = isListElement(el) ? listTypo : bodyTypo;
+      const styled = applyTypography(el, typo);
+      const remaining = maxY - cursorY;
+      if (remaining <= 32) return;
+      const h = Math.min(estimateTextLayerHeight(styled, fullW), remaining);
+      out.push({
+        ...styled,
+        x: startX,
+        y: cursorY,
+        width: fullW,
+        height: h,
+      });
+      cursorY += h + GAP.ELEMENT;
+    });
+  }
+
+  return out;
+};
 
 // ─────────────────────────────────────────────────────────────
 // TEMPLATE: fallback — plain vertical stack, always safe
