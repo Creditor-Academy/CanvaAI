@@ -1,36 +1,63 @@
 // layout/constants.js
-// Single source of truth for all slide geometry and spacing.
-// All layout logic must import from here — never hardcode numbers elsewhere.
+// Single source of truth for slide geometry (design canvas: 1055 × 594).
 
 export const SLIDE = {
-  WIDTH:  960,
-  HEIGHT: 540,
+  WIDTH:  1055,
+  HEIGHT: 594,
 };
 
-// Outer margins — nothing should be placed outside this box
+/** Tight editorial margins — content uses ~95% of slide width */
 export const MARGIN = {
-  TOP:    40,
-  BOTTOM: 40,
-  LEFT:   52,
-  RIGHT:  52,
+  TOP:    28,
+  BOTTOM: 28,
+  LEFT:   20,
+  RIGHT:  20,
 };
 
-// Derived safe area (every layout MUST fit inside this)
 export const SAFE = {
   X:      MARGIN.LEFT,
   Y:      MARGIN.TOP,
-  WIDTH:  SLIDE.WIDTH  - MARGIN.LEFT - MARGIN.RIGHT,  // 856
-  HEIGHT: SLIDE.HEIGHT - MARGIN.TOP  - MARGIN.BOTTOM, // 460
+  WIDTH:  SLIDE.WIDTH - MARGIN.LEFT - MARGIN.RIGHT,
+  HEIGHT: SLIDE.HEIGHT - MARGIN.TOP - MARGIN.BOTTOM,
 };
 
-// Gaps between elements
 export const GAP = {
-  ELEMENT: 14,  // vertical space between stacked elements
-  COLUMN:  32,  // horizontal space between columns
+  ELEMENT: 12,
+  COLUMN:  24,
 };
 
-// Default reserved height per semantic role
-// Layout templates use this when the AI did not provide an explicit height
+/** Hero: full-height image flush on the right edge */
+export const HERO_IMAGE = {
+  WIDTH:  Math.round(SLIDE.WIDTH * 0.38),
+  HEIGHT: SLIDE.HEIGHT,
+  X:      SLIDE.WIDTH - Math.round(SLIDE.WIDTH * 0.38),
+  Y:      0,
+};
+
+export const HERO_TEXT = {
+  X:      MARGIN.LEFT,
+  Y:      40,
+  WIDTH:  HERO_IMAGE.X - MARGIN.LEFT - GAP.COLUMN,
+};
+
+/** Content slides — image beside list, edge-aligned within safe area */
+export const CONTENT_IMAGE = {
+  RIGHT: {
+    WIDTH:  Math.round(SLIDE.WIDTH * 0.38),
+    X:      SLIDE.WIDTH - MARGIN.RIGHT - Math.round(SLIDE.WIDTH * 0.38),
+    Y:      Math.round(SLIDE.HEIGHT * 0.34),
+    HEIGHT: Math.round(SLIDE.HEIGHT * 0.56),
+    RADIUS: 20,
+  },
+  LEFT: {
+    X:      MARGIN.LEFT,
+    WIDTH:  Math.round(SLIDE.WIDTH * 0.34),
+    Y:      Math.round(SLIDE.HEIGHT * 0.30),
+    HEIGHT: Math.round(SLIDE.HEIGHT * 0.58),
+    RADIUS: 22,
+  },
+};
+
 export const ROLE_HEIGHT = {
   eyebrow:    28,
   heading:    72,
@@ -43,7 +70,6 @@ export const ROLE_HEIGHT = {
   fallback:   60,
 };
 
-// Font size per semantic role
 export const ROLE_FONT_SIZE = {
   eyebrow:    12,
   heading:    28,
@@ -53,7 +79,6 @@ export const ROLE_FONT_SIZE = {
   fallback:   17,
 };
 
-// Font weight per role
 export const ROLE_FONT_WEIGHT = {
   eyebrow:    "normal",
   heading:    "bold",
@@ -63,7 +88,6 @@ export const ROLE_FONT_WEIGHT = {
   fallback:   "normal",
 };
 
-// Text alignment defaults per role
 export const ROLE_TEXT_ALIGN = {
   eyebrow:    "center",
   heading:    "center",
@@ -73,7 +97,6 @@ export const ROLE_TEXT_ALIGN = {
   fallback:   "left",
 };
 
-// Color defaults per role (light slide assumption)
 export const ROLE_COLOR = {
   eyebrow:    "#6366f1",
   heading:    "#0f172a",
@@ -83,7 +106,6 @@ export const ROLE_COLOR = {
   fallback:   "#334155",
 };
 
-// Default theme object
 export const DEFAULT_THEME = {
   titleColor: "#0f172a",
   bodyColor:  "#334155",

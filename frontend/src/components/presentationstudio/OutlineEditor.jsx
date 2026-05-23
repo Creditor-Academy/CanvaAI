@@ -1,80 +1,102 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { finalizePresentation } from "../../services/OutlineEditorService";
-import { generatePresentation } from "../../services/PresentationStudioService";
-import { processAIGeneration } from "../presentation3/processor/processAIGeneration";
 import usePresentationStore from "../presentation3/store/usePresentationStore";
 import { savePresentation } from "../../services/presentation";
 import { useAuth } from "../../contexts/AuthContext";
 import { resolvePresentationTitle } from "../../utils/presentationTitle";
 import "./styles/OutlineEditor.css";
 
+const CONTENT_CHAR_LIMIT = 2000;
+
+const normalizeBulletText = (bullet) => {
+  if (bullet == null) return "";
+  if (typeof bullet === "string") return bullet;
+  if (typeof bullet === "object") {
+    if (typeof bullet.text === "string" && bullet.text.trim()) return bullet.text;
+    if (typeof bullet.title === "string" && bullet.title.trim()) return bullet.title;
+    if (typeof bullet.label === "string" && bullet.label.trim()) return bullet.label;
+    const composed = [bullet.text, bullet.why, bullet.soWhat]
+      .filter(Boolean)
+      .map(String)
+      .join("\n\n")
+      .trim();
+    if (composed) return composed;
+    return JSON.stringify(bullet);
+  }
+  return String(bullet);
+};
+
+const normalizeBulletArray = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.map(normalizeBulletText).filter((item) => item && item.trim().length > 0);
+};
+
+/** Convert plain lines or existing bullets into a single bullet textarea value */
+const formatAsBulletLines = (text) => {
+  if (!text || !String(text).trim()) return "";
+  return String(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => (line.match(/^[•\-\*]\s/) ? line : `• ${line.replace(/^[•\-\*]\s*/, "")}`))
+    .join("\n");
+};
+
+const parseBulletsFromRawText = (rawText) => {
+  if (!rawText || !String(rawText).trim()) return [];
+  return String(rawText)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[•\-\*]\s*/, "").trim())
+    .filter(Boolean);
+};
+
+const buildInitialRawText = (slide) => {
+  const explicitRaw = slide?.content?.rawText;
+  if (typeof explicitRaw === "string" && explicitRaw.trim()) {
+    return formatAsBulletLines(explicitRaw);
+  }
+
+  const bullets = normalizeBulletArray(
+    slide?.bullets ||
+      (Array.isArray(slide?.points) ? slide.points : []) ||
+      (slide?.content?.mode === "bullets" ? slide.content.bullets : [])
+  );
+
+  if (bullets.length > 0) {
+    return bullets.map((b) => `• ${b}`).join("\n");
+  }
+
+  if (typeof slide?.content === "string" && slide.content.trim()) {
+    return formatAsBulletLines(slide.content);
+  }
+
+  return "";
+};
+
 const OutlineEditor = ({ outlineData, onFinalize }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const currentUserId = user?._id || user?.id;
-  const CONTENT_CHAR_LIMIT = 350;
-
-  const normalizeBulletText = (bullet) => {
-    if (bullet == null) return '';
-    if (typeof bullet === 'string') return bullet;
-    if (typeof bullet === 'object') {
-      if (typeof bullet.text === 'string' && bullet.text.trim()) return bullet.text;
-      if (typeof bullet.title === 'string' && bullet.title.trim()) return bullet.title;
-      if (typeof bullet.label === 'string' && bullet.label.trim()) return bullet.label;
-      const composed = [bullet.text, bullet.why, bullet.soWhat]
-        .filter(Boolean)
-        .map(String)
-        .join('\n\n')
-        .trim();
-      if (composed) return composed;
-      return JSON.stringify(bullet);
-    }
-    return String(bullet);
-  };
-
-  const normalizeBulletArray = (items) => {
-    if (!Array.isArray(items)) return [];
-    return items
-      .map(normalizeBulletText)
-      .filter((item) => item && item.trim().length > 0);
-  };
+  const textareaRefs = useRef({});
 
   const [slides, setSlides] = useState(() => {
     if (!outlineData?.slides) return [];
 
-    const buildInitialRawText = (slide) => {
-      const explicitRaw = slide?.content?.rawText;
-      if (typeof explicitRaw === 'string' && explicitRaw.trim()) return explicitRaw;
-
-      const stringContent = typeof slide?.content === 'string' ? slide.content.trim() : '';
-      const bullets = normalizeBulletArray(
-        slide?.bullets ||
-        (Array.isArray(slide?.points) ? slide.points : []) ||
-        (slide?.content?.mode === 'bullets' ? slide.content.bullets : [])
-      );
-      const bulletsText = bullets.length ? bullets.map((b) => `• ${b}`).join('\n') : '';
-
-      return [stringContent, bulletsText].filter(Boolean).join('\n\n');
-    };
-
     return outlineData.slides.map((slide, index) => ({
       slideId: slide.slideId || `slide-${index + 1}`,
       slideNo: slide.slideNo || index + 1,
-      source: slide.source || 'ai',
-      title: slide.title || '',
+      source: slide.source || "ai",
+      title: slide.title || "",
       content: {
-        mode: 'raw',
+        mode: "raw",
         rawText: buildInitialRawText(slide),
       },
-      bullets: normalizeBulletArray(
-        slide.bullets ||
-        slide.points ||
-        (slide?.content?.mode === 'bullets' ? slide.content.bullets : [])
-      ),
-      layout: slide.layout || 'content',
-      contentType: slide.contentType || 'paragraph',
+      layout: slide.layout || "content",
+      contentType: "bullets",
       image: slide.content?.images?.[0]?.url || slide.image || null,
     }));
   });
@@ -82,62 +104,73 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ Title Change
+  const autoResizeTextarea = (element) => {
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  useLayoutEffect(() => {
+    Object.values(textareaRefs.current).forEach(autoResizeTextarea);
+  }, [slides]);
+
   const handleTitleChange = (index, value) => {
     setSlides((prev) => {
       const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        title: value,
-      };
+      updated[index] = { ...updated[index], title: value };
       return updated;
     });
   };
 
-  // ✅ Smooth Content Change
   const handleContentChange = (index, value) => {
     setSlides((prev) => {
       const updated = [...prev];
       updated[index] = {
         ...updated[index],
-        content: {
-          mode: "raw",
-          rawText: value,
-        },
+        content: { mode: "raw", rawText: value },
+        contentType: "bullets",
       };
       return updated;
     });
   };
 
-  // ✅ Tab Support (2 spaces)
   const handleKeyDown = (e, index) => {
     if (e.key === "Tab") {
       e.preventDefault();
-
       const start = e.target.selectionStart;
       const end = e.target.selectionEnd;
-
       const newValue =
-        e.target.value.substring(0, start) +
-        "  " +
-        e.target.value.substring(end);
-
+        e.target.value.substring(0, start) + "  " + e.target.value.substring(end);
       handleContentChange(index, newValue);
-
       requestAnimationFrame(() => {
-        e.target.selectionStart = e.target.selectionEnd =
-          start + 2;
+        e.target.selectionStart = e.target.selectionEnd = start + 2;
+        autoResizeTextarea(e.target);
       });
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const value = e.target.value;
+      const before = value.substring(0, start);
+      const after = value.substring(end);
+      const prefix = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
+      const insertion = `${prefix}• `;
+      const newValue = before + insertion + after;
+
+      if (newValue.length <= CONTENT_CHAR_LIMIT) {
+        handleContentChange(index, newValue);
+        requestAnimationFrame(() => {
+          const pos = start + insertion.length;
+          e.target.selectionStart = e.target.selectionEnd = pos;
+          autoResizeTextarea(e.target);
+        });
+      }
     }
   };
 
-  // ✅ Auto Resize
-  const autoResizeTextarea = (element) => {
-    element.style.height = "auto";
-    element.style.height = element.scrollHeight + "px";
-  };
-
-  // ✅ Insert Slide
   const handleInsertSlide = (index) => {
     setSlides((prevSlides) => {
       const newSlide = {
@@ -145,24 +178,21 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
         slideNo: index + 2,
         source: "user",
         title: "",
-        content: { mode: "raw", rawText: "" },
+        content: { mode: "raw", rawText: "• " },
         layout: "content",
-        contentType: "paragraph",
+        contentType: "bullets",
         image: null,
       };
 
       const updated = [...prevSlides];
       updated.splice(index + 1, 0, newSlide);
-
       updated.forEach((slide, i) => {
         slide.slideNo = i + 1;
       });
-
       return updated;
     });
   };
 
-  // ✅ Delete Slide
   const handleDeleteSlide = (index) => {
     if (slides.length <= 1) {
       alert("Cannot delete the last slide");
@@ -173,11 +203,9 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     updated.forEach((slide, i) => {
       slide.slideNo = i + 1;
     });
-
     setSlides(updated);
   };
 
-  // ✅ Finalize
   const handleFinalize = async () => {
     if (isFinalizing) return;
 
@@ -185,27 +213,32 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
     setError(null);
 
     try {
-      const cleanedSlides = slides.map((slide, index) => ({
-        slideId: slide.slideId,
-        slideNo: index + 1,
-        source: slide.source || "user",
-        title: slide.title || "",
-        layout: slide.layout || "content",
-        contentType: slide.contentType || "paragraph",
-        content: {
-          mode: "raw",
-          rawText: slide.content.rawText || "",
-        },
-        bullets: slide.bullets || [],
-        image: slide.image || null,
-      }));
+      const cleanedSlides = slides.map((slide, index) => {
+        const rawText = slide.content.rawText || "";
+        const bullets = parseBulletsFromRawText(rawText);
+
+        return {
+          slideId: slide.slideId,
+          slideNo: index + 1,
+          source: slide.source || "user",
+          title: slide.title || "",
+          layout: slide.layout || "content",
+          contentType: bullets.length > 0 ? "bullets" : "paragraph",
+          content: {
+            mode: "raw",
+            rawText,
+          },
+          bullets,
+          points: bullets,
+          image: slide.image || null,
+        };
+      });
 
       const updatedOutline = {
         ...outlineData,
         slides: cleanedSlides,
       };
 
-      // Call final-generation API (server) and process AI response through layout engine
       const finalPayload = await finalizePresentation(updatedOutline);
 
       if (!finalPayload || !finalPayload.slides || finalPayload.slides.length === 0) {
@@ -214,8 +247,10 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 
       const presentationTitle = resolvePresentationTitle({
         topic: updatedOutline.topic,
-        meta: updatedOutline.meta,
-        apiTitle: finalPayload.title,
+        meta: finalPayload.meta || updatedOutline.meta,
+        apiTitle:
+          finalPayload.meta?.presentationTitle ||
+          finalPayload.title,
       });
 
       const savePayload = {
@@ -227,17 +262,21 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
       const saveResponse = await savePresentation(savePayload);
 
       const presentationId =
-        saveResponse?.presentationId || saveResponse?.data?._id || saveResponse?.data?.id || saveResponse?._id || saveResponse?.id;
+        saveResponse?.presentationId ||
+        saveResponse?.data?._id ||
+        saveResponse?.data?.id ||
+        saveResponse?._id ||
+        saveResponse?.id;
 
       if (!presentationId) {
         throw new Error("Presentation save failed");
       }
 
-      // Load into editor with user topic as title (not "Untitled Presentation")
       usePresentationStore.getState().setPresentation({
         slides: finalPayload.slides,
         title: presentationTitle,
         presentationId,
+        meta: finalPayload.meta || updatedOutline.meta,
       });
 
       navigate(`/presentation-editor-v3/${presentationId}`);
@@ -269,20 +308,13 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                     <input
                       type="text"
                       value={slide.title}
-                      onChange={(e) =>
-                        handleTitleChange(
-                          index,
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => handleTitleChange(index, e.target.value)}
                       className="outline-editor-input"
                       placeholder="Enter slide title"
                     />
 
                     <button
-                      onClick={() =>
-                        handleDeleteSlide(index)
-                      }
+                      onClick={() => handleDeleteSlide(index)}
                       disabled={slides.length <= 1}
                       className="outline-editor-slide-delete"
                     >
@@ -290,49 +322,39 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                     </button>
                   </div>
 
-                  <textarea
-                    value={slide.content.rawText || ""}
-                    onChange={(e) => {
-                      if (e.target.value.length <= CONTENT_CHAR_LIMIT) {
-                        handleContentChange(
-                          index,
-                          e.target.value
-                        );
-                        autoResizeTextarea(e.target);
-                      }
-                    }}
-                    onKeyDown={(e) =>
-                      handleKeyDown(e, index)
-                    }
-                    className="outline-editor-textarea"
-                    placeholder="Enter slide content"
-                    maxLength={CONTENT_CHAR_LIMIT}
-                    rows={4}
-                  />
-                  <div
-                    style={{
-                      textAlign: "right",
-                      fontSize: "12px",
-                      marginTop: "4px",
-                      color:
+                  <div className="outline-editor-slide-body">
+                    <label className="outline-editor-label" htmlFor={`slide-body-${slide.slideId}`}>
+                      Bullet points
+                    </label>
+                    <textarea
+                      id={`slide-body-${slide.slideId}`}
+                      ref={(el) => {
+                        textareaRefs.current[index] = el;
+                        if (el) autoResizeTextarea(el);
+                      }}
+                      value={slide.content.rawText || ""}
+                      onChange={(e) => {
+                        if (e.target.value.length <= CONTENT_CHAR_LIMIT) {
+                          handleContentChange(index, e.target.value);
+                          autoResizeTextarea(e.target);
+                        }
+                      }}
+                      onKeyDown={(e) => handleKeyDown(e, index)}
+                      className="outline-editor-textarea outline-editor-textarea-bullets"
+                      placeholder={"• First key point\n• Second key point\n• Third key point"}
+                      maxLength={CONTENT_CHAR_LIMIT}
+                      rows={1}
+                    />
+                    <div
+                      className={`outline-editor-char-count ${
                         (slide.content.rawText || "").length >= CONTENT_CHAR_LIMIT
-                          ? "#e53e3e"
-                          : "#888",
-                    }}
-                  >
-                    {(slide.content.rawText || "").length}/{CONTENT_CHAR_LIMIT}
-                  </div>
-
-                  {slide.bullets && slide.bullets.length > 0 && (
-                    <div className="outline-editor-bullets-container">
-                      <div className="outline-editor-label">Bullet Points</div>
-                      <ul className="outline-editor-bullets-list">
-                        {slide.bullets.map((bullet, i) => (
-                          <li key={i} className="outline-editor-bullet-item">{bullet}</li>
-                        ))}
-                      </ul>
+                          ? "outline-editor-char-count--limit"
+                          : ""
+                      }`}
+                    >
+                      {(slide.content.rawText || "").length}/{CONTENT_CHAR_LIMIT}
                     </div>
-                  )}
+                  </div>
 
                   {slide.image && (
                     <div className="outline-editor-image-preview">
@@ -352,9 +374,7 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
                 <div className="slide-insert-wrapper">
                   <button
                     className="slide-insert-btn"
-                    onClick={() =>
-                      handleInsertSlide(index)
-                    }
+                    onClick={() => handleInsertSlide(index)}
                   >
                     +
                   </button>
@@ -372,13 +392,10 @@ const OutlineEditor = ({ outlineData, onFinalize }) => {
 
             <button
               onClick={handleFinalize}
-              disabled={
-                isFinalizing || slides.length === 0
-              }
-              className={`outline-editor-finalize-button ${isFinalizing
-                ? "outline-editor-finalize-button-disabled"
-                : ""
-                }`}
+              disabled={isFinalizing || slides.length === 0}
+              className={`outline-editor-finalize-button ${
+                isFinalizing ? "outline-editor-finalize-button-disabled" : ""
+              }`}
             >
               {isFinalizing && (
                 <svg

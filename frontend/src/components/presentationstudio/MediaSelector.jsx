@@ -46,6 +46,9 @@ const MediaSelector = ({ value, onChange }) => (
               src={style.img}
               alt={style.label}
               className="ps-media-style-thumb"
+              loading="lazy"
+              decoding="async"
+              draggable={false}
             />
           </div>
           <span className="ps-media-style-label">{style.label}</span>

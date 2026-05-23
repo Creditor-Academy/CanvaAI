@@ -3,6 +3,7 @@
 // If the layout name is unknown or the template throws, falls back gracefully.
 
 import { TEMPLATE_MAP } from "./layoutTemplates";
+import { slideShouldHaveImage } from "./layoutStrategyEngine";
 
 // ─────────────────────────────────────────────────────────────
 // Auto-detect best layout when AI gave no layout or unknown name
@@ -14,7 +15,7 @@ const autoDetectLayout = (elements) => {
 
   if (count === 1)                   return "title-only";
   if (count === 2 && hasHeading)     return "title-only";  // heading + subtitle
-  if (hasImage && count <= 4)        return "image-left";
+  if (hasImage && count <= 5)        return "content-image-right";
   if (count >= 6)                    return "two-column";
   return "title-content";
 };
@@ -42,25 +43,35 @@ export const resolveLayout = (layoutName, elements, meta = {}, slideIndex = -1) 
   const textAmount = meta?.textAmount || "medium";
   const mediaEnabled = meta?.media?.enabled ?? true;
   const hasImage = elements.some((e) => e.role === "image" || e.type === "image");
-  const effectiveHeroImage = hasImage && mediaEnabled;
+  const wantsHero =
+    slideIndex === 0 && mediaEnabled && (hasImage || slideShouldHaveImage(meta, 0));
 
   let resolvedName = layoutName;
   if (slideIndex === 0) {
-    resolvedName = effectiveHeroImage ? "hero-image-right" : "title-only";
+    resolvedName = wantsHero ? "hero-image-right" : "title-only";
   } else {
-    // For subsequent slides
     if (textAmount === "high" && !hasImage) {
       resolvedName = "comparison";
+    } else if (textAmount === "low" && hasImage && mediaEnabled) {
+      resolvedName =
+        slideIndex % 2 === 1 ? "content-image-right" : "content-image-left";
     } else if (!resolvedName) {
       if (!mediaEnabled) {
         resolvedName = "title-content";
       } else if (textAmount === "low") {
-        resolvedName = "visual-insight";
+        resolvedName = "content-image-right";
       } else if (textAmount === "high") {
         resolvedName = "two-column";
       } else {
-        resolvedName = "title-content";
+        resolvedName = "content-image-right";
       }
+    } else if (
+      hasImage &&
+      mediaEnabled &&
+      (resolvedName === "title-content" || resolvedName === "visual-insight")
+    ) {
+      resolvedName =
+        slideIndex % 2 === 1 ? "content-image-right" : "content-image-left";
     }
   }
 
@@ -76,7 +87,9 @@ export const resolveLayout = (layoutName, elements, meta = {}, slideIndex = -1) 
       return TEMPLATE_MAP.fallback(elements).map(clampElement);
     } catch {
       // Last resort: return elements unchanged so render never crashes
-      return elements.map((el, i) => clampElement({ ...el, x: 52, y: 40 + i * 80, width: 856, height: 60 }));
+      return elements.map((el, i) =>
+        clampElement({ ...el, x: 20, y: 28 + i * 80, width: 1015, height: 60 })
+      );
     }
   }
 };

@@ -45,9 +45,11 @@ export const countListItems = (content) => {
 /** Paragraph / list body height from actual content — no 140px floor */
 export const estimateTextLayerHeight = (el, widthOverride) => {
   const fontSize = el?.fontSize || 16;
-  const lineHeight = fontSize * 1.55;
   const width = widthOverride ?? el?.width ?? 700;
   const listItems = countListItems(el?.content);
+  const densityLine =
+    listItems >= 8 ? 1.35 : listItems >= 5 ? 1.42 : 1.55;
+  const lineHeight = fontSize * densityLine;
 
   if (listItems > 0) {
     return Math.ceil(listItems * lineHeight + 20);
@@ -67,7 +69,9 @@ export const HEADING_LINE_HEIGHT = 1.4;
 /** Hand-tuned heading box heights (uppercase titles need fixed room) */
 export const HEADING_BOX_HEIGHT = {
   "hero-image-right": 140,
-  "image-right": 114,
+  "content-image-right": 72,
+  "content-image-left": 72,
+  "image-right": 72,
   "image-left": 72,
   "text-focus": 100,
 };
@@ -76,7 +80,7 @@ export const HEADING_BOX_HEIGHT = {
 export const estimateHeadingHeight = (el, widthOverride, templateKey) => {
   const fontSize = el?.fontSize || 38;
   const lineHeight = fontSize * HEADING_LINE_HEIGHT;
-  const width = widthOverride ?? el?.width ?? 856;
+  const width = widthOverride ?? el?.width ?? 1015;
   const text = extractPlainTextFromContent(el?.content);
   if (!text) {
     return HEADING_BOX_HEIGHT[templateKey] ?? ROLE_HEIGHT.heading;

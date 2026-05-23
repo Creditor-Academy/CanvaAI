@@ -6,7 +6,9 @@ import ShapeRenderer from "../shapes/ShapeRenderer";
 
 const THUMB_WIDTH = 140;
 const THUMB_HEIGHT = 78.75;
-const SCALE = THUMB_WIDTH / 960;
+import { SLIDE } from "../../layout/constants";
+
+const SCALE = THUMB_WIDTH / SLIDE.WIDTH;
 
 const SlideThumbnail = ({ slide, isActive, onClick }) => {
   // Compute background matching CanvasShell exactly
@@ -40,8 +42,8 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
         style={{
           transform: `scale(${SCALE})`,
           transformOrigin: "top left",
-          width: 960,
-          height: 540,
+          width: SLIDE.WIDTH,
+          height: SLIDE.HEIGHT,
           position: "relative",
           overflow: "hidden",
           pointerEvents: "none",

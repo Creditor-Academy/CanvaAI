@@ -5,9 +5,10 @@ import TextLayer from "../../layers/TextLayer";
 import ImageLayer from "../../layers/ImageLayer";
 import TableLayer from "../../layers/TableLayer";
 import "./canvas.css";
+import { SLIDE } from "../../layout/constants";
 
-const SLIDE_WIDTH = 960;
-const SLIDE_HEIGHT = 540;
+const SLIDE_WIDTH = SLIDE.WIDTH;
+const SLIDE_HEIGHT = SLIDE.HEIGHT;
 const HANDLE_SIZE = 8;
 const STACK_START_Y = 2;
 const STACK_GAP = 1.5;
@@ -375,11 +376,14 @@ const CanvasShell = () => {
 
       <div className=" mr-14">
 
-      <div className="max-w-[1000px] w-full mx-auto flex justify-center">
+      <div className="w-full flex justify-center px-2">
         <div
           ref={slideRef}
-          className="w-full max-w-[900px] aspect-video relative overflow-visible flex-shrink-0  bg-white"
+          className="relative overflow-hidden flex-shrink-0 bg-white"
           style={{
+            width: SLIDE_WIDTH,
+            height: SLIDE_HEIGHT,
+            maxWidth: "100%",
             backgroundColor: activeSlide.background,
             backgroundImage: activeSlide.backgroundImage
               ? `url(${activeSlide.backgroundImage})`

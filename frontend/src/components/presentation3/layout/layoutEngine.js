@@ -6,6 +6,7 @@ import { resolveLayout } from "./layoutResolver";
 import { selectLayoutStrategy, slideShouldHaveImage } from "./layoutStrategyEngine";
 import { resolveStyles } from "./styleResolver";
 import { normalizeSlateListContent } from "../editors/slate/slateHelpers";
+import { fitLayersToCanvas } from "./layoutDensityFit";
 import { getTypographyForRole } from "./layoutTypography";
 import { countListItems } from "./layoutUtils";
 
@@ -92,7 +93,7 @@ const applyStylesToNodes = (nodes, styles) => {
       const isList = countListItems(layer.content) > 0;
       const typoRole =
         role === "heading" ? "heading" : isList ? "list" : "body";
-      const typo = getTypographyForRole(templateName, typoRole, isHero);
+      const typo = getTypographyForRole(templateName, typoRole, isHero, meta);
 
       layer.color = resolvedStyle.color;
       layer.fontSize = layer.fontSize ?? typo.fontSize;
@@ -121,11 +122,13 @@ const applyStylesToNodes = (nodes, styles) => {
     };
   });
 
+  const fittedLayers = fitLayersToCanvas(layers, meta, templateName, slideIndex);
+
   return {
     id:              forceNewId ? nanoid() : (aiSlide.id || nanoid()),
     background:      meta.theme?.slideBackground || aiSlide.background || aiSlide.backgroundColor || "#ffffff",
     backgroundImage: aiSlide.backgroundImage || null,
-    layers,
+    layers: fittedLayers,
     layoutProcessed: true,
     layoutTemplate:  strategy.template,
     _layoutTemplate: strategy.template,

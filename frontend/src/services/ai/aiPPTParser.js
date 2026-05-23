@@ -98,10 +98,11 @@ export const parseAIPresentationResponse = (raw) => {
     data?.meta?.topic;
 
   const title =
+    (typeof meta?.presentationTitle === "string" && meta.presentationTitle.trim()) ||
+    (typeof data?.presentationTitle === "string" && data.presentationTitle.trim()) ||
+    (typeof data?.title === "string" && data.title.trim()) ||
+    (typeof data?.name === "string" && data.name.trim()) ||
     (typeof topic === "string" && topic.trim()) ||
-    data?.title ||
-    data?.name ||
-    data?.presentationTitle ||
     "Untitled Presentation";
 
   return {

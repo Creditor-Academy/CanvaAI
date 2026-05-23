@@ -8,6 +8,30 @@ const API_BASE_URL = BASE_URL ? `${BASE_URL}/api/pp` : '/api/pp';
 import { buildLayoutFromAIResponse } from './ai/aiLayoutService';
 import { resolvePresentationTitle } from '../utils/presentationTitle';
 
+const parseBulletLines = (rawText) => {
+  if (!rawText || !String(rawText).trim()) return [];
+  return String(rawText)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[•\-\*]\s*/, "").trim())
+    .filter(Boolean);
+};
+
+const normalizeOutlineBullets = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (item == null) return "";
+      if (typeof item === "string") return item.trim();
+      if (typeof item === "object") {
+        return String(item.text || item.title || item.label || "").trim();
+      }
+      return String(item).trim();
+    })
+    .filter(Boolean);
+};
+
 // Helper to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -100,12 +124,22 @@ export const finalizePresentation = async (outlineData) => {
       }
     }
 
+    const outlineBullets = normalizeOutlineBullets(
+      slide.bullets || slide.points || []
+    );
+
     // Convert content from frontend format to backend format
     if (slide.content && typeof slide.content === 'object' && slide.content !== null) {
       if (slide.content.mode === 'raw') {
         const rawText = slide.content.rawText || '';
-        // Parse based on contentType
-        if (contentType === 'bullets') {
+        const parsedFromRaw = parseBulletLines(rawText);
+        const bulletItems =
+          outlineBullets.length > 0 ? outlineBullets : parsedFromRaw;
+
+        if (bulletItems.length > 0) {
+          contentType = 'bullets';
+          content = bulletItems;
+        } else if (contentType === 'bullets') {
           // Parse bullet points from raw text (lines starting with • or -)
           content = rawText
             .split('\n')
@@ -155,6 +189,10 @@ export const finalizePresentation = async (outlineData) => {
       content = String(slide.content || '');
     }
 
+    const bulletsForOutline = Array.isArray(content)
+      ? content
+      : normalizeOutlineBullets(slide.bullets || slide.points || []);
+
     return {
       slideNo: slide.slideNo || 1,
       title: slide.title || '',
@@ -163,7 +201,9 @@ export const finalizePresentation = async (outlineData) => {
       preferredLayout: slide.preferredLayout || '',
       visualPriority: slide.visualPriority || 'medium',
       contentType: contentType,
-      content: content
+      content: content,
+      bullets: bulletsForOutline,
+      points: bulletsForOutline,
     };
   });
 
@@ -243,11 +283,12 @@ export const finalizePresentation = async (outlineData) => {
       meta: responseData.data.meta,
       title: resolvePresentationTitle({
         topic: outlineData.topic,
-        meta,
+        meta: responseData.data.meta || meta,
         apiTitle:
+          responseData.data.meta?.presentationTitle ||
+          responseData.data.presentationTitle ||
           responseData.data.title ||
-          responseData.data.meta?.topic ||
-          meta.topic,
+          responseData.data.meta?.topic,
       }),
       slides: responseData.data.data.slides
     };
@@ -271,6 +312,7 @@ export const finalizePresentation = async (outlineData) => {
       }));
 
       finalPayload.slides = layoutSlides;
+      finalPayload.meta = finalPayload.meta || meta;
     } catch (err) {
         console.error("Layout normalization pipeline completely failed:", err);
     }

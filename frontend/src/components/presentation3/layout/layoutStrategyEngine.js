@@ -7,8 +7,8 @@
 
 export const LAYOUT_TYPES = {
   HERO_LAYOUT: "hero-image-right",
-  IMAGE_RIGHT_CONTENT_LEFT: "image-right",
-  IMAGE_LEFT_CONTENT_RIGHT: "image-left",
+  IMAGE_RIGHT_CONTENT_LEFT: "content-image-right",
+  IMAGE_LEFT_CONTENT_RIGHT: "content-image-left",
   CENTER_STAT_LAYOUT: "center-stat",
   TWO_COLUMN_LAYOUT: "two-column",
   TEXT_FOCUS_LAYOUT: "text-focus",
@@ -17,8 +17,10 @@ export const LAYOUT_TYPES = {
 
 const CANONICAL_MAP = {
   HERO_LAYOUT: "hero-image-right",
-  IMAGE_RIGHT_CONTENT_LEFT: "image-right",
-  IMAGE_LEFT_CONTENT_RIGHT: "image-left",
+  IMAGE_RIGHT_CONTENT_LEFT: "content-image-right",
+  IMAGE_LEFT_CONTENT_RIGHT: "content-image-left",
+  IMAGE_RIGHT: "content-image-right",
+  IMAGE_LEFT: "content-image-left",
   CENTER_STAT_LAYOUT: "center-stat",
   TWO_COLUMN_LAYOUT: "two-column",
   TEXT_FOCUS_LAYOUT: "text-focus",
@@ -111,7 +113,7 @@ export const selectLayoutStrategy = (
 
     // ── Hero cover ─────────────────────────────────────────────
     if (slideIndex === 0) {
-      const showHero = hasImageLayer && mediaEnabled;
+      const showHero = mediaEnabled && (hasImageLayer || cadenceWantsImage);
       return {
         template: showHero ? LAYOUT_TYPES.HERO_LAYOUT : "title-only",
         density,
@@ -126,11 +128,17 @@ export const selectLayoutStrategy = (
     );
 
     let template = aiMapped;
-    const imageLayoutPool = [
-      LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT,
-      LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT,
-      LAYOUT_TYPES.VISUAL_INSIGHT_LAYOUT,
-    ];
+    const imageLayoutPool =
+      density === "low"
+        ? [
+            LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT,
+            LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT,
+          ]
+        : [
+            LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT,
+            LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT,
+            LAYOUT_TYPES.VISUAL_INSIGHT_LAYOUT,
+          ];
 
     // Low-density decks must stay visual — never route to text-only layouts.
     if (cadenceWantsImage) {
@@ -138,7 +146,10 @@ export const selectLayoutStrategy = (
         !template ||
         template === LAYOUT_TYPES.HERO_LAYOUT ||
         template === LAYOUT_TYPES.TEXT_FOCUS_LAYOUT ||
-        template === LAYOUT_TYPES.CENTER_STAT_LAYOUT
+        template === LAYOUT_TYPES.CENTER_STAT_LAYOUT ||
+        template === "title-content" ||
+        template === "image-right" ||
+        template === "image-left"
       ) {
         template = rotateAway(previousTemplate, imageLayoutPool);
       }

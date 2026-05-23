@@ -83,16 +83,16 @@ const TitleInput = ({ prompt, setPrompt }) => (
   <div className="ps-field-block">
     <div className="ps-field-info-row">
       <FieldLabel required>Title</FieldLabel>
-      <span className={`ps-char-counter ${prompt.length >= 60 ? 'limit' : ''}`}>
-        {prompt.length}/60
+      <span className={`ps-char-counter ${prompt.length >= 100 ? 'limit' : ''}`}>
+        {prompt.length >= 100 ? 'Limit reached' : `${prompt.length}/100`}
       </span>
     </div>
     <textarea
       className="ps-textarea ps-title-input"
       value={prompt}
-      onChange={(e) => setPrompt(e.target.value.slice(0, 60))}
+      onChange={(e) => setPrompt(e.target.value.slice(0, 100))}
       placeholder="Write your presentation title..."
-      maxLength={60}
+      maxLength={100}
     />
   </div>
 );
@@ -101,16 +101,16 @@ const OutlineInput = ({ outlineText, setOutlineText }) => (
   <div className="ps-field-block">
     <div className="ps-field-info-row">
       <FieldLabel required>Outline</FieldLabel>
-      <span className={`ps-char-counter ${(outlineText?.length || 0) >= 500 ? 'limit' : ''}`}>
-        {outlineText?.length || 0}/500
+      <span className={`ps-char-counter ${(outlineText?.length || 0) >= 1000 ? 'limit' : ''}`}>
+        {outlineText?.length || 0}/1000
       </span>
     </div>
     <textarea
       className="ps-textarea ps-outline-input"
       value={outlineText || ""}
-      onChange={(e) => setOutlineText(e.target.value.slice(0, 500))}
+      onChange={(e) => setOutlineText(e.target.value.slice(0, 1000))}
       placeholder="Write bullet points or structured outline..."
-      maxLength={500}
+      maxLength={1000}
     />
   </div>
 );

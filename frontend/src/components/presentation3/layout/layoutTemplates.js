@@ -3,7 +3,16 @@
 // and returns those elements with { x, y, width, height } assigned.
 // NO imports from the store. NO side effects.
 
-import { SAFE, GAP, ROLE_HEIGHT, MARGIN, SLIDE } from "./constants";
+import {
+  SAFE,
+  GAP,
+  ROLE_HEIGHT,
+  MARGIN,
+  SLIDE,
+  HERO_IMAGE,
+  HERO_TEXT,
+  CONTENT_IMAGE,
+} from "./constants";
 import {
   hasVisibleText,
   estimateTextLayerHeight,
@@ -106,13 +115,27 @@ export const titleOnly = (elements) => {
 // Heading at top, remaining elements fill downward
 // ─────────────────────────────────────────────────────────────
 export const titleContent = (elements) => {
+  const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
+  const textEls = elements.filter((e) => e !== imageEl);
   const ROLE_ORDER = ["eyebrow", "heading", "subheading", "body", "caption", "shape", "table"];
-  const sorted = [...elements].sort(
+  const sorted = [...textEls].sort(
     (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
   );
 
   const withHeights = distributeHeight(sorted, SAFE.HEIGHT);
-  return stackVertically(withHeights, SAFE.X, SAFE.Y, SAFE.WIDTH);
+  const stacked = stackVertically(withHeights, SAFE.X, SAFE.Y, SAFE.WIDTH);
+  if (imageEl) {
+    stacked.push({
+      ...imageEl,
+      x: CONTENT_IMAGE.RIGHT.X,
+      y: CONTENT_IMAGE.RIGHT.Y,
+      width: CONTENT_IMAGE.RIGHT.WIDTH,
+      height: CONTENT_IMAGE.RIGHT.HEIGHT,
+      borderRadius: CONTENT_IMAGE.RIGHT.RADIUS,
+      borderWidth: 0,
+    });
+  }
+  return stacked;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -145,8 +168,11 @@ export const twoColumn = (elements) => {
 // TEMPLATE: image-left
 // Image occupies left ~45 %, text fills right ~55 %
 // ─────────────────────────────────────────────────────────────
-export const imageLeft = (elements) => {
-  const TEMPLATE = "image-left";
+/**
+ * Content slide: centered title + intro on top, image left, list right.
+ */
+export const contentImageLeft = (elements) => {
+  const TEMPLATE = "content-image-left";
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const heading = elements.find((e) => e.role === "heading");
   const bodyEls = elements.filter(
@@ -154,69 +180,87 @@ export const imageLeft = (elements) => {
   );
   const { lists, paragraphs } = partitionBodyElements(bodyEls);
 
-  const imgX = 3;
-  const imgY = 6;
-  const imgW = 419;
-  const imgH = 492;
-  const textX = 434;
-  const textW = 474;
-
   const headingTypo = getTypographyForRole(TEMPLATE, "heading");
   const bodyTypo = getTypographyForRole(TEMPLATE, "body");
   const listTypo = getTypographyForRole(TEMPLATE, "list");
 
   const out = [];
+  const contentX = SAFE.X;
+  const contentW = SAFE.WIDTH;
+  let cursorY = SAFE.Y;
+
+  if (heading) {
+    const styled = applyTypography(heading, headingTypo);
+    const headingH = estimateHeadingHeight(styled, contentW, TEMPLATE);
+    out.push({
+      ...styled,
+      x: contentX,
+      y: cursorY,
+      width: contentW,
+      height: headingH,
+      textAlign: "center",
+    });
+    cursorY += headingH + GAP.ELEMENT;
+  }
+
+  paragraphs.forEach((el) => {
+    const styled = applyTypography(el, bodyTypo);
+    const h = Math.min(estimateTextLayerHeight(styled, contentW), 150);
+    out.push({
+      ...styled,
+      x: contentX,
+      y: cursorY,
+      width: contentW,
+      height: h,
+    });
+    cursorY += h + GAP.ELEMENT;
+  });
 
   if (imageEl) {
     out.push({
       ...imageEl,
-      x: imgX,
-      y: imgY,
-      width: imgW,
-      height: imgH,
-      borderRadius: 28,
+      x: CONTENT_IMAGE.LEFT.X,
+      y: CONTENT_IMAGE.LEFT.Y,
+      width: CONTENT_IMAGE.LEFT.WIDTH,
+      height: CONTENT_IMAGE.LEFT.HEIGHT,
+      borderRadius: CONTENT_IMAGE.LEFT.RADIUS,
       borderWidth: 0,
     });
   }
 
-  let cursorY = 28;
+  const listX = CONTENT_IMAGE.LEFT.X + CONTENT_IMAGE.LEFT.WIDTH + GAP.COLUMN;
+  const listW = SLIDE.WIDTH - MARGIN.RIGHT - listX;
+  const listTopY = Math.max(cursorY, CONTENT_IMAGE.LEFT.Y);
 
-  if (heading) {
-    const styled = applyTypography(heading, headingTypo);
-    const headingH = estimateHeadingHeight(styled, textW, TEMPLATE);
+  lists.forEach((el) => {
+    const styled = applyTypography(el, listTypo);
+    const h = Math.min(
+      estimateTextLayerHeight(styled, listW),
+      SLIDE_CONTENT_BOTTOM - listTopY
+    );
     out.push({
       ...styled,
-      x: textX,
-      y: cursorY,
-      width: textW,
-      height: headingH,
-    });
-    cursorY += headingH + 16;
-  }
-
-  [...paragraphs, ...lists].forEach((el) => {
-    const typo = isListElement(el) ? listTypo : bodyTypo;
-    const styled = applyTypography(el, typo);
-    const h = Math.min(estimateTextLayerHeight(styled, textW), 140);
-    out.push({
-      ...styled,
-      x: textX,
-      y: cursorY,
-      width: textW,
+      x: listX,
+      y: listTopY,
+      width: listW,
       height: h,
     });
-    cursorY += h + 16;
   });
 
   return out;
 };
+
+export const imageLeft = contentImageLeft;
 
 // ─────────────────────────────────────────────────────────────
 // TEMPLATE: image-right
 // Mirror of image-left
 // ─────────────────────────────────────────────────────────────
-export const imageRight = (elements) => {
-  const TEMPLATE = "image-right";
+/**
+ * Low/medium content slide: centered title + intro on top, list left, image right.
+ */
+export const contentImageRight = (elements) => {
+  const TEMPLATE = "content-image-right";
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const heading = elements.find((e) => e.role === "heading");
   const bodyEls = elements.filter(
@@ -224,78 +268,78 @@ export const imageRight = (elements) => {
   );
   const { lists, paragraphs } = partitionBodyElements(bodyEls);
 
-  const imgW = 384;
-  const imgH = 299;
-  const imgX = 505;
-  const imgY = 21;
-  const imgBottom = imgY + imgH;
-  const leftX = 8;
-  const leftW = 470;
-  const rightX = 434;
-  const rightW = 464;
-
   const headingTypo = getTypographyForRole(TEMPLATE, "heading");
   const bodyTypo = getTypographyForRole(TEMPLATE, "body");
   const listTypo = getTypographyForRole(TEMPLATE, "list");
 
   const out = [];
-  const headingY = 13;
-  let headingH = 0;
+  const contentX = SAFE.X;
+  const contentW = SAFE.WIDTH;
+  let cursorY = SAFE.Y;
 
   if (heading) {
     const styled = applyTypography(heading, headingTypo);
-    headingH = estimateHeadingHeight(styled, leftW, TEMPLATE);
+    const headingH = estimateHeadingHeight(styled, contentW, TEMPLATE);
     out.push({
       ...styled,
-      x: leftX,
-      y: headingY,
-      width: leftW,
+      x: contentX,
+      y: cursorY,
+      width: contentW,
       height: headingH,
+      textAlign: "center",
     });
+    cursorY += headingH + GAP.ELEMENT;
   }
+
+  paragraphs.forEach((el) => {
+    const styled = applyTypography(el, bodyTypo);
+    const h = Math.min(
+      estimateTextLayerHeight(styled, contentW),
+      150
+    );
+    out.push({
+      ...styled,
+      x: contentX,
+      y: cursorY,
+      width: contentW,
+      height: h,
+      textAlign: "left",
+    });
+    cursorY += h + GAP.ELEMENT;
+  });
+
+  const listTopY = Math.max(cursorY, CONTENT_IMAGE.RIGHT.Y - 8);
+  const listW = CONTENT_IMAGE.RIGHT.X - contentX - GAP.COLUMN;
+
+  lists.forEach((el) => {
+    const styled = applyTypography(el, listTypo);
+    const remaining = SLIDE_CONTENT_BOTTOM - listTopY;
+    const h = Math.min(estimateTextLayerHeight(styled, listW), remaining);
+    out.push({
+      ...styled,
+      x: contentX,
+      y: listTopY,
+      width: listW,
+      height: h,
+    });
+  });
 
   if (imageEl) {
     out.push({
       ...imageEl,
-      x: imgX,
-      y: imgY,
-      width: imgW,
-      height: imgH,
-      borderRadius: 28,
+      x: CONTENT_IMAGE.RIGHT.X,
+      y: CONTENT_IMAGE.RIGHT.Y,
+      width: CONTENT_IMAGE.RIGHT.WIDTH,
+      height: CONTENT_IMAGE.RIGHT.HEIGHT,
+      borderRadius: CONTENT_IMAGE.RIGHT.RADIUS,
       borderWidth: 0,
     });
   }
 
-  const headingBottom = headingY + headingH;
-  const listY = Math.max(headingBottom + 24, 230);
-
-  lists.forEach((el) => {
-    const styled = applyTypography(el, listTypo);
-    const h = estimateTextLayerHeight(styled, leftW);
-    out.push({
-      ...styled,
-      x: 18,
-      y: listY,
-      width: leftW,
-      height: h,
-    });
-  });
-
-  const paraY = Math.max(350, imgBottom + 20);
-  paragraphs.forEach((el) => {
-    const styled = applyTypography(el, bodyTypo);
-    const h = estimateTextLayerHeight(styled, rightW);
-    out.push({
-      ...styled,
-      x: rightX,
-      y: paraY,
-      width: rightW,
-      height: h,
-    });
-  });
-
   return out;
 };
+
+export const imageRight = contentImageRight;
 
 // ─────────────────────────────────────────────────────────────
 // TEMPLATE: image-full
@@ -312,7 +356,7 @@ export const imageFull = (elements) => {
   const out = [];
   if (imageEl) {
     // Full bleed — ignores SAFE margins intentionally
-    out.push({ ...imageEl, x: 0, y: 0, width: 960, height: 540 });
+    out.push({ ...imageEl, x: 0, y: 0, width: SLIDE.WIDTH, height: SLIDE.HEIGHT });
   }
   out.push(...stackVertically(textEls, overlayX, overlayStartY, overlayWidth));
   return out;
@@ -406,17 +450,24 @@ export const heroImageRight = (elements) => {
   if (imageEl) {
     out.push({
       ...imageEl,
-      x: 512,
-      y: 0,
-      width: 390,
-      height: 510,
+      x: HERO_IMAGE.X,
+      y: HERO_IMAGE.Y,
+      width: HERO_IMAGE.WIDTH,
+      height: HERO_IMAGE.HEIGHT,
       borderRadius: 0,
       borderWidth: 0,
     });
   }
-  const heroTextW = 380;
-  const heroStartY = 72;
-  let cursorY = heroStartY;
+
+  const heroTextW = HERO_TEXT.WIDTH;
+  const textBlockH =
+    (heading ? estimateHeadingHeight(heading, heroTextW, "hero-image-right") : 0) +
+    (subbody ? 80 : 0) +
+    24;
+  let cursorY = Math.max(
+    HERO_TEXT.Y,
+    Math.round((SLIDE.HEIGHT - textBlockH) / 2)
+  );
 
   if (heading) {
     const heroTypo = getTypographyForRole("hero-image-right", "heading", true);
@@ -424,7 +475,7 @@ export const heroImageRight = (elements) => {
     const headingH = estimateHeadingHeight(styledHeading, heroTextW, "hero-image-right");
     out.push({
       ...styledHeading,
-      x: 60,
+      x: HERO_TEXT.X,
       y: cursorY,
       width: heroTextW,
       height: headingH,
@@ -437,10 +488,10 @@ export const heroImageRight = (elements) => {
   if (subbody) {
     const bodyTypo = getTypographyForRole("hero-image-right", "body", true);
     const styled = applyTypography(subbody, bodyTypo);
-    const subH = Math.min(90, Math.max(48, estimateTextLayerHeight(styled, heroTextW)));
+    const subH = Math.min(120, Math.max(48, estimateTextLayerHeight(styled, heroTextW)));
     out.push({
       ...styled,
-      x: 60,
+      x: HERO_TEXT.X,
       y: cursorY,
       width: heroTextW,
       height: subH,
@@ -455,11 +506,10 @@ export const visualInsight = (elements) => {
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const textEls = elements.filter((e) => e !== imageEl);
 
-  const imgW = 380;
-  const imgH = 280;
-  const padRight = 52;
-  const imgX = SLIDE.WIDTH - padRight - imgW;
-  const imgY = SAFE.Y + Math.round((SAFE.HEIGHT - imgH) / 2);
+  const imgW = CONTENT_IMAGE.RIGHT.WIDTH;
+  const imgH = CONTENT_IMAGE.RIGHT.HEIGHT;
+  const imgX = CONTENT_IMAGE.RIGHT.X;
+  const imgY = CONTENT_IMAGE.RIGHT.Y;
   const textW = imgX - SAFE.X - GAP.COLUMN;
 
   const out = [];
@@ -483,8 +533,8 @@ export const centerStat = (elements) => {
   const sorted = [...elements].sort(
     (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
   );
-  const innerWidth = SAFE.WIDTH - 120;
-  const innerX = SAFE.X + 60;
+  const innerWidth = SAFE.WIDTH;
+  const innerX = SAFE.X;
   const withHeights = distributeHeight(sorted, SAFE.HEIGHT);
   const stacked = stackVertically(withHeights, innerX, SAFE.Y, innerWidth);
   return stacked.map((el) =>
@@ -504,8 +554,8 @@ export const textFocus = (elements) => {
   const listTypo = getTypographyForRole(TEMPLATE, "list");
 
   const out = [];
-  const startX = 52;
-  const fullW = 856;
+  const startX = SAFE.X;
+  const fullW = SAFE.WIDTH;
   let cursorY = 40;
 
   if (heading) {
@@ -581,6 +631,8 @@ export const fallbackStack = (elements) =>
 export const TEMPLATE_MAP = {
   "title-only":         titleOnly,
   "title-content":      titleContent,
+  "content-image-right": contentImageRight,
+  "content-image-left": contentImageLeft,
   "two-column":         twoColumn,
   "image-left":         imageLeft,
   "image-right":        imageRight,

@@ -7,6 +7,7 @@ import {
   createInitialValue,
   normalizeSlateListContent,
 } from "../editors/slate/slateHelpers";
+import { reapplyPresentationLayout } from "../layout/reapplyLayout";
 
 // Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
 // Not persisted to the store state so it is never saved to the database.
@@ -512,7 +513,24 @@ const usePresentationStore = create((set, get) => {
     ========================= */
     setPresentation: (data) => {
       const rawSlides = data.slides || (data.data && data.data.slides) || [];
-      const slides = rawSlides.map((slide) => normalizeSlide(slide));
+      const meta = data.meta || data.data?.meta || {};
+      let slides = rawSlides.map((slide) => normalizeSlide(slide));
+
+      const slideNeedsRelayout = (slide) => {
+        const image = (slide.layers || []).find((l) => l.type === "image");
+        if (!image) return false;
+        const w = Number(image.width) || 0;
+        const h = Number(image.height) || 0;
+        if (w > 600 && h < 380) return true;
+        if (slide.layoutTemplate === "hero-image-right" && w > 500) return true;
+        return false;
+      };
+
+      if (slides.some(slideNeedsRelayout) && slides.length > 0) {
+        slides = reapplyPresentationLayout({ slides, meta }).map((s) =>
+          normalizeSlide(s)
+        );
+      }
 
       const id =
         data.presentationId ||

@@ -389,10 +389,10 @@
 .ps-media-style-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
   gap: 10px;
-  min-height: 148px;
+  min-height: 0;
   border-radius: 22px;
   border: 1px solid #e2e8f0;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
@@ -416,30 +416,41 @@
 }
 
 .ps-media-style-thumb-wrapper {
+  position: relative;
   width: 100%;
-  height: 92px;
-  border-radius: 18px;
+  aspect-ratio: 16 / 10;
+  min-height: 110px;
+  flex-shrink: 0;
+  border-radius: 14px;
   overflow: hidden;
-  background: #f8fafc;
+  background: #e2e8f0;
   border: 1px solid rgba(203, 213, 225, 0.8);
 }
 
+.ps-media-style-card.active .ps-media-style-thumb-wrapper {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
 .ps-media-style-thumb {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
   transition: transform 0.3s ease;
 }
 
 .ps-media-style-card:hover .ps-media-style-thumb {
-  transform: scale(1.04);
+  transform: scale(1.06);
 }
 
 .ps-media-style-label {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 
 .ps-media-style-card.active .ps-media-style-label {
