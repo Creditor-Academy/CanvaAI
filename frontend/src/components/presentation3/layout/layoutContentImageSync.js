@@ -1,7 +1,7 @@
 /**
  * Keep content-image slide geometry aligned with template + cadence mirror.
  */
-import { CONTENT_IMAGE } from "./constants";
+import { CONTENT_IMAGE, HERO_IMAGE_LEFT, HERO_TEXT_RIGHT } from "./constants";
 import { pickContentImageTemplate } from "./layoutMirror";
 import { fitLayersToCanvas } from "./layoutDensityFit";
 import { slideShouldHaveImage } from "./layoutStrategyEngine";
@@ -68,6 +68,38 @@ export const contentImageGeometryMismatch = (layers, templateName) => {
 /**
  * Fix template name, image side, and text column for one content-image slide.
  */
+/** Hero title slide — image flush left (matches backend enforceFirstSlideHero). */
+export const patchHeroImageLeftSlide = (slide) => {
+  const tpl = String(slide.layoutTemplate || slide.layout || "").toLowerCase();
+  if (!tpl.includes("hero-image-left")) return slide;
+
+  const layers = (slide.layers || []).map((layer) => {
+    if (layer.type === "image") {
+      return {
+        ...layer,
+        x: HERO_IMAGE_LEFT.X,
+        y: HERO_IMAGE_LEFT.Y,
+        width: HERO_IMAGE_LEFT.WIDTH,
+        height: HERO_IMAGE_LEFT.HEIGHT,
+        borderRadius: 0,
+      };
+    }
+    if (
+      layer.type === "text" &&
+      ["heading", "title", "subheading", "body"].includes(layer.role)
+    ) {
+      return {
+        ...layer,
+        x: HERO_TEXT_RIGHT.X,
+        width: HERO_TEXT_RIGHT.WIDTH,
+      };
+    }
+    return layer;
+  });
+
+  return { ...slide, layers };
+};
+
 export const patchContentImageSlide = (slide, slideIndex, meta, slideCount) => {
   const stored = slide.layoutTemplate || slide.layout || "";
   if (!isContentImageTemplate(stored)) return slide;

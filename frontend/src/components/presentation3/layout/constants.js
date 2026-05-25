@@ -40,23 +40,18 @@ export const HERO_TEXT = {
   WIDTH:  HERO_IMAGE.X - MARGIN.LEFT - GAP.COLUMN,
 };
 
-/** Mirrored hero — image flush left, text on the right */
+/** Mirrored hero — image flush to left edge (x=0), text on the right */
 export const HERO_IMAGE_LEFT = {
   WIDTH:  HERO_IMAGE.WIDTH,
-  X:      MARGIN.LEFT,
+  X:      0,
   Y:      0,
   HEIGHT: SLIDE.HEIGHT,
 };
 
 export const HERO_TEXT_RIGHT = {
-  X:      HERO_IMAGE_LEFT.WIDTH + MARGIN.LEFT + GAP.COLUMN,
+  X:      HERO_IMAGE_LEFT.WIDTH + GAP.COLUMN,
   Y:      40,
-  WIDTH:
-    SLIDE.WIDTH -
-    HERO_IMAGE_LEFT.WIDTH -
-    MARGIN.LEFT -
-    GAP.COLUMN -
-    MARGIN.RIGHT,
+  WIDTH:  SLIDE.WIDTH - HERO_IMAGE_LEFT.WIDTH - GAP.COLUMN - MARGIN.RIGHT,
 };
 
 /** Content slides — hero-style full-height image on the edge (matches HERO_IMAGE) */
@@ -69,7 +64,7 @@ export const CONTENT_IMAGE = {
     RADIUS: 0,
   },
   LEFT: {
-    X:      MARGIN.LEFT,
+    X:      0,
     WIDTH:  HERO_IMAGE.WIDTH,
     Y:      0,
     HEIGHT: SLIDE.HEIGHT,

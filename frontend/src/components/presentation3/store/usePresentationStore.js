@@ -8,7 +8,10 @@ import {
   normalizeSlateListContent,
 } from "../editors/slate/slateHelpers";
 import { reapplyPresentationLayout } from "../layout/reapplyLayout";
-import { patchContentImageSlide } from "../layout/layoutContentImageSync";
+import {
+  patchContentImageSlide,
+  patchHeroImageLeftSlide,
+} from "../layout/layoutContentImageSync";
 
 // Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
 // Not persisted to the store state so it is never saved to the database.
@@ -518,7 +521,8 @@ const usePresentationStore = create((set, get) => {
       const slideCount = rawSlides.length;
       let slides = rawSlides.map((slide, index) => {
         const normalized = normalizeSlide(slide);
-        return patchContentImageSlide(normalized, index, meta, slideCount);
+        const heroPatched = patchHeroImageLeftSlide(normalized);
+        return patchContentImageSlide(heroPatched, index, meta, slideCount);
       });
 
       const slideNeedsRelayout = (slide) => {
