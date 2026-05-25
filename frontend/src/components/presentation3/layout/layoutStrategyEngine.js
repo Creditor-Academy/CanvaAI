@@ -5,8 +5,12 @@
  * (resolver lowercases AI layout strings).
  */
 
+import { pickHeroTemplate, pickContentImageTemplate } from "./layoutMirror";
+import { slideShouldHaveImage } from "./layoutCadence";
+
 export const LAYOUT_TYPES = {
   HERO_LAYOUT: "hero-image-right",
+  HERO_LAYOUT_LEFT: "hero-image-left",
   IMAGE_RIGHT_CONTENT_LEFT: "content-image-right",
   IMAGE_LEFT_CONTENT_RIGHT: "content-image-left",
   CENTER_STAT_LAYOUT: "center-stat",
@@ -17,6 +21,7 @@ export const LAYOUT_TYPES = {
 
 const CANONICAL_MAP = {
   HERO_LAYOUT: "hero-image-right",
+  HERO_LAYOUT_LEFT: "hero-image-left",
   IMAGE_RIGHT_CONTENT_LEFT: "content-image-right",
   IMAGE_LEFT_CONTENT_RIGHT: "content-image-left",
   IMAGE_RIGHT: "content-image-right",
@@ -32,13 +37,12 @@ function normTextAmount(v) {
   return s === "low" || s === "high" ? s : "medium";
 }
 
-/** Mirrors backend cadence: slides 2,4,6… (indices 1,3,5…) carry imagery when density isn't low */
-export function slideShouldHaveImage(meta, slideIndex) {
-  const density = normTextAmount(meta?.textAmount);
-  if (slideIndex <= 0) return true;
-  if (density === "low") return true;
-  return slideIndex % 2 === 1;
+function resolveSlideCount(meta) {
+  const n = Number(meta?.slideCount);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
+
+export { slideShouldHaveImage } from "./layoutCadence";
 
 function mapAiLayoutToTemplate(layoutHint) {
   if (!layoutHint) return null;
@@ -115,7 +119,7 @@ export const selectLayoutStrategy = (
     if (slideIndex === 0) {
       const showHero = mediaEnabled && (hasImageLayer || cadenceWantsImage);
       return {
-        template: showHero ? LAYOUT_TYPES.HERO_LAYOUT : "title-only",
+        template: showHero ? pickHeroTemplate(meta) : "title-only",
         density,
         intent: "intro",
         hasMedia: showHero,
@@ -142,9 +146,11 @@ export const selectLayoutStrategy = (
 
     // Low-density decks must stay visual — never route to text-only layouts.
     if (cadenceWantsImage) {
+      const mirroredContent = pickContentImageTemplate(slideIndex, meta);
       if (
         !template ||
         template === LAYOUT_TYPES.HERO_LAYOUT ||
+        template === LAYOUT_TYPES.HERO_LAYOUT_LEFT ||
         template === LAYOUT_TYPES.TEXT_FOCUS_LAYOUT ||
         template === LAYOUT_TYPES.CENTER_STAT_LAYOUT ||
         template === "title-content" ||
@@ -153,13 +159,25 @@ export const selectLayoutStrategy = (
       ) {
         template = rotateAway(previousTemplate, imageLayoutPool);
       }
+      if (
+        template === LAYOUT_TYPES.IMAGE_RIGHT_CONTENT_LEFT ||
+        template === LAYOUT_TYPES.IMAGE_LEFT_CONTENT_RIGHT ||
+        template === "content-image-right" ||
+        template === "content-image-left"
+      ) {
+        template = mirroredContent;
+      }
     } else if (!cadenceWantsImage) {
-      const textCandidates = [
-        LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
-        LAYOUT_TYPES.CENTER_STAT_LAYOUT,
-        LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
-      ];
-      template = rotateAway(previousTemplate, textCandidates);
+      if (density === "high" || density === "medium") {
+        template = "text-focus-dense";
+      } else {
+        const textCandidates = [
+          LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
+          LAYOUT_TYPES.CENTER_STAT_LAYOUT,
+          LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
+        ];
+        template = rotateAway(previousTemplate, textCandidates);
+      }
     }
 
     // Intent-aware nudging (still respects cadence)
@@ -194,12 +212,19 @@ export const selectLayoutStrategy = (
     if (template === previousTemplate) {
       const pool = cadenceWantsImage
         ? imageLayoutPool
-        : [
-            LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
-            LAYOUT_TYPES.CENTER_STAT_LAYOUT,
-            LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
-          ];
+        : density === "medium" || density === "high"
+          ? ["text-focus-dense"]
+          : [
+              LAYOUT_TYPES.TEXT_FOCUS_LAYOUT,
+              LAYOUT_TYPES.CENTER_STAT_LAYOUT,
+              LAYOUT_TYPES.TWO_COLUMN_LAYOUT,
+            ];
       template = rotateAway(previousTemplate, pool);
+    }
+
+    // Cadence mirror wins over intent rotation (slide_2 right, slide_4 left, …).
+    if (cadenceWantsImage && hasMedia) {
+      template = pickContentImageTemplate(slideIndex, meta);
     }
 
     return {

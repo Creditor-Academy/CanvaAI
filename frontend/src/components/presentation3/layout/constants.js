@@ -40,22 +40,47 @@ export const HERO_TEXT = {
   WIDTH:  HERO_IMAGE.X - MARGIN.LEFT - GAP.COLUMN,
 };
 
-/** Content slides — image beside list, edge-aligned within safe area */
+/** Mirrored hero — image flush left, text on the right */
+export const HERO_IMAGE_LEFT = {
+  WIDTH:  HERO_IMAGE.WIDTH,
+  X:      MARGIN.LEFT,
+  Y:      0,
+  HEIGHT: SLIDE.HEIGHT,
+};
+
+export const HERO_TEXT_RIGHT = {
+  X:      HERO_IMAGE_LEFT.WIDTH + MARGIN.LEFT + GAP.COLUMN,
+  Y:      40,
+  WIDTH:
+    SLIDE.WIDTH -
+    HERO_IMAGE_LEFT.WIDTH -
+    MARGIN.LEFT -
+    GAP.COLUMN -
+    MARGIN.RIGHT,
+};
+
+/** Content slides — hero-style full-height image on the edge (matches HERO_IMAGE) */
 export const CONTENT_IMAGE = {
   RIGHT: {
-    WIDTH:  Math.round(SLIDE.WIDTH * 0.38),
-    X:      SLIDE.WIDTH - MARGIN.RIGHT - Math.round(SLIDE.WIDTH * 0.38),
-    Y:      Math.round(SLIDE.HEIGHT * 0.34),
-    HEIGHT: Math.round(SLIDE.HEIGHT * 0.56),
-    RADIUS: 20,
+    WIDTH:  HERO_IMAGE.WIDTH,
+    X:      HERO_IMAGE.X,
+    Y:      0,
+    HEIGHT: SLIDE.HEIGHT,
+    RADIUS: 0,
   },
   LEFT: {
     X:      MARGIN.LEFT,
-    WIDTH:  Math.round(SLIDE.WIDTH * 0.34),
-    Y:      Math.round(SLIDE.HEIGHT * 0.30),
-    HEIGHT: Math.round(SLIDE.HEIGHT * 0.58),
-    RADIUS: 22,
+    WIDTH:  HERO_IMAGE.WIDTH,
+    Y:      0,
+    HEIGHT: SLIDE.HEIGHT,
+    RADIUS: 0,
   },
+};
+
+/** Text column when image is hero-style on the right */
+export const CONTENT_TEXT = {
+  X: HERO_TEXT.X,
+  WIDTH: HERO_TEXT.WIDTH,
 };
 
 export const ROLE_HEIGHT = {

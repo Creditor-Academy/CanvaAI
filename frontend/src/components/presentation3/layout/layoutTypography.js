@@ -1,91 +1,102 @@
-// Canonical font sizes derived from hand-tuned AI presentations
+// Canonical font sizes — non-hero body/list are fixed at 20px for readability.
+
+export const HERO_BODY_FONT = 18;
+export const CONTENT_BODY_FONT = 20;
+export const CONTENT_LIST_FONT = 20;
 
 export const LAYOUT_TYPOGRAPHY = {
   "hero-image-right": {
     heading: { fontSize: 44, fontWeight: "bold" },
-    body: { fontSize: 18, fontWeight: "normal" },
-    list: { fontSize: 18, fontWeight: "normal" },
+    body: { fontSize: HERO_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: HERO_BODY_FONT, fontWeight: "normal" },
+  },
+  "hero-image-left": {
+    heading: { fontSize: 44, fontWeight: "bold" },
+    body: { fontSize: HERO_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: HERO_BODY_FONT, fontWeight: "normal" },
   },
   "content-image-right": {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 17, fontWeight: "normal" },
-    list: { fontSize: 17, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "content-image-left": {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 17, fontWeight: "normal" },
-    list: { fontSize: 17, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "image-right": {
     heading: { fontSize: 30, fontWeight: "bold" },
-    body: { fontSize: 18, fontWeight: "normal" },
-    list: { fontSize: 18, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "image-left": {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 17, fontWeight: "normal" },
-    list: { fontSize: 17, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "visual-insight": {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 17, fontWeight: "normal" },
-    list: { fontSize: 17, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "text-focus": {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 17, fontWeight: "normal" },
-    list: { fontSize: 17, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
+  },
+  "text-focus-dense": {
+    heading: { fontSize: 28, fontWeight: "bold" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "title-content": {
     heading: { fontSize: 30, fontWeight: "bold" },
-    body: { fontSize: 18, fontWeight: "normal" },
-    list: { fontSize: 18, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   "two-column": {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 17, fontWeight: "normal" },
-    list: { fontSize: 17, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
   default: {
     heading: { fontSize: 28, fontWeight: "bold" },
-    body: { fontSize: 18, fontWeight: "normal" },
-    list: { fontSize: 18, fontWeight: "normal" },
+    body: { fontSize: CONTENT_BODY_FONT, fontWeight: "normal" },
+    list: { fontSize: CONTENT_LIST_FONT, fontWeight: "normal" },
   },
 };
 
-const TEXT_AMOUNT_FONT_SCALE = {
-  low: { heading: 1, body: 1, list: 1 },
-  medium: { heading: 0.96, body: 0.94, list: 0.94 },
-  high: { heading: 0.84, body: 0.72, list: 0.66 },
+/** Heading-only scale for high density (body/list stay 20px). */
+const HEADING_SCALE_BY_AMOUNT = {
+  low: 1,
+  medium: 0.96,
+  high: 0.92,
 };
-
-const scaleTypo = (typo, factor) => ({
-  ...typo,
-  fontSize: Math.max(10, Math.round(typo.fontSize * factor)),
-});
 
 export const getTypographyForRole = (templateName, role, isHero = false, meta = {}) => {
   if (isHero) {
-    const hero = LAYOUT_TYPOGRAPHY["hero-image-right"];
+    const heroKey = (templateName || "").includes("left")
+      ? "hero-image-left"
+      : "hero-image-right";
+    const hero = LAYOUT_TYPOGRAPHY[heroKey] || LAYOUT_TYPOGRAPHY["hero-image-right"];
     if (role === "heading" || role === "title") return hero.heading;
     if (role === "list") return hero.list;
     return hero.body;
   }
+
   const key = (templateName || "").toLowerCase().trim();
   const sheet = LAYOUT_TYPOGRAPHY[key] || LAYOUT_TYPOGRAPHY.default;
-  let base;
-  if (role === "heading" || role === "title") base = sheet.heading;
-  else if (role === "list") base = sheet.list;
-  else base = sheet.body;
 
-  const amount = String(meta?.textAmount || "medium").toLowerCase();
-  const factors = TEXT_AMOUNT_FONT_SCALE[amount] || TEXT_AMOUNT_FONT_SCALE.medium;
-  const factor =
-    role === "heading" || role === "title"
-      ? factors.heading
-      : role === "list"
-        ? factors.list
-        : factors.body;
+  if (role === "heading" || role === "title") {
+    const amount = String(meta?.textAmount || "medium").toLowerCase();
+    const factor = HEADING_SCALE_BY_AMOUNT[amount] ?? 1;
+    return {
+      ...sheet.heading,
+      fontSize: Math.max(22, Math.round(sheet.heading.fontSize * factor)),
+    };
+  }
 
-  return scaleTypo(base, factor);
+  if (role === "list") return sheet.list;
+  return sheet.body;
 };

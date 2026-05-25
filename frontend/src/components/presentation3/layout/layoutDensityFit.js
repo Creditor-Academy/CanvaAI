@@ -1,9 +1,18 @@
 /**
- * Post-layout fitter: scales fonts and restacks text so dense slides stay inside 960×540.
+ * Post-layout fitter: scales fonts and restacks text so dense slides stay inside the canvas.
  * Used for textAmount=high (and overflow on medium) without trimming AI content.
  */
 
-import { SLIDE, MARGIN, SAFE, HERO_TEXT } from "./constants";
+import {
+  SLIDE,
+  MARGIN,
+  SAFE,
+  GAP,
+  HERO_TEXT,
+  HERO_TEXT_RIGHT,
+  CONTENT_TEXT,
+  CONTENT_IMAGE,
+} from "./constants";
 import {
   SLIDE_CONTENT_BOTTOM,
   estimateTextLayerHeight,
@@ -11,12 +20,18 @@ import {
   isListElement,
   hasVisibleText,
 } from "./layoutUtils";
+import { syncContentImageLayerPositions } from "./layoutContentImageSync";
 
 const TEXT_GAP = 10;
-const MIN_FONT = { heading: 18, body: 11, list: 10 };
+const MIN_FONT = { heading: 20, body: 18, list: 18 };
 
 const normalizeTextAmount = (meta) =>
   String(meta?.textAmount || "medium").toLowerCase();
+
+const isContentImageTemplate = (templateName) =>
+  /content-image-(left|right)|^image-(left|right)$/.test(
+    String(templateName || "").toLowerCase()
+  );
 
 const setLayerFontSize = (layer, fontSize) => {
   const applyToNodes = (nodes) => {
@@ -53,6 +68,13 @@ const getContentRegion = (templateName) => {
   const t = (templateName || "").toLowerCase();
   const maxBottom = SLIDE.HEIGHT - MARGIN.BOTTOM;
 
+  if (t.includes("hero-image-left")) {
+    return {
+      startY: 40,
+      maxBottom,
+      columns: [{ x: HERO_TEXT_RIGHT.X, w: HERO_TEXT_RIGHT.WIDTH }],
+    };
+  }
   if (t.includes("hero")) {
     return {
       startY: 40,
@@ -65,12 +87,15 @@ const getContentRegion = (templateName) => {
     t.includes("image-right") ||
     t === "image_right_content_left"
   ) {
-    const listW = Math.round(SLIDE.WIDTH * 0.38) - MARGIN.LEFT;
-    return { startY: SAFE.Y, maxBottom, columns: [{ x: SAFE.X, w: listW }] };
+    return {
+      startY: SAFE.Y,
+      maxBottom,
+      columns: [{ x: CONTENT_TEXT.X, w: CONTENT_TEXT.WIDTH }],
+    };
   }
   if (t.includes("content-image-left") || t.includes("image-left")) {
-    const listX = MARGIN.LEFT + Math.round(SLIDE.WIDTH * 0.34) + 24;
-    const listW = SLIDE.WIDTH - MARGIN.RIGHT - listX;
+    const listX = CONTENT_IMAGE.LEFT.X + CONTENT_IMAGE.LEFT.WIDTH + GAP.COLUMN;
+    const listW = CONTENT_TEXT.WIDTH;
     return { startY: SAFE.Y, maxBottom, columns: [{ x: listX, w: listW }] };
   }
   if (t.includes("visual-insight") || t.includes("image-focus")) {
@@ -85,6 +110,18 @@ const getContentRegion = (templateName) => {
       columns: [
         { x: SAFE.X, w: colW },
         { x: SAFE.X + colW + 24, w: colW },
+      ],
+    };
+  }
+
+  if (t.includes("text-focus-dense")) {
+    const colW = Math.floor((SAFE.WIDTH - GAP.COLUMN) / 2);
+    return {
+      startY: SAFE.Y,
+      maxBottom,
+      columns: [
+        { x: SAFE.X, w: colW },
+        { x: SAFE.X + colW + GAP.COLUMN, w: colW },
       ],
     };
   }
@@ -176,28 +213,60 @@ const restackTextLayers = (textLayers, region, fontScale) => {
 /**
  * Fit text layers within the slide canvas; leave images/shapes as-is.
  */
-export const fitLayersToCanvas = (layers, meta = {}, templateName = "", slideIndex = -1) => {
+export const fitLayersToCanvas = (
+  layers,
+  meta = {},
+  templateName = "",
+  slideIndex = -1,
+  options = {}
+) => {
   if (!Array.isArray(layers) || layers.length === 0) return layers;
   if (slideIndex === 0) return layers;
 
   const density = normalizeTextAmount(meta);
   const textLayers = layers.filter((l) => l.type === "text" && hasVisibleText(l));
   if (textLayers.length === 0) return layers;
-  if (density === "low") return layers;
 
-  const images = layers.filter((l) => l.type === "image");
+  const hasImageOnSlide = options.hasImageOnSlide !== false;
+  const contentImageSlide =
+    slideIndex > 0 && hasImageOnSlide && isContentImageTemplate(templateName);
+
+  if (density === "low" && !contentImageSlide) return layers;
+  const isTextOnlySlide = !hasImageOnSlide && slideIndex > 0;
+
+  let images = layers.filter((l) => l.type === "image");
   const nonText = layers.filter(
     (l) => l.type !== "text" && l.type !== "image"
   );
   const region = getContentRegion(templateName);
 
-  if (density === "medium") {
+  if (slideIndex > 0 && hasImageOnSlide && isContentImageTemplate(templateName)) {
+    images = syncContentImageLayerPositions(images, templateName);
+  }
+
+  // Content+image slides: always restack so y/height match measured text (template caps caused overlap).
+  if (slideIndex > 0 && hasImageOnSlide && isContentImageTemplate(templateName)) {
+    const restacked = restackTextLayers(textLayers, region, 1);
+    const bottom = measureStackBottom(restacked, region, 1);
+    if (bottom <= region.maxBottom + 6) {
+      return [...restacked, ...images, ...nonText];
+    }
+  }
+
+  if (density === "medium" && hasImageOnSlide) {
     const bottom = measureStackBottom(textLayers, region, 1);
     if (bottom <= region.maxBottom + 4) return layers;
   }
 
-  let fontScale = density === "high" ? 1 : 0.98;
-  const maxAttempts = density === "high" ? 12 : 6;
+  const bottomAtFull = measureStackBottom(textLayers, region, 1);
+  if (bottomAtFull <= region.maxBottom + 6) {
+    return layers;
+  }
+
+  let fontScale = 1;
+  const maxAttempts = density === "high" ? 8 : 6;
+  const shrinkFactor = density === "high" ? 0.94 : 0.92;
+  const minScale = density === "high" ? 0.88 : 0.8;
 
   for (let i = 0; i < maxAttempts; i++) {
     const bottom = measureStackBottom(textLayers, region, fontScale);
@@ -205,10 +274,10 @@ export const fitLayersToCanvas = (layers, meta = {}, templateName = "", slideInd
       const restacked = restackTextLayers(textLayers, region, fontScale);
       return [...restacked, ...images, ...nonText];
     }
-    fontScale *= density === "high" ? 0.9 : 0.92;
-    if (fontScale < 0.52) break;
+    fontScale *= shrinkFactor;
+    if (fontScale < minScale) break;
   }
 
-  const restacked = restackTextLayers(textLayers, region, Math.max(0.52, fontScale));
+  const restacked = restackTextLayers(textLayers, region, Math.max(minScale, fontScale));
   return [...restacked, ...images, ...nonText];
 };

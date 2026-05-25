@@ -7,6 +7,7 @@ import { selectLayoutStrategy, slideShouldHaveImage } from "./layoutStrategyEngi
 import { resolveStyles } from "./styleResolver";
 import { normalizeSlateListContent } from "../editors/slate/slateHelpers";
 import { fitLayersToCanvas } from "./layoutDensityFit";
+import { expandElementsForTextOnlySlide } from "./layoutTextOnly";
 import { getTypographyForRole } from "./layoutTypography";
 import { countListItems } from "./layoutUtils";
 
@@ -22,12 +23,27 @@ export const applyLayoutToSlide = (aiSlide, meta = {}, forceNewId = true, slideI
   let normalizedElements = normalizeAISlide(aiSlide);
 
   const mediaEnabled = meta?.media?.enabled !== false;
+  const slideCount =
+    Number(meta?.slideCount) || (aiSlide?._deckSlideCount ?? 0);
+
+  normalizedElements = expandElementsForTextOnlySlide(
+    normalizedElements,
+    meta,
+    slideIndex,
+    slideCount
+  );
   const wantsImageOnSlide =
-    slideIndex >= 0 && mediaEnabled && slideShouldHaveImage(meta, slideIndex);
+    slideIndex >= 0 &&
+    mediaEnabled &&
+    slideShouldHaveImage(meta, slideIndex, slideCount);
   const hasImageElement = normalizedElements.some(
     (e) => e.role === "image" || e.type === "image"
   );
-  if (wantsImageOnSlide && !hasImageElement) {
+  if (!wantsImageOnSlide) {
+    normalizedElements = normalizedElements.filter(
+      (e) => e.role !== "image" && e.type !== "image"
+    );
+  } else if (!hasImageElement) {
     normalizedElements = [
       ...normalizedElements,
       {
@@ -37,7 +53,7 @@ export const applyLayoutToSlide = (aiSlide, meta = {}, forceNewId = true, slideI
         imageUrl: "IMAGE_URL",
         alt: "",
         rotation: 0,
-        borderRadius: slideIndex === 0 ? 0 : 28,
+        borderRadius: 0,
         borderWidth: 0,
         borderColor: "#ffffff",
       },
@@ -101,7 +117,10 @@ const applyStylesToNodes = (nodes, styles) => {
 
       if (isHero && role === "heading") {
         layer.fontFamily = "Oswald";
-        layer.fontSize = getTypographyForRole("hero-image-right", "heading", true).fontSize;
+        const heroTpl = templateName?.includes("left")
+          ? "hero-image-left"
+          : "hero-image-right";
+        layer.fontSize = getTypographyForRole(heroTpl, "heading", true).fontSize;
       }
 
       if (layer.content) {
@@ -122,7 +141,9 @@ const applyStylesToNodes = (nodes, styles) => {
     };
   });
 
-  const fittedLayers = fitLayersToCanvas(layers, meta, templateName, slideIndex);
+  const fittedLayers = fitLayersToCanvas(layers, meta, templateName, slideIndex, {
+    hasImageOnSlide: wantsImageOnSlide,
+  });
 
   return {
     id:              forceNewId ? nanoid() : (aiSlide.id || nanoid()),
@@ -144,8 +165,17 @@ export const applyLayoutToPresentation = (aiResponse) => {
   const meta = aiResponse?.meta || {};
   let previousTemplate = null;
 
+  const deckSlideCount = rawSlides.length;
+
   return rawSlides.map((slide, index) => {
-    const packed = applyLayoutToSlide(slide, meta, true, index, previousTemplate);
+    const slideInput = { ...slide, _deckSlideCount: deckSlideCount };
+    const packed = applyLayoutToSlide(
+      slideInput,
+      { ...meta, slideCount: meta.slideCount || deckSlideCount },
+      true,
+      index,
+      previousTemplate
+    );
     previousTemplate = packed._layoutTemplate;
     const { _layoutTemplate, ...rest } = packed;
     return rest;

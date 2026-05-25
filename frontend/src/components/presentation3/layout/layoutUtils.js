@@ -47,8 +47,9 @@ export const estimateTextLayerHeight = (el, widthOverride) => {
   const fontSize = el?.fontSize || 16;
   const width = widthOverride ?? el?.width ?? 700;
   const listItems = countListItems(el?.content);
+  // Match TextLayer / SlidePresenter lineHeight (1.4) + 6px canvas padding
   const densityLine =
-    listItems >= 8 ? 1.35 : listItems >= 5 ? 1.42 : 1.55;
+    listItems >= 8 ? 1.38 : listItems >= 5 ? 1.4 : 1.4;
   const lineHeight = fontSize * densityLine;
 
   if (listItems > 0) {
@@ -60,7 +61,7 @@ export const estimateTextLayerHeight = (el, widthOverride) => {
 
   const charsPerLine = Math.max(16, Math.floor(width / (fontSize * 0.48)));
   const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-  return Math.max(36, Math.ceil(lines * lineHeight + 12));
+  return Math.max(40, Math.ceil(lines * lineHeight + 16));
 };
 
 /** Matches TextLayer lineHeight + uppercase rendering */
@@ -69,6 +70,7 @@ export const HEADING_LINE_HEIGHT = 1.4;
 /** Hand-tuned heading box heights (uppercase titles need fixed room) */
 export const HEADING_BOX_HEIGHT = {
   "hero-image-right": 140,
+  "hero-image-left": 140,
   "content-image-right": 72,
   "content-image-left": 72,
   "image-right": 72,

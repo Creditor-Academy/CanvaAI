@@ -11,7 +11,10 @@ import {
   SLIDE,
   HERO_IMAGE,
   HERO_TEXT,
+  HERO_IMAGE_LEFT,
+  HERO_TEXT_RIGHT,
   CONTENT_IMAGE,
+  CONTENT_TEXT,
 } from "./constants";
 import {
   hasVisibleText,
@@ -185,32 +188,35 @@ export const contentImageLeft = (elements) => {
   const listTypo = getTypographyForRole(TEMPLATE, "list");
 
   const out = [];
-  const contentX = SAFE.X;
-  const contentW = SAFE.WIDTH;
+  const listX = CONTENT_IMAGE.LEFT.X + CONTENT_IMAGE.LEFT.WIDTH + GAP.COLUMN;
+  const listW = CONTENT_TEXT.WIDTH;
   let cursorY = SAFE.Y;
 
   if (heading) {
     const styled = applyTypography(heading, headingTypo);
-    const headingH = estimateHeadingHeight(styled, contentW, TEMPLATE);
+    const headingH = estimateHeadingHeight(styled, listW, TEMPLATE);
     out.push({
       ...styled,
-      x: contentX,
+      x: listX,
       y: cursorY,
-      width: contentW,
+      width: listW,
       height: headingH,
-      textAlign: "center",
+      textAlign: "left",
     });
     cursorY += headingH + GAP.ELEMENT;
   }
 
   paragraphs.forEach((el) => {
     const styled = applyTypography(el, bodyTypo);
-    const h = Math.min(estimateTextLayerHeight(styled, contentW), 150);
+    const needed = estimateTextLayerHeight(styled, listW);
+    const maxParaH =
+      SLIDE_CONTENT_BOTTOM - cursorY - GAP.ELEMENT - 140;
+    const h = Math.min(needed, Math.max(56, maxParaH));
     out.push({
       ...styled,
-      x: contentX,
+      x: listX,
       y: cursorY,
-      width: contentW,
+      width: listW,
       height: h,
     });
     cursorY += h + GAP.ELEMENT;
@@ -228,23 +234,20 @@ export const contentImageLeft = (elements) => {
     });
   }
 
-  const listX = CONTENT_IMAGE.LEFT.X + CONTENT_IMAGE.LEFT.WIDTH + GAP.COLUMN;
-  const listW = SLIDE.WIDTH - MARGIN.RIGHT - listX;
-  const listTopY = Math.max(cursorY, CONTENT_IMAGE.LEFT.Y);
-
   lists.forEach((el) => {
     const styled = applyTypography(el, listTypo);
-    const h = Math.min(
-      estimateTextLayerHeight(styled, listW),
-      SLIDE_CONTENT_BOTTOM - listTopY
-    );
+    const needed = estimateTextLayerHeight(styled, listW);
+    const remaining = SLIDE_CONTENT_BOTTOM - cursorY - 4;
+    const h = Math.min(needed, remaining);
+    if (h < 28) return;
     out.push({
       ...styled,
       x: listX,
-      y: listTopY,
+      y: cursorY,
       width: listW,
       height: h,
     });
+    cursorY += h + GAP.ELEMENT;
   });
 
   return out;
@@ -259,8 +262,9 @@ export const imageLeft = contentImageLeft;
 /**
  * Low/medium content slide: centered title + intro on top, list left, image right.
  */
-export const contentImageRight = (elements) => {
+export const contentImageRight = (elements, ctx = {}) => {
   const TEMPLATE = "content-image-right";
+  const meta = ctx.meta || {};
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const heading = elements.find((e) => e.role === "heading");
   const bodyEls = elements.filter(
@@ -268,13 +272,13 @@ export const contentImageRight = (elements) => {
   );
   const { lists, paragraphs } = partitionBodyElements(bodyEls);
 
-  const headingTypo = getTypographyForRole(TEMPLATE, "heading");
-  const bodyTypo = getTypographyForRole(TEMPLATE, "body");
-  const listTypo = getTypographyForRole(TEMPLATE, "list");
+  const headingTypo = getTypographyForRole(TEMPLATE, "heading", false, meta);
+  const bodyTypo = getTypographyForRole(TEMPLATE, "body", false, meta);
+  const listTypo = getTypographyForRole(TEMPLATE, "list", false, meta);
 
   const out = [];
-  const contentX = SAFE.X;
-  const contentW = SAFE.WIDTH;
+  const contentX = CONTENT_TEXT.X;
+  const contentW = CONTENT_TEXT.WIDTH;
   let cursorY = SAFE.Y;
 
   if (heading) {
@@ -286,17 +290,17 @@ export const contentImageRight = (elements) => {
       y: cursorY,
       width: contentW,
       height: headingH,
-      textAlign: "center",
+      textAlign: "left",
     });
     cursorY += headingH + GAP.ELEMENT;
   }
 
-  paragraphs.forEach((el) => {
+  paragraphs.slice(0, 2).forEach((el) => {
     const styled = applyTypography(el, bodyTypo);
-    const h = Math.min(
-      estimateTextLayerHeight(styled, contentW),
-      150
-    );
+    const needed = estimateTextLayerHeight(styled, contentW);
+    const maxParaH =
+      SLIDE_CONTENT_BOTTOM - cursorY - GAP.ELEMENT - 140;
+    const h = Math.min(needed, Math.max(56, maxParaH));
     out.push({
       ...styled,
       x: contentX,
@@ -308,20 +312,22 @@ export const contentImageRight = (elements) => {
     cursorY += h + GAP.ELEMENT;
   });
 
-  const listTopY = Math.max(cursorY, CONTENT_IMAGE.RIGHT.Y - 8);
-  const listW = CONTENT_IMAGE.RIGHT.X - contentX - GAP.COLUMN;
+  const listW = contentW;
 
   lists.forEach((el) => {
     const styled = applyTypography(el, listTypo);
-    const remaining = SLIDE_CONTENT_BOTTOM - listTopY;
-    const h = Math.min(estimateTextLayerHeight(styled, listW), remaining);
+    const needed = estimateTextLayerHeight(styled, listW);
+    const remaining = SLIDE_CONTENT_BOTTOM - cursorY - 4;
+    const h = Math.min(needed, remaining);
+    if (h < 36) return;
     out.push({
       ...styled,
       x: contentX,
-      y: listTopY,
+      y: cursorY,
       width: listW,
       height: h,
     });
+    cursorY += h + GAP.ELEMENT;
   });
 
   if (imageEl) {
@@ -502,6 +508,72 @@ export const heroImageRight = (elements) => {
   return out;
 };
 
+/** Mirror of hero-image-right — full-height image left, title + subheading right */
+export const heroImageLeft = (elements, ctx = {}) => {
+  const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
+  const textEls = elements.filter((e) => e !== imageEl);
+  const heading =
+    textEls.find((e) => e.role === "heading") || textEls[0];
+  const subbody = textEls.find(
+    (e) => e.role === "subheading" || (e.role === "body" && e !== heading)
+  );
+
+  const out = [];
+  if (imageEl) {
+    out.push({
+      ...imageEl,
+      x: HERO_IMAGE_LEFT.X,
+      y: HERO_IMAGE_LEFT.Y,
+      width: HERO_IMAGE_LEFT.WIDTH,
+      height: HERO_IMAGE_LEFT.HEIGHT,
+      borderRadius: 0,
+      borderWidth: 0,
+    });
+  }
+
+  const heroTextW = HERO_TEXT_RIGHT.WIDTH;
+  const textBlockH =
+    (heading ? estimateHeadingHeight(heading, heroTextW, "hero-image-left") : 0) +
+    (subbody ? 96 : 0) +
+    24;
+  let cursorY = Math.max(
+    HERO_TEXT_RIGHT.Y,
+    Math.round((SLIDE.HEIGHT - textBlockH) / 2)
+  );
+
+  if (heading) {
+    const heroTypo = getTypographyForRole("hero-image-left", "heading", true);
+    const styledHeading = applyTypography(heading, heroTypo);
+    const headingH = estimateHeadingHeight(styledHeading, heroTextW, "hero-image-left");
+    out.push({
+      ...styledHeading,
+      x: HERO_TEXT_RIGHT.X,
+      y: cursorY,
+      width: heroTextW,
+      height: headingH,
+      fontWeight: "bold",
+      textAlign: "left",
+      fontFamily: "Oswald",
+    });
+    cursorY += headingH + 20;
+  }
+  if (subbody) {
+    const bodyTypo = getTypographyForRole("hero-image-left", "body", true);
+    const styled = applyTypography(subbody, bodyTypo);
+    const subH = Math.min(140, Math.max(56, estimateTextLayerHeight(styled, heroTextW)));
+    out.push({
+      ...styled,
+      x: HERO_TEXT_RIGHT.X,
+      y: cursorY,
+      width: heroTextW,
+      height: subH,
+      fontWeight: "normal",
+      textAlign: "left",
+    });
+  }
+  return out;
+};
+
 export const visualInsight = (elements) => {
   const imageEl = elements.find((e) => e.role === "image" || e.type === "image");
   const textEls = elements.filter((e) => e !== imageEl);
@@ -521,7 +593,7 @@ export const visualInsight = (elements) => {
       y: imgY,
       width: imgW,
       height: imgH,
-      borderRadius: 32,
+      borderRadius: CONTENT_IMAGE.RIGHT.RADIUS,
       borderWidth: 0,
     });
   }
@@ -619,10 +691,114 @@ export const textFocus = (elements) => {
   return out;
 };
 
+/**
+ * Text-only slides (medium/high): full-width heading + paragraphs, then 5+5 list columns.
+ */
+export const textFocusDense = (elements, ctx = {}) => {
+  const TEMPLATE = "text-focus-dense";
+  const meta = ctx.meta || {};
+  const heading = elements.find((e) => e.role === "heading");
+  const bodyEls = elements.filter((e) => e !== heading && hasVisibleText(e));
+  const { lists, paragraphs } = partitionBodyElements(bodyEls);
+
+  const headingTypo = getTypographyForRole(TEMPLATE, "heading", false, meta);
+  const bodyTypo = getTypographyForRole(TEMPLATE, "body", false, meta);
+  const listTypo = getTypographyForRole(TEMPLATE, "list", false, meta);
+
+  const out = [];
+  const startX = SAFE.X;
+  const fullW = SAFE.WIDTH;
+  let cursorY = SAFE.Y;
+
+  if (heading) {
+    const styled = applyTypography(heading, headingTypo);
+    const headingH = estimateHeadingHeight(styled, fullW, TEMPLATE);
+    out.push({
+      ...styled,
+      x: startX,
+      y: cursorY,
+      width: fullW,
+      height: headingH,
+      textAlign: "center",
+    });
+    cursorY += headingH + GAP.ELEMENT;
+  }
+
+  const maxParas = paragraphs.length > 1 ? 2 : 1;
+  paragraphs.slice(0, maxParas).forEach((el) => {
+    const styled = applyTypography(el, bodyTypo);
+    const remaining = SLIDE_CONTENT_BOTTOM - cursorY;
+    if (remaining < 48) return;
+    const h = Math.min(estimateTextLayerHeight(styled, fullW), Math.max(56, remaining * 0.22));
+    out.push({
+      ...styled,
+      x: startX,
+      y: cursorY,
+      width: fullW,
+      height: h,
+    });
+    cursorY += h + GAP.ELEMENT;
+  });
+
+  const colW = Math.floor((fullW - GAP.COLUMN) / 2);
+  const listAreaTop = cursorY;
+  const listAreaH = SLIDE_CONTENT_BOTTOM - listAreaTop;
+  const leftColX = startX;
+  const rightColX = startX + colW + GAP.COLUMN;
+
+  const distributeLists = () => {
+    if (lists.length >= 2) {
+      return {
+        left: lists.filter((_, i) => i % 2 === 0),
+        right: lists.filter((_, i) => i % 2 === 1),
+      };
+    }
+    if (lists.length === 1) {
+      return { left: [lists[0]], right: [] };
+    }
+    return { left: [], right: [] };
+  };
+
+  const { left: leftLists, right: rightLists } = distributeLists();
+  const totalStacks = Math.max(leftLists.length, rightLists.length, 1);
+  const slotGap = 12;
+  const slotH = Math.max(
+    100,
+    Math.floor((listAreaH - slotGap * Math.max(0, totalStacks - 1)) / totalStacks)
+  );
+
+  const placeColumn = (columnLists, colX) => {
+    let y = listAreaTop;
+    columnLists.forEach((el) => {
+      const styled = applyTypography(el, listTypo);
+      const needed = estimateTextLayerHeight(styled, colW);
+      const h = Math.min(
+        Math.max(needed, slotH * 0.85),
+        slotH,
+        SLIDE_CONTENT_BOTTOM - y - 4
+      );
+      if (h < 40) return;
+      out.push({
+        ...styled,
+        x: colX,
+        y,
+        width: colW,
+        height: h,
+      });
+      y += h + slotGap;
+    });
+  };
+
+  placeColumn(leftLists, leftColX);
+  placeColumn(rightLists, rightColX);
+
+  return out;
+};
+
 // ─────────────────────────────────────────────────────────────
 // TEMPLATE: fallback — plain vertical stack, always safe
 // ─────────────────────────────────────────────────────────────
-export const fallbackStack = (elements) =>
+export const fallbackStack = (elements, _ctx = {}) =>
   stackVertically(elements, SAFE.X, SAFE.Y, SAFE.WIDTH);
 
 // ─────────────────────────────────────────────────────────────
@@ -641,13 +817,17 @@ export const TEMPLATE_MAP = {
   "three-column-icons": threeColumnIcons,
   "comparison":         comparison,
   "hero-image-right":   heroImageRight,
+  "hero-image-left":    heroImageLeft,
   "hero_layout":        heroImageRight,
+  "hero_layout_left":   heroImageLeft,
   "image_right_content_left": imageRight,
   "image_left_content_right": imageLeft,
   "center-stat":        centerStat,
   "center_stat_layout": centerStat,
   "text-focus":         textFocus,
   "text_focus_layout":  textFocus,
+  "text-focus-dense":   textFocusDense,
+  "text_focus_dense":   textFocusDense,
   "visual-insight":     visualInsight,
   "visual_insight_layout": visualInsight,
   "image-focus":        visualInsight,

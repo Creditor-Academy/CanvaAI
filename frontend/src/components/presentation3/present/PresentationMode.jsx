@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import usePresentationStore from "../store/usePresentationStore";
 import SlidePresenter from "./SlidePresenter";
+import { SLIDE } from "../layout/constants";
 
 const PresentationMode = ({ onExit }) => {
     const { slides, activeSlideId } = usePresentationStore();
@@ -70,8 +71,8 @@ const PresentationMode = ({ onExit }) => {
         const calcScale = () => {
             if (!containerRef.current) return;
             const { clientWidth, clientHeight } = containerRef.current;
-            const sW = clientWidth / 960;
-            const sH = clientHeight / 540;
+            const sW = clientWidth / SLIDE.WIDTH;
+            const sH = clientHeight / SLIDE.HEIGHT;
             setScale(Math.min(sW, sH)); // Use full fit
         };
 

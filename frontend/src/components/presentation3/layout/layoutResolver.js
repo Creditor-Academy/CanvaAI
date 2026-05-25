@@ -4,6 +4,7 @@
 
 import { TEMPLATE_MAP } from "./layoutTemplates";
 import { slideShouldHaveImage } from "./layoutStrategyEngine";
+import { pickHeroTemplate, pickContentImageTemplate } from "./layoutMirror";
 
 // ─────────────────────────────────────────────────────────────
 // Auto-detect best layout when AI gave no layout or unknown name
@@ -48,13 +49,16 @@ export const resolveLayout = (layoutName, elements, meta = {}, slideIndex = -1) 
 
   let resolvedName = layoutName;
   if (slideIndex === 0) {
-    resolvedName = wantsHero ? "hero-image-right" : "title-only";
+    resolvedName = wantsHero ? pickHeroTemplate(meta) : "title-only";
   } else {
-    if (textAmount === "high" && !hasImage) {
-      resolvedName = "comparison";
+    const slideCount = Number(meta?.slideCount) || 0;
+    const wantsImageCadence =
+      slideIndex > 0 && slideShouldHaveImage(meta, slideIndex, slideCount);
+
+    if ((textAmount === "medium" || textAmount === "high") && !wantsImageCadence) {
+      resolvedName = "text-focus-dense";
     } else if (textAmount === "low" && hasImage && mediaEnabled) {
-      resolvedName =
-        slideIndex % 2 === 1 ? "content-image-right" : "content-image-left";
+      resolvedName = pickContentImageTemplate(slideIndex, meta);
     } else if (!resolvedName) {
       if (!mediaEnabled) {
         resolvedName = "title-content";
@@ -66,12 +70,13 @@ export const resolveLayout = (layoutName, elements, meta = {}, slideIndex = -1) 
         resolvedName = "content-image-right";
       }
     } else if (
-      hasImage &&
+      wantsImageCadence &&
       mediaEnabled &&
       (resolvedName === "title-content" || resolvedName === "visual-insight")
     ) {
-      resolvedName =
-        slideIndex % 2 === 1 ? "content-image-right" : "content-image-left";
+      resolvedName = pickContentImageTemplate(slideIndex, meta);
+    } else if (wantsImageCadence && mediaEnabled && hasImage) {
+      resolvedName = pickContentImageTemplate(slideIndex, meta);
     }
   }
 
@@ -79,12 +84,12 @@ export const resolveLayout = (layoutName, elements, meta = {}, slideIndex = -1) 
   const templateFn = TEMPLATE_MAP[name] ?? TEMPLATE_MAP[autoDetectLayout(elements)];
 
   try {
-    const positioned = templateFn(elements);
+    const positioned = templateFn(elements, { meta, slideIndex });
     return positioned.map(clampElement);
   } catch (err) {
     console.warn("[layoutResolver] Template threw, applying fallback.", err);
     try {
-      return TEMPLATE_MAP.fallback(elements).map(clampElement);
+      return TEMPLATE_MAP.fallback(elements, { meta, slideIndex }).map(clampElement);
     } catch {
       // Last resort: return elements unchanged so render never crashes
       return elements.map((el, i) =>

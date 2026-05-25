@@ -1,6 +1,7 @@
 import React from "react";
 import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
 import ShapeRenderer from "../components/shapes/ShapeRenderer";
+import { SLIDE } from "../layout/constants";
 
 const FALLBACK_SLATE = [{ type: "paragraph", children: [{ text: "" }] }];
 
@@ -42,8 +43,8 @@ const SlidePresenter = ({ slide, scale }) => {
     return (
         <div
             style={{
-                width: 960,
-                height: 540,
+                width: SLIDE.WIDTH,
+                height: SLIDE.HEIGHT,
                 position: "relative",
                 backgroundColor: slide.background || "#ffffff",
                 backgroundImage: slide.backgroundImage
@@ -78,17 +79,20 @@ const SlidePresenter = ({ slide, scale }) => {
                                 ...commonStyle,
                                 padding: "6px",
                                 boxSizing: "border-box",
+                                overflow: "hidden",
                             }}
                         >
                             <div
                                 style={{
                                     width: "100%",
                                     height: "100%",
+                                    overflow: "hidden",
                                     fontFamily: layer.fontFamily,
                                     fontSize: `${layer.fontSize}px`,
+                                    fontWeight: layer.fontWeight,
                                     textAlign: layer.textAlign,
-                                    color: layer.color || "#ffffff",
-                                    overflowWrap: "anywhere",
+                                    color: layer.color || "#334155",
+                                    overflowWrap: "break-word",
                                     wordBreak: "break-word",
                                     whiteSpace: "normal",
                                     lineHeight: 1.4,
@@ -128,7 +132,7 @@ const SlidePresenter = ({ slide, scale }) => {
                                     style={{
                                         width: "100%",
                                         height: "100%",
-                                        objectFit: "fill",
+                                        objectFit: "cover",
                                         display: "block",
                                     }}
                                 />
