@@ -83,11 +83,28 @@ const processPresentationImages = async (presentationData, userId, serviceId) =>
     return presentationData;
 };
 
+const resolveUserId = (payloadUserId) => {
+    if (payloadUserId) return payloadUserId;
+    try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            return user._id || user.id;
+        }
+    } catch {
+        /* ignore */
+    }
+    return null;
+};
+
 export const savePresentation = async (payload) => {
+    const userId = resolveUserId(payload.userId);
+    const body = { ...payload, userId };
+
     // 1. Initial Save to generate the Presentation ID
     // We cannot process images BEFORE this because we need the 'serviceId' (Presentation ID) 
     // for the S3 folder path logic requested by the user.
-    const saveRes = await axios.post(`${API_URL}/save`, payload, getAuthHeaders());
+    const saveRes = await axios.post(`${API_URL}/save`, body, getAuthHeaders());
     const newPptId = saveRes.data.presentationId || saveRes.data._id;
 
     // 2. Process Images (Temp -> Real) using the new ID
@@ -103,7 +120,7 @@ export const savePresentation = async (payload) => {
 
         if (hasTempImages) {
             console.log("Temp images detected in new presentation. Processing migration...");
-            await processPresentationImages(payload.data, payload.userId, newPptId);
+            await processPresentationImages(payload.data, userId, newPptId);
 
             // 3. Update the presentation with the resolved real URLs
             console.log("Updating new presentation with real image URLs...");
