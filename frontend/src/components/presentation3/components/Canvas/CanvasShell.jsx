@@ -356,7 +356,7 @@ const CanvasShell = () => {
       <div className="max-w-[1000px] w-full mx-auto flex justify-center">
         <div
           ref={slideRef}
-          className="w-full max-w-[900px] aspect-video relative overflow-visible flex-shrink-0  bg-white"
+          className="w-full max-w-[900px] aspect-video relative overflow-hidden flex-shrink-0  bg-white"
           style={{
             backgroundColor: activeSlide.background,
             backgroundImage: activeSlide.backgroundImage
