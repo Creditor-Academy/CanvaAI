@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import PromptSection from './PromptSection';
+import usePresentationFormStore from './usePresentationFormStore';
 import OutlineEditor from './OutlineEditor';
 import { PresentationWorkspace } from '../presentation';
 import { generateOutline } from '../../services/PresentationStudioService';
@@ -14,7 +15,6 @@ const PresentationStudio = ({ onBack }) => {
   const [prompt, setPrompt] = useState('');
   const [tone, setTone] = useState(null);
   const [length, setLength] = useState(null);
-  const [mediaStyle, setMediaStyle] = useState(null);
   const [useBrandStyle, setUseBrandStyle] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [outlineText, setOutlineText] = useState('');
@@ -34,81 +34,119 @@ const PresentationStudio = ({ onBack }) => {
   const [showBalancePopup, setShowBalancePopup] = useState(false);
   const [balancePopupMessage, setBalancePopupMessage] = useState('');
 
+  const normalizeBulletText = (bullet) => {
+    if (bullet == null) return '';
+    if (typeof bullet === 'string') return bullet;
+    if (typeof bullet === 'object') {
+      if (typeof bullet.text === 'string' && bullet.text.trim()) return bullet.text;
+      if (typeof bullet.title === 'string' && bullet.title.trim()) return bullet.title;
+      if (typeof bullet.label === 'string' && bullet.label.trim()) return bullet.label;
+      const composed = [bullet.text, bullet.why, bullet.soWhat]
+        .filter(Boolean)
+        .map(String)
+        .join('\n\n')
+        .trim();
+      if (composed) return composed;
+      return JSON.stringify(bullet);
+    }
+    return String(bullet);
+  };
+
+  const normalizeBulletArray = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map(normalizeBulletText)
+      .filter((item) => item && item.trim().length > 0);
+  };
+
   // Transform backend response to OutlineEditor format
   const transformOutlineResponse = (apiResponse) => {
-    if (!apiResponse || !apiResponse.data || !apiResponse.data.slides) {
+    const responseBody = apiResponse?.data || apiResponse;
+    if (!responseBody || !responseBody.slides) {
       return null;
     }
 
-    const transformedSlides = apiResponse.data.slides.map((slide, index) => {
+    const transformedSlides = responseBody.slides.map((slide, index) => {
+      const rawContent = slide.content;
+      const slideBullets = normalizeBulletArray(slide.bullets || []);
       let content = { mode: 'raw', rawText: '' };
 
-      // Transform content based on contentType
-      if (slide.contentType === 'paragraph') {
-        content = { mode: 'raw', rawText: typeof slide.content === 'string' ? slide.content : String(slide.content || '') };
-      } else if (slide.contentType === 'bullets') {
-        if (Array.isArray(slide.content)) {
-          content = {
-            mode: 'bullets',
-            bullets: slide.content
-          };
-        } else if (typeof slide.content === 'string') {
-          // Convert string to array of bullets
-          content = {
-            mode: 'bullets',
-            bullets: slide.content.split('\n').filter(line => line.trim())
-          };
-        } else {
-          content = { mode: 'raw', rawText: String(slide.content || '') };
+      const extractRawText = (value) => {
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object' && value !== null) {
+          if (typeof value.rawText === 'string') return value.rawText;
+          if (value.text || value.why || value.soWhat) return normalizeBulletText(value);
+          return JSON.stringify(value);
         }
-      } else if (slide.contentType === 'comparison') {
-        if (typeof slide.content === 'object' && slide.content !== null && !Array.isArray(slide.content)) {
+        return String(value || '');
+      };
+
+      if (typeof rawContent === 'object' && rawContent !== null) {
+        if (rawContent.mode === 'raw') {
+          content = {
+            mode: 'raw',
+            rawText: extractRawText(rawContent)
+          };
+        } else if (rawContent.mode === 'bullets') {
+          content = {
+            mode: 'bullets',
+            bullets: normalizeBulletArray(rawContent.bullets || slideBullets)
+          };
+        } else if (rawContent.mode === 'comparison') {
           content = {
             mode: 'comparison',
-            left: Array.isArray(slide.content.left) ? slide.content.left : [],
-            right: Array.isArray(slide.content.right) ? slide.content.right : []
+            left: normalizeBulletArray(rawContent.left),
+            right: normalizeBulletArray(rawContent.right)
+          };
+        } else if (Array.isArray(rawContent.bullets)) {
+          content = {
+            mode: 'bullets',
+            bullets: normalizeBulletArray(rawContent.bullets)
+          };
+        } else if (rawContent.text || rawContent.why || rawContent.soWhat) {
+          content = {
+            mode: 'raw',
+            rawText: normalizeBulletText(rawContent)
           };
         } else {
-          content = { mode: 'raw', rawText: String(slide.content || '') };
+          content = {
+            mode: 'raw',
+            rawText: extractRawText(rawContent)
+          };
         }
-      } else {
-        // Fallback: try to determine content type from content structure
-        if (typeof slide.content === 'string') {
-          content = { mode: 'raw', rawText: slide.content };
-        } else if (Array.isArray(slide.content)) {
-          content = { mode: 'bullets', bullets: slide.bullets };
-        } else if (typeof slide.content === 'object' && slide.content !== null) {
-          if (slide.content.left && slide.content.right) {
-            content = {
-              mode: 'comparison',
-              left: Array.isArray(slide.content.left) ? slide.content.left : [],
-              right: Array.isArray(slide.content.right) ? slide.content.right : []
-            };
-          } else {
-            content = { mode: 'raw', rawText: JSON.stringify(slide.content) };
-          }
-        }
+      } else if (Array.isArray(rawContent)) {
+        content = {
+          mode: 'bullets',
+          bullets: normalizeBulletArray(rawContent)
+        };
+      } else if (typeof rawContent === 'string') {
+        content = {
+          mode: 'raw',
+          rawText: rawContent
+        };
       }
 
+      const bullets = content.mode === 'bullets' ? content.bullets : slideBullets;
+
       return {
-        bullets: slide.bullets || (content.mode === 'bullets' ? content.bullets : []),
+        bullets,
         slideId: `slide-${slide.slideNo || index + 1}`,
         slideNo: slide.slideNo || index + 1,
-        source: 'ai',
+        source: slide.source || 'ai',
         title: slide.title || '',
-        content: content,
+        content,
         layout: slide.layout || 'content',
-        contentType: slide.contentType || 'paragraph'
+        contentType: slide.contentType || (content.mode === 'bullets' ? 'bullets' : 'paragraph')
       };
     });
 
     return {
-      presentationId: apiResponse.presentationId,
-      meta: apiResponse.data.meta || {},
-      topic: apiResponse.data.meta?.topic || prompt,
-      tone: apiResponse.data.meta?.tone || tone,
-      length: apiResponse.data.meta?.slideCount || length,
-      mediaStyle: mediaStyle,
+      presentationId: responseBody.presentationId,
+      meta: responseBody.meta || {},
+      topic: responseBody.topic || responseBody.meta?.topic || prompt,
+      tone: responseBody.tone || responseBody.meta?.tone || tone,
+      length: responseBody.length || responseBody.meta?.slideCount || length,
+      mediaStyle: responseBody.mediaStyle || responseBody.meta?.media?.style || 'realistic',
       slides: transformedSlides
     };
   };
@@ -145,12 +183,6 @@ const PresentationStudio = ({ onBack }) => {
 
 
 
-  const [selectedTheme, setSelectedTheme] = useState(null);
-  const [imageStyle, setImageStyle] = useState(null);
-
-  // Stores the exact meta object sent with get-presentation-outline
-  const [metaState, setMetaState] = useState(null);
-
   // Step 1: Generate Outline
   const handleGenerateOutline = async (payload) => {
     if (!payload?.topic?.trim()) return;
@@ -161,7 +193,6 @@ const PresentationStudio = ({ onBack }) => {
 
     // Capture the exact meta object before the API call
     const capturedMeta = payload.meta || null;
-    setMetaState(capturedMeta);
 
     let stopFakeProgress = null;
     try {
@@ -181,7 +212,11 @@ const PresentationStudio = ({ onBack }) => {
 
       // 🔥 EXACT moment loader hits 100 → screen change
       // Embed originalMeta so OutlineEditor forwards it unchanged to finalize-ppt
-      setOutlineData({ ...transformedOutline, originalMeta: capturedMeta });
+      setOutlineData({
+        ...transformedOutline,
+        meta: response?.data?.meta || capturedMeta || {},
+        originalMeta: capturedMeta,
+      });
 
     } catch (error) {
       stopFakeProgress?.();
@@ -221,7 +256,7 @@ const PresentationStudio = ({ onBack }) => {
     setPrompt('');
     setTone(null);
     setLength(null);
-    setMediaStyle(null);
+    usePresentationFormStore.getState().resetForm();
     setUseBrandStyle(false);
     setOutlineText('');
     setError(null);
@@ -298,12 +333,6 @@ const PresentationStudio = ({ onBack }) => {
           setTone={setTone}
           length={length}
           setLength={setLength}
-          mediaStyle={mediaStyle}
-          setMediaStyle={setMediaStyle}
-          imageStyle={imageStyle}
-          setImageStyle={setImageStyle}
-          selectedTheme={selectedTheme}
-          setSelectedTheme={setSelectedTheme}
           useBrandStyle={useBrandStyle}
           setUseBrandStyle={setUseBrandStyle}
           showAdvanced={showAdvanced}

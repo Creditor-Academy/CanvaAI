@@ -80,7 +80,7 @@ export const useAutoSave = () => {
       presentationId: currentState.presentationId,
       hasUnsavedChanges: currentState.hasUnsavedChanges,
       isSaving: isSavingRef.current,
-      userId: currentUser?._id,
+      userId: currentUser?._id || currentUser?.id,
     });
 
     // Safety checks
@@ -105,7 +105,7 @@ export const useAutoSave = () => {
 
     try {
       const payload = {
-        userId: currentUser?._id,
+        userId: currentUser?._id || currentUser?.id,
         title: currentState.title || "Untitled Presentation",
         data: {
           slides: currentState.slides,

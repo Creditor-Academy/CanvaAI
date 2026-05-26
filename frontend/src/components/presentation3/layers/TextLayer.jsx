@@ -27,6 +27,9 @@ const TextLayer = ({ layer, isEditing }) => {
       (layer.content.length === 1 &&
         layer.content[0]?.children?.[0]?.text === ""));
 
+  // Check if this is a heading/title layer
+  const isHeading = layer.role === "heading" || layer.role === "title";
+
   const containerStyle = {
     width: "100%",
     height: "100%",
@@ -44,6 +47,7 @@ const TextLayer = ({ layer, isEditing }) => {
     fontSize: `${layer.fontSize}px`,
     textAlign: layer.textAlign,
     color: layer.color || "#ffffff",
+    ...(isHeading && { textTransform: "uppercase" }),
   };
 
   if (isEditing) {

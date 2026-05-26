@@ -250,6 +250,8 @@ const SlideCard = ({ slide, index, isLarge = false }) => {
         const w = (layer.width / REF_WIDTH) * 100;
         const h = (layer.height / (REF_WIDTH * 0.5625)) * 100;
 
+        const isHeading = layer.role === "heading" || layer.role === "title";
+
         const style = {
             position: 'absolute',
             left: `${x}%`,
@@ -262,6 +264,7 @@ const SlideCard = ({ slide, index, isLarge = false }) => {
             transform: `rotate(${layer.rotation || 0}deg)`,
             pointerEvents: 'none',
             zIndex: 10,
+            ...(isHeading && { textTransform: "uppercase" }),
         };
 
         return (

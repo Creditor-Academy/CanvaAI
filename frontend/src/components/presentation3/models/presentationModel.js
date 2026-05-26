@@ -1,5 +1,8 @@
 import { nanoid } from 'nanoid';
 
+/** Fit entire image inside the layer box — no cropping (may letterbox). */
+export const PRESENTATION_IMAGE_OBJECT_FIT = "contain";
+
 export const createShapeLayer = (shapeType) => ({
   id: nanoid(),
   type: "shape",

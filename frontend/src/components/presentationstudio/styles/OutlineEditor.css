@@ -115,12 +115,21 @@
   width: 100%;
   padding: 14px;
   font-size: 15px;
+  line-height: 1.65;
   border: none;
   border-radius: 10px;
-  min-height: 140px;
+  min-height: 56px;
   background: transparent;
-  transition: all .18s ease;
-  resize: vertical;
+  transition: background .18s ease, box-shadow .18s ease;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.outline-editor-textarea-bullets {
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .outline-editor-input:hover,
@@ -168,10 +177,16 @@
   opacity: 1;
 }
 
-.outline-editor-textarea {
-  overflow: hidden;
+.outline-editor-char-count {
+  text-align: right;
+  font-size: 12px;
+  margin-top: 4px;
+  color: #888;
 }
 
+.outline-editor-char-count--limit {
+  color: #e53e3e;
+}
 
 .slide-insert-btn {
   position: absolute;
@@ -207,11 +222,6 @@
   box-shadow: 0 6px 14px rgba(124, 58, 237, .35);
 }
 
-
-.outline-editor-textarea {
-  resize: vertical;
-  min-height: 100px;
-}
 
 .outline-editor-actions {
   display: flex;
@@ -286,21 +296,3 @@
   transform: none;
 }
 
-
-.outline-editor-bullets-container {
-  margin-top: 1rem;
-  padding: 0 14px;
-}
-
-.outline-editor-bullets-list {
-  margin-top: 0.5rem;
-  padding-left: 1.5rem;
-  list-style-type: disc;
-}
-
-.outline-editor-bullet-item {
-  font-size: 14px;
-  color: #475569;
-  line-height: 1.6;
-  margin-bottom: 0.4rem;
-}

@@ -13,6 +13,29 @@
 //     → auto-save hook                (persist with layoutProcessed flag)
 
 import { buildLayoutFromAIResponse, buildLayoutFromAISlide } from "../../../services/ai/aiLayoutService";
+import { resolvePresentationTitle } from "../../../utils/presentationTitle";
+import { applyLayoutToPresentation } from "../layout/layoutEngine";
+
+/**
+ * Simple processor wrapper that applies the layout engine to a full AI response.
+ * This is the ONLY place where the layout engine should be invoked for full responses.
+ */
+export const processAIGeneration = (aiResponse) => {
+  try {
+    if (!aiResponse || typeof aiResponse !== "object") {
+      console.error("[processAIGeneration] Invalid AI response");
+      return [];
+    }
+
+    // 🔥 CORE STEP: Apply layout engine
+    const slides = applyLayoutToPresentation(aiResponse);
+
+    return slides;
+  } catch (error) {
+    console.error("[processAIGeneration] Failed:", error);
+    return [];
+  }
+};
 
 /**
  * Process a full AI-generated presentation and load it into the store.
@@ -23,14 +46,21 @@ import { buildLayoutFromAIResponse, buildLayoutFromAISlide } from "../../../serv
  */
 export const processFullAIPresentation = (rawResponse, { setPresentation, setTitle }) => {
   try {
-    const { title, slides } = buildLayoutFromAIResponse(rawResponse);
+    const { title: parsedTitle, slides } = buildLayoutFromAIResponse(rawResponse);
+    const meta = rawResponse?.meta || rawResponse?.data?.meta;
+    const topic = rawResponse?.topic || meta?.topic;
+    const title = resolvePresentationTitle({
+      topic,
+      meta,
+      apiTitle: parsedTitle,
+    });
 
     if (!slides || slides.length === 0) {
       console.warn("[processAIGeneration] No slides produced from AI response.");
       return false;
     }
 
-    if (setTitle)        setTitle(title);
+    if (setTitle) setTitle(title);
     if (setPresentation) setPresentation({ slides, title });
     return true;
   } catch (err) {

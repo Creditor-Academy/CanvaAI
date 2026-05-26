@@ -2,7 +2,16 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { createShapeLayer, createImageLayer } from "../models/presentationModel";
 import useHistoryStore from "./useHistoryStore";
-import { convertTextToSlate, createInitialValue } from "../editors/slate/slateHelpers";
+import {
+  convertTextToSlate,
+  createInitialValue,
+  normalizeSlateListContent,
+} from "../editors/slate/slateHelpers";
+import { reapplyPresentationLayout } from "../layout/reapplyLayout";
+import {
+  patchContentImageSlide,
+  patchHeroImageLeftSlide,
+} from "../layout/layoutContentImageSync";
 
 // Module-level set — tracks slides that were just created by AI and need one-time auto-stack.
 // Not persisted to the store state so it is never saved to the database.
@@ -185,12 +194,14 @@ export function normalizeAILayer(layer) {
     return layer;
   }
 
-  const hasList = layer.content.some(
+  const contentWithLists = normalizeSlateListContent(layer.content);
+
+  const hasList = contentWithLists.some(
     (node) => node?.type === "bulleted-list" || node?.type === "numbered-list"
   );
 
   if (!hasList) {
-    return layer;
+    return { ...layer, content: contentWithLists };
   }
 
   const cleanNode = (node) => {
@@ -226,7 +237,7 @@ export function normalizeAILayer(layer) {
 
   return {
     ...layer,
-    content: layer.content.map(cleanNode).filter((node) => node !== null),
+    content: contentWithLists.map(cleanNode).filter((node) => node !== null),
   };
 }
 
@@ -347,6 +358,10 @@ const normalizeSlide = (slide, forceNewId = false) => {
     return {
       ...slide,
       id: forceNewId ? nanoid() : (slide.id || nanoid()),
+      layers: (slide.layers || []).map((layer) => {
+        if (layer.type !== "text" || !Array.isArray(layer.content)) return layer;
+        return normalizeAILayer(layer);
+      }),
     };
   }
 
@@ -502,7 +517,29 @@ const usePresentationStore = create((set, get) => {
     ========================= */
     setPresentation: (data) => {
       const rawSlides = data.slides || (data.data && data.data.slides) || [];
-      const slides = rawSlides.map((slide) => normalizeSlide(slide));
+      const meta = data.meta || data.data?.meta || {};
+      const slideCount = rawSlides.length;
+      let slides = rawSlides.map((slide, index) => {
+        const normalized = normalizeSlide(slide);
+        const heroPatched = patchHeroImageLeftSlide(normalized);
+        return patchContentImageSlide(heroPatched, index, meta, slideCount);
+      });
+
+      const slideNeedsRelayout = (slide) => {
+        const image = (slide.layers || []).find((l) => l.type === "image");
+        if (!image) return false;
+        const w = Number(image.width) || 0;
+        const h = Number(image.height) || 0;
+        if (w > 600 && h < 380) return true;
+        if (slide.layoutTemplate === "hero-image-right" && w > 500) return true;
+        return false;
+      };
+
+      if (slides.some(slideNeedsRelayout) && slides.length > 0) {
+        slides = reapplyPresentationLayout({ slides, meta }).map((s) =>
+          normalizeSlide(s)
+        );
+      }
 
       const id =
         data.presentationId ||

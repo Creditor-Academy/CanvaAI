@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         FRONTEND_DIR = "frontend"
-        DEPLOY_PATH = "/var/www/CanvaAI/frontend/dist"
+        DEPLOY_PATH = "/var/www/canvaai"
     }
 
     stages {
@@ -72,7 +72,11 @@ STEP: Deploying Build Files
                 dir("${FRONTEND_DIR}") {
                     sh '''
                     sudo mkdir -p ${DEPLOY_PATH}
-                    sudo rsync -av --delete dist/ ${DEPLOY_PATH}/ || {
+                    sudo chown -R jenkins:jenkins ${DEPLOY_PATH}
+                    sudo chmod -R 755 ${DEPLOY_PATH}
+                    sudo rm -rf ${DEPLOY_PATH}/*
+
+                    sudo cp -r dist/* ${DEPLOY_PATH}/ || {
                         echo ""
                         echo "PROBLEM"
                         echo "______________________________"
@@ -81,12 +85,10 @@ STEP: Deploying Build Files
                         echo ""
                         echo "CHECK"
                         echo "______________________________"
-                        echo "dist folder / rsync / server path permission"
+                        echo "dist folder / file copy / server path permission"
                         echo "______________________________"
                         exit 1
                     }
-                    sudo chown -R www-data:www-data ${DEPLOY_PATH}
-                    sudo chmod -R 755 ${DEPLOY_PATH}
                     '''
                 }
             }

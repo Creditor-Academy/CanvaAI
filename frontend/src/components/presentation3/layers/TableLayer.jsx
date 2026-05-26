@@ -59,15 +59,18 @@ const TableLayer = ({ layer }) => {
     return (
         <div
             style={{
-                width: "100%",
-                height: "100%",
-                display: "grid",
-                gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                gridTemplateRows: `repeat(${rows}, 1fr)`,
-                border: `${borderWidth}px solid ${borderColor}`,
-                boxSizing: "border-box",
-                backgroundColor: layer.tableBgColor || "transparent",
-            }}
+                    position: "absolute",
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                    gridTemplateRows: `repeat(${rows}, 1fr)`,
+                    border: `${borderWidth}px solid ${borderColor}`,
+                    boxSizing: "border-box",
+                    backgroundColor: layer.tableBgColor || "transparent",
+                }}
         >
             {safeGrid.map((row, r) => {
                 const safeRow = Array.isArray(row) ? row : Array.from({ length: cols }, () => null);

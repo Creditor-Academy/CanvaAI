@@ -18,7 +18,7 @@ const DashboardLayout = () => {
             {!isFullScreenRoute && <SideBar />}
 
             {/* Main Content Wrapper */}
-            <div className="relative flex flex-1 flex-col bg-white rounded-2xl mt-2 md:mt-2 overflow-hidden">
+            <div className="relative flex flex-1 flex-col bg-white rounded-2xl mt-2 md:mt-2 overflow-hidden shadow-sm border border-slate-200/80 backdrop-blur-md hover:shadow-lg transition-all duration-300 hover:border-slate-200/90">
 
                 {/* Gradient */}
                 <div

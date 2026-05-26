@@ -63,7 +63,19 @@ const renderNode = (node, i) => {
 
 const MiniSlateRenderer = ({ value }) => {
     if (!value || !Array.isArray(value)) return null;
-    return <>{value.map((node, i) => renderNode(node, i))}</>;
+    // Lazy import avoided — duplicate minimal normalizer inline for thumbnails
+    const normalized = value.map((node) => {
+        if (node?.type !== "bulleted-list" && node?.type !== "numbered-list") return node;
+        const children = (node.children || []).map((child) =>
+            child?.type === "list-item"
+                ? child
+                : child?.text !== undefined
+                  ? { type: "list-item", children: [child] }
+                  : child
+        );
+        return { ...node, children };
+    });
+    return <>{normalized.map((node, i) => renderNode(node, i))}</>;
 };
 
 /* ─── Layer renderers ─── */

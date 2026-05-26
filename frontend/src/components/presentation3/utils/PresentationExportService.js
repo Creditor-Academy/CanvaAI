@@ -2,8 +2,10 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import pptxgen from 'pptxgenjs';
 
-const SLIDE_WIDTH = 960;
-const SLIDE_HEIGHT = 540;
+import { SLIDE } from "../layout/constants";
+
+const SLIDE_WIDTH = SLIDE.WIDTH;
+const SLIDE_HEIGHT = SLIDE.HEIGHT;
 
 /**
  * PDF Export logic:
