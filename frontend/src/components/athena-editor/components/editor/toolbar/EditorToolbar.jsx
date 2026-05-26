@@ -228,10 +228,16 @@ import { scrollLockManager } from '../../../utils/scrollLockManager';
 import focusUtils from '../focusUtils';
 
 // Destructure functions from default export for backward compatibility
-const { guardToolbarMouseDown, runWithSavedSelection, preventEditorBlur, saveSelection, onMenuOpen, onMenuClose } = focusUtils;
+const {
+  guardToolbarMouseDown,
+  runWithSavedSelection,
+  preventEditorBlur,
+  saveSelection,
+  onMenuOpen,
+  onMenuClose,
+} = focusUtils;
 import { useKeyboardShortcuts } from '../useKeyboardShortcuts';
 const _CommentsPanel = lazy(() => import('../CommentsPanel').then(m => ({ default: m.CommentsPanel })));
-const _VersionHistory = lazy(() => import('../VersionHistory').then(m => ({ default: m.VersionHistory })));
 // import { VoiceTyping as _VoiceTyping } from '../VoiceTyping';
 const _PageSetupDialog = lazy(() => import('../PageSetupDialog').then(m => ({ default: m.PageSetupDialog })));
 const _KeyboardShortcutsDialog = lazy(() => import('../KeyboardShortcutsDialog').then(m => ({ default: m.KeyboardShortcutsDialog })));
@@ -244,7 +250,6 @@ const _WordCountDialog = lazy(() => import('../WordCountDialog').then(m => ({ de
 // Safety: if any module exports an object instead of a component function, render null
 const _safe = (C) => (C ? C : () => null);
 const CommentsPanel = _safe(_CommentsPanel);
-const VersionHistory = _safe(_VersionHistory);
 // const VoiceTyping = _safe(_VoiceTyping);
 const PageSetupDialog = _safe(_PageSetupDialog);
 const KeyboardShortcutsDialog = _safe(_KeyboardShortcutsDialog);
@@ -318,7 +323,7 @@ const CODE_LANGUAGES = [
 const ToolbarButton = ({
   editor,
   onClick,
-  isActive = false,
+  isActive = undefined,
   disabled = false,
   tooltip,
   children,
@@ -388,7 +393,12 @@ export const EditorToolbar = ({
   // Legacy alias accepted from parent via onSetContentInert prop
   onSetContentInert,
   setShowImportModal,
-  className
+  className,
+  // Version history — document data and callbacks live in the parent (TextEditor)
+  docId,
+  documentVersions = [],
+  saveCurrentVersion,
+  restoreVersion,
 }) => {
   // Resolve setContentInert from whichever prop name the parent passes.
   // Fallback to no-op so calls never throw even if neither is provided.
@@ -526,7 +536,6 @@ export const EditorToolbar = ({
   // New feature panel states
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [restoreTarget, setRestoreTarget] = useState(null); // 🔥 For version restore confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // 🔥 For document delete confirmation
   // const [showVoiceTyping, setShowVoiceTyping] = useState(false);
   const [showPageSetup, setShowPageSetup] = useState(false);
@@ -537,7 +546,6 @@ export const EditorToolbar = ({
   const [replaceText, setReplaceText] = useState('');
   const [lineSpacingMenuOpen, setLineSpacingMenuOpen] = useState(false);
   const [pageMargins, setPageMargins] = useState({ top: 4, bottom: 4, left: 72, right: 72 }); // ✅ ULTRA TIGHT: 4px top/bottom, 0.75" sides
-  const [documentVersions, setDocumentVersions] = useState([]);
   const [showInsertLink, setShowInsertLink] = useState(false);
   const [linkDisplayText, setLinkDisplayText] = useState('');
   const [savedSelection, setSavedSelection] = useState(null); // Save selection when dialog opens
@@ -1125,6 +1133,23 @@ export const EditorToolbar = ({
   const handlePrint = () => {
     // Calling browser print directly now that @media print CSS is optimized
     window.print();
+  };
+
+  // ── History actions ────────────────────────────────────────────────────────
+  // These were referenced in the undo/redo toolbar buttons but never defined,
+  // causing a ReferenceError that crashed the entire toolbar on every render
+  // and prevented HeaderMenuBar dropdowns from opening.
+  const handleUndoAction = () => {
+     if (editor?.commands?.undo) {
+    editor.chain().focus().undo().run();
+  }
+
+  };
+
+  const handleRedoAction = () => {
+     if (editor?.commands?.redo) {
+    editor.chain().focus().redo().run();
+  }
   };
 
   // 🔥 CRITICAL FIX: Upload image to backend first, insert URL (not base64)
@@ -1784,7 +1809,7 @@ export const EditorToolbar = ({
             // 
             // SOLUTION: Convert markdown to HTML with marked, then sanitize with DOMPurify
             const html = DOMPurify.sanitize(marked.parse(full));
-            runWithSavedSelection(editor, (chain) => chain.setContent(html));
+            editor.commands.setContent(html, false);
           },
           { signal: controller.signal }
         );
@@ -2220,96 +2245,6 @@ export const EditorToolbar = ({
   // VERSION MANAGEMENT
   // ========================
   // 🔥 CRITICAL FIX: Store only metadata in React state — full content stays on backend
-  // 
-  // PROBLEM: editor.getHTML() is stored as version.content in the documentVersions state
-  // array. For a 10-page document this is 200–500 KB of HTML per version. After 10 saves
-  // the component holds 2–5 MB in React state — allocated on the JS heap, serialised through
-  // React's reconciler on every render, and never freed (versions are never evicted). This
-  // causes progressive memory growth and GC pauses during typing.
-  //
-  // SOLUTION: Store a compact snapshot — title + timestamp + word count + diff hint
-  // Full content stays on the backend, fetched only when user restores a version
-
-  // 🔥 CRITICAL FIX: Version restore with confirmation and proper undo history
-  // 
-  // PROBLEM: editor.commands.setContent(version.content) replaces entire document and clears
-  // undo history by default. Wrapped in requestAnimationFrame, it runs asynchronously — if user
-  // types before frame fires, their keystroke is in history but undo base is now restored doc,
-  // creating corrupted history stack. No confirmation before overwriting live work.
-  // Also, version.content is no longer stored in state - must fetch from backend.
-  //
-  // SOLUTION: Fetch content from backend, use Dialog for confirmation, preserve undo history
-  const restoreVersion = async (version) => {
-    if (!editor || !version?.id) return;
-
-    try {
-      // 🔥 Fetch full content from backend (not stored in React state anymore)
-      const versionData = await TextEditorService.getVersionById(docIdRef.current, version.id);
-
-      // Merge metadata with fetched content
-      const versionWithContent = {
-        ...version,
-        content: versionData.content || versionData.data?.content,
-        title: versionData.title || version.title,
-      };
-
-      // Show confirmation dialog before overwriting current work
-      setRestoreTarget(versionWithContent);
-    } catch (error) {
-      console.error('Failed to fetch version content:', error);
-      toast.error('Failed to load version: ' + error.message);
-    }
-  };
-
-  const confirmRestore = async () => {
-    if (!editor || !restoreTarget?.content) return;
-
-    try {
-      // 🔥 CRITICAL FIX: Actually save current state before restoring (no false promises!)
-      // Step 1: Auto-save current content as a new version
-      const currentContent = editor.getHTML();
-      const currentTimestamp = new Date();
-
-      // Create a snapshot version before restore
-      await saveCurrentVersion({
-        autoSave: true,
-        reason: `Auto-saved before restoring "${restoreTarget.title}"`
-      });
-
-      toast.success('Current version saved');
-
-      // Wait a moment to ensure save completes
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Step 2: Now restore the selected version with proper undo history
-      // Capture current state again (in case it changed during save)
-      const snapshotBeforeRestore = editor.getHTML();
-
-      // Set target content WITHOUT adding to history initially
-      editor.commands.setContent(restoreTarget.content, false);
-
-      // Push the pre-restore state as a history step so Ctrl+Z works
-      editor.commands.setContent(snapshotBeforeRestore, false);
-
-      // Now set the target content WITH history - creates clean undo point
-      editor.commands.setContent(restoreTarget.content, true);
-
-      toast.success(`✅ Restored version "${restoreTarget.title}" from ${restoreTarget.timestamp?.toLocaleString()}`);
-
-      // Clear restore target and close history dialog
-      setRestoreTarget(null);
-      setShowVersionHistory(false);
-    } catch (error) {
-      console.error('❌ Failed to restore version:', error);
-      toast.error('Failed to restore version. Please try again.');
-      setRestoreTarget(null);
-    }
-  };
-
-  const cancelRestore = () => {
-    setRestoreTarget(null);
-  };
-
   // 🔥 CRITICAL FIX: Document deletion with confirmation and backend sync
   // 
   // PROBLEM: editor.commands.clearContent() empties editor locally but document remains in MongoDB.
@@ -2464,7 +2399,8 @@ export const EditorToolbar = ({
           }
         },
         { label: 'Delete Document', icon: Trash2, action: handleDeleteDocument },
-        { label: 'Restore Document', icon: RotateCcw, action: () => setShowVersionHistory(true) },
+        { type: 'separator' },
+        { label: 'Version History', icon: History, action: () => setShowVersionHistory(true) },
         { type: 'separator' },
         { label: 'Document Templates', icon: FileText, action: () => toast.info('Template selection dialog') },
         { label: 'Document Settings', icon: Settings, action: () => toast.info('Document settings dialog') },
@@ -2473,9 +2409,6 @@ export const EditorToolbar = ({
     {
       label: 'Edit',
       items: [
-        { label: 'Undo', icon: Undo, shortcut: 'Ctrl+Z', action: () => editor.chain().focus().undo().run() },
-        { label: 'Redo', icon: Redo, shortcut: 'Ctrl+Y', action: () => editor.chain().focus().redo().run() },
-        { type: 'separator' },
         { label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X', action: () => handleEditAction('cut', editor, null, handleCopy, handlePaste) },
         {
           label: 'Copy', icon: Copy, shortcut: 'Ctrl+C', action: () => handleCopy()
@@ -2801,7 +2734,6 @@ export const EditorToolbar = ({
         { label: 'Find', icon: Search, shortcut: 'Ctrl+F', action: () => setShowSearch(true) },
         { type: 'separator' },
         { label: 'Page Setup', icon: Ruler, action: () => setShowPageSetup(true) },
-        { label: 'Version History', icon: History, action: () => { saveCurrentVersion(); setShowVersionHistory(true); } },
         { label: 'Comments', icon: MessageSquare, action: () => setShowCommentsPanel(!showCommentsPanel) },
         { type: 'separator' },
         { label: 'Text Direction: LTR', icon: AlignLeft, action: () => setTextDir('ltr') },
@@ -2860,11 +2792,10 @@ export const EditorToolbar = ({
             <DropdownMenuTrigger asChild>
               <Button
                 onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Cache current selection for later restoration
+                  // CRITICAL FIX: Do NOT call e.preventDefault() or e.stopPropagation() here.
+                  // Radix needs the full pointer event sequence (mousedown → mouseup → click)
+                  // to toggle open state. preventDefault kills that sequence.
                   try { saveSelection(editor); } catch { }
-                  // Signal toolbar interaction to prevent auto-scroll
                   window.isToolbarInteraction = true;
                   window.wasToolbarInteractionRecent = true;
                   setTimeout(() => {
@@ -2984,12 +2915,16 @@ export const EditorToolbar = ({
       style={{ zIndex: 40 }} // Base toolbar container - dropdowns will be higher
       onMouseDown={(e) => {
         const t = e.target;
-        if (t && (t.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]'))) return;
+        // Skip Radix trigger/menu elements — guardToolbarMouseDown calls preventDefault
+        // which would block Radix from opening dropdowns if fired on a trigger button.
+        if (t && t.closest('[aria-haspopup],[aria-expanded],[data-radix-collection-item],[role="menuitem"],[role="option"]')) return;
+        if (t && t.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]')) return;
         guardToolbarMouseDown(e, editor);
       }}
       onPointerDown={(e) => {
         const t = e.target;
-        if (t && (t.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]'))) return;
+        if (t && t.closest('[aria-haspopup],[aria-expanded],[data-radix-collection-item],[role="menuitem"],[role="option"]')) return;
+        if (t && t.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]')) return;
         guardToolbarMouseDown(e, editor);
       }}
     >
@@ -3002,22 +2937,30 @@ export const EditorToolbar = ({
       <div
         className="flex items-center px-4 py-0.5 gap-1.5 overflow-x-auto"
         style={{ contain: 'layout' }}
-        onMouseDown={(e) => guardToolbarMouseDown(e, editor)}
-        onPointerDown={(e) => guardToolbarMouseDown(e, editor)}
+        onMouseDown={(e) => {
+          const t = e.target;
+          if (t && t.closest('[aria-haspopup],[aria-expanded],[data-radix-collection-item],[role="menuitem"],[role="option"]')) return;
+          guardToolbarMouseDown(e, editor);
+        }}
+        onPointerDown={(e) => {
+          const t = e.target;
+          if (t && t.closest('[aria-haspopup],[aria-expanded],[data-radix-collection-item],[role="menuitem"],[role="option"]')) return;
+          guardToolbarMouseDown(e, editor);
+        }}
       >
         {/* History Controls */}
         <ToolbarButton
           editor={editor}
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
+          onClick={handleUndoAction}
+          disabled={!editor.can().undo?.()}
           className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Undo className="w-4 h-4 text-blue-600" />
         </ToolbarButton>
         <ToolbarButton
           editor={editor}
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
+          onClick={handleRedoAction}
+          disabled={!editor.can().redo?.()}
           className="rounded-lg bg-linear-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-600 border border-blue-200 transition-all duration-300"
         >
           <Redo className="w-4 h-4 text-blue-600" />
@@ -3040,7 +2983,7 @@ export const EditorToolbar = ({
           }}
           onValueChange={(value) => setFontFamily(value)}
         >
-          <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-[110px] hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors truncate">
+          <SelectTrigger onMouseDown={(e) => { try { saveSelection(editor); } catch { } }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-[110px] hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors truncate">
             <SelectValue placeholder="Font" />
           </SelectTrigger>
           <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white w-[110px]">
@@ -3066,7 +3009,7 @@ export const EditorToolbar = ({
           }}
           onValueChange={(value) => setCurrentFontSize(parseInt(value))}
         >
-          <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-16 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
+          <SelectTrigger onMouseDown={(e) => { try { saveSelection(editor); } catch { } }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 w-16 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
             <SelectValue placeholder="Size" />
           </SelectTrigger>
           <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white">
@@ -3096,7 +3039,7 @@ export const EditorToolbar = ({
               handleHeadingChange(parseInt(value));
             }}
           >
-            <SelectTrigger onMouseDown={(e) => { preventEditorBlur(e); }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 min-w-0 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
+            <SelectTrigger onMouseDown={(e) => { try { saveSelection(editor); } catch { } }} className="text-xs bg-[#f4f8ff] text-gray-700 rounded-full px-2 h-8 min-w-0 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-200 shadow-sm transition-colors">
               <SelectValue placeholder="Heading" />
             </SelectTrigger>
             <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="rounded-md border-slate-200 shadow-xl bg-white">
@@ -3153,7 +3096,7 @@ export const EditorToolbar = ({
         <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Text Color Dropdown */}
-        <DropdownMenu modal={false} onOpenChange={(open) => {
+        <DropdownMenu modal={true} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
             setContentInert(open);
@@ -3167,10 +3110,8 @@ export const EditorToolbar = ({
               variant="ghost"
               size="icon"
               onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                // Do NOT preventDefault — Radix needs pointer events intact to open
                 try { saveSelection(editor); } catch { }
-                // Signal toolbar interaction to prevent auto-scroll
                 window.isToolbarInteraction = true;
                 window.wasToolbarInteractionRecent = true;
                 setTimeout(() => {
@@ -3345,7 +3286,7 @@ export const EditorToolbar = ({
         </DropdownMenu>
 
         {/* Highlight Color Dropdown */}
-        <DropdownMenu modal={false} onOpenChange={(open) => {
+        <DropdownMenu modal={true} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
             setContentInert(open);
@@ -3359,10 +3300,8 @@ export const EditorToolbar = ({
               variant="ghost"
               size="icon"
               onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                // Do NOT preventDefault — Radix needs pointer events intact to open
                 try { saveSelection(editor); } catch { }
-                // Signal toolbar interaction to prevent auto-scroll
                 window.isToolbarInteraction = true;
                 window.wasToolbarInteractionRecent = true;
                 setTimeout(() => {
@@ -3515,7 +3454,7 @@ export const EditorToolbar = ({
         <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Lists Dropdown */}
-        <DropdownMenu modal={false} onOpenChange={(open) => {
+        <DropdownMenu modal={true} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
             setContentInert(open);
@@ -3529,10 +3468,8 @@ export const EditorToolbar = ({
               variant="ghost"
               size="icon"
               onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                // Do NOT preventDefault — Radix needs pointer events intact to open
                 try { saveSelection(editor); } catch { }
-                // Signal toolbar interaction to prevent auto-scroll
                 window.isToolbarInteraction = true;
                 window.wasToolbarInteractionRecent = true;
                 setTimeout(() => {
@@ -3602,7 +3539,7 @@ export const EditorToolbar = ({
         <div className="mx-1.5 h-6 w-px bg-blue-200/60" />
 
         {/* Text Alignment Dropdown */}
-        <DropdownMenu modal={false} onOpenChange={(open) => {
+        <DropdownMenu modal={true} onOpenChange={(open) => {
           if (open) {
             onMenuOpen(editor);
             setContentInert(open);
@@ -3616,9 +3553,7 @@ export const EditorToolbar = ({
               variant="ghost"
               size="icon"
               onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Signal toolbar interaction to prevent auto-scroll
+                // Do NOT preventDefault — Radix needs pointer events intact to open
                 window.isToolbarInteraction = true;
                 setTimeout(() => {
                   window.isToolbarInteraction = false;
@@ -3846,7 +3781,7 @@ export const EditorToolbar = ({
               <DropdownMenuTrigger asChild>
                 <Button
                   onMouseDown={(e) => {
-                    preventEditorBlur(e);
+                    // Do NOT preventDefault — Radix needs pointer events intact to open
                     try { saveSelection(editor); } catch { }
                     window.isToolbarInteraction = true;
                     setTimeout(() => { window.isToolbarInteraction = false; }, 300);
@@ -3948,7 +3883,6 @@ export const EditorToolbar = ({
           variant="ghost"
           onClick={() => setShowAIAssistant(true)}
           onMouseDown={(e) => {
-            preventEditorBlur(e);
             try { saveSelection(editor); } catch { }
             window.isToolbarInteraction = true;
             setTimeout(() => { window.isToolbarInteraction = false; }, 300);
@@ -4423,7 +4357,7 @@ export const EditorToolbar = ({
           {showVersionHistory && (
             <VersionHistory
               isOpen={showVersionHistory} onClose={() => setShowVersionHistory(false)}
-              editor={editor} versions={documentVersions}
+              editor={editor} docId={docId} versions={documentVersions}
               onSaveVersion={saveCurrentVersion} onRestoreVersion={restoreVersion}
             />
           )}
@@ -4730,6 +4664,4 @@ export const EditorToolbar = ({
 
     </motion.div >
   );
-};
-
-
+}; 

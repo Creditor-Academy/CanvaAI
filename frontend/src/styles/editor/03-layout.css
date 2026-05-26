@@ -25,7 +25,7 @@
   align-items: center;
   justify-content: flex-start;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   position: relative;
   /* ❌ REMOVED: viewport-width centering technique that caused layout issues */
   /* left: 50%; */

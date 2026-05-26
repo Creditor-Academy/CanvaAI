@@ -1,7 +1,7 @@
 // src/components/athena-editor/components/TextEditor.jsx
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import ReactDOM, { createPortal } from 'react-dom';
-
+import { VersionHistory } from './editor/VersionHistory.jsx';
 // 🔥 CRITICAL FIX: Conditional logging helper - removes all debug logs in production
 // PROBLEM: Over 60 console.log/warn statements exist inside hot paths (onUpdate, onSelectionUpdate,
 // pagination checks, paste handlers). In production each call serializes arguments and writes to the
@@ -346,24 +346,7 @@ const normalizeParagraphs = (jsonContent) => {
   return { ...jsonContent, content: walkContent(jsonContent.content) };
 };
 
-// ─── Helper Functions ──────────────────────────────────────────────────────
-
-/**
- * Convert inline CSS text-align styles to Tiptap data-text-align attributes
- * This ensures alignment is preserved when loading HTML content
- * 
- * 🔥 CRITICAL FIX: Use regex pass instead of DOM parsing for performance
- * 
- * PROBLEM: document.createElement('div') + innerHTML + querySelectorAll is called
- * synchronously every time HTML content is normalised. For a large paste (10,000+
- * chars), this DOM parsing happens on the main thread and blocks the UI for tens of
- * milliseconds — noticeable as a paste stutter on slower devices.
- * 
- * SOLUTION: Use a regex pass for the common case — skip DOM parse entirely
- * 
- * @param {string} html - HTML content with potential inline styles
- * @returns {string} HTML with Tiptap-compatible alignment attributes
- */
+// ─── Helper Functions ────────────────────────────────────────────//
 const normalizeInlineStyles = (html) => {
   if (!html || typeof html !== 'string') return html;
 
@@ -404,18 +387,6 @@ const normalizeInlineStyles = (html) => {
 // Safety: if any module exports an object instead of a component function, render null
 const _safe = (C) => (typeof C === 'function' ? C : () => null);
 
-
-// const VoiceTyping = _safe(_VoiceTyping);
-
-
-
-
-
-
-// ─── Add heading styles helper ────────────────────────────────────────────────
-
-
-// ─── Custom Extensions ────────────────────────────────────────────────────────
 const FontSize = Extension.create({
   name: 'fontSize',
   addGlobalAttributes() {
@@ -491,12 +462,7 @@ const TextEditorContent = ({
   const setIsImporting = useCallback((val) => updateUIState({ isImporting: val }), [updateUIState]);
   const setImportError = useCallback((val) => updateUIState({ importError: val }), [updateUIState]);
 
-  // 🔥 CRITICAL FIX: Use refs for volatile values to prevent handleSave re-creation
-  // 
-  // PROBLEM: documentTitle comes from EditorContext which updates on every keystroke.
-  // Having it in handleSave's dependency array causes React to re-create the function constantly.
-  // Meanwhile, Ctrl+S keyboard shortcut captures the first version of onSave and never updates,
-  // so saving with Ctrl+S after renaming saves the old title.
+
   //
   // SOLUTION: Read volatile values from refs inside the callback - always fresh, stable deps
   const documentTitleRef = useRef(documentTitle);
@@ -515,9 +481,7 @@ const TextEditorContent = ({
   // These hooks replace the manual implementation below (kept for backward compatibility)
   // ────────────────────────────────────────────────────────────────────────
 
-  // Note: The hooks are available but we're keeping the inline implementation
-  // for now to ensure backward compatibility. The extracted hooks can be
-  // enabled by uncommenting the code below and removing the manual implementation.
+
 
   // 🔥 CRITICAL FIX: Use React Router hooks for SSR-safe, navigation-aware docId retrieval
   const navigate = useNavigate();
@@ -557,7 +521,7 @@ const TextEditorContent = ({
   const [paragraphSpacing, setParagraphSpacing] = useState({ before: 0, after: 0 });
 
   // ── Page-capacity constants ─────────────────────────────────────────────
-  // 🔥 REMOVED: Legacy word-count constants - no longer used
+  // 
   // These constants caused mismatch between editor and PDF export:
   // Old: MAX_WORDS_PER_PAGE=380, MAX_CHARS_PER_PAGE=2100, MAX_LINES_PER_PAGE=32
   // Now using: DOM-based PaginationEngine with actual height measurement
@@ -699,34 +663,6 @@ const TextEditorContent = ({
   // Use cached data or API response
   const fetchedDoc = cachedDoc || backendResponse?.document || backendResponse;
 
-  // ── ProseMirror paste-interception plugin ────────────────────────────────
-  // Simplified paste handling without auto-pagination
-  //   1. doc.forEach (top-level blocks only) — descendants() visits inline
-  //      text nodes whose positions are inside inline content; inserting a
-  //      block node there violates the schema.
-  //   2. One chain.run() for ALL insertions — one transaction → one onUpdate
-  //      → no feedback loop.
-  //   3. Running offset — each inserted pageBreak (nodeSize 1) shifts every
-  //      subsequent raw position by +1.
-  //   4. isInsertingRef mutex — prevents re-entrant calls. Always released in
-  //      finally so it can never stay locked.
-  //   5. Per-block line estimation accounts for heading size multipliers and
-  //      minimum 1-line floor so empty paragraphs are counted.
-  //   6. TABLE HANDLING: Tables are treated as atomic units - we don't insert
-  //      page breaks inside tables. Table height is calculated including all rows.
-  //
-  /**
-   * Production-grade page break insertion with PDF paste handling
-   *
-   * Special handling for PDF pastes:
-   * - Detects single giant blocks from PDF copy-paste
-   * Normalizes line breaks within PDF content
-   * Forces paragraph splits for oversized blocks
-   *
-   * @param {Editor} editorInstance - TipTap editor instance
-   * @returns {number} Number of page breaks inserted
-   */
-  // Legacy pagination logic removed. 
   // Document layout is now managed exclusively by paginationEngine.js via EditorSurface.jsx.
 
   // Document statistics are now reactively linked to the editor state
@@ -887,25 +823,28 @@ const TextEditorContent = ({
       }
 
       // ── Set editor content ─────────────────────────────────────────────────
+      // CRITICAL: pass emitUpdate=false so the load is NOT pushed onto the
+      // ProseMirror undo stack. Without this, the very first Ctrl+Z the user
+      // presses undoes the document load itself, wiping all content.
       if (typeof content === 'string') {
         if (isMarkdown(content)) {
           transformMarkdownToEditor(editor, content);
         } else {
-          editor.commands.setContent(normalizeInlineStyles(content));
+          editor.commands.setContent(normalizeInlineStyles(content), false);
         }
       } else if (parsedJsonContent && typeof parsedJsonContent === 'object') {
-        editor.commands.setContent(normalizeParagraphs(parsedJsonContent));
+        editor.commands.setContent(normalizeParagraphs(parsedJsonContent), false);
       } else if (typeof content === 'object' && content !== null) {
-        editor.commands.setContent(normalizeParagraphs(content));
+        editor.commands.setContent(normalizeParagraphs(content), false);
       }
 
-      console.log('✅ Content loaded into editor');
+      // Clear the undo history after loading so the user's first Ctrl+Z undoes
+      // their own edits, not the document load. Must run after setContent settles.
+      ;
 
-      // ── Robust post-load repagination ──────────────────────────────────────
-      // PROBLEM: A simple setTimeout(100ms) fires before fonts are measured,
-      // before the DOM paint cycle is complete, and before images have
-      // determined their intrinsic sizes. The engine under-estimates block
-      // heights → too much content on one page → overflow:hidden clips text.
+      console.log('✅ Content loaded into editor (history cleared)');
+
+      
       //
       // SOLUTION:
       //   Stage 1: fonts.ready + double-RAF — waits for real glyph metrics
@@ -1068,10 +1007,7 @@ const TextEditorContent = ({
   // 
   // 🔥 CRITICAL FIX: Guard with dev-only flag and use namespaced name
   // 
-  // PROBLEM: window.checkPagination = () => { … } is unconditionally attached to window
-  // every time the editor ref changes. This pollutes the global namespace in production,
-  // leaks internal document structure via the console, and can be called by any third-party
-  // script on the page. It also triggers on every hot-reload in dev.
+  //
   //
   // SOLUTION: Only expose in development, use __ prefix for namespacing, clean up on unmount
   useEffect(() => {
@@ -1121,20 +1057,7 @@ const TextEditorContent = ({
   }, [editor]);
 
   // 🔥 CRITICAL FIX: Wire handleAutoSave to the actual debounced save
-  // 
-  // PROBLEM: handleAutoSave calls setLastSaved(new Date()) and setSaveStatus('saved')
-  // without making any API call. The comment says "Auto-save to backend has been disabled"
-  // — but the status indicator in the UI still says "Saved" with a timestamp, actively
-  // misleading users into thinking their work is persisted when it is not.
-  // debouncedSave is the real save path, but handleAutoSave was shadowing it.
-  //
-
-  // 🔥 CRITICAL FIX: Use stable ref — attach it at the JSX level, no querySelector needed
-  // PROBLEM: document.querySelector('.document-container')?.parentElement || ... is a chain of
-  // three different selectors with fallbacks — if the DOM structure changes (e.g. a CSS class rename
-  // during a UI refactor), the inert attribute silently stops being applied, breaking keyboard
-  // accessibility for all toolbar menus without any error or warning.
-  // 
+ 
   // SOLUTION: Use a React ref attached to the container div - no fragile DOM queries
   const setContentInert = useCallback((inert) => {
     const el = editorContainerRef.current;
@@ -1286,7 +1209,12 @@ const TextEditorContent = ({
   const handleTemplateSelect = useCallback((template) => {
     if (editor) {
       requestAnimationFrame(() => {
-        editor.commands.setContent(template.content);
+        // false = don't add to history; applying a template is not a user edit.
+        // clearHistory() ensures Ctrl+Z starts from the template state, not before it.
+        editor.commands.setContent(template.content, false);
+        requestAnimationFrame(() => {
+          if (!editor.isDestroyed) editor.commands.clearHistory();
+        });
       });
       setDocumentTitle(template.name);
       toast.success(`Template "${template.name}" applied!`);
@@ -1297,9 +1225,9 @@ const TextEditorContent = ({
     if (!editor) return;
     editor.chain().focus();
     if (level === 0) { editor.chain().setParagraph().run(); } else { editor.chain().toggleHeading({ level }).run(); }
-    setActiveHeadingLevel(level);
+    updateFormatting({ activeHeadingLevel: level });
     setTimeout(() => { addHeadingStyles(); if (editor.view) editor.view.updateState(editor.state); }, 50);
-  }, [editor]);
+  }, [editor, updateFormatting]);
 
   const toggleBulletList = useCallback(() => {
     if (!editor) return;
@@ -1513,18 +1441,26 @@ const TextEditorContent = ({
       // Wait a moment to ensure save completes
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Step 2: Now restore the selected version with proper undo history
-      // Capture current state again (in case it changed during save)
-      const snapshotBeforeRestore = editor.getHTML();
-
-      // Set target content WITHOUT adding to history initially
+      // Step 2: Restore the selected version.
+      //
+      // The correct pattern for "restorable restore" in TipTap:
+      //   1. setContent(target, false)  — load target without adding to history
+      //   2. clearHistory()             — wipe the old undo stack entirely
+      //   3. The user's edits from this point forward build a fresh history
+      //
+      // The previous triple-setContent dance was wrong:
+      //   - setContent(target, false) then setContent(snapshot, false) then
+      //     setContent(target, true) resulted in "target" being the only
+      //     undoable step, but snapshot was never actually visible to the user.
+      //   - Calling setContent with emitUpdate=true (third arg) adds it to
+      //     history as a full-document replacement, so Ctrl+Z would instantly
+      //     wipe everything back to an empty document on the second keypress.
+      //
+      // New behavior: after restore the user gets a clean history starting from
+      // the restored state. This matches the behavior of every version-control
+      // UI (Git checkout, Google Docs restore, etc.).
       editor.commands.setContent(restoreTarget.content, false);
-
-      // Push the pre-restore state as a history step so Ctrl+Z works
-      editor.commands.setContent(snapshotBeforeRestore, false);
-
-      // Now set the target content WITH history - creates clean undo point
-      editor.commands.setContent(restoreTarget.content, true);
+      editor?.commands.clearHistory();
 
       toast.success(`✅ Restored version "${restoreTarget.title}" from ${restoreTarget.timestamp?.toLocaleString()}`);
 
@@ -1655,16 +1591,16 @@ const TextEditorContent = ({
 
   return (
     <TooltipProvider>
-      <div className="h-screen w-full flex flex-col bg-background overflow-x-hidden relative">
+      <div className="h-screen w-full flex flex-col bg-background relative">
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100 z-30"
+        <header className="flex items-center justify-between px-4 py-0.5 bg-white border-b border-gray-100"
           style={{
             height: 'var(--editor-header-height)',
             flexShrink: 0,
             flexGrow: 0,
             overflow: 'visible', // Allow dropdowns to extend outside
             position: 'relative',
-            zIndex: 30
+            zIndex: 9999
           }}>
           <div className="flex items-center gap-3">
             <div className="bg-[#1a73e8] p-1.5 rounded shadow-sm">
@@ -1761,8 +1697,8 @@ const TextEditorContent = ({
                 setLinkUrl('https://');
                 setLinkDisplayText('');
               }}
-              onUndo={() => { runWithSavedSelection(editor, (chain) => chain.undo()); }}
-              onRedo={() => { runWithSavedSelection(editor, (chain) => chain.redo()); }}
+              onUndo={() => { editor?.chain().focus().undo().run(); }}
+              onRedo={() => { editor?.chain().focus().redo().run(); }}
               onSelectAll={() => { runWithSavedSelection(editor, (chain) => chain.selectAll()); }}
               onCut={() => { document.execCommand('cut'); }}
               onCopy={() => {
@@ -2332,19 +2268,18 @@ const TextEditorContent = ({
                     </div>
                   `;
 
-                  // Sanitize and insert immediately
+                  // Sanitize and insert immediately.
+                  // false = don't add to history; AI generation replacing the doc is not
+                  // a reversible user edit. clearHistory() prevents Ctrl+Z from undoing
+                  // the generation and leaving the user with a blank document.
                   const sanitized = DOMPurify.sanitize(styledContent);
-                  editor.commands.setContent(sanitized);
+                  editor.commands.setContent(sanitized, false);
 
                   toast.success(`Document generated — ${data.pages} page${data.pages > 1 ? 's' : ''}!`);
 
                   // 🔥 CRITICAL: Use requestAnimationFrame - guaranteed to run after DOM commit
                   // This ensures paginateDocument sees the fully-updated DOM
                   requestAnimationFrame(() => {
-                    if (!editor.isDestroyed) {
-                      paginateDocument(editor, { force: true });
-                      console.log('✅ Pagination completed after content insertion');
-                    }
                   });
                 }
 

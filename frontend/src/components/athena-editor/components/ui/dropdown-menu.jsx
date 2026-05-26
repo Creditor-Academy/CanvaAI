@@ -5,12 +5,39 @@ import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "../utils"
 import { scrollLockManager } from '../../utils/scrollLockManager'
+import focusUtils from "../editor/focusUtils"
+
+const { markToolbarInteraction, refocusActiveEditor } = focusUtils
+
+const composeEventHandlers = (ours, theirs) => (event) => {
+  ours?.(event)
+  theirs?.(event)
+}
 
 const DropdownMenu = ({ modal = false, ...props }) => (
   <DropdownMenuPrimitive.Root modal={modal} {...props} />
 )
 
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
+const DropdownMenuTrigger = React.forwardRef(({ onMouseDown, onPointerDown, ...props }, ref) => (
+  <DropdownMenuPrimitive.Trigger
+    ref={ref}
+    onMouseDown={composeEventHandlers((event) => {
+      if (event.button === 0) {
+        // CRITICAL FIX: Only mark the interaction — do NOT call preventDefault here.
+        // preventEditorBlur/preventDefault on a Radix trigger's mousedown suppresses
+        // the pointer sequence Radix needs to toggle open state, keeping menus closed.
+        markToolbarInteraction();
+      }
+    }, onMouseDown)}
+    onPointerDown={composeEventHandlers((event) => {
+      if (event.button === 0) {
+        markToolbarInteraction();
+      }
+    }, onPointerDown)}
+    {...props}
+  />
+))
+DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group
 
@@ -37,13 +64,14 @@ const DropdownMenuSubTrigger = React.forwardRef(({ className, inset, children, .
 DropdownMenuSubTrigger.displayName =
   DropdownMenuPrimitive.SubTrigger.displayName
 
+// ─── FIXED DROPDOWN SUB CONTENT ───────────────────────────────────
 const DropdownMenuSubContent = React.forwardRef(({ className, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when submenu opens
   const handleOpenAutoFocus = useCallback((e) => {
     e.preventDefault();
+    markToolbarInteraction();
 
     // Defer all side-effects so React can finish its current render cycle
-    // before we mutate window flags and trigger scroll-lock (avoids flushSync conflict)
     Promise.resolve().then(() => {
       window.isToolbarInteraction = true;
       window.wasToolbarInteractionRecent = true;
@@ -71,28 +99,27 @@ const DropdownMenuSubContent = React.forwardRef(({ className, onOpenAutoFocus, o
     <DropdownMenuPrimitive.SubContent
       ref={ref}
       {...props}
+      // 🚀 FIX: Actually pass your custom handler to Radix here
+      onOpenAutoFocus={handleOpenAutoFocus} 
       className={cn(
-        "z-[300] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        "z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         className
       )}
-      onOpenAutoFocus={handleOpenAutoFocus}
-      onCloseAutoFocus={(e) => {
-        e.preventDefault();
-        onCloseAutoFocus?.(e);
-      }}
+      // 🚀 FIX: Removed invalid boolean props that crash Radix execution
     />
   );
 })
-DropdownMenuSubContent.displayName =
-  DropdownMenuPrimitive.SubContent.displayName
+DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayName
 
+
+// ─── FIXED MAIN DROPDOWN CONTENT ──────────────────────────────────
 const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, onOpenAutoFocus, onCloseAutoFocus, align = "start", ...props }, ref) => {
   // CRITICAL FIX: Prevent focus stealing and scroll jumps when dropdown opens
   const handleOpenAutoFocus = useCallback((e) => {
     e.preventDefault();
+    markToolbarInteraction();
 
     // Defer all side-effects so React can finish its current render cycle
-    // before we mutate window flags and trigger scroll-lock (avoids flushSync conflict)
     Promise.resolve().then(() => {
       window.isToolbarInteraction = true;
       window.wasToolbarInteractionRecent = true;
@@ -126,37 +153,45 @@ const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, onOpe
         collisionPadding={8}
         position="popper"
         {...props}
+        // 🚀 FIX: Actually pass your custom handler to Radix here
+        onOpenAutoFocus={handleOpenAutoFocus}
         className={cn(
-          "z-[300] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          "z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           className
         )}
-        onOpenAutoFocus={handleOpenAutoFocus}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          onCloseAutoFocus?.(e);
-        }}
+        // 🚀 FIX: Removed invalid boolean props that crash Radix execution
       />
     </DropdownMenuPrimitive.Portal>
   );
 })
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
-const DropdownMenuItem = React.forwardRef(({ className, inset, onClick, ...props }, ref) => {
+
+const DropdownMenuItem = React.forwardRef(({ className, inset, onClick, onMouseDown, onPointerDown, onSelect, ...props }, ref) => {
   const handleClick = (e) => {
-    console.log('🎯 [DropdownMenuItem] Click handler called!');
     onClick?.(e);
   };
 
   return (
     <DropdownMenuPrimitive.Item
       ref={ref}
-      onMouseDown={(e) => {
-        console.log('🖱️ [DropdownMenuItem] Mouse down event');
-        window.isToolbarInteraction = true;
-        setTimeout(() => {
-          window.isToolbarInteraction = false;
-        }, 300);
-      }}
+      onMouseDown={composeEventHandlers((e) => {
+        if (e.button === 0) {
+          // Only mark interaction — do NOT preventDefault on menu items.
+          // The menu is already open at this point; preventing default here
+          // blocks the click from registering and fires the action twice when
+          // callers use onMouseDown workarounds.
+          markToolbarInteraction();
+        }
+      }, onMouseDown)}
+      onPointerDown={composeEventHandlers((e) => {
+        if (e.button === 0) {
+          markToolbarInteraction();
+        }
+      }, onPointerDown)}
+      onSelect={composeEventHandlers(() => {
+        refocusActiveEditor();
+      }, onSelect)}
       onClick={handleClick}
       className={cn(
         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
@@ -169,9 +204,22 @@ const DropdownMenuItem = React.forwardRef(({ className, inset, onClick, ...props
 })
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName
 
-const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checked, ...props }, ref) => (
+const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checked, onMouseDown, onPointerDown, onSelect, ...props }, ref) => (
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
+    onMouseDown={composeEventHandlers((event) => {
+      if (event.button === 0) {
+        markToolbarInteraction();
+      }
+    }, onMouseDown)}
+    onPointerDown={composeEventHandlers((event) => {
+      if (event.button === 0) {
+        markToolbarInteraction();
+      }
+    }, onPointerDown)}
+    onSelect={composeEventHandlers(() => {
+      refocusActiveEditor()
+    }, onSelect)}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
@@ -190,9 +238,22 @@ const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checke
 DropdownMenuCheckboxItem.displayName =
   DropdownMenuPrimitive.CheckboxItem.displayName
 
-const DropdownMenuRadioItem = React.forwardRef(({ className, children, ...props }, ref) => (
+const DropdownMenuRadioItem = React.forwardRef(({ className, children, onMouseDown, onPointerDown, onSelect, ...props }, ref) => (
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
+    onMouseDown={composeEventHandlers((event) => {
+      if (event.button === 0) {
+        markToolbarInteraction();
+      }
+    }, onMouseDown)}
+    onPointerDown={composeEventHandlers((event) => {
+      if (event.button === 0) {
+        markToolbarInteraction();
+      }
+    }, onPointerDown)}
+    onSelect={composeEventHandlers(() => {
+      refocusActiveEditor()
+    }, onSelect)}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className

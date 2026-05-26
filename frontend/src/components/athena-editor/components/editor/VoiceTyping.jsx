@@ -14,8 +14,6 @@ const VOICE_COMMANDS = {
     'bold': () => ({ type: 'format', action: 'bold' }),
     'italic': () => ({ type: 'format', action: 'italic' }),
     'underline': () => ({ type: 'format', action: 'underline' }),
-    'undo': () => ({ type: 'edit', action: 'undo' }),
-    'redo': () => ({ type: 'edit', action: 'redo' }),
     'stop listening': () => ({ type: 'stop' }),
 };
 
@@ -53,10 +51,6 @@ const VoiceTyping = ({ isOpen, onClose, editor }) => {
                         if (action.action === 'bold') editor.chain().focus(null, { scrollIntoView: false }).toggleBold().run();
                         if (action.action === 'italic') editor.chain().focus(null, { scrollIntoView: false }).toggleItalic().run();
                         if (action.action === 'underline') editor.chain().focus(null, { scrollIntoView: false }).toggleUnderline().run();
-                        return true;
-                    case 'edit':
-                        if (action.action === 'undo') editor.chain().focus().undo().run();
-                        if (action.action === 'redo') editor.chain().focus().redo().run();
                         return true;
                     case 'stop': stopListening(); return true;
                 }

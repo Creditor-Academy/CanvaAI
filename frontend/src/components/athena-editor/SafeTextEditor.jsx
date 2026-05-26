@@ -37,7 +37,7 @@ const SafeTextEditor = ({ mongoId }) => {
 
   return (
     <ErrorBoundary>
-      <div className="h-screen w-full overflow-hidden">
+      <div className="h-screen w-full">
         <Suspense fallback={<LoadingFallback />}>
           <TextEditor mongoId={mongoId} />
         </Suspense>

@@ -33,7 +33,7 @@ import focusUtils from './focusUtils';
 import EnhancedTokenBadge from './EnhancedTokenBadge';
 
 // Destructure functions from default export for backward compatibility
-const { guardToolbarMouseDown, saveSelection, onMenuOpen, onMenuClose, runWithSavedSelection, preventEditorBlur } = focusUtils;
+const { guardToolbarMouseDown, saveSelection, onMenuOpen, onMenuClose, runWithSavedSelection } = focusUtils;
 
 // Custom Paste Icon Component using local SVG
 const PasteIcon = ({ className, size = 20 }) => (
@@ -69,8 +69,6 @@ const HeaderMenuBar = React.memo(({
   onClearFormatting,
   onSetTextAlign,
   // Edit callbacks
-  onUndo,
-  onRedo,
   onCut,
   onCopy,
   onPaste,
@@ -286,9 +284,6 @@ const HeaderMenuBar = React.memo(({
 
   // Edit menu items - Using callback props
   const editMenuItems = [
-    { id: 'undo', label: 'Undo', icon: Undo, shortcut: 'Ctrl+Z', onClick: onUndo },
-    { id: 'redo', label: 'Redo', icon: Redo, shortcut: 'Ctrl+Y', onClick: onRedo },
-    { type: 'separator' },
     { id: 'cut', label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X', onClick: onCut },
     { id: 'copy', label: 'Copy', icon: Copy, shortcut: 'Ctrl+C', onClick: onCopy },
     { id: 'paste', label: 'Paste', icon: PasteIcon, shortcut: 'Ctrl+V', onClick: onPaste },

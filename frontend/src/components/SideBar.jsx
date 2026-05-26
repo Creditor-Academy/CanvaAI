@@ -113,15 +113,15 @@ const RailItem = ({ active, label, icon, onClick }) => {
           background: active
             ? "linear-gradient(135deg, rgba(37,99,235,0.95), rgba(6,182,212,0.90))"
             : hovered
-              ? "rgba(255,255,255,0.75)"
-              : "rgba(255,255,255,0.55)",
+            ? "rgba(255,255,255,0.75)"
+            : "rgba(255,255,255,0.55)",
           color: active ? "#fff" : "#374151",
           backdropFilter: "blur(10px)",
           boxShadow: active
             ? "0 12px 30px rgba(37,99,235,0.35), 0 0 0 6px rgba(59,130,246,0.10)"
             : hovered
-              ? "0 10px 22px rgba(15,23,42,0.10)"
-              : "none",
+            ? "0 10px 22px rgba(15,23,42,0.10)"
+            : "none",
           transition:
             "background 160ms ease, box-shadow 160ms ease, transform 160ms ease",
           transform: hovered ? "translateY(-1px)" : "translateY(0)"
@@ -179,7 +179,7 @@ const SideBar = () => {
       {
         label: "Admin Dash",
         key: "adminDash",
-
+   
         section: "Workspace",
         path: "/admin-dash",
         icon: <AdminIcon />
@@ -227,8 +227,8 @@ const SideBar = () => {
           icon={item.icon}
           active={location.pathname === item.path}
           onClick={() => go(item.path)}
-        // compact={isCompactRail}
-        // mobile={isMobile}
+          // compact={isCompactRail}
+          // mobile={isMobile}
         />
       ))}
     </aside>

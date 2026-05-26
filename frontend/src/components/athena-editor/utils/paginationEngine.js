@@ -664,7 +664,8 @@ const measureDOMHeight = (editor, pmPos, pmNode) => {
     const zoom = editor.storage?.athena_zoom || 100;
     return (rect.height + margins) / (zoom / 100);
   } catch (_) {
-    return null;
+    const safeEnd = Math.max(1, newDoc.content.size - 1);
+    return Math.min(Math.max(1, oldFrom), safeEnd); 
   }
 };
 
@@ -902,7 +903,7 @@ export const paginateDocument = async (editor, options = {}) => {
   // ── Guards ────────────────────────────────────────────────────────────────
   if (getFlag('pasteInFlight') && !options.force) return false;
   if (getFlag('isPaginating')) return false;
-  if (!editor || editor.isDestroyed) return false;
+  if (!editor || editor.isDestroyed || !editor.view) return false;
   if (editor.storage?.athena_is_paginating) return false;
 
   const { state, schema } = editor;
@@ -1152,17 +1153,68 @@ export const paginateDocument = async (editor, options = {}) => {
       pages.push([schema.nodes.paragraph.create()]);
     }
 
-    // ── No-op check ───────────────────────────────────────────────────────
+    // ── No-op check (Deep structural layout comparison) ───────────────────
     if (!options.force && doc.childCount === pages.length) {
-      const finalBlocks = pages.flat();
-      let same = true, bi = 0;
-      doc.forEach(pageNode => {
-        if (pageNode.type.name !== 'page') { same = false; return; }
-        pageNode.forEach(block => {
-          if (bi >= finalBlocks.length || block !== finalBlocks[bi++]) same = false;
+      const layoutMatches = pages.every((pageBlocks, pageIdx) => {
+        const oldPageNode = doc.child(pageIdx);
+        if (oldPageNode.type.name !== 'page') return false;
+        if (oldPageNode.childCount !== pageBlocks.length) return false;
+
+        return pageBlocks.every((newBlock, blockIdx) => {
+          const oldBlock = oldPageNode.child(blockIdx);
+
+          // 1. Check block node type
+          if (oldBlock.type.name !== newBlock.type.name) return false;
+
+          // 2. Check layout-affecting attributes (e.g. level, align, indent, cols, rows)
+          if (JSON.stringify(oldBlock.attrs) !== JSON.stringify(newBlock.attrs)) return false;
+
+          // 3. Deep check for nested block children (lists, tables, blockquotes)
+          if (['bulletList', 'orderedList', 'taskList', 'table', 'blockquote'].includes(oldBlock.type.name)) {
+            if (oldBlock.childCount !== newBlock.childCount) return false;
+
+            let childrenMatch = true;
+            for (let c = 0; c < oldBlock.childCount; c++) {
+              const oldChild = oldBlock.child(c);
+              const newChild = newBlock.child(c);
+              if (oldChild.type.name !== newChild.type.name) {
+                childrenMatch = false;
+                break;
+              }
+              if (JSON.stringify(oldChild.attrs) !== JSON.stringify(newChild.attrs)) {
+                childrenMatch = false;
+                break;
+              }
+              if (oldChild.childCount !== newChild.childCount) {
+                childrenMatch = false;
+                break;
+              }
+              // Check sub-children of list item / table cell
+              for (let sc = 0; sc < oldChild.childCount; sc++) {
+                const oldSubChild = oldChild.child(sc);
+                const newSubChild = newChild.child(sc);
+                if (oldSubChild.type.name !== newSubChild.type.name) {
+                  childrenMatch = false;
+                  break;
+                }
+                if (JSON.stringify(oldSubChild.attrs) !== JSON.stringify(newSubChild.attrs)) {
+                  childrenMatch = false;
+                  break;
+                }
+              }
+              if (!childrenMatch) break;
+            }
+            if (!childrenMatch) return false;
+          }
+
+          return true;
         });
       });
-      if (same) { setFlag('isPaginating', false); return false; }
+
+      if (layoutMatches) {
+        setFlag('isPaginating', false);
+        return false;
+      }
     }
 
     // ── Fingerprint check ─────────────────────────────────────────────────
@@ -1207,40 +1259,47 @@ export const paginateDocument = async (editor, options = {}) => {
       const tr = state.tr.replaceWith(0, doc.content.size, Fragment.fromArray(newPages));
       if (!tr?.steps?.length) throw new Error('Empty transaction');
 
+      // 🔥 CRITICAL: Pagination is a structural housekeeping operation, NOT a user edit.
+      // Without this flag, every pagination dispatch clears the ProseMirror redo stack,
+      // making Ctrl+Y and the toolbar redo button permanently non-functional after any undo.
+      tr.setMeta('addToHistory', false);
+
       // Set the cursor on the transaction using reconstructed position (BUG-1 fix)
       newDocForCursor = tr.doc;
       const newFrom = computeNewCursorPos(doc, tr.doc, oldFrom);
       const newTo = isCollapsed ? newFrom : computeNewCursorPos(doc, tr.doc, oldTo);
       const clamp = (p) => Math.min(Math.max(1, p), tr.doc.content.size - 1);
 
-      try {
-        tr.setSelection(TextSelection.create(tr.doc, clamp(newFrom), clamp(newTo)));
-      } catch (selectionErr) {
-        // TextSelection.create() throws when the position lands inside a node that
-        // does not allow inline content (e.g. inside a listItem or taskItem token
-        // rather than inside the paragraph nested within it). This happens when
-        // computeNewCursorPos maps the cursor to the list-node boundary instead of
-        // into the paragraph child.
-        //
-        // TextSelection.findFrom() walks forward (dir=1) or backward (dir=-1) from
-        // the resolved position until it finds a valid inline-content ancestor,
-        // handling listItem > paragraph nesting automatically.
-        console.debug('[paginateDocument] Selection at invalid position, using findFrom fallback');
-        try {
-          const resolvedFrom = tr.doc.resolve(clamp(newFrom));
-          const safeSelection =
-            TextSelection.findFrom(resolvedFrom, 1) ??  // walk forward first
-            TextSelection.findFrom(resolvedFrom, -1);   // then backward
+     try {
+  // Try applying our mapped structural position
+  tr.setSelection(TextSelection.create(tr.doc, clamp(newFrom), clamp(newTo)));
+} catch (selectionErr) {
+  console.debug('[paginateDocument] Selection at invalid position, using strict inline mapping');
+  try {
+    const resolvedFrom = tr.doc.resolve(clamp(newFrom));
+    
+    // Instead of letting findFrom evaluate to null or an unsafe edge,
+    // explicitly resolve the nearest valid text/inline text cell selection.
+    let safeSelection = TextSelection.findFrom(resolvedFrom, 1) ?? 
+                        TextSelection.findFrom(resolvedFrom, -1);
 
-          if (safeSelection) {
-            tr.setSelection(safeSelection);
-          }
-          // If findFrom also yields null (empty doc edge case), leave selection
-          // unset — ProseMirror will place it at a valid default position.
-        } catch (_) {
-          // Truly unreachable doc state — leave selection as-is
-        }
-      }
+    if (!safeSelection) {
+      // Direct hard fallback: find the absolute nearest valid inline point 
+      // in the document if structure changed drastically
+      safeSelection = TextSelection.atStart(tr.doc);
+    }
+    
+    tr.setSelection(safeSelection);
+  } catch (_) {
+    // Ultimate defensive fallback: Set selection cleanly at token position 1
+    // to prevent leaving the selection context corrupted
+    try {
+      tr.setSelection(TextSelection.near(tr.doc.resolve(1)));
+    } catch (criticalErr) {
+      console.error('[paginateDocument] Hard selection rescue failed', criticalErr);
+    }
+  }
+}
 
       editor.view.dispatch(tr);
     } catch (txErr) {

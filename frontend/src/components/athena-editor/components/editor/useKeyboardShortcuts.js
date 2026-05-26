@@ -37,25 +37,6 @@ export const useKeyboardShortcuts = (editor, handlers = {}) => {
             const isShift = e.shiftKey;
             const isAlt = e.altKey;
 
-            // Undo / Redo fallbacks to ensure reliability across platforms
-            // Fix: Only prevent default if event target is inside editor
-            const isInsideEditor = e.target?.closest?.('.ProseMirror');
-            
-            if (isMod && !isShift && e.key.toLowerCase() === 'z') {
-                if (editor && isInsideEditor) {
-                    e.preventDefault();
-                    editor.chain().focus().undo().run();
-                }
-                return;
-            }
-            if ((isMod && isShift && e.key.toLowerCase() === 'z') || (isMod && e.key.toLowerCase() === 'y')) {
-                if (editor && isInsideEditor) {
-                    e.preventDefault();
-                    editor.chain().focus().redo().run();
-                }
-                return;
-            }
-
             // Save: Ctrl + S
             if (isMod && e.key === 's') {
                 e.preventDefault();

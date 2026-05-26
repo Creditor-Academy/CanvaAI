@@ -23,7 +23,7 @@ export const transformMarkdownToEditor = (editor, markdownString) => {
     const htmlContent = marked.parse(markdownString);
     
     // 2. Set content as HTML
-    editor.commands.setContent(htmlContent);
+    editor.commands.setContent(htmlContent, false);
     
     // 3. Immediately trigger pagination engine
     setTimeout(() => {
@@ -37,7 +37,7 @@ export const transformMarkdownToEditor = (editor, markdownString) => {
   } catch (error) {
     console.error('❌ Error transforming Markdown:', error);
     // Fallback: treat as plain text
-    editor.commands.setContent(`<p>${markdownString}</p>`);
+    editor.commands.setContent(`<p>${markdownString}</p>`, false);
   }
 };
 

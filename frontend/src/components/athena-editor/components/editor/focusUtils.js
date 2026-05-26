@@ -57,6 +57,8 @@
 
 import { TextSelection } from 'prosemirror-state';
 
+let activeEditorInstance = null;
+
 /**
  * Create per-instance focus utils to avoid conflicts when multiple
  * editor instances are mounted simultaneously (e.g., diff view, side-by-side).
@@ -78,6 +80,7 @@ export function createFocusUtils() {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
     }
+    markToolbarInteraction();
   }
 
   /**
@@ -102,6 +105,32 @@ export function createFocusUtils() {
     }
   }
 
+  function getSelectionSnapshot(editor) {
+    if (!editor || editor.isDestroyed) return null;
+
+    if (_savedSelection) {
+      return { ..._savedSelection };
+    }
+
+    const fallback = editor.storage?.athena_lastSelection;
+    if (fallback) {
+      return { ...fallback };
+    }
+
+    try {
+      const { selection } = editor.state;
+      return {
+        from: selection.from,
+        to: selection.to,
+        anchor: selection.anchor,
+        head: selection.head,
+        type: selection.constructor.name,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Restore the previously saved ProseMirror selection and re-focus the editor.
    * 
@@ -112,17 +141,19 @@ export function createFocusUtils() {
    *                                         Takes (from, to) and returns { from, to }
    */
   function restoreSelection(editor, opts = {}) {
-    if (!editor || editor.isDestroyed || !_savedSelection) return;
+    if (!editor || editor.isDestroyed) return;
 
     const { focus = true, remapPositions } = opts;
+    const snapshot = getSelectionSnapshot(editor);
+    if (!snapshot) return;
 
     try {
       const { state, view } = editor;
       const { doc } = state;
       const maxPos = doc.content.size;
 
-      let anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
-      let head = Math.min(Math.max(0, _savedSelection.head), maxPos);
+      let anchor = Math.min(Math.max(0, snapshot.anchor), maxPos);
+      let head = Math.min(Math.max(0, snapshot.head), maxPos);
 
       // Allow custom position remapping (e.g., for pagination adjustments)
       if (remapPositions && typeof remapPositions === 'function') {
@@ -142,7 +173,7 @@ export function createFocusUtils() {
           }
         });
       }
-    } catch (err) {
+    } catch (_err) {
       if (focus && !editor.isDestroyed) {
         try { editor.commands.focus(); } catch { void 0; }
       }
@@ -161,8 +192,10 @@ export function createFocusUtils() {
    * Attach this as `onMouseDown` on BOTH the header row AND the toolbar row.
    */
   function guardToolbarMouseDown(e) {
-    // Note: editor is captured via closure in the calling context
-    // This function should be bound to a specific editor instance
+    const editor = arguments.length > 1 ? arguments[1] : null;
+    if (editor && !editor.isDestroyed) {
+      saveSelection(editor);
+    }
     markToolbarInteraction();
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
@@ -197,13 +230,14 @@ export function createFocusUtils() {
 
     try {
       let chain = editor.chain();
+      const snapshot = getSelectionSnapshot(editor);
 
       // Only restore selection if it was previously saved and we're not skipping restore
-      if (_savedSelection && !skipRestore) {
+      if (snapshot && !skipRestore) {
         const { state } = editor;
         const maxPos = state.doc.content.size;
-        const anchor = Math.min(Math.max(0, _savedSelection.anchor), maxPos);
-        const head = Math.min(Math.max(0, _savedSelection.head), maxPos);
+        const anchor = Math.min(Math.max(0, snapshot.anchor), maxPos);
+        const head = Math.min(Math.max(0, snapshot.head), maxPos);
 
         if (anchor !== head) {
           chain = chain.setTextSelection({ from: Math.min(anchor, head), to: Math.max(anchor, head) });
@@ -272,6 +306,15 @@ export function createFocusUtils() {
   function focusEditorSafely(editor) {
     if (!editor || editor.isDestroyed) return;
     try {
+      if (typeof editor.commands?.focus === 'function') {
+        editor.commands.focus(undefined, { scrollIntoView: false });
+        return;
+      }
+    } catch {
+      void 0;
+    }
+
+    try {
       const view = editor.view;
       if (view && view.dom) {
         view.dom.focus({ preventScroll: true });
@@ -279,6 +322,35 @@ export function createFocusUtils() {
     } catch {
       try { editor.commands.focus(); } catch { void 0; }
     }
+  }
+
+  function setActiveEditor(editor) {
+    if (!editor || editor.isDestroyed) return;
+    activeEditorInstance = editor;
+  }
+
+  function getActiveEditor(preferredEditor = null) {
+    if (preferredEditor && !preferredEditor.isDestroyed) {
+      return preferredEditor;
+    }
+
+    if (activeEditorInstance && !activeEditorInstance.isDestroyed) {
+      return activeEditorInstance;
+    }
+
+    return null;
+  }
+
+  function refocusActiveEditor(preferredEditor = null) {
+    const editor = getActiveEditor(preferredEditor);
+    if (!editor) return;
+
+    markToolbarInteraction();
+    requestAnimationFrame(() => {
+      if (!editor.isDestroyed) {
+        focusEditorSafely(editor);
+      }
+    });
   }
 
   /**
@@ -306,7 +378,7 @@ export function createFocusUtils() {
   }
 
   function useToolbarMouseDown(editor) {
-    return function handleToolbarMouseDown(e) {
+    return function handleToolbarMouseDown() {
       guardEditorToolbarMouseDown(editor);
     };
   }
@@ -332,7 +404,10 @@ export function createFocusUtils() {
   }
 
   function onMenuOpen(editor) {
-    if (editor && !editor.isDestroyed) saveSelection(editor);
+    if (editor && !editor.isDestroyed) {
+      saveSelection(editor);
+      setActiveEditor(editor);
+    }
     markToolbarInteraction();
   }
 
@@ -343,7 +418,9 @@ export function createFocusUtils() {
   // Return all utilities bound to this instance's state
   return {
     preventBlur,
+    preventEditorBlur: preventBlur,
     saveSelection,
+    getSelectionSnapshot,
     restoreSelection,
     getSavedSelection,
     clearSavedSelection,
@@ -351,6 +428,9 @@ export function createFocusUtils() {
     guardEditorToolbarMouseDown,
     runWithSavedSelection,
     focusEditorSafely,
+    setActiveEditor,
+    getActiveEditor,
+    refocusActiveEditor,
     markToolbarInteraction,
     isToolbarInteractionActive,
     useToolbarMouseDown,

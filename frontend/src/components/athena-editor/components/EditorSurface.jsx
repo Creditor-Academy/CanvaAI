@@ -52,6 +52,7 @@ import { USABLE_HEIGHT_PX as USABLE_HEIGHT } from '../../../utils/pagination/con
 import { TextEditorService } from '../../../services/Text-Editor/text.service.js';
 import { toast } from 'sonner';
 import { useFormattingState } from '../contexts/EditorContent.jsx';
+import focusUtils from './editor/focusUtils';
 
 // Helper to convert base64 data URL to a File object
 const dataURLtoFile = (dataurl, filename) => {
@@ -218,6 +219,7 @@ export function EditorSurface({
   isPasting = false,
 }) {
   const { lineSpacing } = useFormattingState() || { lineSpacing: 1.3 };
+  const { setActiveEditor } = focusUtils;
   const internalEditorRef = useRef(null);
   const lastCheckTimeRef = useRef(0);
   const CHECK_THROTTLE = 250; // ms
@@ -227,6 +229,7 @@ export function EditorSurface({
     extensions: [
       StarterKit.configure({
         document: false,
+        undoRedo: false,
         heading: { levels: [1, 2, 3, 4, 5, 6] },
         blockquote: false,
         underline: false,
@@ -611,12 +614,13 @@ export function EditorSurface({
   // Sync editor instance to parent ref
   useEffect(() => {
     if (editor) {
+      setActiveEditor(editor);
       if (editorRef) {
         editorRef.current = editor;
       }
       internalEditorRef.current = editor;
     }
-  }, [editor, editorRef]);
+  }, [editor, editorRef, setActiveEditor]);
 
   // Cleanup on unmount
   useEffect(() => {

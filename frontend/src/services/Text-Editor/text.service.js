@@ -327,7 +327,7 @@ async function updateDocument(documentId, documentData) {
  */
 async function deleteDocument(documentId) {
   const response = await axios.delete(
-    `${API_BASE_URL}/api/text-editor/document/${documentId}`,
+    `${API_BASE_URL}/api/text-editor/delete/${documentId}`,
     getAuthConfig()
   );
 

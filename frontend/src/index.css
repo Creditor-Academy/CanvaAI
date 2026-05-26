@@ -528,3 +528,12 @@ body {
     max-width: 1600px !important;
   }
 }
+
+/* ─── Radix UI Portal z-index ─────────────────────────────────────────────────
+   Radix portals (dropdowns, selects, popovers) attach to document.body.
+   This ensures they always render above editor content, page nodes (z-index: 0),
+   the toolbar (z-index: 40), and the header (z-index: 9999).
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
