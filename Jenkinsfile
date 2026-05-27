@@ -3,11 +3,10 @@ pipeline {
 
     environment {
         FRONTEND_DIR = "frontend"
-        DEPLOY_PATH = "/var/www/canvaai"
+        DEPLOY_PATH  = "/var/www/CanvaAI/frontend/dist"
     }
 
     stages {
-
         stage('Install Packages') {
             steps {
                 echo '''
@@ -17,19 +16,8 @@ STEP: Installing Project Dependencies
 '''
                 dir("${FRONTEND_DIR}") {
                     sh '''
-                    npm install || {
-                        echo ""
-                        echo "PROBLEM"
-                        echo "______________________________"
-                        echo "Dependency installation failed"
-                        echo "______________________________"
-                        echo ""
-                        echo "CHECK"
-                        echo "______________________________"
-                        echo "package.json / internet / npm package issue"
-                        echo "______________________________"
-                        exit 1
-                    }
+                        set -e
+                        npm install
                     '''
                 }
             }
@@ -44,19 +32,8 @@ STEP: Building Frontend Application
 '''
                 dir("${FRONTEND_DIR}") {
                     sh '''
-                    npm run build || {
-                        echo ""
-                        echo "PROBLEM"
-                        echo "______________________________"
-                        echo "Frontend build failed"
-                        echo "______________________________"
-                        echo ""
-                        echo "CHECK"
-                        echo "______________________________"
-                        echo "React / Vite code error in frontend source files"
-                        echo "______________________________"
-                        exit 1
-                    }
+                        set -e
+                        npm run build
                     '''
                 }
             }
@@ -69,28 +46,17 @@ STEP: Building Frontend Application
 STEP: Deploying Build Files
 ========================================
 '''
-                dir("${FRONTEND_DIR}") {
-                    sh '''
-                    sudo mkdir -p ${DEPLOY_PATH}
-                    sudo chown -R jenkins:jenkins ${DEPLOY_PATH}
-                    sudo chmod -R 755 ${DEPLOY_PATH}
-                    sudo rm -rf ${DEPLOY_PATH}/*
+                sh '''
+                    set -e
 
-                    sudo cp -r dist/* ${DEPLOY_PATH}/ || {
-                        echo ""
-                        echo "PROBLEM"
-                        echo "______________________________"
-                        echo "Deployment failed"
-                        echo "______________________________"
-                        echo ""
-                        echo "CHECK"
-                        echo "______________________________"
-                        echo "dist folder / file copy / server path permission"
-                        echo "______________________________"
-                        exit 1
-                    }
-                    '''
-                }
+                    sudo mkdir -p "${DEPLOY_PATH}"
+                    sudo chown -R jenkins:jenkins /var/www/CanvaAI/frontend
+                    sudo chmod -R 755 /var/www/CanvaAI/frontend
+
+                    sudo rm -rf "${DEPLOY_PATH:?}"/*
+
+                    sudo cp -r frontend/dist/* "${DEPLOY_PATH}/"
+                '''
             }
         }
 
@@ -102,19 +68,8 @@ STEP: Checking Deployment Files
 ========================================
 '''
                 sh '''
-                ls -lah ${DEPLOY_PATH} || {
-                    echo ""
-                    echo "PROBLEM"
-                    echo "______________________________"
-                    echo "Deployment folder check failed"
-                    echo "______________________________"
-                    echo ""
-                    echo "CHECK"
-                    echo "______________________________"
-                    echo "Deployment path not found or files missing"
-                    echo "______________________________"
-                    exit 1
-                }
+                    set -e
+                    ls -lah "${DEPLOY_PATH}"
                 '''
             }
         }
