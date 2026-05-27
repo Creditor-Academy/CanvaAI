@@ -68,7 +68,7 @@ const Hero = () => {
       <div className="hero-container">
         <div className="hero-left">
 
-          <div className="hero-eyebrow">TEST JENKINS SUCCESS</div>
+          <div className="hero-eyebrow">AI Design Suite For Teams, Creators, And Educators</div>
 
           <h1>
             Build presentations, posters, and visuals
