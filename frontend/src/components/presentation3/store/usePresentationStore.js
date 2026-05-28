@@ -519,23 +519,20 @@ const usePresentationStore = create((set, get) => {
       const rawSlides = data.slides || (data.data && data.data.slides) || [];
       const meta = data.meta || data.data?.meta || {};
       const slideCount = rawSlides.length;
+      const shouldPatchTemplateGeometryOnLoad =
+        meta?.patchTemplateGeometryOnLoad === true;
+
       let slides = rawSlides.map((slide, index) => {
         const normalized = normalizeSlide(slide);
+        if (!shouldPatchTemplateGeometryOnLoad) return normalized;
         const heroPatched = patchHeroImageLeftSlide(normalized);
         return patchContentImageSlide(heroPatched, index, meta, slideCount);
       });
 
-      const slideNeedsRelayout = (slide) => {
-        const image = (slide.layers || []).find((l) => l.type === "image");
-        if (!image) return false;
-        const w = Number(image.width) || 0;
-        const h = Number(image.height) || 0;
-        if (w > 600 && h < 380) return true;
-        if (slide.layoutTemplate === "hero-image-right" && w > 500) return true;
-        return false;
-      };
-
-      if (slides.some(slideNeedsRelayout) && slides.length > 0) {
+      // Keep persisted/template slides lossless by default.
+      // Auto-relayout on load is opt-in via metadata for targeted migrations.
+      const shouldReapplyLayoutOnLoad = meta?.reapplyLayoutOnLoad === true;
+      if (shouldReapplyLayoutOnLoad && slides.length > 0) {
         slides = reapplyPresentationLayout({ slides, meta }).map((s) =>
           normalizeSlide(s)
         );

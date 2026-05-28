@@ -813,10 +813,11 @@ export default function Dashboard() {
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         templateData={previewData}
-        onImport={() => {
+        onImport={(previewTemplateId) => {
           setIsPreviewOpen(false);
-          if (selectedTemplateId) {
-            window.open(`/presentation-editor-v3/${selectedTemplateId}?template=true`, '_blank');
+          const templateIdToImport = previewTemplateId || selectedTemplateId;
+          if (templateIdToImport) {
+            window.open(`/presentation-editor-v3/${templateIdToImport}?template=true`, '_blank');
           }
         }}
       />

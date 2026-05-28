@@ -517,9 +517,9 @@ const Presentation = () => {
               isOpen={isPreviewOpen}
               onClose={() => setIsPreviewOpen(false)}
               templateData={previewData}
-              onImport={() => {
+              onImport={(previewTemplateId) => {
                 setIsPreviewOpen(false);
-                handleUseTemplate({ _id: selectedTemplateId });
+                handleUseTemplate({ _id: previewTemplateId || selectedTemplateId });
               }}
             />
 

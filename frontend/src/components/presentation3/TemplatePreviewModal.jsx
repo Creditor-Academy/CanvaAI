@@ -110,7 +110,7 @@ const TemplatePreviewModal = ({ isOpen, onClose, templateData, onImport }) => {
                                 <div className="space-y-3 pt-6 border-t border-slate-50 mt-8">
                                     <button
                                         className="w-full py-4 rounded-2xl border-none bg-indigo-600 text-white font-bold text-base cursor-pointer flex items-center justify-center transition-all duration-300 shadow-[0_12px_24px_rgba(79,70,229,0.25)] hover:bg-indigo-700 hover:shadow-[0_16px_32px_rgba(79,70,229,0.35)] active:scale-95 group"
-                                        onClick={onImport}
+                                        onClick={() => onImport?.(templateData?._id || templateData?.id)}
                                     >
                                         <ExternalLink size={20} className="mr-3 group-hover:scale-110 transition-transform" />
                                         Import Template
