@@ -299,11 +299,6 @@
   color: #334155;
 }
 
-.duplicate-btn:hover {
-  background: #cbd5e1;
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
 
 /* Delete */
 .delete-btn {

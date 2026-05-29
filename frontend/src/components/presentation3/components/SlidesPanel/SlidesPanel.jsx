@@ -13,6 +13,7 @@ const SlidesPanel = () => {
     addSlide,
     deleteSlide,
     duplicateSlide,
+    isThemePresentation,
   } = usePresentationStore();
 
   const [collapsed, setCollapsed] = useState(false);
@@ -39,10 +40,25 @@ const SlidesPanel = () => {
         <>
           <div className="slides-header">
             <span className="slides-title">Slides</span>
-            <button className="add-slide-btn" onClick={addSlide}>
-              +
-            </button>
+            {isThemePresentation ? (
+              <button
+                className="add-slide-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const last = slides[slides.length - 1];
+                  if (last) duplicateSlide(last.id);
+                }}
+                title="Duplicate last slide"
+              >
+                ⧉
+              </button>
+            ) : (
+              <button className="add-slide-btn" onClick={addSlide}>
+                +
+              </button>
+            )}
           </div>
+
 
           <div className="slides-list">
             {slides.map((slide, index) => {
@@ -64,3 +80,5 @@ const SlidesPanel = () => {
 };
 
 export default SlidesPanel;
+
+

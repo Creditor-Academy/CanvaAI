@@ -186,7 +186,11 @@ const PresentationThumbnail = ({ slide, width = "100%", height = "100%" }) => {
     useEffect(() => {
         const resizeObserver = new ResizeObserver((entries) => {
             const entry = entries[0];
-            if (entry) setScale(entry.contentRect.width / CANVAS_W);
+            if (entry) {
+                const widthScale = entry.contentRect.width / CANVAS_W;
+                const heightScale = entry.contentRect.height / CANVAS_H;
+                setScale(Math.min(widthScale, heightScale));
+            }
         });
 
         if (containerRef.current) resizeObserver.observe(containerRef.current);

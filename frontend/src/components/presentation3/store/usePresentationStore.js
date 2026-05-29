@@ -492,6 +492,8 @@ const usePresentationStore = create((set, get) => {
     presentationId: null,
     title: "Untitled Presentation",
     isSaving: false,
+    // When true, presentation was loaded from ThemePanel (static theme)
+    isThemePresentation: false,
 
     setPresentationId: (id) => set({ presentationId: id }),
     setTitle: (title) => set({ title }),
@@ -516,6 +518,8 @@ const usePresentationStore = create((set, get) => {
         slides: slides,
         activeSlideId: slides.length > 0 ? slides[0].id : null,
         selectedLayerId: null,
+        // Any explicit setPresentation call resets theme flag; ThemePanel will enable it when appropriate
+        isThemePresentation: false,
       });
       useHistoryStore.getState().clear();
     },
@@ -536,9 +540,12 @@ const usePresentationStore = create((set, get) => {
         slides: defaultSlides,
         activeSlideId: newSlideId,
         selectedLayerId: null,
+        isThemePresentation: false,
       });
       useHistoryStore.getState().clear();
     },
+
+    setIsThemePresentation: (val) => set({ isThemePresentation: !!val }),
 
     setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
 

@@ -5,6 +5,7 @@ import AllTheme from './AllTheme';
 const ThemePanel = ({ onClose = () => { } }) => {
     const [selectedThemeId, setSelectedThemeId] = useState(null);
     const setPresentation = usePresentationStore((state) => state.setPresentation);
+    const setIsThemePresentation = usePresentationStore((state) => state.setIsThemePresentation);
 
     const handleSelectTheme = (theme) => {
         setSelectedThemeId(theme.id);
@@ -12,17 +13,18 @@ const ThemePanel = ({ onClose = () => { } }) => {
             ...theme.presentation,
             presentationId: null,
         });
+        // mark that the presentation was loaded from a static theme
+        setIsThemePresentation(true);
         onClose();
     };
 
     return (
         <div
-            className="fixed right-1 h-screen p-5 bg-white/95 border border-amber-300/60 rounded-3xl shadow-2xl backdrop-blur-lg z-30 overflow-auto flex flex-col gap-4"
-            style={{ top: 60, width: 'min(360px,calc(100vw-40px))' }}
+            className="fixed right-1 h-screen p-5 bg-white/95 border border-amber-300/60 rounded-3xl z-30 overflow-auto flex flex-col gap-4 w-96"
         >
             <div className="flex items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold text-slate-900 m-0">Templates</h1>
+                    <h1 className="text-lg font-bold text-slate-900 m-0">Themes</h1>
                     <p className="text-sm text-slate-500">Select a static theme to open it directly in the presentation canvas.</p>
                 </div>
                 <button

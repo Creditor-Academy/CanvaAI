@@ -512,7 +512,7 @@ const Presentation = () => {
                 )}
               </div>
 
-              
+
             </div>
 
             <TemplatePreviewModal

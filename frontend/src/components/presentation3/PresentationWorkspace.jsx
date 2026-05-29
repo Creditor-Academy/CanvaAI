@@ -29,7 +29,8 @@ const PresentationWorkspace = ({ initialData, layout: propLayout }) => {
   const { user } = useAuth();
   const [isPresenting, setIsPresenting] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
-  const [isThemePanelOpen, setIsThemePanelOpen] = useState(true);
+  // Theme panel only shows for fresh presentations (no id), not for templates or saved presentations
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(!id);
   const [highlightSave, setHighlightSave] = useState(false);
   // Loading if ID is present and we don't have initialData
   const [isLoading, setIsLoading] = useState(!!id && !initialData);
