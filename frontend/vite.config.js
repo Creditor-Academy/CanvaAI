@@ -82,5 +82,8 @@ export default defineConfig({
       // Shadcn/ui alias
       '@': path.resolve(__dirname, './src')
     }
-  }
+  },
+  test: {
+    environment: 'node',
+  },
 });
