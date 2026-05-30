@@ -68,7 +68,7 @@ const Hero = () => {
       <div className="hero-container">
         <div className="hero-left">
 
-          <div className="hero-eyebrow">Jenkins Test</div>
+          <div className="hero-eyebrow">TEsting</div>
 
           <h1>
             Build presentations, posters, and visuals
