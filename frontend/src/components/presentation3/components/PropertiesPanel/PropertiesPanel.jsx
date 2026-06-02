@@ -166,7 +166,7 @@ const PaletteColorControl = ({
         <span>{label}</span>
       </div>
 
-      <div className="palette-heading">Colors'vvvvvvvvvvvvvvvvv'</div>
+      <div className="palette-heading">Color's</div>
 
       <div className="theme-colors">
         {THEME_COLORS.slice(0, 2).map((row, rowIndex) => (
