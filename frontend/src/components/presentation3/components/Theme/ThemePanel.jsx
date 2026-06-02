@@ -15,7 +15,6 @@ const ThemePanel = ({ onClose = () => { } }) => {
         });
         // mark that the presentation was loaded from a static theme
         setIsThemePresentation(true);
-        onClose();
     };
 
     return (
