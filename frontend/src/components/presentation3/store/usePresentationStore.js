@@ -324,6 +324,31 @@ const normalizeLayer = (layer, forceNewId = false) => {
     }
   }
 
+  // 6. Charts (defaults)
+  if (normalizedLayer.type === "chart") {
+    if (!normalizedLayer.chartType) normalizedLayer.chartType = "bar";
+    if (!Array.isArray(normalizedLayer.series) || normalizedLayer.series.length === 0) {
+      normalizedLayer.series = [
+        { label: "Q1", value: 30 },
+        { label: "Q2", value: 55 },
+        { label: "Q3", value: 42 },
+        { label: "Q4", value: 68 },
+      ];
+    }
+    if (!Array.isArray(normalizedLayer.colors) || normalizedLayer.colors.length === 0) {
+      normalizedLayer.colors = ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6"];
+    }
+    if (normalizedLayer.gridColor === undefined) normalizedLayer.gridColor = "#cbd5e1";
+    if (normalizedLayer.textColor === undefined) normalizedLayer.textColor = "#334155";
+    if (normalizedLayer.backgroundColor === undefined) normalizedLayer.backgroundColor = "transparent";
+    if (normalizedLayer.borderRadius === undefined) normalizedLayer.borderRadius = 8;
+
+    const safeWidth = Number(normalizedLayer.width);
+    const safeHeight = Number(normalizedLayer.height);
+    normalizedLayer.width = isNaN(safeWidth) || safeWidth < 160 ? 320 : safeWidth;
+    normalizedLayer.height = isNaN(safeHeight) || safeHeight < 120 ? 220 : safeHeight;
+  }
+
   // APPLY AI LIST NORMALIZATION
   if (normalizedLayer.type === "text") {
     normalizedLayer = normalizeAILayer(normalizedLayer);
@@ -1134,6 +1159,60 @@ const usePresentationStore = create((set, get) => {
         slides: slides.map((slide) =>
           slide.id === activeSlideId
             ? { ...slide, layers: [...slide.layers, createShapeLayer(shapeType)] }
+            : slide
+        ),
+      });
+    },
+
+    addChartLayer: (chartType = "bar") => {
+      get().saveToHistory();
+      const { slides, activeSlideId } = get();
+      const newLayer = {
+        id: nanoid(),
+        type: "chart",
+        chartType,
+        x: 220,
+        y: 140,
+        width: 360,
+        height: 240,
+        series: [
+          { label: "Q1", value: 30 },
+          { label: "Q2", value: 55 },
+          { label: "Q3", value: 42 },
+          { label: "Q4", value: 68 },
+        ],
+        colors: ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6"],
+        gridColor: "#cbd5e1",
+        textColor: "#334155",
+        backgroundColor: "transparent",
+        borderRadius: 8,
+        rotation: 0,
+      };
+
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? { ...slide, layers: [...slide.layers, newLayer] }
+            : slide
+        ),
+        selectedLayerId: newLayer.id,
+      });
+    },
+
+    updateChartLayer: (layerId, updates, saveHistory = true) => {
+      if (saveHistory) get().saveToHistory();
+      const { slides, activeSlideId } = get();
+      set({
+        slides: slides.map((slide) =>
+          slide.id === activeSlideId
+            ? {
+              ...slide,
+              layers: slide.layers.map((layer) =>
+                layer.id === layerId && layer.type === "chart"
+                  ? { ...layer, ...updates }
+                  : layer
+              ),
+            }
             : slide
         ),
       });

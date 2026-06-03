@@ -1,6 +1,7 @@
 import React from "react";
 import { SlateStaticRenderer } from "../editors/slate/slateRenderer";
 import ShapeRenderer from "../components/shapes/ShapeRenderer";
+import ChartLayerRenderer from "../components/charts/ChartLayerRenderer";
 import { SLIDE } from "../layout/constants";
 
 const FALLBACK_SLATE = [{ type: "paragraph", children: [{ text: "" }] }];
@@ -207,6 +208,21 @@ const SlidePresenter = ({ slide, scale }) => {
                                     });
                                 })}
                             </div>
+                        </div>
+                    );
+                }
+
+                if (layer.type === "chart") {
+                    return (
+                        <div
+                            key={layer.id}
+                            style={{
+                                ...commonStyle,
+                                overflow: "hidden",
+                                borderRadius: layer.borderRadius || 8,
+                            }}
+                        >
+                            <ChartLayerRenderer layer={layer} />
                         </div>
                     );
                 }

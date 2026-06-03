@@ -156,6 +156,29 @@ export const exportToPPTX = async (slides, title = "Presentation") => {
                         line: { color: (layer.stroke || '#000000').replace('#', ''), width: layer.strokeWidth || 1 },
                         rotate: layer.rotation || 0,
                     });
+                } else if (layer.type === 'chart' && Array.isArray(layer.series) && layer.series.length > 0) {
+                    const labels = layer.series.map((s) => s.label || '');
+                    const values = layer.series.map((s) => Number(s.value) || 0);
+                    const chartType = layer.chartType || 'bar';
+                    const charts = pptx.charts || pptxgen.charts;
+                    let nativeType = charts?.BAR;
+                    if (chartType === 'line') nativeType = charts?.LINE;
+                    if (chartType === 'pie') nativeType = charts?.PIE;
+
+                    if (nativeType) {
+                        slide.addChart(nativeType, [{
+                            name: 'Series 1',
+                            labels,
+                            values,
+                        }], {
+                            x: `${xPct}%`,
+                            y: `${yPct}%`,
+                            w: `${wPct}%`,
+                            h: `${hPct}%`,
+                            showLegend: chartType === 'pie',
+                            showTitle: false,
+                        });
+                    }
                 }
             }
         }
