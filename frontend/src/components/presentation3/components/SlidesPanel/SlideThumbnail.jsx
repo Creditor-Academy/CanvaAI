@@ -3,6 +3,7 @@ import TextLayer from "../../layers/TextLayer";
 import ImageLayer from "../../layers/ImageLayer";
 import TableLayer from "../../layers/TableLayer";
 import ShapeRenderer from "../shapes/ShapeRenderer";
+import ChartLayerRenderer from "../charts/ChartLayerRenderer";
 
 const THUMB_WIDTH = 140;
 const THUMB_HEIGHT = 78.75;
@@ -145,6 +146,27 @@ const SlideThumbnail = ({ slide, isActive, onClick }) => {
                 }}
               >
                 <TableLayer layer={layer} />
+              </div>
+            );
+          }
+
+          if (layer.type === "chart") {
+            return (
+              <div
+                key={layer.id}
+                style={{
+                  position: "absolute",
+                  left: layer.x,
+                  top: layer.y,
+                  width: layer.width,
+                  height: layer.height,
+                  transform: `rotate(${layer.rotation || 0}deg)`,
+                  transformOrigin: "center center",
+                  overflow: "hidden",
+                  borderRadius: layer.borderRadius || 8,
+                }}
+              >
+                <ChartLayerRenderer layer={layer} />
               </div>
             );
           }

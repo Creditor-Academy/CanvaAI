@@ -7,6 +7,7 @@ import useImageUpload from "../../hooks/useImageUpload";
 import { withHybridLoader } from "../../utils/withHybridLoader";
 import { toggleBlock, isBlockActive } from "../../editors/slate/slateBlocks";
 import { Link as LinkIcon, X } from "lucide-react";
+import ChartPropertiesSection from "./ChartPropertiesSection";
 import "./properties-panel.css";
 import {
   AlignStartHorizontal,
@@ -230,6 +231,7 @@ const PropertiesPanel = () => {
   const updateLayerStyle = usePresentationStore(state => state.updateLayerStyle);
   const applyGlobalTextStyle = usePresentationStore(state => state.applyGlobalTextStyle);
   const updateTableCell = usePresentationStore(state => state.updateTableCell);
+  const updateChartLayer = usePresentationStore(state => state.updateChartLayer);
 
   const { user } = useAuth();
   const { uploadFile, isUploading } = useImageUpload();
@@ -608,6 +610,19 @@ const PropertiesPanel = () => {
                   </div>
                 </div>
               </>
+            )}
+
+            {/* ========================= */}
+            {/* CHART PROPERTIES */}
+            {/* ========================= */}
+            {selectedLayer?.type === "chart" && (
+              <ChartPropertiesSection
+                layer={selectedLayer}
+                updateChartLayer={updateChartLayer}
+                saveToHistory={saveToHistory}
+                PaletteColorControl={PaletteColorControl}
+                styles={styles}
+              />
             )}
 
             {/* ========================= */}

@@ -4,6 +4,7 @@ import ShapeLayer from "../../layers/ShapeLayer";
 import TextLayer from "../../layers/TextLayer";
 import ImageLayer from "../../layers/ImageLayer";
 import TableLayer from "../../layers/TableLayer";
+import ChartLayerRenderer from "../charts/ChartLayerRenderer";
 import "./canvas.css";
 import { SLIDE } from "../../layout/constants";
 
@@ -605,6 +606,86 @@ const CanvasShell = () => {
                   }}
                 >
                   <TableLayer layer={layer} selected={selected} />
+                  {selected && (
+                    <>
+                      <div
+                        className="absolute bg-blue-600 cursor-nwse-resize"
+                        style={{
+                          right: -HANDLE_SIZE / 2,
+                          bottom: -HANDLE_SIZE / 2,
+                          width: HANDLE_SIZE,
+                          height: HANDLE_SIZE,
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setResizingId(layer.id);
+                          setStartSize({
+                            w: layer.width,
+                            h: layer.height,
+                          });
+                          setStartPos({
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
+                      />
+                      <div
+                        className="absolute w-[10px] h-[10px] rounded-full bg-white border border-blue-600 cursor-grab z-[100]"
+                        style={{
+                          left: "50%",
+                          top: -24,
+                          marginLeft: -5,
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          saveToHistory();
+                          setRotatingId(layer.id);
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            }
+
+            if (layer.type === "chart") {
+              return (
+                <div
+                  key={layer.id}
+                  ref={(el) => {
+                    if (el) layerRefs.current[layer.id] = el;
+                    else delete layerRefs.current[layer.id];
+                  }}
+                  className="absolute box-border"
+                  style={{
+                    left: layer.x,
+                    top: layer.y,
+                    width: layer.width,
+                    height: layer.height,
+                    border: selected ? "2px solid #2563eb" : "none",
+                    transform: `rotate(${layer.rotation || 0}deg)`,
+                    transformOrigin: "center center",
+                    overflow: "hidden",
+                    borderRadius: layer.borderRadius || 8,
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    saveToHistory();
+                    setSelectedLayer(layer.id);
+                    setDraggingId(layer.id);
+
+                    if (slideRef.current) {
+                      const sr = slideRef.current.getBoundingClientRect();
+                      const sc = sr.width / SLIDE_WIDTH;
+                      setOffset({
+                        x: e.clientX - sr.left - (layer.x || 0) * sc,
+                        y: e.clientY - sr.top - (layer.y || 0) * sc,
+                      });
+                    }
+                  }}
+                >
+                  <ChartLayerRenderer layer={layer} />
                   {selected && (
                     <>
                       <div

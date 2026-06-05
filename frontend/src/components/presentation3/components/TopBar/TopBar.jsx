@@ -28,7 +28,10 @@ import {
   ArrowUp,
   ArrowDown,
   Sparkles,
-  Loader
+  Loader,
+  BarChart3,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import useImageUpload from "../../hooks/useImageUpload";
@@ -48,6 +51,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState, highlightSave, onHighl
     addShapeLayer,
     addImageLayer,
     addTableLayer,
+    addChartLayer,
     canvasZoom,
     setCanvasZoom,
     undo,
@@ -68,6 +72,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState, highlightSave, onHighl
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [showTablePopup, setShowTablePopup] = useState(false);
+  const [showChartPopup, setShowChartPopup] = useState(false);
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [tableRows, setTableRows] = useState(3);
@@ -97,6 +102,7 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState, highlightSave, onHighl
   const imageOptionsRef = useRef(null);
   const downloadRef = useRef(null);
   const tablePopupRef = useRef(null);
+  const chartPopupRef = useRef(null);
   const imageUploadInputRef = useRef(null);
 
   useEffect(() => {
@@ -112,6 +118,9 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState, highlightSave, onHighl
       }
       if (tablePopupRef.current && !tablePopupRef.current.contains(event.target)) {
         setShowTablePopup(false);
+      }
+      if (chartPopupRef.current && !chartPopupRef.current.contains(event.target)) {
+        setShowChartPopup(false);
       }
     };
 
@@ -386,6 +395,47 @@ const TopBar = ({ onPresent, onAgentClick, autoSaveState, highlightSave, onHighl
                     Add Table
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Charts */}
+          <div className="dropdown" ref={chartPopupRef}>
+            <button
+              onClick={() => setShowChartPopup(!showChartPopup)}
+              className="icon-btn"
+              data-tooltip="Add Chart"
+            >
+              <BarChart3 size={20} />
+              <ChevronDown size={14} />
+            </button>
+
+            {showChartPopup && (
+              <div className="dropdown-menu shapes-dropdown">
+                <button
+                  onClick={() => {
+                    addChartLayer("bar");
+                    setShowChartPopup(false);
+                  }}
+                >
+                  <BarChart3 size={16} /> Standard Bar Chart
+                </button>
+                <button
+                  onClick={() => {
+                    addChartLayer("line");
+                    setShowChartPopup(false);
+                  }}
+                >
+                  <LineChartIcon size={16} /> Standard Line Graph
+                </button>
+                <button
+                  onClick={() => {
+                    addChartLayer("pie");
+                    setShowChartPopup(false);
+                  }}
+                >
+                  <PieChartIcon size={16} /> Standard Pie Chart
+                </button>
               </div>
             )}
           </div>

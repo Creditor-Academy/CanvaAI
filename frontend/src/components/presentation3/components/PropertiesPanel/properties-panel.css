@@ -50,6 +50,86 @@
   flex: 1;
 }
 
+.chart-data-section select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.chart-data-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chart-add-row-btn {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.chart-add-row-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.chart-data-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chart-data-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 64px 24px;
+  gap: 6px;
+  align-items: center;
+}
+
+.chart-series-color {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.chart-label-input,
+.chart-value-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.chart-remove-row-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #dc2626;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.chart-remove-row-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Collapse button */
 .properties-collapse-btn {
   position: absolute;
