@@ -45,7 +45,7 @@ const TOOLS = [
   {
     name: "Image",
     icon: FaRegImage,
-    route: "/canva-clone",
+    route: "/dashboard/create-image",
     color: "bg-yellow-400 text-black"
   },
   {
