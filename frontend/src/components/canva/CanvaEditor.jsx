@@ -40,7 +40,6 @@ import {
   SCROLLER_THICKNESS,
   SCROLLER_MARGIN
 } from './state/initialState';
-import { GRADIENTS } from './components/BackgroundColor';
 import { saveImage, updateImage, updateImageVisibility, exportImage, uploadTemporaryImage } from '@/services/imageEditor/imageApi';
 
 const CanvaEditor = () => {
@@ -62,7 +61,7 @@ const CanvaEditor = () => {
   const [hasChosenTemplate, setHasChosenTemplate] = useState(true);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [canvasBgColor, setCanvasBgColor] = useState(projectId ? '#ffffff' : 'linear-gradient(135deg, #00F260 0%, #0575E6 100%)');
+  const [canvasBgColor, setCanvasBgColor] = useState('#ffffff');
   const [canvasBgImage, setCanvasBgImage] = useState(null);
   const [hoveredOption, setHoveredOption] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -278,6 +277,27 @@ const CanvaEditor = () => {
 
   // Determine whether this project was opened via import-prefill (treat as new)
   const [isPrefillImport, setIsPrefillImport] = useState(false);
+  const pendingLayoutFitRef = useRef(null);
+
+  const scheduleFitCanvasToScreen = useCallback((size) => {
+    if (!size?.width || !size?.height) return;
+
+    const tryFit = () => {
+      const pageId = pages[currentPageIndex]?.id || 1;
+      const areaRef = canvasAreaRefs.current[pageId];
+      if (areaRef?.current) {
+        handleFitToScreen(areaRef, size);
+        return true;
+      }
+      return false;
+    };
+
+    if (tryFit()) return;
+    setTimeout(() => {
+      if (!tryFit()) setTimeout(tryFit, 250);
+    }, 80);
+  }, [pages, currentPageIndex, handleFitToScreen]);
+
   useEffect(() => {
     try {
       if (projectId) {
@@ -289,7 +309,11 @@ const CanvaEditor = () => {
         if (newLayout) {
           const parsed = JSON.parse(newLayout);
           if (parsed.width && parsed.height) {
-            setCanvasSize({ width: parsed.width, height: parsed.height });
+            const size = { width: parsed.width, height: parsed.height };
+            pendingLayoutFitRef.current = size;
+            setCanvasSize(size);
+            setCanvasBgColor('#ffffff');
+            setCanvasBgImage(null);
             if (parsed.name) setProjectName(parsed.name);
           }
           sessionStorage.removeItem('new_layout_prefill');
@@ -297,6 +321,14 @@ const CanvaEditor = () => {
       }
     } catch (e) { }
   }, [projectId]);
+
+  // After choosing a layout size, zoom so the full canvas fits in the workspace (not 100%)
+  useEffect(() => {
+    if (projectId || !pendingLayoutFitRef.current) return;
+    const size = pendingLayoutFitRef.current;
+    scheduleFitCanvasToScreen(size);
+    pendingLayoutFitRef.current = null;
+  }, [projectId, canvasSize.width, canvasSize.height, scheduleFitCanvasToScreen]);
 
   // Add default heading when page opens and there are no layers
   const hasInitializedRef = useRef(false);
@@ -1704,7 +1736,7 @@ const CanvaEditor = () => {
     setOpenSections(initialOpenSections);
 
     // Reset background
-    setCanvasBgColor(GRADIENTS[0].value);
+    setCanvasBgColor('#ffffff');
     setCanvasBgImage(null);
 
     // 🔑 Mark as initialized
