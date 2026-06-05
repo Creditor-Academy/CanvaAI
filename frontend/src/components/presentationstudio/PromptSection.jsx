@@ -100,7 +100,7 @@ const TitleInput = ({ prompt, setPrompt }) => (
 const OutlineInput = ({ outlineText, setOutlineText }) => (
   <div className="ps-field-block">
     <div className="ps-field-info-row">
-      <FieldLabel required>Outline</FieldLabel>
+      <FieldLabel>Outline</FieldLabel>
       <span className={`ps-char-counter ${(outlineText?.length || 0) >= 1000 ? 'limit' : ''}`}>
         {outlineText?.length || 0}/1000
       </span>
@@ -229,7 +229,6 @@ const PromptSection = ({
 
   const canGenerate =
     prompt.trim() &&
-    outlineText?.trim() &&
     tone &&
     length &&
     media?.style &&
@@ -237,7 +236,7 @@ const PromptSection = ({
 
   const handleGenerateClick = () => {
     const topic = prompt.trim();
-    if (!topic || !outlineText?.trim() || !tone || !length || !media?.style || !selectedTheme) return;
+    if (!topic || !tone || !length || !media?.style || !selectedTheme) return;
 
     const payload = {
       topic,
