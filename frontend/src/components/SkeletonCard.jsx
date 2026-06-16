@@ -1,14 +1,22 @@
 import React from 'react';
 
-const SkeletonCard = () => {
+/** Static skeleton — no pulse/shimmer animation */
+const SkeletonCard = ({ variant = 'recent' }) => {
+  if (variant === 'template') {
+    return (
+      <div className="aspect-video rounded-2xl bg-[#e7eeff]" aria-hidden />
+    );
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-[210px]">
-      <div className="skeleton h-[140px] w-full" />
-      <div className="p-4 flex justify-between items-center">
-        <div className="flex-1">
-          <div className="skeleton h-4 w-[70%] rounded mb-2" />
-          <div className="skeleton h-3 w-[40%] rounded" />
-        </div>
+    <div
+      className="overflow-hidden rounded-3xl bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)]"
+      aria-hidden
+    >
+      <div className="h-32 bg-[#e7eeff]" />
+      <div className="space-y-2 p-4">
+        <div className="h-4 w-3/4 rounded bg-[#e7eeff]" />
+        <div className="h-3 w-1/2 rounded bg-[#e7eeff]" />
       </div>
     </div>
   );
