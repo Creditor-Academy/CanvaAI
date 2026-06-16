@@ -40,25 +40,25 @@ const TOOLS = [
     name: "PPT",
     icon: HiOutlinePresentationChartLine,
     route: "/dashboard/presentation",
-    color: "bg-gradient-to-br from-[#005ea1] to-[#7c4dff] text-white"
+    color: "bg-blue-600 text-white"
   },
   {
     name: "Image",
     icon: FaRegImage,
     route: "/dashboard/create-image",
-    color: "bg-violet-100 text-violet-900"
+    color: "bg-yellow-400 text-black"
   },
   {
     name: "AI PPT",
     icon: HiOutlinePresentationChartLine,
     route: "/dashboard/ai-presentation",
-    color: "bg-gradient-to-br from-[#005ea1] to-[#7c4dff] text-white"
+    color: "bg-blue-700 text-white"
   },
   {
     name: "AI Image",
     icon: FaRegImage,
     route: "/dashboard/create/ai-design",
-    color: "bg-purple-100 text-purple-900"
+    color: "bg-yellow-300 text-black"
   },
 ];
 
@@ -548,7 +548,7 @@ export default function Dashboard() {
 
 
   return (
-    <div className="min-h-screen">
+    <div className="w-full">
       <div className="relative mx-auto w-full max-w-[1440px]">
         {/* HERO */}
         <motion.div
@@ -628,10 +628,10 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-7 py-4">
             {TOOLS.map((tool, i) => {
               const colors = [
-                "bg-violet-100",
-                "bg-purple-100",
-                "bg-indigo-100",
-                "bg-violet-50",
+                "bg-blue-100",
+                "bg-cyan-100",
+                "bg-blue-200",
+                "bg-yellow-100",
               ];
 
 

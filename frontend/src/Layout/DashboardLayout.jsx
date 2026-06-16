@@ -27,11 +27,11 @@ const DashboardLayout = () => {
     return (
         <DashboardNavbarProvider>
             {/* Outer shell — sidebar gutter */}
-            <div className="flex h-screen overflow-hidden bg-[#e7eeff] font-['Plus_Jakarta_Sans',sans-serif] text-[#121c2c]">
+            <div className="flex h-screen overflow-hidden bg-[#e7eeff] py-2 pr-2 font-['Plus_Jakarta_Sans',sans-serif] text-[#121c2c]">
                 <SideBar />
 
                 {/* Curved main panel */}
-                <div className="relative mt-2 mb-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/70 bg-[#f9f9ff] shadow-[0_8px_32px_rgba(0,94,161,0.06)]">
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/70 bg-[#f9f9ff] shadow-[0_8px_32px_rgba(0,94,161,0.06)]">
                     {/* Soft curved top gradient — mesh palette */}
                     <div
                         className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[320px] rounded-t-2xl"
@@ -47,7 +47,7 @@ const DashboardLayout = () => {
                         <div className="absolute -bottom-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-[#ffb55c]/15 blur-[100px]" />
                     </div>
 
-                    <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    <div className="hide-scrollbar relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto">
                         <Navbar />
 
                         <main className="w-full flex-1 px-4 pb-24 sm:px-6 md:pb-6 lg:px-8 xl:px-10">

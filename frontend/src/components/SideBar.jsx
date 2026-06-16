@@ -70,12 +70,12 @@ const RailItem = ({ active, label, icon, onClick }) => {
       onClick={onClick}
       className={`group flex flex-col items-center justify-center gap-0.5 py-1 px-1.5 rounded-lg
 min-w-[48px] transition-all duration-150
-${active ? 'text-blue-700' : 'text-gray-600 hover:bg-blue-500/10'}`}
+${active ? 'text-[#7c4dff]' : 'text-gray-600 hover:bg-[#7c4dff]/10'}`}
     >
       <div
         className={`flex h-[24px] w-[24px] items-center justify-center rounded-xl backdrop-blur-md transition-all duration-200
 ${active
-            ? 'bg-gradient-to-br from-blue-600/95 to-cyan-500/90 text-white shadow-[0_12px_30px_rgba(37,99,235,0.35),0_0_0_6px_rgba(59,130,246,0.10)]'
+            ? 'bg-gradient-to-br from-[#005ea1] to-[#7c4dff] text-white shadow-[0_12px_30px_rgba(124,77,255,0.35),0_0_0_6px_rgba(124,77,255,0.10)]'
             : 'bg-white/55 text-gray-700 group-hover:bg-white/75 group-hover:shadow-lg'}`}
       >
         {React.cloneElement(icon, { active })}
@@ -128,8 +128,8 @@ const SideBar = () => {
           <button
             onClick={() => setShowCreate(true)}
             className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center
-    bg-gradient-to-br from-blue-600 to-cyan-500 text-white
-    shadow-lg shadow-blue-500/30 active:scale-95 transition"
+    bg-gradient-to-br from-[#005ea1] to-[#7c4dff] hover:from-[#00497e] hover:to-[#6d3fe8] text-white
+    shadow-lg shadow-[#7c4dff]/30 active:scale-95 transition"
           >
             <Plus size={18} />
           </button>
