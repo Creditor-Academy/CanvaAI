@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import SideBar from "../components/SideBar";
 import Navbar from "../components/Navbar";
+import { DashboardNavbarProvider } from "../contexts/DashboardNavbarContext";
 
 const DashboardLayout = () => {
     const location = useLocation();
@@ -11,47 +12,51 @@ const DashboardLayout = () => {
         location.pathname.includes("presentation-editor") ||
         location.pathname.includes("presentation-editor-v3");
 
-    return (
-        <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
-
-            {/* Sidebar */}
-            {!isFullScreenRoute && <SideBar />}
-
-            {/* Main Content Wrapper */}
-            <div className="relative flex flex-1 flex-col bg-white rounded-2xl mt-2 md:mt-2 overflow-hidden shadow-sm border border-slate-200/80 backdrop-blur-md hover:shadow-lg transition-all duration-300 hover:border-slate-200/90">
-
-                {/* Gradient */}
-                <div
-                    className="
-    absolute top-0 left-0 w-full h-[320px]
-    bg-linear-to-b
-    from-[#3be0f6]
-    via-[#98e2ea]
-    via-60%
-    to-white
-    opacity-90
-    z-0
-  "
-                />
-
-                {/* Scrollable Area */}
-                <div className="relative z-10 flex flex-col flex-1 overflow-y-auto">
-
-                    {/* Navbar */}
-                    {!isFullScreenRoute && (
-                        <header className="w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 py-2 shrink-0">
-                            <Navbar />
-                        </header>
-                    )}
-
-                    {/* Page Content */}
-                    <main className="flex-1 w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 py-3 sm:py-4 md:py-6 pb-24 md:pb-6">
+    if (isFullScreenRoute) {
+        return (
+            <DashboardNavbarProvider>
+                <div className="flex h-screen overflow-hidden font-['Plus_Jakarta_Sans',sans-serif] text-[#121c2c]">
+                    <main className="h-full w-full flex-1 overflow-hidden">
                         <Outlet />
                     </main>
+                </div>
+            </DashboardNavbarProvider>
+        );
+    }
 
+    return (
+        <DashboardNavbarProvider>
+            {/* Outer shell — sidebar gutter */}
+            <div className="flex h-screen overflow-hidden bg-[#e7eeff] py-2 pr-2 font-['Plus_Jakarta_Sans',sans-serif] text-[#121c2c]">
+                <SideBar />
+
+                {/* Curved main panel */}
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/70 bg-[#f9f9ff] shadow-[0_8px_32px_rgba(0,94,161,0.06)]">
+                    {/* Soft curved top gradient — mesh palette */}
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[320px] rounded-t-2xl"
+                        style={{
+                            background:
+                                "linear-gradient(180deg, #d0daf0 0%, #e7eeff 38%, #f0f3ff 62%, #f9f9ff 88%, transparent 100%)",
+                        }}
+                    />
+
+                    {/* Ambient glow */}
+                    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-2xl opacity-30">
+                        <div className="absolute -right-[10%] -top-[10%] h-[50%] w-[50%] rounded-full bg-[#005ea1]/20 blur-[120px]" />
+                        <div className="absolute -bottom-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-[#ffb55c]/15 blur-[100px]" />
+                    </div>
+
+                    <div className="hide-scrollbar relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        <Navbar />
+
+                        <main className="w-full flex-1 px-4 pb-24 sm:px-6 md:pb-6 lg:px-8 xl:px-10">
+                            <Outlet />
+                        </main>
+                    </div>
                 </div>
             </div>
-        </div>
+        </DashboardNavbarProvider>
     );
 };
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Globe } from 'lucide-react';
 
 const MEDIA_STYLES = [
   {
@@ -29,31 +30,48 @@ const MEDIA_STYLES = [
 ];
 
 const MediaSelector = ({ value, onChange }) => (
-  <div className="ps-field-block">
-    <label className="ps-field-label">Media</label>
-    <p className="ps-field-help">Media is enabled by default. Choose a style.</p>
-    <div className="ps-media-style-grid">
-      {MEDIA_STYLES.map((style) => (
-        <button
-          key={style.value}
-          type="button"
-          className={`ps-media-style-card ${value === style.value ? 'active' : ''}`}
-          onClick={() => onChange(style.value)}
-          aria-pressed={value === style.value}
-        >
-          <div className="ps-media-style-thumb-wrapper">
-            <img
-              src={style.img}
-              alt={style.label}
-              className="ps-media-style-thumb"
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-            />
-          </div>
-          <span className="ps-media-style-label">{style.label}</span>
-        </button>
-      ))}
+  <div>
+    <div className="mb-4 flex items-center gap-2">
+      <Globe size={18} className="text-[#005ea1]" />
+      <div>
+        <h3 className="text-base font-semibold text-[#121c2c]">Media Style</h3>
+        <p className="text-sm text-[#414751]">
+          Choose a visual style for assets.
+        </p>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+      {MEDIA_STYLES.map((style) => {
+        const active = value === style.value;
+        return (
+          <button
+            key={style.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(style.value)}
+            className={`overflow-hidden rounded-xl border text-left transition ${
+              active
+                ? 'border-[#005ea1] ring-2 ring-[#005ea1]/20'
+                : 'border-[#c0c7d3] hover:border-[#005ea1]/40'
+            }`}
+          >
+            <div className="aspect-[4/3] overflow-hidden bg-[#e7eeff]">
+              <img
+                src={style.img}
+                alt={style.label}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+              />
+            </div>
+            <span className="block px-2 py-2 text-center text-xs font-semibold text-[#121c2c]">
+              {style.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   </div>
 );

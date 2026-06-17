@@ -252,26 +252,26 @@ export default function Dashboard() {
         padding: 2px;
         background: linear-gradient(
           90deg,
-          #a8af1e,
-          #f3f63b,
-          #faf260,
-          #e5e90e,
-          #afaa1e
+          #005ea1,
+          #7c4dff,
+          #9d7aff,
+          #2178c3,
+          #005ea1
         );
         background-size: 300% 300%;
         animation: borderTrace 4s linear infinite;
         box-shadow:
-          0 6px 0 rgba(235, 232, 37, 0.9),
-          0 20px 25px -5px rgba(246, 234, 59, 0.35),
-          0 10px 10px -5px rgba(227, 246, 59, 0.15);
+          0 6px 0 rgba(124, 77, 255, 0.35),
+          0 20px 25px -5px rgba(124, 77, 255, 0.25),
+          0 10px 10px -5px rgba(0, 94, 161, 0.12);
         transition: transform .2s ease, box-shadow .2s ease;
       }
 
       .ai-tool-wrapper:hover {
         transform: translateY(-4px);
         box-shadow:
-          0 20px 25px -5px rgba(230, 246, 59, 0.35),
-          0 10px 10px -5px rgba(246, 221, 59, 0.15);
+          0 20px 25px -5px rgba(124, 77, 255, 0.3),
+          0 10px 10px -5px rgba(0, 94, 161, 0.15);
       }
 
       .ai-tool-inner {
@@ -300,28 +300,22 @@ export default function Dashboard() {
       }
 
       @keyframes viewBtnPulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(10,93,187,0.4); }
-        50%       { box-shadow: 0 0 0 6px rgba(10,93,187,0); }
-      }
-      @keyframes dashSkeletonShimmer {
-        0%   { background-position: -400px 0; }
-        100% { background-position: 400px 0; }
+        0%, 100% { box-shadow: 0 0 0 0 rgba(124,77,255,0.4); }
+        50%       { box-shadow: 0 0 0 6px rgba(124,77,255,0); }
       }
       .dash-skeleton {
         width: 100%;
         height: 100%;
         min-height: 160px;
         border-radius: 16px;
-        background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-        background-size: 800px 100%;
-        animation: dashSkeletonShimmer 1.4s infinite linear;
+        background: #e2e8f0;
       }
       .dash-view-btn {
         padding: 5px 13px;
         border-radius: 8px;
-        border: 1.5px solid #0a5dbb;
+        border: 1.5px solid #7c4dff;
         background: transparent;
-        color: #0a5dbb;
+        color: #005ea1;
         font-size: 0.8rem;
         font-weight: 600;
         cursor: pointer;
@@ -332,15 +326,15 @@ export default function Dashboard() {
         letter-spacing: 0.01em;
       }
       .dash-view-btn:hover {
-        background: linear-gradient(135deg, #0a5dbb 0%, #1d7bff 100%);
+        background: linear-gradient(135deg, #005ea1 0%, #7c4dff 100%);
         border-color: transparent;
         color: #fff;
         transform: translateY(-1px);
-        box-shadow: 0 4px 14px rgba(10,93,187,0.35), 0 1px 4px rgba(10,93,187,0.2);
+        box-shadow: 0 4px 14px rgba(124,77,255,0.35), 0 1px 4px rgba(0,94,161,0.2);
       }
       .dash-view-btn:active {
         transform: translateY(0px) scale(0.97);
-        box-shadow: 0 2px 6px rgba(10,93,187,0.3);
+        box-shadow: 0 2px 6px rgba(124,77,255,0.3);
         animation: viewBtnPulse 0.4s ease-out;
       }
       .custom-scrollbar-thin::-webkit-scrollbar {
@@ -363,8 +357,8 @@ export default function Dashboard() {
         border-radius: 999px;
         padding: 3px;
         gap: 2px;
-        border: 1px solid rgba(99,102,241,0.18);
-        box-shadow: 0 2px 10px rgba(99,102,241,0.1);
+        border: 1px solid rgba(124,77,255,0.18);
+        box-shadow: 0 2px 10px rgba(124,77,255,0.1);
       }
       .dash-tab-btn {
         padding: 5px 14px;
@@ -378,13 +372,13 @@ export default function Dashboard() {
         transition: color 0.18s, background 0.18s, box-shadow 0.18s;
       }
       .dash-tab-btn.active {
-        background: #facc15;
+        background: linear-gradient(135deg, #005ea1 0%, #7c4dff 100%);
         color: #fff;
-        box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+        box-shadow: 0 2px 8px rgba(124,77,255,0.35);
       }
       .dash-tab-btn:not(.active):hover {
-        background: rgba(99,102,241,0.08);
-        color: #312e81;
+        background: rgba(124,77,255,0.1);
+        color: #5b21b6;
       }
       .dash-tpl-card {
         border-radius: 16px;
@@ -393,8 +387,8 @@ export default function Dashboard() {
         transition: border-color 0.18s, box-shadow 0.18s;
       }
       .dash-tpl-inner:hover {
-        border-color: #6366f1;
-        box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+        border-color: #7c4dff;
+        box-shadow: 0 4px 16px rgba(124,77,255,0.15);
       }
     `;
 
@@ -554,16 +548,16 @@ export default function Dashboard() {
 
 
   return (
-    <div className="min-h-screen">
-      <div className="relative">
+    <div className="w-full">
+      <div className="relative mx-auto w-full max-w-[1440px]">
         {/* HERO */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative mt-2 mb-3 py-8 px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-[28px] overflow-hidden"
+          className="relative mt-2 mb-3 flex flex-col gap-6 overflow-hidden rounded-[28px] px-6 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between"
         >
-          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] bg-gradient-to-r from-white via-sky-200 to-white opacity-70 pointer-events-none" />
-          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] border border-sky-200 pointer-events-none" />
+          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] bg-gradient-to-r from-white via-violet-100 to-white opacity-70 pointer-events-none" />
+          <div className="absolute inset-0 rounded-[22px] sm:rounded-[28px] border border-violet-200 pointer-events-none" />
           <div className="absolute top-0 left-0 w-full h-[120px] sm:h-[150px] bg-gradient-to-b from-white to-transparent blur-xl pointer-events-none rounded-t-[22px] sm:rounded-t-[28px]" />
 
           <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 w-full">
@@ -572,14 +566,14 @@ export default function Dashboard() {
               
 
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-sky-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/65 backdrop-blur-md ring-1 ring-violet-200/60 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   Ready to create
                 </div>
 
                 <h1 className="mt-2 text-2xl sm:text-3xl lg:text-[34px] leading-tight font-extrabold text-slate-900 break-words">
                   Welcome,
-                  <span className="ml-2 bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">
+                  <span className="ml-2 bg-gradient-to-r from-[#005ea1] to-[#7c4dff] bg-clip-text text-transparent">
                     {fullName}
                   </span>
                 </h1>
@@ -606,7 +600,7 @@ export default function Dashboard() {
 
               <button
                 onClick={handleRenewPlan}
-                className="w-full sm:w-auto min-w-[120px] px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 text-sm sm:text-[15px] bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl sm:rounded-2xl font-semibold shadow-lg transition-all duration-300 hover:shadow-xl active:scale-[0.98]"
+                className="w-full sm:w-auto min-w-[120px] px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 text-sm sm:text-[15px] bg-gradient-to-br from-[#005ea1] to-[#7c4dff] hover:from-[#00497e] hover:to-[#6d3fe8] text-white rounded-xl sm:rounded-2xl font-semibold shadow-lg shadow-[#7c4dff]/25 transition-all duration-300 hover:shadow-xl active:scale-[0.98]"
               >
                 Renew
               </button>
@@ -617,11 +611,11 @@ export default function Dashboard() {
 
         {/* EXPLORE */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-8 sm:mt-10">
-          <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Explore Tools</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-[#005ea1]">Explore Tools</h2>
 
           <button
             onClick={() => setShowCreate(true)}
-            className="w-full sm:w-auto min-w-[130px] flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black text-sm sm:text-[15px] font-semibold shadow transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
+            className="w-full sm:w-auto min-w-[130px] flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-full bg-gradient-to-br from-[#005ea1] to-[#7c4dff] hover:from-[#00497e] hover:to-[#6d3fe8] text-white text-sm sm:text-[15px] font-semibold shadow-md shadow-[#7c4dff]/25 transition-all duration-300 hover:shadow-lg active:scale-[0.98]"
           >
             <FiPlus className="text-[16px] sm:text-[18px]" />
             Create
@@ -638,8 +632,6 @@ export default function Dashboard() {
                 "bg-cyan-100",
                 "bg-blue-200",
                 "bg-yellow-100",
-                "bg-blue-300",
-                "bg-yellow-200"
               ];
 
 
@@ -719,7 +711,7 @@ export default function Dashboard() {
                   >
                     <div
                       onClick={() => isPPT ? handleViewPPT(tpl) : setSelectedImage(tpl)}
-                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner w-full transition-all duration-300 group-hover:shadow-xl group-hover:border-blue-400 "
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer dash-tpl-inner w-full transition-all duration-300 group-hover:shadow-xl group-hover:border-[#7c4dff]"
                     >
                       {/* Thumbnail */}
                       <div
@@ -761,7 +753,7 @@ export default function Dashboard() {
 
                         {/* Type Badge (Top-Left) */}
                         <div className="absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-2 group-hover:translate-x-0">
-                          <div className="bg-blue-600/90 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border border-blue-400/30">
+                          <div className="bg-[#7c4dff]/90 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border border-violet-400/30">
                             <span className="text-[10px] font-black text-white uppercase tracking-widest">
                               {isPPT ? "PPT" : "Image"}
                             </span>
@@ -799,7 +791,7 @@ export default function Dashboard() {
             <button
               disabled={templatePage >= totalTemplatePages - 1}
               onClick={() => setTemplatePage(p => p + 1)}
-              className="px-4 py-2 rounded-xl flex items-center justify-center gap-2 bg-gradient-to-r from-amber-300 to-amber-400 hover:from-amber-400 hover:to-amber-500 text-slate-900 shadow-sm disabled:opacity-50"
+              className="px-4 py-2 rounded-xl flex items-center justify-center gap-2 bg-gradient-to-br from-[#005ea1] to-[#7c4dff] hover:from-[#00497e] hover:to-[#6d3fe8] text-white shadow-sm disabled:opacity-50"
             >
               Next
               <FiChevronRight />
