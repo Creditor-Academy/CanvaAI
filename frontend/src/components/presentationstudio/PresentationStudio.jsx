@@ -320,12 +320,6 @@ const PresentationStudio = ({ onBack }) => {
     // Step 1: Presentation Studio (Input)
     return (
       <>
-        <Header
-          onBack={() => navigate('/dashboard/presentation')}
-          title="AI Presentation Studio"
-          subtitle="Create stunning presentations with AI in seconds"
-        />
-
         <PromptSection
           prompt={prompt}
           setPrompt={setPrompt}
@@ -342,6 +336,7 @@ const PresentationStudio = ({ onBack }) => {
           handleGenerate={handleGenerateOutline}
           isGenerating={isGenerating}
           generationStep={progress}
+          onBack={() => navigate('/dashboard/presentation')}
         />
 
         {error && (
@@ -363,7 +358,7 @@ const PresentationStudio = ({ onBack }) => {
 
   return (
     <div className="">
-      <div className="presentation-studio-container">
+      <div className={outlineData || finalPresentationData ? 'presentation-studio-container' : ''}>
         {renderCurrentStep()}
 
         {showBalancePopup && (
