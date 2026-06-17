@@ -22,6 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-(h(k^l19+8nz_tnexjvbu9a(e3f^dh_!(a@ux7of+%56j289nh'
 
+# AWS Settings
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
+AWS_REGION = config("AWS_REGION", default="us-east-1")
+AWS_S3_BUCKET = config("AWS_S3_BUCKET", default="")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
